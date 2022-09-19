@@ -58,47 +58,8 @@ pub trait SaffireParametersOperation<T: Clone>: SaffireParametersSerdes<T> {
     fn cache(req: &FwReq, node: &FwNode, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
         let mut raw = vec![0u8; Self::OFFSETS.len() * 4];
 
-        let mut peek_iter = Self::OFFSETS.iter().enumerate().peekable();
-        let mut prev_idx = 0;
-
-        while let Some((curr_idx, curr_offset)) = peek_iter.next() {
-            let begin_idx = prev_idx;
-            let mut next = peek_iter.peek();
-
-            if let Some(&(next_idx, &next_offset)) = next {
-                if curr_offset + 4 != next_offset {
-                    prev_idx = next_idx;
-                    next = None;
-                }
-            }
-
-            if next.is_none() {
-                let end_idx = curr_idx + 1;
-
-                let begin_pos = begin_idx * 4;
-                let end_pos = end_idx * 4;
-                let r = &mut raw[begin_pos..end_pos];
-
-                let tcode = if r.len() == 4 {
-                    FwTcode::ReadQuadletRequest
-                } else {
-                    FwTcode::ReadBlockRequest
-                };
-
-                req.transaction_sync(
-                    node,
-                    tcode,
-                    READ_OFFSET + Self::OFFSETS[begin_idx] as u64,
-                    r.len(),
-                    r,
-                    timeout_ms,
-                )?;
-            }
-        }
-
-        Self::deserialize(params, &raw);
-
-        Ok(())
+        saffire_read_quadlets(req, node, Self::OFFSETS, &mut raw, timeout_ms)
+            .map(|_| Self::deserialize(params, &raw))
     }
 
     /// Update the hardware for the parameters.
@@ -118,6 +79,7 @@ pub trait SaffireParametersOperation<T: Clone>: SaffireParametersSerdes<T> {
         let mut peek_iter = Self::OFFSETS.iter().enumerate().peekable();
         let mut prev_idx = 0;
 
+        // Detect range of continuous offsets, then read.
         while let Some((curr_idx, curr_offset)) = peek_iter.next() {
             let begin_idx = prev_idx;
             let mut next = peek_iter.peek();
@@ -139,14 +101,11 @@ pub trait SaffireParametersOperation<T: Clone>: SaffireParametersSerdes<T> {
                 let o = &mut old[begin_pos..end_pos];
 
                 if n != o {
-                    let mut frame = build_frame_for_write(&Self::OFFSETS[begin_idx..end_idx], n);
-
-                    req.transaction_sync(
+                    saffire_write_quadlets(
+                        req,
                         node,
-                        FwTcode::WriteBlockRequest,
-                        WRITE_OFFSET,
-                        frame.len(),
-                        &mut frame,
+                        &Self::OFFSETS[begin_idx..end_idx],
+                        n,
                         timeout_ms,
                     )?;
                 }
@@ -460,72 +419,53 @@ impl AvcStatus for SaffireAvcOperation {
 const READ_OFFSET: u64 = 0x000100000000;
 const WRITE_OFFSET: u64 = 0x000100010000;
 
-/// Read single quadlet.
-pub fn saffire_read_quadlet(
-    req: &FwReq,
-    node: &FwNode,
-    offset: usize,
-    buf: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    assert_eq!(buf.len(), 4);
-
-    req.transaction_sync(
-        node,
-        FwTcode::ReadQuadletRequest,
-        READ_OFFSET + offset as u64,
-        4,
-        buf,
-        timeout_ms,
-    )
-}
-
 /// Read batch of quadlets.
 pub fn saffire_read_quadlets(
     req: &FwReq,
     node: &FwNode,
     offsets: &[usize],
-    buf: &mut [u8],
+    raw: &mut [u8],
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    assert_eq!(offsets.len() * 4, buf.len());
+    assert_eq!(offsets.len() * 4, raw.len());
 
-    let mut prev_offset = offsets[0];
-    let mut prev_index = 0;
-    let mut count = 1;
-    let mut peekable = offsets.iter().peekable();
+    let mut peek_iter = offsets.iter().enumerate().peekable();
+    let mut prev_idx = 0;
 
-    while let Some(&offset) = peekable.next() {
-        let next_offset = if let Some(&next_offset) = peekable.peek() {
-            if *next_offset == offset + 4 && count < MAXIMUM_OFFSET_COUNT {
-                count += 1;
-                continue;
+    // Detect range of continuous offsets, then read.
+    while let Some((curr_idx, curr_offset)) = peek_iter.next() {
+        let begin_idx = prev_idx;
+        let mut next = peek_iter.peek();
+
+        if let Some(&(next_idx, &next_offset)) = next {
+            if curr_offset + 4 != next_offset {
+                prev_idx = next_idx;
+                next = None;
             }
-            *next_offset
-        } else {
-            // NOTE: Just for safe.
-            offsets[0]
-        };
+        }
 
-        let frame = &mut buf[prev_index..(prev_index + count * 4)];
+        if next.is_none() {
+            let end_idx = curr_idx + 1;
 
-        if count == 1 {
-            saffire_read_quadlet(req, node, prev_offset, frame, timeout_ms)
-        } else {
+            let begin_pos = begin_idx * 4;
+            let end_pos = end_idx * 4;
+            let r = &mut raw[begin_pos..end_pos];
+
+            let tcode = if r.len() == 4 {
+                FwTcode::ReadQuadletRequest
+            } else {
+                FwTcode::ReadBlockRequest
+            };
+
             req.transaction_sync(
                 node,
-                FwTcode::ReadBlockRequest,
-                READ_OFFSET + prev_offset as u64,
-                frame.len(),
-                frame,
+                tcode,
+                READ_OFFSET + offsets[begin_idx] as u64,
+                r.len(),
+                r,
                 timeout_ms,
-            )
+            )?;
         }
-        .map(|_| {
-            prev_index += count * 4;
-            prev_offset = next_offset;
-            count = 1;
-        })?;
     }
 
     Ok(())
@@ -580,15 +520,7 @@ pub fn saffire_write_quadlets(
         return saffire_write_quadlet(req, node, offsets[0], buf, timeout_ms);
     }
 
-    let mut frame = offsets
-        .iter()
-        .enumerate()
-        .fold(Vec::new(), |mut frame, (i, &offset)| {
-            frame.extend_from_slice(&((offset / 4) as u32).to_be_bytes());
-            let pos = i * 4;
-            frame.extend_from_slice(&buf[pos..(pos + 4)]);
-            frame
-        });
+    let mut frame = build_frame_for_write(offsets, buf);
 
     req.transaction_sync(
         node,
