@@ -31,8 +31,17 @@ impl SamplingClkSrcCtlOperation<SaffireClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MeterCtl(Vec<ElemId>, SaffireMeter);
 
-#[derive(Default)]
+#[derive(Debug)]
 struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(
+            Default::default(),
+            SaffireOutputProtocol::create_output_parameters(),
+        )
+    }
+}
 
 impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
@@ -125,7 +134,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.out_ctl
-            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .load_params(card_cntr)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
         self.specific_ctl
@@ -153,6 +162,8 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
 
         self.reverb_ctl
             .load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+
+        SaffireOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -220,7 +231,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
             Ok(true)
         } else if self
             .out_ctl
-            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.specific_ctl.write_params(
@@ -292,7 +303,8 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireModel {
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
-        self.out_ctl.measure_params(unit, &self.req, TIMEOUT_MS)?;
+        self.out_ctl
+            .measure_params(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -697,20 +709,6 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
-        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
-    }
-
-    #[test]
-    fn test_output_params_definition() {
-        let mut card_cntr = CardCntr::default();
-        let mut ctl = OutputCtl::default();
-        let unit = SndUnit::default();
-        let node = FwNode::default();
-        let req = FwReq::default();
-
-        let error = ctl
-            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
-            .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

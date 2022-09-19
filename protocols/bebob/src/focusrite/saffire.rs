@@ -639,8 +639,6 @@ impl SaffireStoreConfigSpecification for SaffireStoreConfigProtocol {
     const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x148];
 }
 
-impl SaffireStoreConfigOperation for SaffireStoreConfigProtocol {}
-
 /// Information of hardware metering in Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeMeter {
@@ -1472,8 +1470,6 @@ pub struct SaffireLeStoreConfigProtocol;
 impl SaffireStoreConfigSpecification for SaffireLeStoreConfigProtocol {
     const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x1b8];
 }
-
-impl SaffireStoreConfigOperation for SaffireLeStoreConfigProtocol {}
 
 /// State of signal multiplexer in Saffire.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]

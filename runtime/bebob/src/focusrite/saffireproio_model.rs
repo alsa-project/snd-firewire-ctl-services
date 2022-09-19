@@ -70,8 +70,17 @@ where
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct OutputCtl(SaffireOutputParameters, Vec<ElemId>);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(
+            SaffireProioOutputProtocol::create_output_parameters(),
+            Default::default(),
+        )
+    }
+}
 
 impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
@@ -91,9 +100,17 @@ impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
 }
 
 #[derive(Default, Debug)]
-struct ThroughCtl;
+struct ThroughCtl(SaffireThroughParameters);
 
-impl SaffireThroughCtlOperation<SaffireProioThroughProtocol> for ThroughCtl {}
+impl SaffireThroughCtlOperation<SaffireProioThroughProtocol> for ThroughCtl {
+    fn state(&self) -> &SaffireThroughParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireThroughParameters {
+        &mut self.0
+    }
+}
 
 #[derive(Default, Debug)]
 struct MonitorCtl<O>(SaffireProioMonitorParameters, PhantomData<O>)
@@ -158,7 +175,7 @@ where
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.out_ctl
-            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .load_params(card_cntr)
             .map(|mut elem_id_list| self.out_ctl.1.append(&mut elem_id_list))?;
 
         self.through_ctl.load_params(card_cntr)?;
@@ -171,6 +188,14 @@ where
 
         self.specific_ctl
             .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
+        SaffireProioOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.0, TIMEOUT_MS)?;
+        SaffireProioThroughProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.through_ctl.0,
+            TIMEOUT_MS,
+        )?;
 
         Ok(())
     }
@@ -195,10 +220,7 @@ where
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .through_ctl
-            .read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.through_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
@@ -230,12 +252,12 @@ where
             Ok(true)
         } else if self
             .out_ctl
-            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .through_ctl
-            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -307,25 +329,5 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         self.meter_ctl.read_state(elem_id, elem_value)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use alsactl::CardError;
-
-    #[test]
-    fn test_output_params_definition() {
-        let mut card_cntr = CardCntr::default();
-        let mut ctl = OutputCtl::default();
-        let unit = SndUnit::default();
-        let node = FwNode::default();
-        let req = FwReq::default();
-
-        let error = ctl
-            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
-            .unwrap_err();
-        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

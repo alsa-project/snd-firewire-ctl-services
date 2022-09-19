@@ -1243,8 +1243,6 @@ impl SaffireStoreConfigSpecification for SaffireProioStoreConfigProtocol {
     const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x1b0];
 }
 
-impl SaffireStoreConfigOperation for SaffireProioStoreConfigProtocol {}
-
 #[cfg(test)]
 mod test {
     use super::*;
