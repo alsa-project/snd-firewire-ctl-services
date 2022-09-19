@@ -123,10 +123,15 @@ impl<O: SaffireParametersSerdes<T>, T: Clone> SaffireParametersOperation<T> for 
 /// The structure for output parameters.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaffireOutputParameters {
+    /// Mute the output or not.
     pub mutes: Vec<bool>,
+    /// The volume of outputs.
     pub vols: Vec<u8>,
+    /// Enable hardware control for the output.
     pub hwctls: Vec<bool>,
+    /// Dim the output or not.
     pub dims: Vec<bool>,
+    /// Pad the output or not.
     pub pads: Vec<bool>,
 }
 
@@ -251,8 +256,11 @@ impl<O: SaffireOutputSpecification> SaffireParametersSerdes<SaffireOutputParamet
 /// hwctl after finishing write transaction to change it. Use parse_hwctl argument to suppress
 /// parsing the flag.
 pub trait SaffireOutputOperation: SaffireOutputSpecification {
+    /// The maximum value of signal level.
     const LEVEL_MIN: u8 = 0x00;
+    /// The minimum value of signal level.
     const LEVEL_MAX: u8 = 0xff;
+    /// The step value of signal level.
     const LEVEL_STEP: u8 = 0x01;
 
     fn create_output_parameters() -> SaffireOutputParameters {
@@ -271,7 +279,9 @@ impl<O: SaffireOutputSpecification> SaffireOutputOperation for O {}
 /// The structure for signal through parameters.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SaffireThroughParameters {
+    /// For MIDI inputs.
     pub midi: bool,
+    /// For AC3 inputs.
     pub ac3: bool,
 }
 
