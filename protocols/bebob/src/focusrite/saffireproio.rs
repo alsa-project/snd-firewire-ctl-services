@@ -419,7 +419,7 @@ pub trait SaffireProioMeterOperation {
 }
 
 /// The parameters of input monitor in Saffire Pro i/o.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireProioMonitorParameters {
     pub analog_inputs: [[i16; 8]; 2],
     pub spdif_inputs: [[i16; 2]; 2],
@@ -489,6 +489,91 @@ pub trait SaffireProioMonitorSpecification {
         0xc8, // level from adat-input-b-7 to monitor-output-0
         0xcc, // level from adat-input-b-7 to monitor-output-1
     ];
+}
+
+impl<O: SaffireProioMonitorSpecification> SaffireParametersSerdes<SaffireProioMonitorParameters>
+    for O
+{
+    const OFFSETS: &'static [usize] = Self::MONITOR_OFFSETS;
+
+    fn serialize(params: &SaffireProioMonitorParameters, raw: &mut [u8]) {
+        params
+            .analog_inputs
+            .iter()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains.iter().enumerate().for_each(|(j, &gain)| {
+                    let pos = (i + j * 2) * 4;
+                    let gain = gain as i32;
+                    raw[pos..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
+                });
+            });
+
+        params
+            .spdif_inputs
+            .iter()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains.iter().enumerate().for_each(|(j, &gain)| {
+                    let pos = (16 + i + j * 2) * 4;
+                    let gain = gain as i32;
+                    raw[pos..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
+                });
+            });
+
+        if let Some(adat_inputs) = &params.adat_inputs {
+            adat_inputs.iter().enumerate().for_each(|(i, gains)| {
+                gains.iter().enumerate().for_each(|(j, &gain)| {
+                    let pos = (20 + i + j * 2) * 4;
+                    let gain = gain as i32;
+                    raw[pos..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
+                });
+            });
+        }
+    }
+
+    fn deserialize(params: &mut SaffireProioMonitorParameters, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+
+        let quads: Vec<i16> = (0..raw.len())
+            .step_by(4)
+            .map(|pos| {
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                i32::from_be_bytes(quadlet) as i16
+            })
+            .collect();
+
+        params
+            .analog_inputs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains.iter_mut().enumerate().for_each(|(j, gain)| {
+                    let pos = i + j * 2;
+                    *gain = quads[pos];
+                });
+            });
+
+        params
+            .spdif_inputs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains.iter_mut().enumerate().for_each(|(j, gain)| {
+                    let pos = 16 + i + j * 2;
+                    *gain = quads[pos];
+                });
+            });
+
+        if let Some(adat_inputs) = &mut params.adat_inputs {
+            adat_inputs.iter_mut().enumerate().for_each(|(i, gains)| {
+                gains.iter_mut().enumerate().for_each(|(j, gain)| {
+                    let pos = 20 + i + j * 2;
+                    *gain = quads[pos];
+                });
+            });
+        }
+    }
 }
 
 /// The trait for input monitor protocol in Saffire Pro i/o.
@@ -671,55 +756,130 @@ where
 }
 
 /// The parameters of signal multiplexer in Saffire Pro i/o.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireProioMixerParameters {
     pub monitor_sources: [i16; 10],
     pub stream_source_pair0: [i16; 10],
     pub stream_sources: [i16; 10],
 }
 
-const MIXER_OFFSETS: [usize; 28] = [
-    // level to analog-output-0
-    0x0d0, // from stream-input-0
-    0x0d4, // from monitor-output-0
-    // level to analog-output-1
-    0x0d8, // from stream-input-1
-    0x0dc, // from monitor-output-1
-    // level to analog-out-2
-    0x0e0, // from stream-input-0
-    0x0e4, // from stream-input-2
-    0x0e8, // from monitor-output-0
-    // level to analog-out-3
-    0x0ec, // from stream-input-1
-    0x0f0, // from stream-input-3
-    0x0f4, // from monitor-output-1
-    // level to analog-out-4
-    0x0f8, // from stream-input-0
-    0x0fc, // from stream-input-4
-    0x100, // from monitor-output-0
-    // level to analog-out-5
-    0x104, // from stream-input-1
-    0x108, // from stream-input-5
-    0x10c, // from monitor-output-1
-    // level to analog-out-6
-    0x110, // from stream-input-0
-    0x114, // from stream-input-6
-    0x118, // from monitor-output-0
-    // level to analog-out-7
-    0x11c, // from stream-input-1
-    0x120, // from stream-input-7
-    0x124, // from monitor-output-1
-    // level to analog-out-8
-    0x128, // from stream-input-0
-    0x12c, // from stream-input-8
-    0x130, // from monitor-output-0
-    // level to analog-out-9
-    0x134, // from stream-input-1
-    0x138, // from stream-input-9
-    0x13c, // from monitor-output-1
-];
+impl SaffireParametersSerdes<SaffireProioMixerParameters> for SaffireProioMixerProtocol {
+    const OFFSETS: &'static [usize] = &Self::MIXER_OFFSETS;
+
+    fn serialize(params: &SaffireProioMixerParameters, raw: &mut [u8]) {
+        params
+            .monitor_sources
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let pos = calc_monitor_source_pos(i) * 4;
+                let level = level as i32;
+                raw[pos..(pos + 4)].copy_from_slice(&level.to_be_bytes());
+            });
+
+        params
+            .stream_source_pair0
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let pos = calc_stream_source_pair0_pos(i) * 4;
+                let level = level as i32;
+                raw[pos..(pos + 4)].copy_from_slice(&level.to_be_bytes());
+            });
+
+        params
+            .stream_sources
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let pos = calc_stream_source_pos(i) * 4;
+                let level = level as i32;
+                raw[pos..(pos + 4)].copy_from_slice(&level.to_be_bytes());
+            });
+    }
+
+    fn deserialize(params: &mut SaffireProioMixerParameters, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+
+        let quads: Vec<i16> = (0..raw.len())
+            .step_by(4)
+            .map(|pos| {
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                i32::from_be_bytes(quadlet) as i16
+            })
+            .collect();
+
+        params
+            .monitor_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = calc_monitor_source_pos(i);
+                *level = quads[pos];
+            });
+
+        params
+            .stream_source_pair0
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = calc_stream_source_pair0_pos(i);
+                *level = quads[pos];
+            });
+
+        params
+            .stream_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = calc_stream_source_pos(i);
+                *level = quads[pos];
+            });
+    }
+}
 
 impl SaffireProioMixerProtocol {
+    const MIXER_OFFSETS: [usize; 28] = [
+        // level to analog-output-0
+        0x0d0, // from stream-input-0
+        0x0d4, // from monitor-output-0
+        // level to analog-output-1
+        0x0d8, // from stream-input-1
+        0x0dc, // from monitor-output-1
+        // level to analog-out-2
+        0x0e0, // from stream-input-0
+        0x0e4, // from stream-input-2
+        0x0e8, // from monitor-output-0
+        // level to analog-out-3
+        0x0ec, // from stream-input-1
+        0x0f0, // from stream-input-3
+        0x0f4, // from monitor-output-1
+        // level to analog-out-4
+        0x0f8, // from stream-input-0
+        0x0fc, // from stream-input-4
+        0x100, // from monitor-output-0
+        // level to analog-out-5
+        0x104, // from stream-input-1
+        0x108, // from stream-input-5
+        0x10c, // from monitor-output-1
+        // level to analog-out-6
+        0x110, // from stream-input-0
+        0x114, // from stream-input-6
+        0x118, // from monitor-output-0
+        // level to analog-out-7
+        0x11c, // from stream-input-1
+        0x120, // from stream-input-7
+        0x124, // from monitor-output-1
+        // level to analog-out-8
+        0x128, // from stream-input-0
+        0x12c, // from stream-input-8
+        0x130, // from monitor-output-0
+        // level to analog-out-9
+        0x134, // from stream-input-1
+        0x138, // from stream-input-9
+        0x13c, // from monitor-output-1
+    ];
+
     pub const LEVEL_MIN: i16 = 0;
     pub const LEVEL_MAX: i16 = 0x7fff;
     pub const LEVEL_STEP: i16 = 0x100;
@@ -730,11 +890,11 @@ impl SaffireProioMixerProtocol {
         params: &mut SaffireProioMixerParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; MIXER_OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &MIXER_OFFSETS, &mut buf, timeout_ms)?;
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms)?;
 
         let mut quadlet = [0; 4];
-        let vals = (0..MIXER_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+        let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
             let pos = i * 4;
             quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
             vals.push(u32::from_be_bytes(quadlet) as i16);
@@ -833,7 +993,7 @@ where
         .fold(
             (Vec::new(), Vec::new()),
             |(mut offsets, mut buf), (i, (_, &value))| {
-                offsets.push(MIXER_OFFSETS[calc_pos(i)]);
+                offsets.push(SaffireProioMixerProtocol::OFFSETS[calc_pos(i)]);
                 buf.extend_from_slice(&(value as i32).to_be_bytes());
                 (offsets, buf)
             },
@@ -880,7 +1040,7 @@ impl Default for SaffireProioStandaloneMode {
 }
 
 /// Parameters specific to Saffire Pro i/o series.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SaffireProioSpecificParameters {
     pub head_room: bool,
 
@@ -926,6 +1086,78 @@ pub trait SaffireProioSpecificSpecification {
     const INSERT_SWAP_COUNT: usize;
 }
 
+// MEMO: The write transaction to enable/disable ADAT inputs/outputs generates bus reset.
+impl<O: SaffireProioSpecificSpecification> SaffireParametersSerdes<SaffireProioSpecificParameters>
+    for O
+{
+    const OFFSETS: &'static [usize] = Self::SPECIFIC_OFFSETS;
+
+    fn serialize(params: &SaffireProioSpecificParameters, raw: &mut [u8]) {
+        raw[..4].copy_from_slice(&(params.head_room as u32).to_be_bytes());
+
+        params
+            .phantom_powerings
+            .iter()
+            .rev()
+            .enumerate()
+            .for_each(|(i, &enabled)| {
+                let pos = 4 + i * 4;
+                raw[pos..(pos + 4)].copy_from_slice(&(enabled as u32).to_be_bytes());
+            });
+
+        params
+            .insert_swaps
+            .iter()
+            .enumerate()
+            .for_each(|(i, &enabled)| {
+                let pos = 12 + i * 4;
+                raw[pos..(pos + 4)].copy_from_slice(&(enabled as u32).to_be_bytes());
+            });
+
+        let val = (params.standalone_mode == SaffireProioStandaloneMode::Track) as u32;
+        raw[20..24].copy_from_slice(&val.to_be_bytes());
+
+        raw[24..28].copy_from_slice(&(!params.adat_enabled as u32).to_be_bytes());
+        raw[28..32].copy_from_slice(&(params.direct_monitoring as u32).to_be_bytes());
+    }
+
+    fn deserialize(params: &mut SaffireProioSpecificParameters, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+
+        let quads: Vec<i16> = (0..raw.len())
+            .step_by(4)
+            .map(|pos| {
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                i32::from_be_bytes(quadlet) as i16
+            })
+            .collect();
+
+        params.head_room = quads[0] > 0;
+
+        params
+            .phantom_powerings
+            .iter_mut()
+            .rev()
+            .enumerate()
+            .for_each(|(i, enabled)| *enabled = quads[1 + i] > 0);
+
+        params
+            .insert_swaps
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, enabled)| *enabled = quads[3 + i] > 0);
+
+        params.standalone_mode = if quads[5] > 0 {
+            SaffireProioStandaloneMode::Track
+        } else {
+            SaffireProioStandaloneMode::Mix
+        };
+
+        params.adat_enabled = quads[6] == 0;
+        params.direct_monitoring = quads[7] > 0;
+    }
+}
+
 /// The protocol implementation for functions specific to Saffire Pro i/o series. The change
 /// operation to enable/disable ADAT corresponds to bus reset.
 pub trait SaffireProioSpecificOperation: SaffireProioSpecificSpecification {
@@ -946,20 +1178,10 @@ pub trait SaffireProioSpecificOperation: SaffireProioSpecificSpecification {
         params: &mut SaffireProioSpecificParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let offsets = [
-            HEAD_ROOM_OFFSET,
-            PHANTOM_POWERING4567_OFFSET,
-            PHANTOM_POWERING0123_OFFSET,
-            INSERT_SWAP_0_OFFSET,
-            INSERT_SWAP_1_OFFSET,
-            STANDALONE_MODE_OFFSET,
-            ADAT_DISABLE_OFFSET,
-            DIRECT_MONITORING_OFFSET,
-        ];
-        let mut buf = vec![0; offsets.len() * 4];
-        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+        let mut buf = vec![0; Self::SPECIFIC_OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, Self::SPECIFIC_OFFSETS, &mut buf, timeout_ms).map(|_| {
             let mut quadlet = [0; 4];
-            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+            let vals = (0..Self::SPECIFIC_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
                 let pos = i * 4;
                 quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
                 vals.push(u32::from_be_bytes(quadlet));
@@ -1121,6 +1343,153 @@ impl SaffireStoreConfigOperation for SaffireProioStoreConfigProtocol {}
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn saffireproio_output_protocol_serdes() {
+        let mut params = SaffireProioOutputProtocol::create_output_parameters();
+
+        params
+            .mutes
+            .iter_mut()
+            .step_by(2)
+            .for_each(|mute| *mute = true);
+
+        params
+            .vols
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, vol)| *vol = i as u8);
+
+        params
+            .hwctls
+            .iter_mut()
+            .step_by(2)
+            .for_each(|hwctl| *hwctl = true);
+
+        params
+            .dims
+            .iter_mut()
+            .step_by(2)
+            .for_each(|dim| *dim = true);
+
+        params
+            .pads
+            .iter_mut()
+            .step_by(2)
+            .for_each(|pad| *pad = true);
+
+        let mut raw = vec![0u8; SaffireProioOutputProtocol::OFFSETS.len() * 4];
+        SaffireProioOutputProtocol::serialize(&params, &mut raw);
+        let mut p = SaffireProioOutputProtocol::create_output_parameters();
+        SaffireProioOutputProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn saffirepro10io_monitor_protocol_serdes() {
+        let params = SaffireProioMonitorParameters {
+            analog_inputs: [
+                [45, 89, -17, -90, -28, 95, 32, -51],
+                [-2, -43, -34, 69, 27, 14, 37, 10],
+            ],
+            spdif_inputs: [[84, 46], [42, -20]],
+            adat_inputs: None,
+        };
+        let mut raw = vec![0u8; SaffirePro10ioMonitorProtocol::OFFSETS.len() * 4];
+        SaffirePro10ioMonitorProtocol::serialize(&params, &mut raw);
+        let mut p = SaffirePro10ioMonitorProtocol::create_params();
+        SaffirePro10ioMonitorProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn saffirepro26io_monitor_protocol_serdes() {
+        let params = SaffireProioMonitorParameters {
+            analog_inputs: [
+                [45, 89, -17, -90, -28, 95, 32, -51],
+                [-2, -43, -34, 69, 27, 14, 37, 10],
+            ],
+            spdif_inputs: [[84, 46], [42, -20]],
+            adat_inputs: Some([
+                [
+                    38, 9, 20, 4, -9, 82, -41, -14, 88, -18, 58, 1, -98, -26, 54, 21,
+                ],
+                [
+                    58, 66, 42, -36, -50, 36, 50, -77, -99, -49, 52, -78, -51, -80, -40, 94,
+                ],
+            ]),
+        };
+        let mut raw = vec![0u8; SaffirePro26ioMonitorProtocol::OFFSETS.len() * 4];
+        SaffirePro26ioMonitorProtocol::serialize(&params, &mut raw);
+        let mut p = SaffirePro26ioMonitorProtocol::create_params();
+        SaffirePro26ioMonitorProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn saffirepro10io_specific_protocol_serdes() {
+        let mut params = SaffirePro10ioSpecificProtocol::create_params();
+        params.standalone_mode = SaffireProioStandaloneMode::Track;
+        params.adat_enabled = true;
+        params.direct_monitoring = true;
+        let mut raw = vec![0u8; SaffirePro10ioSpecificProtocol::OFFSETS.len() * 4];
+        SaffirePro10ioSpecificProtocol::serialize(&params, &mut raw);
+        let mut p = SaffirePro10ioSpecificProtocol::create_params();
+        SaffirePro10ioSpecificProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn saffirepro26io_specific_protocol_serdes() {
+        let mut params = SaffirePro26ioSpecificProtocol::create_params();
+        params.phantom_powerings[0] = true;
+        params.phantom_powerings[1] = false;
+        params.insert_swaps[0] = false;
+        params.insert_swaps[1] = true;
+        params.standalone_mode = SaffireProioStandaloneMode::Track;
+        params.adat_enabled = true;
+        params.direct_monitoring = true;
+        let mut raw = vec![0u8; SaffirePro26ioSpecificProtocol::OFFSETS.len() * 4];
+        SaffirePro26ioSpecificProtocol::serialize(&params, &mut raw);
+        let mut p = SaffirePro26ioSpecificProtocol::create_params();
+        SaffirePro26ioSpecificProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    #[should_panic(expected = "expected to fail")]
+    fn saffireproio_mixer_protocol_serdes() {
+        let params = SaffireProioMixerParameters {
+            monitor_sources: [-6, 25, 32, 76, 91, 57, -21, 88, 9, -87],
+            stream_source_pair0: [84, -65, 59, 2, -21, 96, 40, 67, 72, 30],
+            stream_sources: [-78, -75, -58, 86, 16, 59, 41, 88, 57, 24],
+        };
+        let mut raw = vec![0u8; SaffireProioMixerProtocol::OFFSETS.len() * 4];
+        SaffireProioMixerProtocol::serialize(&params, &mut raw);
+        let mut p = SaffireProioMixerParameters::default();
+        SaffireProioMixerProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p, "expected to fail");
+    }
+
+    #[test]
+    fn saffireproio_through_protocol_serdes() {
+        let params = SaffireThroughParameters {
+            midi: true,
+            ac3: true,
+        };
+        let mut raw = vec![0u8; SaffireProioThroughProtocol::OFFSETS.len() * 4];
+        SaffireProioThroughProtocol::serialize(&params, &mut raw);
+        let mut p = SaffireThroughParameters::default();
+        SaffireProioThroughProtocol::deserialize(&mut p, &raw);
+
+        assert_eq!(params, p);
+    }
 
     #[test]
     fn test_mixer_offset_helpers() {
