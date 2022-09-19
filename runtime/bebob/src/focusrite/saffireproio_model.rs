@@ -178,6 +178,32 @@ where
     }
 }
 
+impl<C, M, O, S> SaffireProIoModel<C, M, O, S>
+where
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
+    M: SaffireProioMeterOperation,
+    O: SaffireProioMonitorProtocol,
+    S: SaffireProioSpecificOperation,
+{
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
+        C::cache(&self.req, &unit.1, &mut self.clk_ctl.1, TIMEOUT_MS)?;
+        M::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
+        SaffireProioOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.0, TIMEOUT_MS)?;
+        SaffireProioThroughProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.through_ctl.0,
+            TIMEOUT_MS,
+        )?;
+        O::cache(&self.req, &unit.1, &mut self.monitor_ctl.0, TIMEOUT_MS)?;
+        SaffireProioMixerProtocol::cache(&self.req, &unit.1, &mut self.mixer_ctl.0, TIMEOUT_MS)?;
+        S::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl<C, M, O, S> CtlModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
 where
     C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
@@ -216,21 +242,7 @@ where
 
         self.specific_ctl.load_params(card_cntr)?;
 
-        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
-        C::cache(&self.req, &unit.1, &mut self.clk_ctl.1, TIMEOUT_MS)?;
-        M::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
-        SaffireProioOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.0, TIMEOUT_MS)?;
-        SaffireProioThroughProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.through_ctl.0,
-            TIMEOUT_MS,
-        )?;
-        O::cache(&self.req, &unit.1, &mut self.monitor_ctl.0, TIMEOUT_MS)?;
-        SaffireProioMixerProtocol::cache(&self.req, &unit.1, &mut self.mixer_ctl.0, TIMEOUT_MS)?;
-        S::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
-
-        Ok(())
+        self.cache(unit)
     }
 
     fn read(

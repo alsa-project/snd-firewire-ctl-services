@@ -123,6 +123,29 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
 #[derive(Default, Debug)]
 struct ReverbCtl(SaffireReverbParameters);
 
+impl SaffireModel {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        SaffireMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
+        SaffireOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
+        SaffireSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
+        SaffireSeparatedMixerProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.separated_mixer_ctl.1,
+            TIMEOUT_MS,
+        )?;
+        SaffirePairedMixerProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.paired_mixer_ctl.1,
+            TIMEOUT_MS,
+        )?;
+        SaffireReverbProtocol::cache(&self.req, &unit.1, &mut self.reverb_ctl.0, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
     fn load(
         &mut self,
@@ -159,24 +182,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
 
         self.reverb_ctl.load_params(card_cntr)?;
 
-        SaffireMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
-        SaffireOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
-        SaffireSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
-        SaffireSeparatedMixerProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.separated_mixer_ctl.1,
-            TIMEOUT_MS,
-        )?;
-        SaffirePairedMixerProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.paired_mixer_ctl.1,
-            TIMEOUT_MS,
-        )?;
-        SaffireReverbProtocol::cache(&self.req, &unit.1, &mut self.reverb_ctl.0, TIMEOUT_MS)?;
-
-        Ok(())
+        self.cache(unit)
     }
 
     fn read(
