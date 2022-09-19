@@ -19,7 +19,7 @@ pub type SaffirePro26ioModel = SaffireProIoModel<
 #[derive(Default, Debug)]
 pub struct SaffireProIoModel<C, M, O, S>
 where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
     M: SaffireProioMeterOperation,
     O: SaffireProioMonitorProtocol,
     S: SaffireProioSpecificOperation,
@@ -38,18 +38,39 @@ where
 const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default, Debug)]
-struct ClkCtl<C>(Vec<ElemId>, PhantomData<C>)
+struct ClkCtl<C>(
+    MediaClockParameters,
+    SamplingClockParameters,
+    Vec<ElemId>,
+    PhantomData<C>,
+)
 where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation;
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification;
 
-impl<C> SaffireProMediaClkFreqCtlOperation<C> for ClkCtl<C> where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation
+impl<C> SaffireProMediaClkFreqCtlOperation<C> for ClkCtl<C>
+where
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
 {
+    fn state(&self) -> &MediaClockParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.0
+    }
 }
 
-impl<C> SaffireProSamplingClkSrcCtlOperation<C> for ClkCtl<C> where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation
+impl<C> SaffireProSamplingClkSrcCtlOperation<C> for ClkCtl<C>
+where
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
 {
+    fn state(&self) -> &SamplingClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Default, Debug)]
@@ -159,7 +180,7 @@ where
 
 impl<C, M, O, S> CtlModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
 where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
     M: SaffireProioMeterOperation,
     O: SaffireProioMonitorProtocol,
     S: SaffireProioSpecificOperation,
@@ -173,11 +194,11 @@ where
 
         self.clk_ctl
             .load_freq(card_cntr)
-            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.clk_ctl.2.append(&mut elem_id_list))?;
 
         self.clk_ctl
             .load_src(card_cntr)
-            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.clk_ctl.2.append(&mut elem_id_list))?;
 
         self.meter_ctl
             .load_state(card_cntr)
@@ -195,6 +216,8 @@ where
 
         self.specific_ctl.load_params(card_cntr)?;
 
+        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
+        C::cache(&self.req, &unit.1, &mut self.clk_ctl.1, TIMEOUT_MS)?;
         M::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
         SaffireProioOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.0, TIMEOUT_MS)?;
         SaffireProioThroughProtocol::cache(
@@ -212,19 +235,13 @@ where
 
     fn read(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .read_src(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
@@ -293,13 +310,13 @@ where
 
 impl<C, M, O, S> NotifyModel<(SndUnit, FwNode), bool> for SaffireProIoModel<C, M, O, S>
 where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
     M: SaffireProioMeterOperation,
     O: SaffireProioMonitorProtocol,
     S: SaffireProioSpecificOperation,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.clk_ctl.0);
+        elem_id_list.extend_from_slice(&self.clk_ctl.2);
     }
 
     fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
@@ -312,14 +329,14 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)
+        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 
 impl<C, M, O, S> MeasureModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
 where
-    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
     M: SaffireProioMeterOperation,
     O: SaffireProioMonitorProtocol,
     S: SaffireProioSpecificOperation,
@@ -342,7 +359,10 @@ where
     }
 }
 
-trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOperation> {
+trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockSpecification> {
+    fn state(&self) -> &MediaClockParameters;
+    fn state_mut(&mut self) -> &mut MediaClockParameters;
+
     fn load_freq(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let labels: Vec<String> = T::FREQ_LIST.iter().map(|&r| r.to_string()).collect();
 
@@ -350,25 +370,18 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn read_freq(
-        &self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read_freq(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_freq(req, &unit.1, timeout_ms).map(|idx| idx as u32)
-            })
-            .map(|_| true),
+            CLK_RATE_NAME => {
+                elem_value.set_enum(&[self.state().freq_idx as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_freq(
-        &self,
+        &mut self,
         unit: &mut (SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
@@ -378,10 +391,10 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 unit.0.lock()?;
-                let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    T::write_clk_freq(req, &unit.1, val as usize, timeout_ms)
-                })
-                .map(|_| true);
+                let mut params = self.state().clone();
+                params.freq_idx = elem_value.enumerated()[0] as usize;
+                let res =
+                    T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.0.unlock();
                 res
             }
@@ -400,7 +413,10 @@ fn sampling_clk_src_to_str(src: &SaffireProioSamplingClockSource) -> &str {
     }
 }
 
-trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOperation> {
+trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSpecification> {
+    fn state(&self) -> &SamplingClockParameters;
+    fn state_mut(&mut self) -> &mut SamplingClockParameters;
+
     fn load_src(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut elem_id_list = Vec::new();
 
@@ -416,25 +432,18 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
         Ok(elem_id_list)
     }
 
-    fn read_src(
-        &self,
-        unit: &mut (SndUnit, FwNode),
-        req: &FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read_src(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_src(req, &unit.1, timeout_ms).map(|idx| idx as u32)
-            })
-            .map(|_| true),
+            CLK_SRC_NAME => {
+                elem_value.set_enum(&[self.state().src_idx as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_src(
-        &self,
+        &mut self,
         unit: &mut (SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
@@ -444,10 +453,10 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
         match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 unit.0.lock()?;
-                let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    T::write_clk_src(req, &unit.1, val as usize, timeout_ms)
-                })
-                .map(|_| true);
+                let mut params = self.state().clone();
+                params.src_idx = elem_value.enumerated()[0] as usize;
+                let res =
+                    T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.0.unlock();
                 res
             }

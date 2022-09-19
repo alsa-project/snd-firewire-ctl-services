@@ -251,38 +251,6 @@ impl<O: SaffireProioMediaClockSpecification> SaffireParametersSerdes<MediaClockP
     }
 }
 
-/// The trait of frequency operation for media clock in Saffire Pro series.
-pub trait SaffireProioMediaClockFrequencyOperation: SaffireProioMediaClockSpecification {
-    fn read_clk_freq(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error>;
-    fn write_clk_freq(req: &FwReq, node: &FwNode, idx: usize, timeout_ms: u32)
-        -> Result<(), Error>;
-}
-
-impl<O: SaffireProioMediaClockSpecification> SaffireProioMediaClockFrequencyOperation for O {
-    fn read_clk_freq(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let mut buf = [0; 4];
-        saffire_read_quadlet(req, node, Self::OFFSETS[0], &mut buf, timeout_ms).and_then(|_| {
-            let val = u32::from_be_bytes(buf) as usize;
-            if val > 0 || val < 1 + Self::FREQ_LIST.len() {
-                Ok(val - 1)
-            } else {
-                let msg = format!("Unexpected value for frequency of media clock: {}", val);
-                Err(Error::new(FileError::Io, &msg))
-            }
-        })
-    }
-
-    fn write_clk_freq(
-        req: &FwReq,
-        node: &FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let buf = u32::to_be_bytes((idx + 1) as u32);
-        saffire_write_quadlet(req, node, Self::OFFSETS[0], &buf, timeout_ms)
-    }
-}
-
 /// Signal source of sampling clock in Saffire Pro series.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireProioSamplingClockSource {
@@ -352,58 +320,6 @@ const CLK_SRC_SPDIF: u32 = 0x02;
 const CLK_SRC_ADAT0: u32 = 0x03;
 const CLK_SRC_ADAT1: u32 = 0x04;
 const CLK_SRC_WORD_CLOCK: u32 = 0x05;
-
-/// The trait of source operation for sampling clock in Saffire Pro series.
-pub trait SaffireProioSamplingClockSourceOperation: SaffireProioSamplingClockSpecification {
-    fn read_clk_src(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error>;
-    fn write_clk_src(req: &FwReq, node: &FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error>;
-}
-
-impl<O: SaffireProioSamplingClockSpecification> SaffireProioSamplingClockSourceOperation for O {
-    fn read_clk_src(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let mut buf = [0; 4];
-        saffire_read_quadlet(req, node, Self::OFFSETS[0], &mut buf, timeout_ms)?;
-
-        let val = u32::from_be_bytes(buf) & CLK_SRC_CONF_MASK;
-        let src = match val {
-            CLK_SRC_INTERNAL => Ok(SaffireProioSamplingClockSource::Internal),
-            CLK_SRC_SPDIF => Ok(SaffireProioSamplingClockSource::Spdif),
-            CLK_SRC_ADAT0 => Ok(SaffireProioSamplingClockSource::Adat0),
-            CLK_SRC_ADAT1 => Ok(SaffireProioSamplingClockSource::Adat1),
-            CLK_SRC_WORD_CLOCK => Ok(SaffireProioSamplingClockSource::WordClock),
-            _ => {
-                let msg = format!("Unexpected value for source of sampling clock: {}", val);
-                Err(Error::new(FileError::Io, &msg))
-            }
-        }?;
-
-        Self::SRC_LIST
-            .iter()
-            .position(|s| s.eq(&src))
-            .ok_or_else(|| {
-                let msg = format!("Detecting unexpected source of sampling clock: {:?}", src);
-                Error::new(FileError::Io, &msg)
-            })
-    }
-
-    fn write_clk_src(req: &FwReq, node: &FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        let &src = Self::SRC_LIST.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index for source of sampling clock: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let value = match src {
-            SaffireProioSamplingClockSource::Internal => CLK_SRC_INTERNAL,
-            SaffireProioSamplingClockSource::Spdif => CLK_SRC_SPDIF,
-            SaffireProioSamplingClockSource::Adat0 => CLK_SRC_ADAT0,
-            SaffireProioSamplingClockSource::Adat1 => CLK_SRC_ADAT1,
-            SaffireProioSamplingClockSource::WordClock => CLK_SRC_WORD_CLOCK,
-        };
-
-        let buf = value.to_be_bytes();
-        saffire_write_quadlet(req, node, Self::OFFSETS[0], &buf, timeout_ms)
-    }
-}
 
 /// The prorocol implementation of AC3 and MIDI signal through.
 #[derive(Default, Debug)]
