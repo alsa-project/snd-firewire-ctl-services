@@ -35,13 +35,25 @@
 pub mod saffire;
 pub mod saffireproio;
 
-use super::*;
+use {super::*, rand::Rng};
 
 /// OUI registerd to IEEE for Focusrite Audio Engineering Ltd.
 pub const FOCUSRITE_OUI: [u8; 3] = [0x00, 0x13, 0x0e];
 
+/// The interface to serialize/deserialize parameters.
+pub trait SaffireParametersSerdes<T: Clone> {
+    /// The set of offsets for the parameters.
+    const OFFSETS: &'static [usize];
+
+    /// Change the content of raw data by the parameters.
+    fn serialize(params: &T, raw: &mut [u8]);
+
+    /// Decode the cache to change the parameter.
+    fn deserialize(params: &mut T, raw: &[u8]);
+}
+
 /// The structure for output parameters.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SaffireOutputParameters {
     pub mutes: Vec<bool>,
     pub vols: Vec<u8>,
@@ -78,10 +90,97 @@ pub trait SaffireOutputSpecification {
     const PAD_COUNT: usize;
 }
 
+impl<O: SaffireOutputSpecification> SaffireParametersSerdes<SaffireOutputParameters> for O {
+    const OFFSETS: &'static [usize] = O::OUTPUT_OFFSETS;
+
+    fn serialize(params: &SaffireOutputParameters, raw: &mut [u8]) {
+        (0..(raw.len() / 4)).for_each(|i| {
+            let mut quadlet = 0u32;
+
+            params
+                .mutes
+                .iter()
+                .nth(i)
+                .filter(|&mute| *mute)
+                .map(|_| quadlet |= MUTE_FLAG);
+
+            params
+                .vols
+                .iter()
+                .nth(i)
+                .map(|&vol| quadlet |= (0xff - vol) as u32);
+
+            params
+                .hwctls
+                .iter()
+                .nth(i)
+                .filter(|&hwctl| *hwctl)
+                .map(|_| quadlet |= HWCTL_FLAG);
+
+            params
+                .dims
+                .iter()
+                .nth(i)
+                .filter(|&dim| *dim)
+                .map(|_| quadlet |= DIM_FLAG);
+
+            params
+                .pads
+                .iter()
+                .nth(i)
+                .filter(|&pad| *pad)
+                .map(|_| quadlet |= PAD_FLAG);
+
+            let pos = i * 4;
+            raw[pos..(pos + 4)].copy_from_slice(&quadlet.to_be_bytes());
+        })
+    }
+
+    fn deserialize(params: &mut SaffireOutputParameters, raw: &[u8]) {
+        let mut quadlet = [0u8; 4];
+
+        let quads: Vec<u32> = (0..raw.len())
+            .step_by(4)
+            .map(|pos| {
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                u32::from_be_bytes(quadlet)
+            })
+            .collect();
+
+        params
+            .mutes
+            .iter_mut()
+            .zip(&quads)
+            .for_each(|(mute, &quad)| *mute = quad & MUTE_FLAG > 0);
+
+        params
+            .vols
+            .iter_mut()
+            .zip(&quads)
+            .for_each(|(vol, &quad)| *vol = 0xff - (quad & VOL_MASK) as u8);
+
+        params
+            .hwctls
+            .iter_mut()
+            .zip(&quads)
+            .for_each(|(hwctl, &quad)| *hwctl = quad & HWCTL_FLAG > 0);
+
+        params
+            .dims
+            .iter_mut()
+            .zip(&quads)
+            .for_each(|(dim, &quad)| *dim = quad & DIM_FLAG > 0);
+
+        params
+            .pads
+            .iter_mut()
+            .zip(&quads)
+            .for_each(|(pad, quad)| *pad = quad & PAD_FLAG > 0);
+    }
+}
+
 /// The trait for operations of output parameters.
 pub trait SaffireOutputOperation: SaffireOutputSpecification {
-    const OFFSETS: &'static [usize] = &Self::OUTPUT_OFFSETS;
-
     const LEVEL_MIN: u8 = 0x00;
     const LEVEL_MAX: u8 = 0xff;
     const LEVEL_STEP: u8 = 0x01;
@@ -105,11 +204,11 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         parse_hwctl: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms)?;
+        let mut buf = vec![0; Self::OUTPUT_OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OUTPUT_OFFSETS, &mut buf, timeout_ms)?;
 
         let mut quadlet = [0; 4];
-        let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+        let vals = (0..Self::OUTPUT_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
             let pos = i * 4;
             quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
             vals.push(u32::from_be_bytes(quadlet));
@@ -167,7 +266,7 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         let (offsets, buf) = old_mutes
             .iter()
             .zip(mutes)
-            .zip(Self::OFFSETS)
+            .zip(Self::OUTPUT_OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -204,7 +303,7 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         let (offsets, buf) = old_vols
             .iter()
             .zip(vols)
-            .zip(Self::OFFSETS)
+            .zip(Self::OUTPUT_OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -241,7 +340,7 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         let (offsets, buf) = old_hwctls
             .iter()
             .zip(hwctls)
-            .zip(Self::OFFSETS)
+            .zip(Self::OUTPUT_OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -278,7 +377,7 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         let (offsets, buf) = old_dims
             .iter()
             .zip(dims)
-            .zip(Self::OFFSETS)
+            .zip(Self::OUTPUT_OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -315,7 +414,7 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         let (offsets, buf) = old_pads
             .iter()
             .zip(pads)
-            .zip(Self::OFFSETS)
+            .zip(Self::OUTPUT_OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -372,9 +471,35 @@ fn build_output_parameter(
     val
 }
 
+/// The structure for signal through parameters.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct SaffireThroughParameters {
+    pub midi: bool,
+    pub ac3: bool,
+}
+
 /// The specification of protocol for signal through function.
 pub trait SaffireThroughSpecification {
     const THROUGH_OFFSETS: &'static [usize];
+}
+
+impl<O: SaffireThroughSpecification> SaffireParametersSerdes<SaffireThroughParameters> for O {
+    const OFFSETS: &'static [usize] = O::THROUGH_OFFSETS;
+
+    fn serialize(params: &SaffireThroughParameters, raw: &mut [u8]) {
+        raw[..4].copy_from_slice(&(params.midi as u32).to_be_bytes());
+        raw[4..8].copy_from_slice(&(params.ac3 as u32).to_be_bytes());
+    }
+
+    fn deserialize(params: &mut SaffireThroughParameters, raw: &[u8]) {
+        let mut quadlet = [0u8; 4];
+
+        quadlet.copy_from_slice(&raw[..4]);
+        params.midi = u32::from_be_bytes(quadlet) > 0;
+
+        quadlet.copy_from_slice(&raw[4..8]);
+        params.ac3 = u32::from_be_bytes(quadlet) > 0;
+    }
 }
 
 /// The parameters of configuration save.
@@ -384,6 +509,22 @@ pub struct SaffireStoreConfigParameters;
 /// The specification of configuration save.
 pub trait SaffireStoreConfigSpecification {
     const STORE_CONFIG_OFFSETS: &'static [usize];
+}
+
+impl<O: SaffireStoreConfigSpecification> SaffireParametersSerdes<SaffireStoreConfigParameters>
+    for O
+{
+    const OFFSETS: &'static [usize] = O::STORE_CONFIG_OFFSETS;
+
+    fn serialize(_: &SaffireStoreConfigParameters, raw: &mut [u8]) {
+        // NOTE: ensure to update the hardware every time to be requested.
+        let mut rng = rand::thread_rng();
+        raw.copy_from_slice(&rng.gen::<u32>().to_be_bytes());
+    }
+
+    fn deserialize(_: &mut SaffireStoreConfigParameters, _: &[u8]) {
+        // Nothing to do.
+    }
 }
 
 pub trait SaffireStoreConfigOperation: SaffireStoreConfigSpecification {
