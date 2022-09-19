@@ -28,7 +28,7 @@ impl SamplingClkSrcCtlOperation<SaffireClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(Vec<ElemId>, SaffireMeter);
 
 #[derive(Debug)]
@@ -61,21 +61,18 @@ impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct SpecificCtl(SaffireSpecificParameters);
 
-#[derive(Default)]
+#[derive(Debug)]
 struct SeparatedMixerCtl(Vec<ElemId>, SaffireMixerState);
 
-impl AsRef<SaffireMixerState> for SeparatedMixerCtl {
-    fn as_ref(&self) -> &SaffireMixerState {
-        &self.1
-    }
-}
-
-impl AsMut<SaffireMixerState> for SeparatedMixerCtl {
-    fn as_mut(&mut self) -> &mut SaffireMixerState {
-        &mut self.1
+impl Default for SeparatedMixerCtl {
+    fn default() -> Self {
+        Self(
+            Default::default(),
+            SaffireSeparatedMixerProtocol::create_mixer_state(),
+        )
     }
 }
 
@@ -85,20 +82,25 @@ impl SaffireMixerCtlOperation<SaffireSeparatedMixerProtocol> for SeparatedMixerC
     const STREAM_SRC_GAIN_NAME: &'static str = "mixer:separated:stream-source-gain";
 
     const MIXER_MODE: SaffireMixerMode = SaffireMixerMode::StereoSeparated;
-}
 
-#[derive(Default)]
-struct PairedMixerCtl(Vec<ElemId>, SaffireMixerState);
-
-impl AsRef<SaffireMixerState> for PairedMixerCtl {
-    fn as_ref(&self) -> &SaffireMixerState {
+    fn state(&self) -> &SaffireMixerState {
         &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireMixerState {
+        &mut self.1
     }
 }
 
-impl AsMut<SaffireMixerState> for PairedMixerCtl {
-    fn as_mut(&mut self) -> &mut SaffireMixerState {
-        &mut self.1
+#[derive(Debug)]
+struct PairedMixerCtl(Vec<ElemId>, SaffireMixerState);
+
+impl Default for PairedMixerCtl {
+    fn default() -> Self {
+        Self(
+            Default::default(),
+            SaffirePairedMixerProtocol::create_mixer_state(),
+        )
     }
 }
 
@@ -108,9 +110,17 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
     const STREAM_SRC_GAIN_NAME: &'static str = "mixer:paired:stream-source-gain";
 
     const MIXER_MODE: SaffireMixerMode = SaffireMixerMode::StereoPaired;
+
+    fn state(&self) -> &SaffireMixerState {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireMixerState {
+        &mut self.1
+    }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ReverbCtl(SaffireReverbParameters);
 
 impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
@@ -130,40 +140,41 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.meter_ctl
-            .load_meter(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .load_meter(card_cntr)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.out_ctl
             .load_params(card_cntr)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
-        self.specific_ctl
-            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.specific_ctl.load_params(card_cntr)?;
 
         self.separated_mixer_ctl
-            .load_src_levels(
-                card_cntr,
-                self.specific_ctl.0.mixer_mode,
-                unit,
-                &self.req,
-                TIMEOUT_MS,
-            )
+            .load_src_levels(card_cntr)
             .map(|measured_elem_id_list| self.separated_mixer_ctl.0 = measured_elem_id_list)?;
 
         self.paired_mixer_ctl
-            .load_src_levels(
-                card_cntr,
-                self.specific_ctl.0.mixer_mode,
-                unit,
-                &self.req,
-                TIMEOUT_MS,
-            )
+            .load_src_levels(card_cntr)
             .map(|measured_elem_id_list| self.paired_mixer_ctl.0 = measured_elem_id_list)?;
 
-        self.reverb_ctl
-            .load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.reverb_ctl.load_params(card_cntr)?;
 
+        SaffireMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
         SaffireOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
+        SaffireSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
+        SaffireSeparatedMixerProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.separated_mixer_ctl.1,
+            TIMEOUT_MS,
+        )?;
+        SaffirePairedMixerProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.paired_mixer_ctl.1,
+            TIMEOUT_MS,
+        )?;
+        SaffireReverbProtocol::cache(&self.req, &unit.1, &mut self.reverb_ctl.0, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -235,12 +246,12 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
         {
             Ok(true)
         } else if self.specific_ctl.write_params(
-            &mut self.separated_mixer_ctl,
-            &mut self.paired_mixer_ctl,
-            unit,
             &self.req,
+            &unit.1,
             elem_id,
             new,
+            &mut self.separated_mixer_ctl.1,
+            &mut self.paired_mixer_ctl.1,
             TIMEOUT_MS,
         )? {
             Ok(true)
@@ -341,13 +352,7 @@ impl MeterCtl {
         "analog-input-4",
     ];
 
-    fn load_meter(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
+    fn load_meter(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut measured_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
@@ -375,8 +380,6 @@ impl MeterCtl {
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        SaffireMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)?;
-
         Ok(measured_elem_id_list)
     }
 
@@ -386,7 +389,7 @@ impl MeterCtl {
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SaffireMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)
+        SaffireMeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -433,13 +436,7 @@ impl SpecificCtl {
         SaffireMixerMode::StereoSeparated,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MODE_192_KHZ_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true).map(|_| ())?;
 
@@ -460,8 +457,6 @@ impl SpecificCtl {
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())?;
-
-        SaffireSpecificProtocol::read_params(req, &unit.1, &mut self.0, timeout_ms)?;
 
         Ok(())
     }
@@ -494,61 +489,51 @@ impl SpecificCtl {
 
     fn write_params(
         &mut self,
-        separated_mixer_ctl: &mut SeparatedMixerCtl,
-        paired_mixer_ctl: &mut PairedMixerCtl,
-        unit: &(SndUnit, FwNode),
         req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        separated_params: &mut SaffireMixerState,
+        paired_params: &mut SaffireMixerState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MODE_192_KHZ_NAME => {
-                let val = elem_value.boolean()[0];
-                SaffireSpecificProtocol::write_192khz_mode(
-                    req,
-                    &unit.1,
-                    val,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let mut params = self.0.clone();
+                params.mode_192khz = elem_value.boolean()[0];
+                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             INPUT_PAIR_1_SRC_NAME => {
+                let mut params = self.0.clone();
                 let val = elem_value.enumerated()[0];
-                let &src = Self::INPUT_PAIR_1_SRCS
+                params.input_pair_1_src = Self::INPUT_PAIR_1_SRCS
                     .iter()
                     .nth(val as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index for source of input pair 1: {}", val);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                SaffireSpecificProtocol::write_input_pair_1_src(
-                    req,
-                    &unit.1,
-                    src,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                    })
+                    .copied()?;
+                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             MIXER_MODE_NAME => {
+                let mut params = self.0.clone();
                 let val = elem_value.enumerated()[0];
-                let &mode = Self::MIXER_MODES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for mode of mixer: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                SaffireSpecificProtocol::write_mixer_mode(
-                    req,
-                    &unit.1,
-                    mode,
-                    &mut self.0,
-                    timeout_ms,
-                )?;
-                if mode == SaffireMixerMode::StereoSeparated {
-                    separated_mixer_ctl.write_state(unit, req, timeout_ms)?;
+                params.mixer_mode = Self::MIXER_MODES
+                    .iter()
+                    .nth(val as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for mode of mixer: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)?;
+                if params.mixer_mode == SaffireMixerMode::StereoSeparated {
+                    SaffireSeparatedMixerProtocol::cache(req, node, separated_params, timeout_ms)?;
                 } else {
-                    paired_mixer_ctl.write_state(unit, req, timeout_ms)?;
+                    SaffirePairedMixerProtocol::cache(req, node, paired_params, timeout_ms)?;
                 }
                 Ok(true)
             }
@@ -563,13 +548,7 @@ const REVERB_DIFFUSION_NAME: &str = "reverb-diffusion";
 const REVERB_TONE_NAME: &str = "reverb-tone";
 
 impl ReverbCtl {
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_AMOUNT_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -618,7 +597,7 @@ impl ReverbCtl {
             false,
         )?;
 
-        SaffireReverbProtocol::read_params(req, &mut unit.1, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -653,46 +632,215 @@ impl ReverbCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_AMOUNT_NAME => {
-                let vals = &elem_value.int()[..2];
-                SaffireReverbProtocol::write_amounts(
-                    req,
-                    &mut unit.1,
-                    &vals,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let mut params = self.0.clone();
+                let amounts = &mut params.amounts;
+                let vals = &elem_value.int()[..amounts.len()];
+                amounts.copy_from_slice(&vals);
+                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             REVERB_ROOM_SIZE_NAME => {
-                let vals = &elem_value.int()[..2];
-                SaffireReverbProtocol::write_room_sizes(
-                    req,
-                    &mut unit.1,
-                    &vals,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let mut params = self.0.clone();
+                let room_sizes = &mut params.room_sizes;
+                let vals = &elem_value.int()[..room_sizes.len()];
+                room_sizes.copy_from_slice(&vals);
+                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             REVERB_DIFFUSION_NAME => {
-                let vals = &elem_value.int()[..2];
-                SaffireReverbProtocol::write_diffusions(
-                    req,
-                    &mut unit.1,
-                    &vals,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let mut params = self.0.clone();
+                let diffusion = &mut params.room_sizes;
+                let vals = &elem_value.int()[..diffusion.len()];
+                diffusion.copy_from_slice(&vals);
+                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             REVERB_TONE_NAME => {
-                let vals = &elem_value.int()[..2];
-                SaffireReverbProtocol::write_tones(req, &mut unit.1, &vals, &mut self.0, timeout_ms)
+                let mut params = self.0.clone();
+                let tones = &mut params.room_sizes;
+                let vals = &elem_value.int()[..tones.len()];
+                tones.copy_from_slice(&vals);
+                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
         }
     }
+}
+
+trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
+    const PHYS_INPUT_GAIN_NAME: &'static str;
+    const REVERB_RETURN_GAIN_NAME: &'static str;
+    const STREAM_SRC_GAIN_NAME: &'static str;
+
+    const MIXER_MODE: SaffireMixerMode;
+
+    fn state(&self) -> &SaffireMixerState;
+    fn state_mut(&mut self) -> &mut SaffireMixerState;
+
+    fn load_src_levels(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_INPUT_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::PHYS_INPUT_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_RETURN_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::REVERB_RETURN_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::STREAM_INPUT_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn write_state(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::cache(req, &unit.1, self.state_mut(), timeout_ms)
+    }
+
+    fn read_src_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        let name = elem_id.name();
+
+        if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.state().phys_inputs)
+        } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.state().reverb_returns)
+        } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.state().stream_inputs)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_src_levels(
+        &mut self,
+        mixer_mode: SaffireMixerMode,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let name = &elem_id.name();
+
+        if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
+            } else {
+                let mut params = self.state().clone();
+                let index = elem_id.index() as usize;
+                let levels = &mut params.phys_inputs[index];
+                let vals = &elem_value.int()[..levels.len()];
+                levels
+                    .iter_mut()
+                    .zip(vals)
+                    .for_each(|(level, &val)| *level = val as i16);
+                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+            }
+        } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
+            } else {
+                let mut params = self.state().clone();
+                let index = elem_id.index() as usize;
+                let levels = &mut params.reverb_returns[index];
+                let vals = &elem_value.int()[..levels.len()];
+                levels
+                    .iter_mut()
+                    .zip(vals)
+                    .for_each(|(level, &val)| *level = val as i16);
+                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+            }
+        } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
+            } else {
+                let mut params = self.state().clone();
+                let index = elem_id.index() as usize;
+                let levels = &mut params.stream_inputs[index];
+                let vals = &elem_value.int()[..levels.len()];
+                levels
+                    .iter_mut()
+                    .zip(vals)
+                    .for_each(|(level, &val)| *level = val as i16);
+                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+fn read_mixer_src_levels(
+    elem_value: &mut ElemValue,
+    elem_id: &ElemId,
+    levels_list: &[Vec<i16>],
+) -> Result<bool, Error> {
+    let index = elem_id.index() as usize;
+    levels_list
+        .iter()
+        .nth(index)
+        .ok_or_else(|| {
+            let msg = format!("Invalid index of source level list {}", index);
+            Error::new(FileError::Inval, &msg)
+        })
+        .map(|levels| {
+            let vals: Vec<i32> = levels.iter().fold(Vec::new(), |mut vals, &level| {
+                vals.push(level as i32);
+                vals
+            });
+            elem_value.set_int(&vals);
+            true
+        })
 }
 
 #[cfg(test)]
