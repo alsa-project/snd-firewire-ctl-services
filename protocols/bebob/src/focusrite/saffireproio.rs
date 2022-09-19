@@ -254,10 +254,15 @@ impl<O: SaffireProioMediaClockSpecification> SaffireParametersSerdes<MediaClockP
 /// Signal source of sampling clock in Saffire Pro series.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireProioSamplingClockSource {
+    /// Internal source.
     Internal,
+    /// S/PDIF input in coaxial interface.
     Spdif,
+    /// ADAT input in 1st optical interface.
     Adat0,
+    /// ADAT input in 2nd optical interface.
     Adat1,
+    /// Word clock input in BNX interface.
     WordClock,
 }
 
@@ -332,15 +337,20 @@ impl SaffireThroughSpecification for SaffireProioThroughProtocol {
 /// Information of hardware metering in Saffire Pro i/o.
 #[derive(Default, Debug)]
 pub struct SaffireProioMeterState {
+    /// The value of hardware knob.
     pub monitor_knob: u8,
+    /// The state of mute LED.
     pub mute_led: bool,
+    /// The state of dim LED.
     pub dim_led: bool,
+    /// The effective source of sampling clock.
     pub effective_clk_srcs: SaffireProioSamplingClockSource,
 }
 
 /// The trait of operation for meter information. The value of monitor knob is available only when
 /// any of hwctl in output parameter is enabled, else it's always 0x8f.
 pub trait SaffireProioMeterOperation {
+    /// The set of supported sources for sampling clock.
     const SRC_LIST: &'static [SaffireProioSamplingClockSource];
 
     const OFFSETS: &'static [usize] = &[
@@ -391,8 +401,11 @@ pub trait SaffireProioMeterOperation {
 /// The parameters of input monitor in Saffire Pro i/o.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireProioMonitorParameters {
+    /// The source level of analog inputs.
     pub analog_inputs: [[i16; 8]; 2],
+    /// The source level of S/PDIF inputs.
     pub spdif_inputs: [[i16; 2]; 2],
+    /// The source level of ADAT inputs.
     pub adat_inputs: Option<[[i16; 16]; 2]>,
 }
 
@@ -548,8 +561,11 @@ impl<O: SaffireProioMonitorSpecification> SaffireParametersSerdes<SaffireProioMo
 
 /// The trait for input monitor protocol in Saffire Pro i/o.
 pub trait SaffireProioMonitorProtocol: SaffireProioMonitorSpecification {
+    /// The minimum value of source level.
     const LEVEL_MIN: i16 = 0;
+    /// The maximum value of source level.
     const LEVEL_MAX: i16 = 0x7fff;
+    /// The step value of source level.
     const LEVEL_STEP: i16 = 0x100;
 
     fn create_params() -> SaffireProioMonitorParameters {
@@ -570,8 +586,11 @@ impl<O: SaffireProioMonitorSpecification> SaffireProioMonitorProtocol for O {}
 /// The parameters of signal multiplexer in Saffire Pro i/o.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireProioMixerParameters {
+    /// The level of input sources.
     pub monitor_sources: [i16; 10],
+    /// The level of 1st pair of stream inputs.
     pub stream_source_pair0: [i16; 10],
+    /// The level of stream inputs.
     pub stream_sources: [i16; 10],
 }
 
@@ -690,8 +709,11 @@ impl SaffireParametersSerdes<SaffireProioMixerParameters> for SaffireProioMixerP
 }
 
 impl SaffireProioMixerProtocol {
+    /// The minimum value of source level.
     pub const LEVEL_MIN: i16 = 0;
+    /// The maximum value of source level.
     pub const LEVEL_MAX: i16 = 0x7fff;
+    /// The step value of source level.
     pub const LEVEL_STEP: i16 = 0x100;
 }
 
@@ -722,7 +744,9 @@ fn calc_stream_source_pos(i: usize) -> usize {
 /// Working mode at standalone mode.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireProioStandaloneMode {
+    /// For mixing.
     Mix,
+    /// For tracking.
     Track,
 }
 
@@ -735,13 +759,17 @@ impl Default for SaffireProioStandaloneMode {
 /// Parameters specific to Saffire Pro i/o series.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaffireProioSpecificParameters {
+    /// Whether to increase head room for analog inputs.
     pub head_room: bool,
-
+    /// Whether to enable/disable phantom powering for microphone inputs.
     pub phantom_powerings: Vec<bool>,
+    /// Whether to use line input 5/6 for inserts to input 1/2.
     pub insert_swaps: Vec<bool>,
-
+    /// The mode of standalone.
     pub standalone_mode: SaffireProioStandaloneMode,
+    /// Whether to use ADAT or not.
     pub adat_enabled: bool,
+    /// Whether to enable direct monitoring.
     pub direct_monitoring: bool,
 }
 

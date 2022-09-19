@@ -188,8 +188,11 @@ impl SamplingClockSourceOperation for SaffireClkProtocol {
 /// Information of hardware metering in Saffire.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireMeter {
+    /// Detected level of inputs.
     pub phys_inputs: [i32; 4],
+    /// Whether to detect any type of digital inputs.
     pub dig_input_detect: bool,
+    /// The value of hardware knob.
     pub monitor_knob_value: u16,
 }
 
@@ -198,12 +201,18 @@ pub struct SaffireMeter {
 pub struct SaffireMeterProtocol;
 
 impl SaffireMeterProtocol {
+    /// The minimum value of hardware knob.
     pub const MONITOR_KNOB_MIN: u16 = 0;
+    /// The maximum value of hardware knob.
     pub const MONITOR_KNOB_MAX: u16 = 0x1ff0;
+    /// The step value of hardware knob.
     pub const MONITOR_KNOB_STEP: u16 = 0x10;
 
+    /// The minimum value of detected signal level.
     pub const LEVEL_MIN: i32 = 0;
+    /// The maximum value of detected signal level.
     pub const LEVEL_MAX: i32 = 0x7fffffff;
+    /// The step value of detected signal level.
     pub const LEVEL_STEP: i32 = 1;
 
     const OFFSETS: &'static [usize] = &[
@@ -215,6 +224,7 @@ impl SaffireMeterProtocol {
         0x013c, // Whether to detect digital input.
     ];
 
+    /// Cache the state of hardware to the parameter.
     pub fn cache(
         req: &FwReq,
         node: &FwNode,
@@ -262,7 +272,9 @@ impl SaffireOutputSpecification for SaffireOutputProtocol {
 /// The signal source of input 2/3.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireInputPair1Source {
+    /// 1st pair of analog inputs.
     AnalogInputPair0,
+    /// 1st pair of digital inputs.
     DigitalInputPair0,
 }
 
@@ -275,7 +287,9 @@ impl Default for SaffireInputPair1Source {
 /// The mode of signal multiplexer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireMixerMode {
+    /// Stereo mode.
     StereoPaired,
+    /// Monaural mode.
     StereoSeparated,
 }
 
@@ -288,8 +302,11 @@ impl Default for SaffireMixerMode {
 /// Parameters specific to Saffire.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireSpecificParameters {
+    /// 176.4/192.0 kHz mode. This brings bus reset in IEEE 1394 bus.
     pub mode_192khz: bool,
+    /// Use 1st pair of analog inputs for capture inputs.
     pub input_pair_1_src: SaffireInputPair1Source,
+    /// The mode of mixer.
     pub mixer_mode: SaffireMixerMode,
 }
 
@@ -556,9 +573,13 @@ impl SaffireStoreConfigSpecification for SaffireStoreConfigProtocol {
 /// Information of hardware metering in Saffire LE.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireLeMeter {
+    /// The detected level of physical inputs.
     pub phys_inputs: [i32; 6],
+    /// The detected level of physical outputs.
     pub phys_outputs: [i32; 8],
+    /// The detected level of stream inputs.
     pub stream_inputs: [i32; 4],
+    /// Whether to detect any type of digital inputs.
     pub dig_input_detect: bool,
 }
 
@@ -568,9 +589,11 @@ pub struct SaffireLeMeterProtocol;
 
 // NOTE: range 0x168-1b0.
 impl SaffireLeMeterProtocol {
-    /// The number of destionation pairs.
+    /// The minimum value of detected signal level.
     pub const LEVEL_MIN: i32 = 0;
+    /// The maximum value of detected signal level.
     pub const LEVEL_MAX: i32 = 0x7fffffff;
+    /// The step value of detected signal level.
     pub const LEVEL_STEP: i32 = 1;
 
     const OFFSETS: &'static [usize] = &[
@@ -697,7 +720,9 @@ impl SaffireParametersSerdes<SaffireLeSpecificParameters> for SaffireLeSpecificP
 /// Signal source of S/PDIF output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireLeSpdifOutputSource {
+    /// 1st pair of mixer outputs.
     MixerOutputPair01,
+    /// 2nd pair of mixer outputs.
     MixerOutputPair67,
 }
 
@@ -710,8 +735,11 @@ impl Default for SaffireLeSpdifOutputSource {
 /// State of signal multiplexer in Saffire LE at 44.1/48.0 kHz.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireLeMixerLowRateState {
+    /// The gain of physical inputs.
     pub phys_src_gains: [[i16; 6]; 4],
+    /// The gain of stream inputs.
     pub stream_src_gains: [[i16; 8]; 4],
+    /// The source of S/PDIF outputs.
     pub spdif_out_src: SaffireLeSpdifOutputSource,
 }
 
@@ -869,9 +897,11 @@ impl SaffireParametersSerdes<SaffireLeMixerLowRateState> for SaffireLeMixerLowRa
 }
 
 impl SaffireLeMixerLowRateProtocol {
-    /// The number of destionation pairs.
+    /// The minimum value of mixer inputs.
     pub const LEVEL_MIN: i16 = 0;
+    /// The maximum value of mixer inputs.
     pub const LEVEL_MAX: i16 = 0x7fff;
+    /// The step value of mixer inputs.
     pub const LEVEL_STEP: i16 = 0x100;
 
     #[inline(always)]
@@ -900,9 +930,13 @@ impl SaffireLeMixerLowRateProtocol {
 /// State of signal multiplexer in Saffire LE at 88.2/96.0 kHz.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireLeMixerMiddleRateState {
+    /// The gain of mixer sources from physical inputs.
     pub monitor_src_phys_input_gains: [i16; 6],
+    /// The gain of mixer sources from monitor.
     pub monitor_out_src_pair_gains: [[i16; 1]; 4],
+    /// The gain of mixer source from stream inputs.
     pub stream_src_pair_gains: [[i16; 2]; 4],
+    /// The source of S/PDIF outputs.
     pub spdif_out_src: SaffireLeSpdifOutputSource,
 }
 
@@ -1040,8 +1074,11 @@ impl SaffireParametersSerdes<SaffireLeMixerMiddleRateState> for SaffireLeMixerMi
 pub struct SaffireLeMixerMiddleRateProtocol;
 
 impl SaffireLeMixerMiddleRateProtocol {
+    /// The minimum value of source level.
     pub const LEVEL_MIN: i16 = 0;
+    /// The maximum value of source level.
     pub const LEVEL_MAX: i16 = 0x7fff;
+    /// The step value of source level.
     pub const LEVEL_STEP: i16 = 0x100;
 
     #[inline(always)]
@@ -1079,16 +1116,23 @@ impl SaffireStoreConfigSpecification for SaffireLeStoreConfigProtocol {
 /// State of signal multiplexer in Saffire.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaffireMixerState {
+    /// The level of physical inputs..
     pub phys_inputs: Vec<Vec<i16>>,
+    /// The level of reverb returns.
     pub reverb_returns: Vec<Vec<i16>>,
+    /// The level of stream inputs.
     pub stream_inputs: Vec<Vec<i16>>,
 }
 
 /// The specification of protocol for mixer function.
 pub trait SaffireMixerSpecification {
+    /// The address offsets to operate for the parameters.
     const MIXER_OFFSETS: &'static [usize];
 
+    /// The number of physical inputs.
     const PHYS_INPUT_COUNT: usize;
+
+    /// The number of reverb returns.
     const REVERB_RETURN_COUNT: usize;
 
     fn stream_src_pos(dst_idx: usize, src_idx: usize) -> usize;
@@ -1185,11 +1229,17 @@ impl<O: SaffireMixerSpecification> SaffireParametersSerdes<SaffireMixerState> fo
 
 /// The trait for mixer operation in Saffire.
 pub trait SaffireMixerOperation: SaffireMixerSpecification {
+    /// The number of stream inputs.
     const STREAM_INPUT_COUNT: usize = 5;
+
+    /// The number of output pairs.
     const OUTPUT_PAIR_COUNT: usize = 5;
 
+    /// The minimum value of source level.
     const LEVEL_MIN: i16 = 0x0000;
+    /// The maximum value of source level.
     const LEVEL_MAX: i16 = 0x7fff;
+    /// The step value of source level.
     const LEVEL_STEP: i16 = 0x100;
 
     fn create_mixer_state() -> SaffireMixerState {
