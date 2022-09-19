@@ -82,6 +82,29 @@ impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {
     }
 }
 
+impl SaffireLeModel {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        SaffireLeMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
+        SaffireLeOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
+        SaffireLeSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
+        SaffireLeMixerLowRateProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.mixer_low_rate_ctl.0,
+            TIMEOUT_MS,
+        )?;
+        SaffireLeMixerMiddleRateProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.mixer_middle_rate_ctl.0,
+            TIMEOUT_MS,
+        )?;
+        SaffireLeThroughProtocol::cache(&self.req, &unit.1, &mut self.through_ctl.0, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
     fn load(
         &mut self,
@@ -113,24 +136,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
 
         self.through_ctl.load_params(card_cntr)?;
 
-        SaffireLeMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
-        SaffireLeOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
-        SaffireLeSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
-        SaffireLeMixerLowRateProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.mixer_low_rate_ctl.0,
-            TIMEOUT_MS,
-        )?;
-        SaffireLeMixerMiddleRateProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.mixer_middle_rate_ctl.0,
-            TIMEOUT_MS,
-        )?;
-        SaffireLeThroughProtocol::cache(&self.req, &unit.1, &mut self.through_ctl.0, TIMEOUT_MS)?;
-
-        Ok(())
+        self.cache(unit)
     }
 
     fn read(
