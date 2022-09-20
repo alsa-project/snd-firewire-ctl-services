@@ -139,15 +139,25 @@ impl SamplingClockSourceOperation for GoPhase24ClkProtocol {
         SignalAddr::Unit(SignalUnitAddr::Ext(0x01)),
     ];
 
-    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+    fn cache_src(
+        avc: &BebobAvc,
+        params: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut op = AudioSelector::new(CLK_SRC_FB_ID, CtlAttr::Current, 0xff);
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
-            .map(|_| op.input_plug_id as usize)
+            .map(|_| params.src_idx = op.input_plug_id as usize)
     }
 
-    fn write_clk_src(avc: &BebobAvc, val: usize, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = AudioSelector::new(CLK_SRC_FB_ID, CtlAttr::Current, val as u8);
+    fn update_src(
+        avc: &BebobAvc,
+        params: &SamplingClockParameters,
+        old: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = AudioSelector::new(CLK_SRC_FB_ID, CtlAttr::Current, params.src_idx as u8);
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+            .map(|_| *old = *params)
     }
 }
 

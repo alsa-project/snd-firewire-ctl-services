@@ -66,32 +66,42 @@ impl SamplingClockSourceOperation for Phase88ClkProtocol {
         SignalAddr::Unit(SignalUnitAddr::Ext(0x07)),
     ];
 
-    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+    fn cache_src(
+        avc: &BebobAvc,
+        params: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut op = AudioSelector::new(CLK_SRC_EXT_FB_ID, CtlAttr::Current, 0xff);
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
-        if op.input_plug_id == 0x00 {
+        params.src_idx = if op.input_plug_id == 0x00 {
             // Internal.
-            Ok(0)
+            0
         } else {
             let mut op = AudioSelector::new(CLK_SRC_EXT_WORD_FB_ID, CtlAttr::Current, 0xff);
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
             if op.input_plug_id == 0x00 {
                 // S/PDIF.
-                Ok(1)
+                1
             } else {
                 // Word clock.
-                Ok(2)
+                2
             }
-        }
+        };
+        Ok(())
     }
 
-    fn write_clk_src(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        let (is_ext, ext_is_word) = match idx {
+    fn update_src(
+        avc: &BebobAvc,
+        params: &SamplingClockParameters,
+        old: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (is_ext, ext_is_word) = match params.src_idx {
             0 => (0u8, 0u8),
             1 => (0u8, 1u8),
             2 => (1u8, 1u8),
             _ => {
-                let msg = format!("Invalid index of source of clock: {}", idx);
+                let msg = format!("Invalid index of source of clock: {}", params.src_idx);
                 Err(Error::new(FileError::Inval, &msg))?
             }
         };
@@ -101,6 +111,8 @@ impl SamplingClockSourceOperation for Phase88ClkProtocol {
 
         let mut op = AudioSelector::new(CLK_SRC_EXT_FB_ID, CtlAttr::Current, is_ext);
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        *old = *params;
 
         Ok(())
     }
