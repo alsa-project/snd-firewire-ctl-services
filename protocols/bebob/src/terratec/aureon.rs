@@ -87,7 +87,7 @@ impl AvcAudioFeatureSpecification for AureonPhysInputProtocol {
 impl AvcLevelOperation for AureonPhysInputProtocol {}
 
 /// The protocol implementation of monitor output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonMonitorSourceProtocol;
 
 impl AvcSelectorOperation for AureonMonitorSourceProtocol {
@@ -111,7 +111,7 @@ impl AvcLevelOperation for AureonMonitorOutputProtocol {}
 impl AvcMuteOperation for AureonMonitorOutputProtocol {}
 
 /// The protocol implementation of spdif output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonSpdifOutputProtocol;
 
 impl AvcSelectorOperation for AureonSpdifOutputProtocol {

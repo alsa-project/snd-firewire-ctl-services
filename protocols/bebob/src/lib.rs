@@ -515,29 +515,88 @@ pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
     }
 }
 
+/// The parameter of selectors.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct AvcSelectorParameters {
+    /// The index for entry in the list of function block.
+    pub selectors: Vec<usize>,
+}
+
 /// The trait of select operation for audio function block.
 pub trait AvcSelectorOperation {
+    /// The list of function block identifier.
     const FUNC_BLOCK_ID_LIST: &'static [u8];
+    /// The list of plug identifier.
     const INPUT_PLUG_ID_LIST: &'static [u8];
 
+    /// Instantiate parameters.
+    fn create_selector_parameters() -> AvcSelectorParameters {
+        AvcSelectorParameters {
+            selectors: vec![Default::default(); Self::FUNC_BLOCK_ID_LIST.len()],
+        }
+    }
+
+    /// Cache state of hardware to the parameters.
+    fn cache_selectors(
+        avc: &BebobAvc,
+        params: &mut AvcSelectorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.selectors.len(), Self::FUNC_BLOCK_ID_LIST.len());
+
+        params
+            .selectors
+            .iter_mut()
+            .zip(Self::FUNC_BLOCK_ID_LIST)
+            .try_for_each(|(selector, &func_block_id)| {
+                let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+                Self::INPUT_PLUG_ID_LIST
+                    .iter()
+                    .position(|&input_plug_id| input_plug_id == op.input_plug_id)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Unexpected index of input plug number: {}",
+                            op.input_plug_id
+                        );
+                        Error::new(FileError::Io, &msg)
+                    })
+                    .map(|pos| *selector = pos)
+            })
+    }
+
     fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        let &func_block_id = Self::FUNC_BLOCK_ID_LIST.iter().nth(idx).ok_or_else(|| {
+        if idx >= Self::FUNC_BLOCK_ID_LIST.len() {
             let msg = format!("Invalid index of selector: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
 
-        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
-        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+        let mut params = Self::create_selector_parameters();
+        Self::cache_selectors(avc, &mut params, timeout_ms)?;
 
-        Self::INPUT_PLUG_ID_LIST
-            .iter()
-            .position(|&input_plug_id| input_plug_id == op.input_plug_id)
-            .ok_or_else(|| {
-                let msg = format!(
-                    "Unexpected index of input plug number: {}",
-                    op.input_plug_id
-                );
-                Error::new(FileError::Io, &msg)
+        Ok(params.selectors[idx])
+    }
+
+    /// Update the hardware when detecting any changes in the parameters.
+    fn update_selectors(
+        avc: &BebobAvc,
+        params: &AvcSelectorParameters,
+        old: &mut AvcSelectorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.selectors.len(), Self::FUNC_BLOCK_ID_LIST.len());
+        assert_eq!(old.selectors.len(), Self::FUNC_BLOCK_ID_LIST.len());
+
+        old.selectors
+            .iter_mut()
+            .zip(params.selectors.iter())
+            .zip(Self::FUNC_BLOCK_ID_LIST)
+            .filter(|((o, n), _)| !o.eq(n))
+            .try_for_each(|((old, &new), &func_block_id)| {
+                let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, new as u8);
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| *old = new)
             })
     }
 
@@ -547,21 +606,16 @@ pub trait AvcSelectorOperation {
         val: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &func_block_id = Self::FUNC_BLOCK_ID_LIST.iter().nth(idx).ok_or_else(|| {
+        if idx >= Self::FUNC_BLOCK_ID_LIST.len() {
             let msg = format!("Invalid index of selector: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
 
-        let input_plug_id = Self::INPUT_PLUG_ID_LIST
-            .iter()
-            .nth(val)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of input plug number: {}", val);
-                Error::new(FileError::Inval, &msg)
-            })
-            .map(|input_plug_id| *input_plug_id)?;
+        let mut params = Self::create_selector_parameters();
+        params.selectors[idx] = val;
+        let mut p = Self::create_selector_parameters();
+        params.selectors[idx] = !val;
 
-        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+        Self::update_selectors(avc, &params, &mut p, timeout_ms)
     }
 }

@@ -328,7 +328,7 @@ impl AvcSelectorOperation for Fw410HeadphoneProtocol {
 }
 
 /// The protocol implementation for source of S/PDIF output in FireWire 410.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw410SpdifOutputProtocol;
 
 impl AvcSelectorOperation for Fw410SpdifOutputProtocol {
@@ -444,7 +444,7 @@ impl AvcLevelOperation for SoloStreamInputProtocol {}
 // NOTE: outputs are not configurable, connected to hardware dial directly.
 
 /// The protocol implementation for source of S/PDIF output in FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SoloSpdifOutputProtocol;
 
 impl AvcSelectorOperation for SoloSpdifOutputProtocol {
