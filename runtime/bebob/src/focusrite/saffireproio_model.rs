@@ -491,7 +491,7 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation> {
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MONITOR_KNOB_VALUE_NAME, 0);
         card_cntr
-            .add_int_elems(&elem_id, 1, 0, u8::MIN as i32, 1, 1, None, false)
+            .add_int_elems(&elem_id, 1, 0, u8::MAX as i32, 1, 1, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_LED_NAME, 0);
