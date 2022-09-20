@@ -180,6 +180,8 @@ impl CtlModel<(SndUnit, FwNode)> for OzonicModel {
             .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.stream_input_ctl
             .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_input_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -198,12 +200,7 @@ impl CtlModel<(SndUnit, FwNode)> for OzonicModel {
             Ok(true)
         } else if self.phys_input_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phys_input_ctl.read_balance(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.phys_input_ctl.read_balances(elem_id, elem_value)? {
             Ok(true)
         } else if self.stream_input_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)

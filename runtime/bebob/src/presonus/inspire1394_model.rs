@@ -299,6 +299,8 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_stream_src_ctl
             .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -373,12 +375,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.read_balance(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.mixer_phys_src_ctl.read_balances(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_mute(
             &self.avc,
