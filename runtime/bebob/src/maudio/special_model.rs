@@ -26,10 +26,18 @@ pub struct SpecialModel<T: MediaClockFrequencyOperation> {
 const FCP_TIMEOUT_MS: u32 = 200;
 const TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
-struct ClkCtl<T: MediaClockFrequencyOperation>(Vec<ElemId>, PhantomData<T>);
+#[derive(Default, Debug)]
+struct ClkCtl<T: MediaClockFrequencyOperation>(Vec<ElemId>, MediaClockParameters, PhantomData<T>);
 
-impl<T: MediaClockFrequencyOperation> MediaClkFreqCtlOperation<T> for ClkCtl<T> {}
+impl<T: MediaClockFrequencyOperation> MediaClkFreqCtlOperation<T> for ClkCtl<T> {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 #[derive(Default, Debug)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);

@@ -19,10 +19,18 @@ pub struct AureonModel {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<AureonClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<AureonClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 #[derive(Default)]
 struct PhysInputCtl;

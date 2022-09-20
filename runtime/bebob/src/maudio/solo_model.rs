@@ -18,10 +18,18 @@ pub struct SoloModel {
 const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 50;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<SoloClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<SoloClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<SoloClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];

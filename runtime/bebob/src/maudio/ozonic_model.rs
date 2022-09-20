@@ -17,10 +17,18 @@ pub struct OzonicModel {
 const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 50;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<OzonicClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<OzonicClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<OzonicClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal"];

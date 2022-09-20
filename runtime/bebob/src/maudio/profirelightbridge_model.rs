@@ -18,10 +18,18 @@ pub struct PflModel {
 const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<PflClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<PflClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &[

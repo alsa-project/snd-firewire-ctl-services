@@ -28,10 +28,18 @@ pub struct GoPhase24OptModel {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<GoPhase24ClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<GoPhase24ClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<GoPhase24ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
