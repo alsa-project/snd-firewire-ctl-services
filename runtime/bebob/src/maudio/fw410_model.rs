@@ -245,6 +245,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             .load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -257,10 +258,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
     ) -> Result<bool, Error> {
         if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)

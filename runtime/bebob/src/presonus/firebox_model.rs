@@ -203,6 +203,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         self.analog_in_ctl.load_switch(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -215,10 +216,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
     ) -> Result<bool, Error> {
         if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .phys_out_ctl
