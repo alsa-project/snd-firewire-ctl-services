@@ -356,6 +356,11 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
         self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_in_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -370,20 +375,11 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
             Ok(true)
         } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_in_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_in_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .hp_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.hp_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
@@ -531,10 +527,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
             Ok(true)
         } else if self.phys_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)

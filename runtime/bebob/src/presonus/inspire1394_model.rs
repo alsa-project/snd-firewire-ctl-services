@@ -373,6 +373,8 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_stream_src_ctl
             .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -427,10 +429,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self.phys_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.hp_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
