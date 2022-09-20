@@ -222,15 +222,16 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
             .map(|_| ())
     }
 
-    fn read_balance(
+    fn cache_balances(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_lr_balances(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_balances(
         &mut self,
-        avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::BALANCE_NAME {
-            T::cache_lr_balances(avc, self.state_mut(), timeout_ms)?;
             let vals: Vec<i32> = self
                 .state()
                 .balances
