@@ -54,8 +54,14 @@ impl AvcLevelCtlOperation<AureonPhysInputProtocol> for PhysInputCtl {
     }
 }
 
-#[derive(Default)]
-struct MonitorSourceCtl;
+#[derive(Debug)]
+struct MonitorSourceCtl(AvcSelectorParameters);
+
+impl Default for MonitorSourceCtl {
+    fn default() -> Self {
+        Self(AureonMonitorSourceProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<AureonMonitorSourceProtocol> for MonitorSourceCtl {
     const SELECTOR_NAME: &'static str = "monitor-source";
@@ -66,6 +72,14 @@ impl AvcSelectorCtlOperation<AureonMonitorSourceProtocol> for MonitorSourceCtl {
         "analog-input-5/6",
         "digital-input-1/2",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Debug)]
@@ -117,13 +131,27 @@ impl Default for MixerOutputCtl {
     }
 }
 
-#[derive(Default)]
-struct SpdifOutputCtl;
+#[derive(Debug)]
+struct SpdifOutputCtl(AvcSelectorParameters);
+
+impl Default for SpdifOutputCtl {
+    fn default() -> Self {
+        Self(AureonSpdifOutputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<AureonSpdifOutputProtocol> for SpdifOutputCtl {
     const SELECTOR_NAME: &'static str = "spdif-output-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["spdif-output-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output-1/2", "stream-input-9/10"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
@@ -336,11 +364,11 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = MonitorSourceCtl::default();
+        let mut ctl = MonitorSourceCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = SpdifOutputCtl::default();
+        let mut ctl = SpdifOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

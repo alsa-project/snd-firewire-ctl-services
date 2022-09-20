@@ -47,6 +47,7 @@ struct PhysOutputCtl(
     AvcLevelParameters,
     AvcLrBalanceParameters,
     AvcMuteParameters,
+    AvcSelectorParameters,
 );
 
 impl Default for PhysOutputCtl {
@@ -55,6 +56,7 @@ impl Default for PhysOutputCtl {
             FirexonPhysOutputProtocol::create_level_parameters(),
             FirexonPhysOutputProtocol::create_lr_balance_parameters(),
             FirexonPhysOutputProtocol::create_mute_parameters(),
+            FirexonPhysOutputProtocol::create_selector_parameters(),
         )
     }
 }
@@ -106,6 +108,14 @@ impl AvcSelectorCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
     const SELECTOR_LABELS: &'static [&'static str] = &["analog-output-3/4"];
     const ITEM_LABELS: &'static [&'static str] =
         &["mixer-output-1/2", "stream-input-3/4", "stream-input-5/6"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.3
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.3
+    }
 }
 
 #[derive(Debug)]
@@ -392,7 +402,7 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

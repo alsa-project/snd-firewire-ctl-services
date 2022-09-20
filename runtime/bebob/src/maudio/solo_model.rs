@@ -134,13 +134,27 @@ impl AvcLevelCtlOperation<SoloStreamInputProtocol> for StreamInputCtl {
     }
 }
 
-#[derive(Default)]
-struct SpdifOutputCtl;
+#[derive(Debug)]
+struct SpdifOutputCtl(AvcSelectorParameters);
+
+impl Default for SpdifOutputCtl {
+    fn default() -> Self {
+        Self(SoloSpdifOutputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<SoloSpdifOutputProtocol> for SpdifOutputCtl {
     const SELECTOR_NAME: &'static str = "S/PDIF-output-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["S/PDIF-output-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["stream-input-3/4", "mixer-output-3/4"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Default)]
@@ -365,7 +379,7 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = SpdifOutputCtl::default();
+        let mut ctl = SpdifOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

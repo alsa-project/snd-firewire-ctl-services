@@ -101,17 +101,37 @@ impl AvcMuteCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
     }
 }
 
-#[derive(Default)]
-struct CoaxPhysInputCtl;
+#[derive(Debug)]
+struct CoaxPhysInputCtl(AvcSelectorParameters);
+
+impl Default for CoaxPhysInputCtl {
+    fn default() -> Self {
+        Self(GoPhase24CoaxPhysInputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<GoPhase24CoaxPhysInputProtocol> for CoaxPhysInputCtl {
     const SELECTOR_NAME: &'static str = "analog-input-level";
     const SELECTOR_LABELS: &'static [&'static str] = &["analog-input-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["low", "middle", "high"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
-struct CoaxPhysOutputCtl;
+#[derive(Debug)]
+struct CoaxPhysOutputCtl(AvcSelectorParameters);
+
+impl Default for CoaxPhysOutputCtl {
+    fn default() -> Self {
+        Self(GoPhase24CoaxPhysOutputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<GoPhase24CoaxPhysOutputProtocol> for CoaxPhysOutputCtl {
     const SELECTOR_NAME: &'static str = "phys-output-source";
@@ -124,10 +144,24 @@ impl AvcSelectorCtlOperation<GoPhase24CoaxPhysOutputProtocol> for CoaxPhysOutput
         "mixer-output-1/2",
         "stream-input-5/6",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
-struct CoaxHeadphoneCtl;
+#[derive(Debug)]
+struct CoaxHeadphoneCtl(AvcSelectorParameters);
+
+impl Default for CoaxHeadphoneCtl {
+    fn default() -> Self {
+        Self(GoPhase24CoaxHeadphoneProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<GoPhase24CoaxHeadphoneProtocol> for CoaxHeadphoneCtl {
     const SELECTOR_NAME: &'static str = "headphone-source";
@@ -140,16 +174,25 @@ impl AvcSelectorCtlOperation<GoPhase24CoaxHeadphoneProtocol> for CoaxHeadphoneCt
         "mixer-output-1/2",
         "stream-input-5/6",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Debug)]
-struct OptPhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
+struct OptPhysOutputCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for OptPhysOutputCtl {
     fn default() -> Self {
         Self(
             GoPhase24OptPhysOutputProtocol::create_level_parameters(),
             GoPhase24OptPhysOutputProtocol::create_mute_parameters(),
+            GoPhase24OptPhysOutputProtocol::create_selector_parameters(),
         )
     }
 }
@@ -199,6 +242,14 @@ impl AvcSelectorCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCt
         "mixer-output-1/2",
         "stream-input-5/6",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
@@ -622,19 +673,19 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = CoaxPhysInputCtl::default();
+        let mut ctl = CoaxPhysInputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = CoaxPhysOutputCtl::default();
+        let mut ctl = CoaxPhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = CoaxHeadphoneCtl::default();
+        let mut ctl = CoaxHeadphoneCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = OptPhysOutputCtl::default();
+        let mut ctl = OptPhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
