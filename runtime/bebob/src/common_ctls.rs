@@ -4,6 +4,9 @@
 use {super::*, protocols::*};
 
 pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
+    fn state(&self) -> &MediaClockParameters;
+    fn state_mut(&mut self) -> &mut MediaClockParameters;
+
     fn load_freq(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let labels: Vec<String> = T::FREQ_LIST.iter().map(|&r| r.to_string()).collect();
 
@@ -12,23 +15,24 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
     }
 
     fn read_freq(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_freq(avc, timeout_ms).map(|idx| idx as u32)
-            })
-            .map(|_| true),
+            CLK_RATE_NAME => {
+                T::cache_freq(avc, self.state_mut(), timeout_ms)?;
+                elem_value.set_enum(&[self.state().freq_idx as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_freq(
-        &self,
+        &mut self,
         unit: &mut SndUnit,
         avc: &BebobAvc,
         elem_id: &ElemId,
@@ -39,10 +43,9 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_val(new, |val| {
-                    T::write_clk_freq(avc, val as usize, timeout_ms)
-                })
-                .map(|_| true);
+                let mut params = self.state().clone();
+                params.freq_idx = new.enumerated()[0] as usize;
+                let res = T::update_freq(avc, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.unlock();
                 res
             }

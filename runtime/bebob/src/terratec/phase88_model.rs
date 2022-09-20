@@ -18,10 +18,18 @@ pub struct Phase88Model {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<Phase88ClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<Phase88ClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<Phase88ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF", "Word-clock"];

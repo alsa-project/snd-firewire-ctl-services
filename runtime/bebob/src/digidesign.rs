@@ -15,10 +15,18 @@ pub struct Mbox2proModel {
 const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 50;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
-impl MediaClkFreqCtlOperation<Mbox2proClkProtocol> for ClkCtl {}
+impl MediaClkFreqCtlOperation<Mbox2proClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+}
 
 impl SamplingClkSrcCtlOperation<Mbox2proClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &[

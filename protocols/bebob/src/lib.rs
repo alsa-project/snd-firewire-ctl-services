@@ -164,11 +164,6 @@ pub trait MediaClockFrequencyOperation {
             .map(|freq_idx| params.freq_idx = freq_idx)
     }
 
-    fn read_clk_freq(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
-        let mut params = MediaClockParameters::default();
-        Self::cache_freq(avc, &mut params, timeout_ms).map(|_| params.freq_idx)
-    }
-
     /// Update the hardware by the given parameter. This operation can involve INTERIM AV/C
     /// response to expand response time of AV/C transaction.
     fn update_freq(
@@ -206,13 +201,6 @@ pub trait MediaClockFrequencyOperation {
         *old = *params;
 
         Ok(())
-    }
-
-    fn write_clk_freq(avc: &BebobAvc, freq_idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        let params = MediaClockParameters { freq_idx };
-        let mut p = MediaClockParameters::default();
-
-        Self::update_freq(avc, &params, &mut p, timeout_ms)
     }
 }
 

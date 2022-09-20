@@ -24,12 +24,20 @@ where
 const FCP_TIMEOUT_MS: u32 = 100;
 
 // Read only, configured by hardware only.
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl(Vec<ElemId>, MediaClockParameters);
 
 impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
+    fn state(&self) -> &MediaClockParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MediaClockParameters {
+        &mut self.1
+    }
+
     fn write_freq(
-        &self,
+        &mut self,
         _: &mut SndUnit,
         _: &BebobAvc,
         elem_id: &ElemId,
