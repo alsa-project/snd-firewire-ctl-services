@@ -46,11 +46,14 @@ impl SamplingClkSrcCtlOperation<FireboxClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(FireboxPhysOutputProtocol::create_level_parameters())
+        Self(
+            FireboxPhysOutputProtocol::create_level_parameters(),
+            FireboxPhysOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -76,6 +79,14 @@ impl AvcLevelCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
 
 impl AvcMuteCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const MUTE_NAME: &'static str = "phys-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
@@ -90,11 +101,14 @@ impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters);
+struct HeadphoneCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
-        Self(FireboxHeadphoneProtocol::create_level_parameters())
+        Self(
+            FireboxHeadphoneProtocol::create_level_parameters(),
+            FireboxHeadphoneProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -113,6 +127,14 @@ impl AvcLevelCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
 
 impl AvcMuteCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     const MUTE_NAME: &'static str = "headphone-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
@@ -128,13 +150,18 @@ impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
 }
 
 #[derive(Debug)]
-struct MixerPhysSrcCtl(AvcLevelParameters, AvcLrBalanceParameters);
+struct MixerPhysSrcCtl(
+    AvcLevelParameters,
+    AvcLrBalanceParameters,
+    AvcMuteParameters,
+);
 
 impl Default for MixerPhysSrcCtl {
     fn default() -> Self {
         Self(
             FireboxMixerPhysSourceProtocol::create_level_parameters(),
             FireboxMixerPhysSourceProtocol::create_lr_balance_parameters(),
+            FireboxMixerPhysSourceProtocol::create_mute_parameters(),
         )
     }
 }
@@ -173,14 +200,25 @@ impl AvcLrBalanceCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCt
 
 impl AvcMuteCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
-struct MixerStreamSrcCtl(AvcLevelParameters);
+struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerStreamSrcCtl {
     fn default() -> Self {
-        Self(FireboxMixerStreamSourceProtocol::create_level_parameters())
+        Self(
+            FireboxMixerStreamSourceProtocol::create_level_parameters(),
+            FireboxMixerStreamSourceProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -199,6 +237,14 @@ impl AvcLevelCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCt
 
 impl AvcMuteCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
@@ -213,13 +259,18 @@ impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSr
 }
 
 #[derive(Debug)]
-struct MixerOutputCtl(AvcLevelParameters, AvcLrBalanceParameters);
+struct MixerOutputCtl(
+    AvcLevelParameters,
+    AvcLrBalanceParameters,
+    AvcMuteParameters,
+);
 
 impl Default for MixerOutputCtl {
     fn default() -> Self {
         Self(
             FireboxMixerOutputProtocol::create_level_parameters(),
             FireboxMixerOutputProtocol::create_lr_balance_parameters(),
+            FireboxMixerOutputProtocol::create_mute_parameters(),
         )
     }
 }
@@ -250,6 +301,14 @@ impl AvcLrBalanceCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
 
 impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Default)]

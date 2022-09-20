@@ -53,11 +53,14 @@ impl AvcSelectorCtlOperation<Phase88PhysInputProtocol> for PhysInputCtl {
 }
 
 #[derive(Debug)]
-struct MixerPhysSrcCtl(AvcLevelParameters);
+struct MixerPhysSrcCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerPhysSrcCtl {
     fn default() -> Self {
-        Self(Phase88MixerPhysSourceProtocol::create_level_parameters())
+        Self(
+            Phase88MixerPhysSourceProtocol::create_level_parameters(),
+            Phase88MixerPhysSourceProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -87,14 +90,25 @@ impl AvcLevelCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
 
 impl AvcMuteCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct MixerStreamSrcCtl(AvcLevelParameters);
+struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerStreamSrcCtl {
     fn default() -> Self {
-        Self(Phase88MixerStreamSourceProtocol::create_level_parameters())
+        Self(
+            Phase88MixerStreamSourceProtocol::create_level_parameters(),
+            Phase88MixerStreamSourceProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -113,6 +127,14 @@ impl AvcLevelCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCt
 
 impl AvcMuteCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCtl {
@@ -128,11 +150,14 @@ impl AvcSelectorCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSr
 }
 
 #[derive(Debug)]
-struct MixerOutputCtl(AvcLevelParameters);
+struct MixerOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerOutputCtl {
     fn default() -> Self {
-        Self(Phase88MixerOutputProtocol::create_level_parameters())
+        Self(
+            Phase88MixerOutputProtocol::create_level_parameters(),
+            Phase88MixerOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -151,6 +176,14 @@ impl AvcLevelCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
 
 impl AvcMuteCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {

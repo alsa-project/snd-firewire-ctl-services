@@ -438,8 +438,9 @@ pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
     }
 }
 
-/// The parameters of mute.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+/// The parameters of mute. The `Default` trait should be implemented to call
+/// `AvcMuteOperation::create_mute_parameters()`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvcMuteParameters {
     /// Muted or not.
     pub mutes: Vec<bool>,
@@ -484,18 +485,6 @@ pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
             })
     }
 
-    fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        if idx >= Self::ENTRIES.len() {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_mute_parameters();
-        Self::cache_mutes(avc, &mut params, timeout_ms)?;
-
-        Ok(params.mutes[idx])
-    }
-
     /// Update the hardware when detecting any changes in the parameters.
     fn update_mutes(
         avc: &BebobAvc,
@@ -523,19 +512,6 @@ pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
                 avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                     .map(|_| *old = new)
             })
-    }
-
-    fn write_mute(avc: &BebobAvc, idx: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
-        if idx >= Self::ENTRIES.len() {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_mute_parameters();
-        params.mutes[idx] = mute;
-        let mut p = Self::create_mute_parameters();
-        p.mutes[idx] = !mute;
-        Self::update_mutes(avc, &params, &mut p, timeout_ms)
     }
 }
 
