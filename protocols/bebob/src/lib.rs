@@ -438,42 +438,104 @@ pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
     }
 }
 
+/// The parameters of mute.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct AvcMuteParameters {
+    /// Muted or not.
+    pub mutes: Vec<bool>,
+}
+
 /// The trait of mute operation for audio function blocks.
 pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
-    fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::Mute(vec![false]),
-        );
-        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
-
-        if let FeatureCtl::Mute(data) = op.ctl {
-            Ok(data[0])
-        } else {
-            unreachable!();
+    /// Instantiate parameters.
+    fn create_mute_parameters() -> AvcMuteParameters {
+        AvcMuteParameters {
+            mutes: vec![Default::default(); Self::ENTRIES.len()],
         }
     }
 
-    fn write_mute(avc: &BebobAvc, idx: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+    /// Cache state of hardware to the parameters.
+    fn cache_mutes(
+        avc: &BebobAvc,
+        params: &mut AvcMuteParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.mutes.len(), Self::ENTRIES.len());
 
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::Mute(vec![mute]),
-        );
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+        params
+            .mutes
+            .iter_mut()
+            .zip(Self::ENTRIES)
+            .try_for_each(|(mute, entry)| {
+                let &(func_block_id, audio_ch) = entry;
+
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::Mute(vec![false]),
+                );
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| {
+                        if let FeatureCtl::Mute(data) = op.ctl {
+                            *mute = data[0];
+                        }
+                    })
+            })
+    }
+
+    fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
+        if idx >= Self::ENTRIES.len() {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_mute_parameters();
+        Self::cache_mutes(avc, &mut params, timeout_ms)?;
+
+        Ok(params.mutes[idx])
+    }
+
+    /// Update the hardware when detecting any changes in the parameters.
+    fn update_mutes(
+        avc: &BebobAvc,
+        params: &AvcMuteParameters,
+        old: &mut AvcMuteParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.mutes.len(), Self::ENTRIES.len());
+        assert_eq!(old.mutes.len(), Self::ENTRIES.len());
+
+        old.mutes
+            .iter_mut()
+            .zip(params.mutes.iter())
+            .zip(Self::ENTRIES)
+            .filter(|((o, n), _)| !n.eq(o))
+            .try_for_each(|((old, &new), entry)| {
+                let &(func_block_id, audio_ch) = entry;
+
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::Mute(vec![new]),
+                );
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| *old = new)
+            })
+    }
+
+    fn write_mute(avc: &BebobAvc, idx: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+        if idx >= Self::ENTRIES.len() {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_mute_parameters();
+        params.mutes[idx] = mute;
+        let mut p = Self::create_mute_parameters();
+        p.mutes[idx] = !mute;
+        Self::update_mutes(avc, &params, &mut p, timeout_ms)
     }
 }
 
