@@ -54,6 +54,9 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
 pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
     const SRC_LABELS: &'static [&'static str];
 
+    fn state(&self) -> &SamplingClockParameters;
+    fn state_mut(&mut self) -> &mut SamplingClockParameters;
+
     fn load_src(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         assert_eq!(
             Self::SRC_LABELS.len(),
@@ -74,23 +77,24 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
     }
 
     fn read_src(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_src(avc, timeout_ms).map(|idx| idx as u32)
-            })
-            .map(|_| true),
+            CLK_SRC_NAME => {
+                T::cache_src(avc, self.state_mut(), timeout_ms)?;
+                elem_value.set_enum(&[self.state().src_idx as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_src(
-        &self,
+        &mut self,
         unit: &mut SndUnit,
         avc: &BebobAvc,
         elem_id: &ElemId,
@@ -101,10 +105,9 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
         match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_val(new, |val| {
-                    T::write_clk_src(avc, val as usize, timeout_ms)
-                })
-                .map(|_| true);
+                let mut params = self.state().clone();
+                params.src_idx = new.enumerated()[0] as usize;
+                let res = T::update_src(avc, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.unlock();
                 res
             }

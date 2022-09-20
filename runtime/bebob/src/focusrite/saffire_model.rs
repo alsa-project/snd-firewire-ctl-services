@@ -20,7 +20,7 @@ const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<SaffireClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -34,6 +34,14 @@ impl MediaClkFreqCtlOperation<SaffireClkProtocol> for ClkCtl {
 
 impl SamplingClkSrcCtlOperation<SaffireClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Default, Debug)]

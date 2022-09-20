@@ -19,7 +19,7 @@ const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<PflClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -41,6 +41,14 @@ impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
         "ADAT-4",
         "Word-clock",
     ];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Default)]

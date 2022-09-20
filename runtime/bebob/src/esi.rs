@@ -17,7 +17,7 @@ pub struct Quatafire610Model {
 }
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -31,6 +31,14 @@ impl MediaClkFreqCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
 
 impl SamplingClkSrcCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal"];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Default)]

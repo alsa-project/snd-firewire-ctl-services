@@ -243,11 +243,6 @@ pub trait SamplingClockSourceOperation {
             .map(|src_idx| params.src_idx = src_idx)
     }
 
-    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
-        let mut params = SamplingClockParameters::default();
-        Self::cache_src(avc, &mut params, timeout_ms).map(|_| params.src_idx)
-    }
-
     /// Update the hardware by the given parameter. This operation can involve INTERIM AV/C
     /// response to expand response time of AV/C transaction.
     fn update_src(
@@ -270,12 +265,6 @@ pub trait SamplingClockSourceOperation {
 
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *old = *params)
-    }
-
-    fn write_clk_src(avc: &BebobAvc, src_idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        let params = SamplingClockParameters { src_idx };
-        let mut old = SamplingClockParameters::default();
-        Self::update_src(avc, &params, &mut old, timeout_ms)
     }
 }
 
