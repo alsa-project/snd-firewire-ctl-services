@@ -268,10 +268,14 @@ pub trait SamplingClockSourceOperation {
     }
 }
 
-/// The trait of level operation for audio function blocks by AV/C transaction.
-pub trait AvcLevelOperation {
+/// The specification of Feature Function Blocks of AV/C Audio subunit.
+pub trait AvcAudioFeatureSpecification {
+    /// The entries of pair of function block identifier and audio channel.
     const ENTRIES: &'static [(u8, AudioCh)];
+}
 
+/// The trait of level operation for audio function blocks by AV/C transaction.
+pub trait AvcLevelOperation: AvcAudioFeatureSpecification {
     const LEVEL_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
     const LEVEL_MAX: i16 = VolumeData::VALUE_ZERO;
     const LEVEL_STEP: i16 = 0x100;
@@ -314,7 +318,7 @@ pub trait AvcLevelOperation {
 }
 
 /// The trait of LR balance operation for audio function blocks.
-pub trait AvcLrBalanceOperation: AvcLevelOperation {
+pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
     const BALANCE_MIN: i16 = LrBalanceData::VALUE_LEFT_NEG_INFINITY;
     const BALANCE_MAX: i16 = LrBalanceData::VALUE_LEFT_MAX;
     const BALANCE_STEP: i16 = 0x80;
@@ -362,7 +366,7 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
 }
 
 /// The trait of mute operation for audio function blocks.
-pub trait AvcMuteOperation: AvcLevelOperation {
+pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
     fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
         let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
             let msg = format!("Invalid index of function block list: {}", idx);

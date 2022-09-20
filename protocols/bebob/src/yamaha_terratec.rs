@@ -247,9 +247,10 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysOutputProtocol {
     ];
 }
 /// The protocol implementation of physical output for optical models.
+#[derive(Default, Debug)]
 pub struct GoPhase24OptPhysOutputProtocol;
 
-impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {
+impl AvcAudioFeatureSpecification for GoPhase24OptPhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)), // analog-output-1
         (0x01, AudioCh::Each(1)), // analog-output-2
@@ -257,6 +258,8 @@ impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {
         (0x01, AudioCh::Each(3)), // analog-output-4
     ];
 }
+
+impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {}
 
 impl AvcMuteOperation for GoPhase24OptPhysOutputProtocol {}
 
@@ -292,9 +295,10 @@ impl AvcSelectorOperation for GoPhase24CoaxHeadphoneProtocol {
 }
 
 /// The protocol implementation of mixer source gain.
+#[derive(Default, Debug)]
 pub struct GoPhase24MixerSourceProtocol;
 
-impl AvcLevelOperation for GoPhase24MixerSourceProtocol {
+impl AvcAudioFeatureSpecification for GoPhase24MixerSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x06, AudioCh::Each(0)), // analog-input-1/2
         (0x06, AudioCh::Each(1)), // analog-input-1/2
@@ -309,22 +313,30 @@ impl AvcLevelOperation for GoPhase24MixerSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for GoPhase24MixerSourceProtocol {}
+
 impl AvcMuteOperation for GoPhase24MixerSourceProtocol {}
 
 /// The protocol implementation of mixer output volume for coaxial models.
+#[derive(Default, Debug)]
 pub struct GoPhase24CoaxMixerOutputProtocol;
 
-impl AvcLevelOperation for GoPhase24CoaxMixerOutputProtocol {
+impl AvcAudioFeatureSpecification for GoPhase24CoaxMixerOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x01, AudioCh::Each(0)), (0x01, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for GoPhase24CoaxMixerOutputProtocol {}
 
 impl AvcMuteOperation for GoPhase24CoaxMixerOutputProtocol {}
 
 /// The protocol implementation of mixer output volume for optical models.
+#[derive(Default, Debug)]
 pub struct GoPhase24OptMixerOutputProtocol;
 
-impl AvcLevelOperation for GoPhase24OptMixerOutputProtocol {
+impl AvcAudioFeatureSpecification for GoPhase24OptMixerOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x02, AudioCh::Each(0)), (0x02, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for GoPhase24OptMixerOutputProtocol {}
 
 impl AvcMuteOperation for GoPhase24OptMixerOutputProtocol {}

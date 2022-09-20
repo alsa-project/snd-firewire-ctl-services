@@ -55,9 +55,10 @@ impl SamplingClockSourceOperation for Fp10ClkProtocol {
 }
 
 /// The protocol implementation for physical output.
+#[derive(Default, Debug)]
 pub struct Fp10PhysOutputProtocol;
 
-impl AvcLevelOperation for Fp10PhysOutputProtocol {
+impl AvcAudioFeatureSpecification for Fp10PhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)),
         (0x01, AudioCh::Each(1)),
@@ -69,6 +70,8 @@ impl AvcLevelOperation for Fp10PhysOutputProtocol {
         (0x04, AudioCh::Each(1)),
     ];
 }
+
+impl AvcLevelOperation for Fp10PhysOutputProtocol {}
 
 impl AvcLrBalanceOperation for Fp10PhysOutputProtocol {}
 

@@ -187,9 +187,7 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
     }
 }
 
-pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>:
-    AvcLevelCtlOperation<T>
-{
+pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
     const BALANCE_NAME: &'static str;
 
     const BALANCE_MIN: i32 = T::BALANCE_MIN as i32;
@@ -248,9 +246,7 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>
     }
 }
 
-pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>:
-    AvcLevelCtlOperation<T>
-{
+pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
     const MUTE_NAME: &'static str;
 
     fn load_mute(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {

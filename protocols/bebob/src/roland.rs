@@ -73,10 +73,10 @@ impl SamplingClockSourceOperation for FaClkProtocol {
 
 /// The protocol implementation for physical input of FA-66. Any operation is effective when
 /// enabling hardware switch with 'SOFT CTRL'.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fa66MixerAnalogSourceProtocol;
 
-impl AvcLevelOperation for Fa66MixerAnalogSourceProtocol {
+impl AvcAudioFeatureSpecification for Fa66MixerAnalogSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)),
         (0x01, AudioCh::Each(1)),
@@ -87,14 +87,16 @@ impl AvcLevelOperation for Fa66MixerAnalogSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for Fa66MixerAnalogSourceProtocol {}
+
 impl AvcLrBalanceOperation for Fa66MixerAnalogSourceProtocol {}
 
 /// The protocol implementation for physical input of FA-101. Any operation is effective when
 /// enabling hardware switch with 'SOFT CTRL'.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fa101MixerAnalogSourceProtocol;
 
-impl AvcLevelOperation for Fa101MixerAnalogSourceProtocol {
+impl AvcAudioFeatureSpecification for Fa101MixerAnalogSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)),
         (0x01, AudioCh::Each(1)),
@@ -108,5 +110,7 @@ impl AvcLevelOperation for Fa101MixerAnalogSourceProtocol {
         (0x05, AudioCh::Each(1)),
     ];
 }
+
+impl AvcLevelOperation for Fa101MixerAnalogSourceProtocol {}
 
 impl AvcLrBalanceOperation for Fa101MixerAnalogSourceProtocol {}
