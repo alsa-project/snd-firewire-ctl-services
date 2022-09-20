@@ -344,15 +344,16 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
             .map(|_| ())
     }
 
-    fn read_selector(
+    fn cache_selectors(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_selectors(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_selectors(
         &mut self,
-        avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SELECTOR_NAME {
-            T::cache_selectors(avc, self.state_mut(), timeout_ms)?;
             let vals: Vec<u32> = self
                 .state()
                 .selectors

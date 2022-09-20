@@ -318,6 +318,9 @@ impl CtlModel<(SndUnit, FwNode)> for AudiophileModel {
         self.hp_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_input_ctl
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_output_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -344,19 +347,11 @@ impl CtlModel<(SndUnit, FwNode)> for AudiophileModel {
             Ok(true)
         } else if self.phys_output_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phys_output_ctl.read_selector(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.phys_output_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.hp_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .hp_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.hp_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .mixer_ctl

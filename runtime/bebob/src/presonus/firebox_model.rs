@@ -411,7 +411,15 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         self.headphone_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_phys_src_ctl
             .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -430,21 +438,13 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.headphone_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self.headphone_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self.headphone_ctl.read_selector(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.headphone_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
@@ -456,12 +456,10 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.read_selector(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_stream_src_ctl
+            .read_selectors(elem_id, elem_value)?
+        {
             Ok(true)
         } else if self.mixer_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
