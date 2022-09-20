@@ -59,12 +59,17 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
 #[derive(Debug)]
 pub struct MixerAnalogSourceCtl<T: AvcAudioFeatureSpecification>(
     AvcLevelParameters,
+    AvcLrBalanceParameters,
     PhantomData<T>,
 );
 
-impl<T: AvcLevelOperation> Default for MixerAnalogSourceCtl<T> {
+impl<T: AvcLevelOperation + AvcLrBalanceOperation> Default for MixerAnalogSourceCtl<T> {
     fn default() -> Self {
-        Self(T::create_level_parameters(), Default::default())
+        Self(
+            T::create_level_parameters(),
+            T::create_lr_balance_parameters(),
+            Default::default(),
+        )
     }
 }
 
@@ -95,6 +100,14 @@ impl AvcLrBalanceCtlOperation<Fa66MixerAnalogSourceProtocol>
     for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>
 {
     const BALANCE_NAME: &'static str = "mixer-source-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol>
@@ -128,6 +141,14 @@ impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
     for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol>
 {
     const BALANCE_NAME: &'static str = "mixer-source-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl<T> CtlModel<(SndUnit, FwNode)> for FaModel<T>

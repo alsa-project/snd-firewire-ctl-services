@@ -68,11 +68,14 @@ impl AsRef<MaudioNormalMeter> for MeterCtl {
 impl MaudioNormalMeterCtlOperation<AudiophileMeterProtocol> for MeterCtl {}
 
 #[derive(Debug)]
-struct PhysInputCtl(AvcLevelParameters);
+struct PhysInputCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for PhysInputCtl {
     fn default() -> Self {
-        Self(AudiophilePhysInputProtocol::create_level_parameters())
+        Self(
+            AudiophilePhysInputProtocol::create_level_parameters(),
+            AudiophilePhysInputProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -96,6 +99,14 @@ impl AvcLevelCtlOperation<AudiophilePhysInputProtocol> for PhysInputCtl {
 
 impl AvcLrBalanceCtlOperation<AudiophilePhysInputProtocol> for PhysInputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]

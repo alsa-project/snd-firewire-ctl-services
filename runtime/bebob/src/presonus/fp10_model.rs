@@ -41,11 +41,14 @@ impl SamplingClkSrcCtlOperation<Fp10ClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(Fp10PhysOutputProtocol::create_level_parameters())
+        Self(
+            Fp10PhysOutputProtocol::create_level_parameters(),
+            Fp10PhysOutputProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -74,6 +77,14 @@ impl AvcLevelCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
 
 impl AvcLrBalanceCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
     const BALANCE_NAME: &'static str = "output-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {

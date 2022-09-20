@@ -42,11 +42,14 @@ impl SamplingClkSrcCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct Quatafire610InputCtl(AvcLevelParameters);
+struct Quatafire610InputCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for Quatafire610InputCtl {
     fn default() -> Self {
-        Self(Quatafire610PhysInputProtocol::create_level_parameters())
+        Self(
+            Quatafire610PhysInputProtocol::create_level_parameters(),
+            Quatafire610PhysInputProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -72,6 +75,14 @@ impl AvcLevelCtlOperation<Quatafire610PhysInputProtocol> for Quatafire610InputCt
 
 impl AvcLrBalanceCtlOperation<Quatafire610PhysInputProtocol> for Quatafire610InputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]

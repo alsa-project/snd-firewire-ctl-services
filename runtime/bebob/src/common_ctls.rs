@@ -203,7 +203,10 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
     const BALANCE_MAX: i32 = T::BALANCE_MAX as i32;
     const BALANCE_STEP: i32 = T::BALANCE_STEP as i32;
 
-    fn load_balance(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &AvcLrBalanceParameters;
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters;
+
+    fn load_balance(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::BALANCE_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -220,35 +223,44 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
     }
 
     fn read_balance(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::BALANCE_NAME {
-            ElemValueAccessor::<i32>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
-                T::read_lr_balance(avc, idx, timeout_ms).map(|balance| balance as i32)
-            })
-            .map(|_| true)
+            T::cache_lr_balances(avc, self.state_mut(), timeout_ms)?;
+            let vals: Vec<i32> = self
+                .state()
+                .balances
+                .iter()
+                .map(|&balance| balance as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
         } else {
             Ok(false)
         }
     }
 
     fn write_balance(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::BALANCE_NAME {
-            ElemValueAccessor::<i32>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
-                T::write_lr_balance(avc, idx, val as i16, timeout_ms)
-            })
-            .map(|_| true)
+            let mut params = self.state().clone();
+            let vals = &new.int()[..params.balances.len()];
+            params
+                .balances
+                .iter_mut()
+                .zip(vals)
+                .for_each(|(balance, &val)| *balance = val as i16);
+            T::update_lr_balances(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
         } else {
             Ok(false)
         }
