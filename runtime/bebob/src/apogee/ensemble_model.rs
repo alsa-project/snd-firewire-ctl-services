@@ -23,7 +23,7 @@ pub struct EnsembleModel {
 }
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<EnsembleClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -38,6 +38,14 @@ impl MediaClkFreqCtlOperation<EnsembleClkProtocol> for ClkCtl {
 impl SamplingClkSrcCtlOperation<EnsembleClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] =
         &["Internal", "S/PDIF-coax", "Optical", "Word Clock"];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 fn input_output_copy_from_meter(model: &mut EnsembleModel) {

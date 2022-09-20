@@ -15,7 +15,7 @@ pub struct Fca610Model {
 }
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<Fca610ClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -30,6 +30,14 @@ impl MediaClkFreqCtlOperation<Fca610ClkProtocol> for ClkCtl {
 impl SamplingClkSrcCtlOperation<Fca610ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] =
         &["device-internal-clock", "S/PDIF", "firewire-bus"];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Fca610Model {

@@ -16,7 +16,7 @@ const FCP_TIMEOUT_MS: u32 = 100;
 const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default, Debug)]
-struct ClkCtl(Vec<ElemId>, MediaClockParameters);
+struct ClkCtl(Vec<ElemId>, MediaClockParameters, SamplingClockParameters);
 
 impl MediaClkFreqCtlOperation<Mbox2proClkProtocol> for ClkCtl {
     fn state(&self) -> &MediaClockParameters {
@@ -36,6 +36,14 @@ impl SamplingClkSrcCtlOperation<Mbox2proClkProtocol> for ClkCtl {
         "Word-clock-input",
         "Word-clock-or-S/PDIF-input",
     ];
+
+    fn state(&self) -> &SamplingClockParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut SamplingClockParameters {
+        &mut self.2
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
