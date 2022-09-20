@@ -274,46 +274,110 @@ pub trait AvcAudioFeatureSpecification {
     const ENTRIES: &'static [(u8, AudioCh)];
 }
 
+/// The parameters of signal level.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AvcLevelParameters {
+    /// The signal levels.
+    pub levels: Vec<i16>,
+}
+
 /// The trait of level operation for audio function blocks by AV/C transaction.
 pub trait AvcLevelOperation: AvcAudioFeatureSpecification {
+    /// The minimum value of signal level.
     const LEVEL_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
+    /// The maximum value of signal level.
     const LEVEL_MAX: i16 = VolumeData::VALUE_ZERO;
+    /// The step value of signal level.
     const LEVEL_STEP: i16 = 0x100;
 
-    fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::Volume(VolumeData::new(1)),
-        );
-        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
-
-        if let FeatureCtl::Volume(data) = op.ctl {
-            Ok(data.0[0])
-        } else {
-            unreachable!();
+    /// Instantiate parameters.
+    fn create_level_parameters() -> AvcLevelParameters {
+        AvcLevelParameters {
+            levels: vec![Default::default(); Self::ENTRIES.len()],
         }
     }
 
-    fn write_level(avc: &BebobAvc, idx: usize, vol: i16, timeout_ms: u32) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+    /// Cache state of hardware to the parameters.
+    fn cache_levels(
+        avc: &BebobAvc,
+        params: &mut AvcLevelParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.levels.len(), Self::ENTRIES.len());
 
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::Volume(VolumeData(vec![vol])),
-        );
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+        params
+            .levels
+            .iter_mut()
+            .zip(Self::ENTRIES)
+            .try_for_each(|(level, entry)| {
+                let &(func_block_id, audio_ch) = entry;
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::Volume(VolumeData::new(1)),
+                );
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| {
+                        if let FeatureCtl::Volume(data) = op.ctl {
+                            *level = data.0[0]
+                        }
+                    })
+            })
+    }
+
+    fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        if idx >= Self::ENTRIES.len() {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_level_parameters();
+        Self::cache_levels(avc, &mut params, timeout_ms)?;
+
+        Ok(params.levels[idx])
+    }
+
+    /// Update the hardware when detecting any changes in the parameters.
+    fn update_levels(
+        avc: &BebobAvc,
+        params: &AvcLevelParameters,
+        old: &mut AvcLevelParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.levels.len(), Self::ENTRIES.len());
+        assert_eq!(old.levels.len(), Self::ENTRIES.len());
+
+        old.levels
+            .iter_mut()
+            .zip(params.levels.iter())
+            .zip(Self::ENTRIES)
+            .filter(|((old, new), _)| !new.eq(old))
+            .try_for_each(|((old, new), entry)| {
+                let &(func_block_id, audio_ch) = entry;
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::Volume(VolumeData(vec![*new])),
+                );
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| *old = *new)
+            })
+    }
+
+    fn write_level(avc: &BebobAvc, idx: usize, vol: i16, timeout_ms: u32) -> Result<(), Error> {
+        if idx >= Self::ENTRIES.len() {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_level_parameters();
+        params.levels[idx] = vol;
+        let mut p = Self::create_level_parameters();
+        p.levels[idx] = !vol;
+
+        Self::update_levels(avc, &params, &mut p, timeout_ms)
     }
 }
 
