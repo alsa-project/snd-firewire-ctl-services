@@ -271,7 +271,10 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
 pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
     const MUTE_NAME: &'static str;
 
-    fn load_mute(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &AvcMuteParameters;
+    fn state_mut(&mut self) -> &mut AvcMuteParameters;
+
+    fn load_mute(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::ENTRIES.len(), true)
@@ -279,35 +282,34 @@ pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
     }
 
     fn read_mute(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::MUTE_NAME {
-            ElemValueAccessor::<bool>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
-                T::read_mute(avc, idx, timeout_ms)
-            })
-            .map(|_| true)
+            T::cache_mutes(avc, self.state_mut(), timeout_ms)?;
+            elem_value.set_bool(&self.state().mutes);
+            Ok(true)
         } else {
             Ok(false)
         }
     }
 
     fn write_mute(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::MUTE_NAME {
-            ElemValueAccessor::<bool>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
-                T::write_mute(avc, idx, val, timeout_ms)
-            })
-            .map(|_| true)
+            let mut params = self.state().clone();
+            let vals = &new.boolean()[..params.mutes.len()];
+            params.mutes.copy_from_slice(&vals);
+            T::update_mutes(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
         } else {
             Ok(false)
         }

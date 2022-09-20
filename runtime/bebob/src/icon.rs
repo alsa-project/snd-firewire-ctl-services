@@ -43,13 +43,18 @@ impl SamplingClkSrcCtlOperation<FirexonClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters, AvcLrBalanceParameters);
+struct PhysOutputCtl(
+    AvcLevelParameters,
+    AvcLrBalanceParameters,
+    AvcMuteParameters,
+);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
         Self(
             FirexonPhysOutputProtocol::create_level_parameters(),
             FirexonPhysOutputProtocol::create_lr_balance_parameters(),
+            FirexonPhysOutputProtocol::create_mute_parameters(),
         )
     }
 }
@@ -86,6 +91,14 @@ impl AvcLrBalanceCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
 
 impl AvcMuteCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
     const MUTE_NAME: &'static str = "analog-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.2
+    }
 }
 
 impl AvcSelectorCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
@@ -96,13 +109,18 @@ impl AvcSelectorCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
 }
 
 #[derive(Debug)]
-struct MonitorSrcCtl(AvcLevelParameters, AvcLrBalanceParameters);
+struct MonitorSrcCtl(
+    AvcLevelParameters,
+    AvcLrBalanceParameters,
+    AvcMuteParameters,
+);
 
 impl Default for MonitorSrcCtl {
     fn default() -> Self {
         Self(
             FirexonMonitorSourceProtocol::create_level_parameters(),
             FirexonMonitorSourceProtocol::create_lr_balance_parameters(),
+            FirexonMonitorSourceProtocol::create_mute_parameters(),
         )
     }
 }
@@ -141,6 +159,14 @@ impl AvcLrBalanceCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
 
 impl AvcMuteCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
     const MUTE_NAME: &'static str = "monitor-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]

@@ -69,11 +69,14 @@ impl AvcSelectorCtlOperation<AureonMonitorSourceProtocol> for MonitorSourceCtl {
 }
 
 #[derive(Debug)]
-struct MonitorOutputCtl(AvcLevelParameters);
+struct MonitorOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MonitorOutputCtl {
     fn default() -> Self {
-        Self(AureonMonitorOutputProtocol::create_level_parameters())
+        Self(
+            AureonMonitorOutputProtocol::create_level_parameters(),
+            AureonMonitorOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -92,14 +95,25 @@ impl AvcLevelCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
 
 impl AvcMuteCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
     const MUTE_NAME: &'static str = "monitor-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct MixerOutputCtl(AvcLevelParameters);
+struct MixerOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerOutputCtl {
     fn default() -> Self {
-        Self(AureonMixerOutputProtocol::create_level_parameters())
+        Self(
+            AureonMixerOutputProtocol::create_level_parameters(),
+            AureonMixerOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -136,6 +150,14 @@ impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
 
 impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for AureonModel {

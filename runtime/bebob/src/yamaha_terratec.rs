@@ -54,11 +54,14 @@ impl SamplingClkSrcCtlOperation<GoPhase24ClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct MixerSourceCtl(AvcLevelParameters);
+struct MixerSourceCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerSourceCtl {
     fn default() -> Self {
-        Self(GoPhase24MixerSourceProtocol::create_level_parameters())
+        Self(
+            GoPhase24MixerSourceProtocol::create_level_parameters(),
+            GoPhase24MixerSourceProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -88,6 +91,14 @@ impl AvcLevelCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
 
 impl AvcMuteCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
     const MUTE_NAME: &'static str = "mixer-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Default)]
@@ -132,11 +143,14 @@ impl AvcSelectorCtlOperation<GoPhase24CoaxHeadphoneProtocol> for CoaxHeadphoneCt
 }
 
 #[derive(Debug)]
-struct OptPhysOutputCtl(AvcLevelParameters);
+struct OptPhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for OptPhysOutputCtl {
     fn default() -> Self {
-        Self(GoPhase24OptPhysOutputProtocol::create_level_parameters())
+        Self(
+            GoPhase24OptPhysOutputProtocol::create_level_parameters(),
+            GoPhase24OptPhysOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -160,6 +174,14 @@ impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
 
 impl AvcMuteCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
     const MUTE_NAME: &'static str = "phys-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
@@ -180,11 +202,14 @@ impl AvcSelectorCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCt
 }
 
 #[derive(Debug)]
-struct CoaxMixerOutputCtl(AvcLevelParameters);
+struct CoaxMixerOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for CoaxMixerOutputCtl {
     fn default() -> Self {
-        Self(GoPhase24CoaxMixerOutputProtocol::create_level_parameters())
+        Self(
+            GoPhase24CoaxMixerOutputProtocol::create_level_parameters(),
+            GoPhase24CoaxMixerOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -203,14 +228,25 @@ impl AvcLevelCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputC
 
 impl AvcMuteCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct OptMixerOutputCtl(AvcLevelParameters);
+struct OptMixerOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for OptMixerOutputCtl {
     fn default() -> Self {
-        Self(GoPhase24OptMixerOutputProtocol::create_level_parameters())
+        Self(
+            GoPhase24OptMixerOutputProtocol::create_level_parameters(),
+            GoPhase24OptMixerOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -229,6 +265,14 @@ impl AvcLevelCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl
 
 impl AvcMuteCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {

@@ -65,11 +65,14 @@ impl AsMut<Inspire1394Meter> for MeterCtl {
 impl MeterCtlOperation<Inspire1394MeterProtocol> for MeterCtl {}
 
 #[derive(Debug)]
-struct PhysInputCtl(AvcLevelParameters);
+struct PhysInputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for PhysInputCtl {
     fn default() -> Self {
-        Self(Inspire1394PhysInputProtocol::create_level_parameters())
+        Self(
+            Inspire1394PhysInputProtocol::create_level_parameters(),
+            Inspire1394PhysInputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -93,6 +96,14 @@ impl AvcLevelCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
 
 impl AvcMuteCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
     const MUTE_NAME: &'static str = "analog-input-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl SwitchCtlOperation<Inspire1394MicPhantomProtocol> for PhysInputCtl {
@@ -116,11 +127,14 @@ impl SwitchCtlOperation<Inspire1394PhonoProtocol> for PhysInputCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(Inspire1394PhysOutputProtocol::create_level_parameters())
+        Self(
+            Inspire1394PhysOutputProtocol::create_level_parameters(),
+            Inspire1394PhysOutputProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -139,6 +153,14 @@ impl AvcLevelCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
 
 impl AvcMuteCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const MUTE_NAME: &'static str = "analog-output-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl AvcSelectorCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
@@ -148,11 +170,14 @@ impl AvcSelectorCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters);
+struct HeadphoneCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
-        Self(Inspire1394HeadphoneProtocol::create_level_parameters())
+        Self(
+            Inspire1394HeadphoneProtocol::create_level_parameters(),
+            Inspire1394HeadphoneProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -171,16 +196,29 @@ impl AvcLevelCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
 
 impl AvcMuteCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
     const MUTE_NAME: &'static str = "headphone-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct MixerPhysSourceCtl(AvcLevelParameters, AvcLrBalanceParameters);
+struct MixerPhysSourceCtl(
+    AvcLevelParameters,
+    AvcLrBalanceParameters,
+    AvcMuteParameters,
+);
 
 impl Default for MixerPhysSourceCtl {
     fn default() -> Self {
         Self(
             Inspire1394MixerAnalogSourceProtocol::create_level_parameters(),
             Inspire1394MixerAnalogSourceProtocol::create_lr_balance_parameters(),
+            Inspire1394MixerAnalogSourceProtocol::create_mute_parameters(),
         )
     }
 }
@@ -217,14 +255,25 @@ impl AvcLrBalanceCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhy
 
 impl AvcMuteCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
     const MUTE_NAME: &'static str = "mixer-analog-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
-struct MixerStreamSourceCtl(AvcLevelParameters);
+struct MixerStreamSourceCtl(AvcLevelParameters, AvcMuteParameters);
 
 impl Default for MixerStreamSourceCtl {
     fn default() -> Self {
-        Self(Inspire1394MixerStreamSourceProtocol::create_level_parameters())
+        Self(
+            Inspire1394MixerStreamSourceProtocol::create_level_parameters(),
+            Inspire1394MixerStreamSourceProtocol::create_mute_parameters(),
+        )
     }
 }
 
@@ -243,6 +292,14 @@ impl AvcLevelCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamS
 
 impl AvcMuteCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSourceCtl {
     const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+
+    fn state(&self) -> &AvcMuteParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcMuteParameters {
+        &mut self.1
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
