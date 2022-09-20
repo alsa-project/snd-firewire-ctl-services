@@ -30,7 +30,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of Firepod/FP10.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fp10ClkProtocol;
 
 impl MediaClockFrequencyOperation for Fp10ClkProtocol {

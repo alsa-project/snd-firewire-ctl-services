@@ -50,7 +50,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of Quatafire 610.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Quatafire610ClkProtocol;
 
 impl MediaClockFrequencyOperation for Quatafire610ClkProtocol {

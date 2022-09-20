@@ -118,7 +118,7 @@ use super::*;
 
 /// The protocol implementation of media and sampling clocks for Saffire. 192.0 kHz is available
 /// when configured by the other operation.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireClkProtocol;
 
 const SAFFIRE_MODE_192KHZ_OFFSET: usize = 0x138;
@@ -126,7 +126,12 @@ const SAFFIRE_MODE_192KHZ_OFFSET: usize = 0x138;
 impl MediaClockFrequencyOperation for SaffireClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000, 192000];
 
-    fn write_clk_freq(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn update_freq(
+        avc: &BebobAvc,
+        params: &MediaClockParameters,
+        old: &mut MediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         // 192 kHz is just available when enabled.
         let mut op = SaffireAvcOperation {
             offsets: vec![SAFFIRE_MODE_192KHZ_OFFSET],
@@ -138,16 +143,22 @@ impl MediaClockFrequencyOperation for SaffireClkProtocol {
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&mut op.buf);
         let val = u32::from_be_bytes(quadlet);
-        if (val > 0 && idx < 4) || (val == 0 && idx == 4) {
-            let msg = format!("Invalid frequency of media clock: {}", Self::FREQ_LIST[idx]);
+        if (val > 0 && params.freq_idx < 4) || (val == 0 && params.freq_idx == 4) {
+            let msg = format!(
+                "Invalid frequency of media clock: {}",
+                Self::FREQ_LIST[params.freq_idx]
+            );
             Err(Error::new(FileError::Inval, &msg))?;
         }
 
         let fdf = Self::FREQ_LIST
             .iter()
-            .nth(idx)
+            .nth(params.freq_idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of frequency: {}", idx);
+                let msg = format!(
+                    "Invalid argument for index of frequency: {}",
+                    params.freq_idx
+                );
                 Error::new(FileError::Inval, &msg)
             })
             .map(|&freq| AmdtpFdf::new(AmdtpEventType::Am824, false, freq))?;
@@ -164,7 +175,11 @@ impl MediaClockFrequencyOperation for SaffireClkProtocol {
             fmt: FMT_IS_AMDTP,
             fdf: fdf.into(),
         });
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        *old = *params;
+
+        Ok(())
     }
 }
 
@@ -538,7 +553,7 @@ impl SaffireMixerSpecification for SaffirePairedMixerProtocol {
 }
 
 /// The protocol implementation of media and sampling clocks for Saffire LE.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireLeClkProtocol;
 
 impl MediaClockFrequencyOperation for SaffireLeClkProtocol {

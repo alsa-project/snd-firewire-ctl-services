@@ -50,7 +50,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of FCA 610.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fca610ClkProtocol;
 
 impl MediaClockFrequencyOperation for Fca610ClkProtocol {

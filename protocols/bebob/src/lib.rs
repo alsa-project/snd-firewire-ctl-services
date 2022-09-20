@@ -131,9 +131,15 @@ pub struct MediaClockParameters {
 
 /// The trait of frequency operation for media clock.
 pub trait MediaClockFrequencyOperation {
+    /// The list of supported frequencies.
     const FREQ_LIST: &'static [u32];
 
-    fn read_clk_freq(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+    /// Cache the state of media clock to the parameters.
+    fn cache_freq(
+        avc: &BebobAvc,
+        params: &mut MediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let plug_addr =
             BcoPlugAddr::new_for_unit(BcoPlugDirection::Output, BcoPlugAddrUnitType::Isoc, 0);
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
@@ -155,16 +161,30 @@ pub trait MediaClockFrequencyOperation {
                         Error::new(FileError::Io, &msg)
                     })
             })
+            .map(|freq_idx| params.freq_idx = freq_idx)
     }
 
-    /// Change frequency of media clock. This operation can involve INTERIM AV/C response to expand
-    /// response time of AV/C transaction.
-    fn write_clk_freq(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn read_clk_freq(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+        let mut params = MediaClockParameters::default();
+        Self::cache_freq(avc, &mut params, timeout_ms).map(|_| params.freq_idx)
+    }
+
+    /// Update the hardware by the given parameter. This operation can involve INTERIM AV/C
+    /// response to expand response time of AV/C transaction.
+    fn update_freq(
+        avc: &BebobAvc,
+        params: &MediaClockParameters,
+        old: &mut MediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let fdf = Self::FREQ_LIST
             .iter()
-            .nth(idx)
+            .nth(params.freq_idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of frequency: {}", idx);
+                let msg = format!(
+                    "Invalid argument for index of frequency: {}",
+                    params.freq_idx
+                );
                 Error::new(FileError::Inval, &msg)
             })
             .map(|&freq| AmdtpFdf::new(AmdtpEventType::Am824, false, freq))?;
@@ -181,7 +201,18 @@ pub trait MediaClockFrequencyOperation {
             fmt: FMT_IS_AMDTP,
             fdf: fdf.into(),
         });
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        *old = *params;
+
+        Ok(())
+    }
+
+    fn write_clk_freq(avc: &BebobAvc, freq_idx: usize, timeout_ms: u32) -> Result<(), Error> {
+        let params = MediaClockParameters { freq_idx };
+        let mut p = MediaClockParameters::default();
+
+        Self::update_freq(avc, &params, &mut p, timeout_ms)
     }
 }
 

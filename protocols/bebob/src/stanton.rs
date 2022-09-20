@@ -45,7 +45,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of Scratchamp.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ScratchampClkProtocol;
 
 impl MediaClockFrequencyOperation for ScratchampClkProtocol {
