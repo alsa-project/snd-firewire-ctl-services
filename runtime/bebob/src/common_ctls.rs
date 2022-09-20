@@ -76,16 +76,13 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
         Ok(elem_id_list)
     }
 
-    fn read_src(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn cache_src(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_src(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_src(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_SRC_NAME => {
-                T::cache_src(avc, self.state_mut(), timeout_ms)?;
                 elem_value.set_enum(&[self.state().src_idx as u32]);
                 Ok(true)
             }
