@@ -57,7 +57,7 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
 }
 
 #[derive(Default, Debug)]
-pub struct MixerAnalogSourceCtl<T: AvcLevelOperation>(PhantomData<T>);
+pub struct MixerAnalogSourceCtl<T: AvcAudioFeatureSpecification>(PhantomData<T>);
 
 impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol>
     for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>

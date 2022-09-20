@@ -63,9 +63,10 @@ impl SamplingClockSourceOperation for FirexonClkProtocol {
 }
 
 /// The protocol implementation of physical output.
+#[derive(Default, Debug)]
 pub struct FirexonPhysOutputProtocol;
 
-impl AvcLevelOperation for FirexonPhysOutputProtocol {
+impl AvcAudioFeatureSpecification for FirexonPhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x06, AudioCh::Each(0)), // analog-output-1
         (0x06, AudioCh::Each(1)), // analog-output-2
@@ -73,6 +74,8 @@ impl AvcLevelOperation for FirexonPhysOutputProtocol {
         (0x07, AudioCh::Each(1)), // analog-output-4
     ];
 }
+
+impl AvcLevelOperation for FirexonPhysOutputProtocol {}
 
 impl AvcLrBalanceOperation for FirexonPhysOutputProtocol {}
 
@@ -86,9 +89,10 @@ impl AvcSelectorOperation for FirexonPhysOutputProtocol {
 }
 
 /// The protocol implementation of source to monitor mixer for physical inputs
+#[derive(Default, Debug)]
 pub struct FirexonMonitorSourceProtocol;
 
-impl AvcLevelOperation for FirexonMonitorSourceProtocol {
+impl AvcAudioFeatureSpecification for FirexonMonitorSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)), // analog-input-1
         (0x01, AudioCh::Each(1)), // analog-input-2
@@ -99,16 +103,21 @@ impl AvcLevelOperation for FirexonMonitorSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for FirexonMonitorSourceProtocol {}
+
 impl AvcLrBalanceOperation for FirexonMonitorSourceProtocol {}
 
 impl AvcMuteOperation for FirexonMonitorSourceProtocol {}
 
 /// The protocol implementation of source to mixer for stream input and output of the monitor mixer.
+#[derive(Default, Debug)]
 pub struct FirexonMixerSourceProtocol;
 
-impl AvcLevelOperation for FirexonMixerSourceProtocol {
+impl AvcAudioFeatureSpecification for FirexonMixerSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x04, AudioCh::Master), // stream-input-1/2
         (0x05, AudioCh::Master), // monitor-output-1/2
     ];
 }
+
+impl AvcLevelOperation for FirexonMixerSourceProtocol {}

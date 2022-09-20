@@ -73,10 +73,10 @@ impl SamplingClockSourceOperation for Quatafire610ClkProtocol {
 }
 
 /// The protocol implementation for physical input of Quatafire 610.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Quatafire610PhysInputProtocol;
 
-impl AvcLevelOperation for Quatafire610PhysInputProtocol {
+impl AvcAudioFeatureSpecification for Quatafire610PhysInputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)), // analog-input-1
         (0x01, AudioCh::Each(1)), // analog-input-2
@@ -87,13 +87,15 @@ impl AvcLevelOperation for Quatafire610PhysInputProtocol {
     ];
 }
 
+impl AvcLevelOperation for Quatafire610PhysInputProtocol {}
+
 impl AvcLrBalanceOperation for Quatafire610PhysInputProtocol {}
 
 /// The protocol implementation for physical output of Quatafire 610.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Quatafire610PhysOutputProtocol;
 
-impl AvcLevelOperation for Quatafire610PhysOutputProtocol {
+impl AvcAudioFeatureSpecification for Quatafire610PhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x04, AudioCh::Each(0)), // analog-output-1
         (0x04, AudioCh::Each(1)), // analog-output-2
@@ -105,3 +107,5 @@ impl AvcLevelOperation for Quatafire610PhysOutputProtocol {
         (0x04, AudioCh::Each(7)), // analog-output-8
     ];
 }
+
+impl AvcLevelOperation for Quatafire610PhysOutputProtocol {}

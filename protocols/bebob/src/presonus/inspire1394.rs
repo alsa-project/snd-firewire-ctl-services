@@ -78,10 +78,10 @@ pub struct Inspire1394MeterProtocol;
 impl Inspire1394MeterOperation for Inspire1394MeterProtocol {}
 
 /// The protocol implementation of physical input.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394PhysInputProtocol;
 
-impl AvcLevelOperation for Inspire1394PhysInputProtocol {
+impl AvcAudioFeatureSpecification for Inspire1394PhysInputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x1, AudioCh::Each(0)),
         (0x1, AudioCh::Each(1)),
@@ -90,15 +90,19 @@ impl AvcLevelOperation for Inspire1394PhysInputProtocol {
     ];
 }
 
+impl AvcLevelOperation for Inspire1394PhysInputProtocol {}
+
 impl AvcMuteOperation for Inspire1394PhysInputProtocol {}
 
 /// The protocol implementation of physical output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394PhysOutputProtocol;
 
-impl AvcLevelOperation for Inspire1394PhysOutputProtocol {
+impl AvcAudioFeatureSpecification for Inspire1394PhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x06, AudioCh::Each(0)), (0x06, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for Inspire1394PhysOutputProtocol {}
 
 impl AvcMuteOperation for Inspire1394PhysOutputProtocol {}
 
@@ -109,20 +113,22 @@ impl AvcSelectorOperation for Inspire1394PhysOutputProtocol {
 }
 
 /// The protocol implementation of headphone.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394HeadphoneProtocol;
 
-impl AvcLevelOperation for Inspire1394HeadphoneProtocol {
+impl AvcAudioFeatureSpecification for Inspire1394HeadphoneProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x07, AudioCh::Each(0)), (0x07, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for Inspire1394HeadphoneProtocol {}
 
 impl AvcMuteOperation for Inspire1394HeadphoneProtocol {}
 
 /// The protocol implementation of analog source for mixer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394MixerAnalogSourceProtocol;
 
-impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {
+impl AvcAudioFeatureSpecification for Inspire1394MixerAnalogSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x03, AudioCh::Each(0)),
         (0x03, AudioCh::Each(1)),
@@ -131,17 +137,21 @@ impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {}
+
 impl AvcLrBalanceOperation for Inspire1394MixerAnalogSourceProtocol {}
 
 impl AvcMuteOperation for Inspire1394MixerAnalogSourceProtocol {}
 
 /// The protocol implementation of stream source for mixer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394MixerStreamSourceProtocol;
 
-impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {
+impl AvcAudioFeatureSpecification for Inspire1394MixerStreamSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x05, AudioCh::Master)];
 }
+
+impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {}
 
 impl AvcMuteOperation for Inspire1394MixerStreamSourceProtocol {}
 

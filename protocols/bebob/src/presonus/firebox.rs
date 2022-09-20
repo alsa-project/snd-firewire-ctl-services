@@ -60,9 +60,10 @@ impl SamplingClockSourceOperation for FireboxClkProtocol {
 }
 
 /// The protocol implementation of physical output.
+#[derive(Default, Debug)]
 pub struct FireboxPhysOutputProtocol;
 
-impl AvcLevelOperation for FireboxPhysOutputProtocol {
+impl AvcAudioFeatureSpecification for FireboxPhysOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)),
         (0x01, AudioCh::Each(1)),
@@ -72,6 +73,8 @@ impl AvcLevelOperation for FireboxPhysOutputProtocol {
         (0x03, AudioCh::Each(1)),
     ];
 }
+
+impl AvcLevelOperation for FireboxPhysOutputProtocol {}
 
 impl AvcMuteOperation for FireboxPhysOutputProtocol {}
 
@@ -83,11 +86,14 @@ impl AvcSelectorOperation for FireboxPhysOutputProtocol {
 }
 
 /// The protocol implementation of headphone.
+#[derive(Default, Debug)]
 pub struct FireboxHeadphoneProtocol;
 
-impl AvcLevelOperation for FireboxHeadphoneProtocol {
+impl AvcAudioFeatureSpecification for FireboxHeadphoneProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x04, AudioCh::Each(0)), (0x04, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for FireboxHeadphoneProtocol {}
 
 impl AvcMuteOperation for FireboxHeadphoneProtocol {}
 
@@ -100,9 +106,10 @@ impl AvcSelectorOperation for FireboxHeadphoneProtocol {
 }
 
 /// The protocol implementation of physical source for mixer.
+#[derive(Default, Debug)]
 pub struct FireboxMixerPhysSourceProtocol;
 
-impl AvcLevelOperation for FireboxMixerPhysSourceProtocol {
+impl AvcAudioFeatureSpecification for FireboxMixerPhysSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x05, AudioCh::Each(0)),
         (0x05, AudioCh::Each(1)),
@@ -113,16 +120,21 @@ impl AvcLevelOperation for FireboxMixerPhysSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for FireboxMixerPhysSourceProtocol {}
+
 impl AvcLrBalanceOperation for FireboxMixerPhysSourceProtocol {}
 
 impl AvcMuteOperation for FireboxMixerPhysSourceProtocol {}
 
 /// The protocol implementation of stream source for mixer.
+#[derive(Default, Debug)]
 pub struct FireboxMixerStreamSourceProtocol;
 
-impl AvcLevelOperation for FireboxMixerStreamSourceProtocol {
+impl AvcAudioFeatureSpecification for FireboxMixerStreamSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x08, AudioCh::Each(0))];
 }
+
+impl AvcLevelOperation for FireboxMixerStreamSourceProtocol {}
 
 impl AvcMuteOperation for FireboxMixerStreamSourceProtocol {}
 
@@ -133,11 +145,14 @@ impl AvcSelectorOperation for FireboxMixerStreamSourceProtocol {
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
 }
 /// The protocol implementation of mixer output.
+#[derive(Default, Debug)]
 pub struct FireboxMixerOutputProtocol;
 
-impl AvcLevelOperation for FireboxMixerOutputProtocol {
+impl AvcAudioFeatureSpecification for FireboxMixerOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x09, AudioCh::Each(0)), (0x09, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for FireboxMixerOutputProtocol {}
 
 impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
 

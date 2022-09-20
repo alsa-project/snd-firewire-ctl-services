@@ -132,10 +132,10 @@ impl AvcSelectorOperation for Phase88PhysInputProtocol {
 }
 
 /// The protocol implementation of source of physical input to mixer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88MixerPhysSourceProtocol;
 
-impl AvcLevelOperation for Phase88MixerPhysSourceProtocol {
+impl AvcAudioFeatureSpecification for Phase88MixerPhysSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x02, AudioCh::Each(0)), // analog-input-1
         (0x02, AudioCh::Each(1)), // analog-input-2
@@ -150,18 +150,22 @@ impl AvcLevelOperation for Phase88MixerPhysSourceProtocol {
     ];
 }
 
+impl AvcLevelOperation for Phase88MixerPhysSourceProtocol {}
+
 impl AvcMuteOperation for Phase88MixerPhysSourceProtocol {}
 
 /// The protocol implementation of source of stream input to mixer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88MixerStreamSourceProtocol;
 
-impl AvcLevelOperation for Phase88MixerStreamSourceProtocol {
+impl AvcAudioFeatureSpecification for Phase88MixerStreamSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x07, AudioCh::Each(0)), // stream-source-1
         (0x07, AudioCh::Each(1)), // stream-source-2
     ];
 }
+
+impl AvcLevelOperation for Phase88MixerStreamSourceProtocol {}
 
 impl AvcMuteOperation for Phase88MixerStreamSourceProtocol {}
 
@@ -177,12 +181,14 @@ impl AvcSelectorOperation for Phase88MixerStreamSourceProtocol {
 }
 
 /// The protocol implementation of mixer output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88MixerOutputProtocol;
 
-impl AvcLevelOperation for Phase88MixerOutputProtocol {
+impl AvcAudioFeatureSpecification for Phase88MixerOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[(0x00, AudioCh::Each(0)), (0x01, AudioCh::Each(1))];
 }
+
+impl AvcLevelOperation for Phase88MixerOutputProtocol {}
 
 impl AvcMuteOperation for Phase88MixerOutputProtocol {}
 

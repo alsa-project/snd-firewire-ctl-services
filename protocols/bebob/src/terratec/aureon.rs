@@ -53,10 +53,10 @@ impl SamplingClockSourceOperation for AureonClkProtocol {
 }
 
 /// The protocol implementation of mixer output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonMixerOutputProtocol;
 
-impl AvcLevelOperation for AureonMixerOutputProtocol {
+impl AvcAudioFeatureSpecification for AureonMixerOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)), // mixer-output-1
         (0x01, AudioCh::Each(1)), // mixer-output-2
@@ -69,18 +69,22 @@ impl AvcLevelOperation for AureonMixerOutputProtocol {
     ];
 }
 
+impl AvcLevelOperation for AureonMixerOutputProtocol {}
+
 impl AvcMuteOperation for AureonMixerOutputProtocol {}
 
 /// The protocol implementation of analog input.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonPhysInputProtocol;
 
-impl AvcLevelOperation for AureonPhysInputProtocol {
+impl AvcAudioFeatureSpecification for AureonPhysInputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x02, AudioCh::Master), // analog-input-1/2
         (0x03, AudioCh::Master), // analog-input-3/4
     ];
 }
+
+impl AvcLevelOperation for AureonPhysInputProtocol {}
 
 /// The protocol implementation of monitor output.
 #[derive(Default)]
@@ -93,14 +97,16 @@ impl AvcSelectorOperation for AureonMonitorSourceProtocol {
 }
 
 /// The protocol implementation of monitor source.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonMonitorOutputProtocol;
 
-impl AvcLevelOperation for AureonMonitorOutputProtocol {
+impl AvcAudioFeatureSpecification for AureonMonitorOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x04, AudioCh::Master), // monitor-output-1/2
     ];
 }
+
+impl AvcLevelOperation for AureonMonitorOutputProtocol {}
 
 impl AvcMuteOperation for AureonMonitorOutputProtocol {}
 
