@@ -356,31 +356,96 @@ pub trait AvcLevelOperation: AvcAudioFeatureSpecification {
     }
 }
 
+/// The parameters of L/R balance.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct AvcLrBalanceParameters {
+    /// The L/R balances.
+    pub balances: Vec<i16>,
+}
+
 /// The trait of LR balance operation for audio function blocks.
 pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
+    /// The minimum value of L/R balance.
     const BALANCE_MIN: i16 = LrBalanceData::VALUE_LEFT_NEG_INFINITY;
+    /// The maximum value of L/R balance.
     const BALANCE_MAX: i16 = LrBalanceData::VALUE_LEFT_MAX;
+    /// The step value of L/R balance.
     const BALANCE_STEP: i16 = 0x80;
 
-    fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::LrBalance(Default::default()),
-        );
-        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
-
-        if let FeatureCtl::LrBalance(balance) = op.ctl {
-            Ok(balance.0)
-        } else {
-            unreachable!();
+    /// Instantiate parameters.
+    fn create_lr_balance_parameters() -> AvcLrBalanceParameters {
+        AvcLrBalanceParameters {
+            balances: vec![Default::default(); Self::ENTRIES.len()],
         }
+    }
+
+    /// Cache state of hardware to the parameters.
+    fn cache_lr_balances(
+        avc: &BebobAvc,
+        params: &mut AvcLrBalanceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.balances.len(), Self::ENTRIES.len());
+
+        params
+            .balances
+            .iter_mut()
+            .zip(Self::ENTRIES)
+            .try_for_each(|(balance, entry)| {
+                let &(func_block_id, audio_ch) = entry;
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::LrBalance(Default::default()),
+                );
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| {
+                        if let FeatureCtl::LrBalance(data) = op.ctl {
+                            *balance = data.0;
+                        }
+                    })
+            })
+    }
+
+    fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        if idx >= Self::ENTRIES.len() {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_lr_balance_parameters();
+        Self::cache_lr_balances(avc, &mut params, timeout_ms)?;
+
+        Ok(params.balances[idx])
+    }
+
+    /// Update the hardware when detecting any changes in the parameters.
+    fn update_lr_balances(
+        avc: &BebobAvc,
+        params: &AvcLrBalanceParameters,
+        old: &mut AvcLrBalanceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.balances.len(), Self::ENTRIES.len());
+        assert_eq!(old.balances.len(), Self::ENTRIES.len());
+
+        old.balances
+            .iter_mut()
+            .zip(params.balances.iter())
+            .zip(Self::ENTRIES)
+            .filter(|((o, n), _)| !o.eq(n))
+            .try_for_each(|((old, &new), entry)| {
+                let &(func_block_id, audio_ch) = entry;
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    audio_ch,
+                    FeatureCtl::LrBalance(LrBalanceData(new)),
+                );
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| *old = new)
+            })
     }
 
     fn write_lr_balance(
@@ -389,18 +454,16 @@ pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
         balance: i16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+        if idx >= Self::ENTRIES.len() {
             let msg = format!("Invalid index of function block list: {}", idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
 
-        let mut op = AudioFeature::new(
-            func_block_id,
-            CtlAttr::Current,
-            audio_ch,
-            FeatureCtl::LrBalance(LrBalanceData(balance)),
-        );
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+        let mut params = Self::create_lr_balance_parameters();
+        let mut p = Self::create_lr_balance_parameters();
+        params.balances[idx] = balance;
+        p.balances[idx] = !balance;
+        Self::update_lr_balances(avc, &params, &mut p, timeout_ms)
     }
 }
 
