@@ -119,7 +119,7 @@ impl SamplingClockSourceOperation for Phase88ClkProtocol {
 }
 
 /// The protocol implementation of physical input.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88PhysInputProtocol;
 
 impl AvcSelectorOperation for Phase88PhysInputProtocol {
@@ -220,11 +220,13 @@ impl AvcSelectorOperation for Phase88MixerOutputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &MIXER_OUT_SELECTOR_FB_ID_LIST;
     const INPUT_PLUG_ID_LIST: &'static [u8] = &MIXER_OUT_SELECTOR_ID_LIST;
 
-    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        if idx != 0 {
-            let msg = format!("Invalid argument for index of selector: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
+    fn cache_selectors(
+        avc: &BebobAvc,
+        params: &mut AvcSelectorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.selectors.len(), 1);
+
         let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST[0];
 
         let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
@@ -240,56 +242,60 @@ impl AvcSelectorOperation for Phase88MixerOutputProtocol {
                 );
                 Error::new(FileError::Io, &msg)
             })
+            .map(|pos| params.selectors[0] = pos)
     }
 
-    fn write_selector(
+    fn update_selectors(
         avc: &BebobAvc,
-        idx: usize,
-        val: usize,
+        params: &AvcSelectorParameters,
+        old: &mut AvcSelectorParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST
-            .iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of selector: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })
-            .map(|func_block_id| *func_block_id)?;
+        let selector = params.selectors[0];
 
-        let input_plug_id = MIXER_OUT_SELECTOR_ID_LIST
-            .iter()
-            .nth(val)
-            .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of input plug number: {}", val);
-                Error::new(FileError::Inval, &msg)
-            })
-            .map(|input_plug_id| *input_plug_id)?;
+        if selector != old.selectors[0] {
+            let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST[0];
+            let input_plug_id = MIXER_OUT_SELECTOR_ID_LIST
+                .iter()
+                .nth(selector)
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Invalid argument for index of input plug number: {}",
+                        selector
+                    );
+                    Error::new(FileError::Inval, &msg)
+                })
+                .copied()?;
 
-        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+            let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
-        PHYS_OUTPUT_SELECTOR_FB_ID_LIST
-            .iter()
-            .enumerate()
-            .try_for_each(|(i, &func_block_id)| {
-                let plug_id_idx = if input_plug_id == 0x05 {
-                    // The mixer-output-1/2 is not available. Set corresponding stream-input to
-                    // physical outputs as source.
-                    0
-                } else {
-                    if i == idx {
-                        // The mixer-output-1/2 is configured for source of the physical output.
+            PHYS_OUTPUT_SELECTOR_FB_ID_LIST
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, &func_block_id)| {
+                    let plug_id_idx = if input_plug_id == 0x05 {
+                        // The mixer-output-1/2 is not available. Set corresponding stream-input to
+                        // physical outputs as source.
                         0
                     } else {
-                        // The stream-input-1/2 is configured for source of the physical output.
-                        1
-                    }
-                };
+                        if i == 0 {
+                            // The mixer-output-1/2 is configured for source of the physical output.
+                            0
+                        } else {
+                            // The stream-input-1/2 is configured for source of the physical output.
+                            1
+                        }
+                    };
 
-                let val = PHYS_OUTPUT_SELECTOR_ID_LIST[plug_id_idx];
-                let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, val);
-                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
-            })
+                    let val = PHYS_OUTPUT_SELECTOR_ID_LIST[plug_id_idx];
+                    let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, val);
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                })?;
+
+            old.selectors[0] = selector;
+        }
+
+        Ok(())
     }
 }

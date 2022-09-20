@@ -173,11 +173,13 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x00];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02];
 
-    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        if idx > 0 {
-            let msg = format!("Invalid argument for index of selector: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
+    fn cache_selectors(
+        avc: &BebobAvc,
+        params: &mut AvcSelectorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.selectors.len(), 1);
+
         let mut op = AudioFeature::new(
             INPUT_NOMINAL_LEVEL_FB_ID,
             CtlAttr::Current,
@@ -196,36 +198,46 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
                     );
                     Error::new(FileError::Io, &msg)
                 })
+                .map(|pos| params.selectors[0] = pos)
         } else {
-            unreachable!()
+            Ok(())
         }
     }
 
-    fn write_selector(
+    fn update_selectors(
         avc: &BebobAvc,
-        idx: usize,
-        val: usize,
+        params: &AvcSelectorParameters,
+        old: &mut AvcSelectorParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if idx > 0 {
-            let msg = format!("Invalid argument for index of selector: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
+        assert_eq!(params.selectors.len(), 1);
+        assert_eq!(old.selectors.len(), 1);
+
+        if old.selectors[0] != params.selectors[0] {
+            let val = INPUT_NOMINAL_LEVELS
+                .iter()
+                .nth(old.selectors[0])
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Invalid argument for index of nominal level: {}",
+                        old.selectors[0]
+                    );
+                    Error::new(FileError::Inval, &msg)
+                })
+                .copied()?;
+            let mut op = AudioFeature::new(
+                INPUT_NOMINAL_LEVEL_FB_ID,
+                CtlAttr::Current,
+                AudioCh::Master,
+                FeatureCtl::Volume(VolumeData(vec![val])),
+            );
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                .map(|_| {
+                    old.selectors[0] = params.selectors[0];
+                })
+        } else {
+            Ok(())
         }
-        let v = INPUT_NOMINAL_LEVELS
-            .iter()
-            .nth(val)
-            .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of nominal level: {}", val);
-                Error::new(FileError::Inval, &msg)
-            })
-            .map(|v| *v)?;
-        let mut op = AudioFeature::new(
-            INPUT_NOMINAL_LEVEL_FB_ID,
-            CtlAttr::Current,
-            AudioCh::Master,
-            FeatureCtl::Volume(VolumeData(vec![v])),
-        );
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
 
