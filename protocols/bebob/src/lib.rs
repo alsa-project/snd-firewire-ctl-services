@@ -218,10 +218,17 @@ pub trait SamplingClockSourceOperation {
     // "PCR Sync Input" for source of sampling clock. They are available to be synchronized to the
     // series of syt field in incoming packets from the other unit on IEEE 1394 bus. However, the
     // most of models doesn't work with it actually even if configured, therefore useless.
+    /// The destination plug address for source signal.
     const DST: SignalAddr;
+    /// The list of supported sources expressed by plug address.
     const SRC_LIST: &'static [SignalAddr];
 
-    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+    /// Cache the state of sampling clock to the parameters.
+    fn cache_src(
+        avc: &BebobAvc,
+        params: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut op = SignalSource::new(&Self::DST);
 
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
@@ -233,20 +240,42 @@ pub trait SamplingClockSourceOperation {
                 let label = "Unexpected entry for source of clock";
                 Error::new(FileError::Io, &label)
             })
+            .map(|src_idx| params.src_idx = src_idx)
     }
 
-    /// Change source of sampling clock. This operation can involve INTERIM AV/C response to expand
-    /// response time of AV/C transaction.
-    fn write_clk_src(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        let src = Self::SRC_LIST.iter().nth(idx).map(|s| *s).ok_or_else(|| {
-            let label = "Invalid value for source of clock";
-            Error::new(FileError::Inval, &label)
-        })?;
+    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+        let mut params = SamplingClockParameters::default();
+        Self::cache_src(avc, &mut params, timeout_ms).map(|_| params.src_idx)
+    }
+
+    /// Update the hardware by the given parameter. This operation can involve INTERIM AV/C
+    /// response to expand response time of AV/C transaction.
+    fn update_src(
+        avc: &BebobAvc,
+        params: &SamplingClockParameters,
+        old: &mut SamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let src = Self::SRC_LIST
+            .iter()
+            .nth(params.src_idx)
+            .ok_or_else(|| {
+                let label = "Invalid value for source of clock";
+                Error::new(FileError::Inval, &label)
+            })
+            .copied()?;
 
         let mut op = SignalSource::new(&Self::DST);
         op.src = src;
 
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| *old = *params)
+    }
+
+    fn write_clk_src(avc: &BebobAvc, src_idx: usize, timeout_ms: u32) -> Result<(), Error> {
+        let params = SamplingClockParameters { src_idx };
+        let mut old = SamplingClockParameters::default();
+        Self::update_src(avc, &params, &mut old, timeout_ms)
     }
 }
 
