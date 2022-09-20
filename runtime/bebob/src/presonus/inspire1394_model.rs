@@ -127,13 +127,14 @@ impl SwitchCtlOperation<Inspire1394PhonoProtocol> for PhysInputCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
         Self(
             Inspire1394PhysOutputProtocol::create_level_parameters(),
             Inspire1394PhysOutputProtocol::create_mute_parameters(),
+            Inspire1394PhysOutputProtocol::create_selector_parameters(),
         )
     }
 }
@@ -167,6 +168,14 @@ impl AvcSelectorCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const SELECTOR_NAME: &'static str = "output-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["analog-output-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output-1/2", "stream-input-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]

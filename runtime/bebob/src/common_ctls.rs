@@ -321,7 +321,10 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
 
     const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len();
 
-    fn load_selector(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &AvcSelectorParameters;
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters;
+
+    fn load_selector(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         assert_eq!(
             Self::SELECTOR_LABELS.len(),
             T::FUNC_BLOCK_ID_LIST.len(),
@@ -342,35 +345,44 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
     }
 
     fn read_selector(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SELECTOR_NAME {
-            ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-                T::read_selector(avc, idx, timeout_ms).map(|val| val as u32)
-            })
-            .map(|_| true)
+            T::cache_selectors(avc, self.state_mut(), timeout_ms)?;
+            let vals: Vec<u32> = self
+                .state()
+                .selectors
+                .iter()
+                .map(|&selector| selector as u32)
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
         } else {
             Ok(false)
         }
     }
 
     fn write_selector(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SELECTOR_NAME {
-            ElemValueAccessor::<u32>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
-                T::write_selector(avc, idx, val as usize, timeout_ms)
-            })
-            .map(|_| true)
+            let mut params = self.state().clone();
+            let vals = &new.enumerated()[..params.selectors.len()];
+            params
+                .selectors
+                .iter_mut()
+                .zip(vals)
+                .for_each(|(selector, &val)| *selector = val as usize);
+            T::update_selectors(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
         } else {
             Ok(false)
         }

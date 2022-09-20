@@ -165,11 +165,14 @@ impl AvcLevelCtlOperation<AudiophileAuxOutputProtocol> for AuxOutputCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcSelectorParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(AudiophilePhysOutputProtocol::create_level_parameters())
+        Self(
+            AudiophilePhysOutputProtocol::create_level_parameters(),
+            AudiophilePhysOutputProtocol::create_selector_parameters(),
+        )
     }
 }
 
@@ -201,14 +204,25 @@ impl AvcSelectorCtlOperation<AudiophilePhysOutputProtocol> for PhysOutputCtl {
         "analog-output-5/6",
     ];
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output", "aux-output-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters);
+struct HeadphoneCtl(AvcLevelParameters, AvcSelectorParameters);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
-        Self(AudiophileHeadphoneProtocol::create_level_parameters())
+        Self(
+            AudiophileHeadphoneProtocol::create_level_parameters(),
+            AudiophileHeadphoneProtocol::create_selector_parameters(),
+        )
     }
 }
 
@@ -234,6 +248,14 @@ impl AvcSelectorCtlOperation<AudiophileHeadphoneProtocol> for HeadphoneCtl {
         "mixer-output-5/6",
         "aux-output-1/2",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Default)]
@@ -515,11 +537,11 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = HeadphoneCtl::default();
+        let mut ctl = HeadphoneCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

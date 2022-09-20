@@ -46,13 +46,14 @@ impl SamplingClkSrcCtlOperation<FireboxClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
         Self(
             FireboxPhysOutputProtocol::create_level_parameters(),
             FireboxPhysOutputProtocol::create_mute_parameters(),
+            FireboxPhysOutputProtocol::create_selector_parameters(),
         )
     }
 }
@@ -98,16 +99,25 @@ impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
         "analog-output-7/8",
     ];
     const ITEM_LABELS: &'static [&'static str] = &["stream-input", "mixer-output-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters, AvcMuteParameters);
+struct HeadphoneCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
         Self(
             FireboxHeadphoneProtocol::create_level_parameters(),
             FireboxHeadphoneProtocol::create_mute_parameters(),
+            FireboxHeadphoneProtocol::create_selector_parameters(),
         )
     }
 }
@@ -147,6 +157,14 @@ impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
         "stream-input-7/8",
         "mixer-output-1/2",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
@@ -211,13 +229,14 @@ impl AvcMuteCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
 }
 
 #[derive(Debug)]
-struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters);
+struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for MixerStreamSrcCtl {
     fn default() -> Self {
         Self(
             FireboxMixerStreamSourceProtocol::create_level_parameters(),
             FireboxMixerStreamSourceProtocol::create_mute_parameters(),
+            FireboxMixerStreamSourceProtocol::create_selector_parameters(),
         )
     }
 }
@@ -256,6 +275,14 @@ impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSr
         "stream-input-5/6",
         "stream-input-7/8",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
@@ -312,11 +339,25 @@ impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     }
 }
 
-#[derive(Default)]
-struct AnalogInputCtl;
+#[derive(Debug)]
+struct AnalogInputCtl(AvcSelectorParameters);
+
+impl Default for AnalogInputCtl {
+    fn default() -> Self {
+        Self(FireboxAnalogInputProtocol::create_selector_parameters())
+    }
+}
 
 impl SwitchCtlOperation<FireboxAnalogInputProtocol> for AnalogInputCtl {
     const SWITCH_NAME: &'static str = "analog-input-boost";
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
@@ -591,7 +632,12 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
 
     const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len();
 
-    fn load_switch(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &AvcSelectorParameters;
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters;
+
+    fn load_switch(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        *self.state_mut() = T::create_selector_parameters();
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
@@ -599,35 +645,44 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
     }
 
     fn read_switch(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SWITCH_NAME {
-            ElemValueAccessor::<bool>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-                T::read_selector(avc, idx, timeout_ms).map(|val| val > 0)
-            })
-            .map(|_| true)
+            T::cache_selectors(avc, self.state_mut(), timeout_ms)?;
+            let vals: Vec<bool> = self
+                .state()
+                .selectors
+                .iter()
+                .map(|&selectors| selectors > 0)
+                .collect();
+            elem_value.set_bool(&vals);
+            Ok(true)
         } else {
             Ok(false)
         }
     }
 
     fn write_switch(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SWITCH_NAME {
-            ElemValueAccessor::<bool>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
-                T::write_selector(avc, idx, val as usize, timeout_ms)
-            })
-            .map(|_| true)
+            let mut params = self.state().clone();
+            let vals = &new.boolean()[..params.selectors.len()];
+            params
+                .selectors
+                .iter_mut()
+                .zip(vals)
+                .for_each(|(selector, &val)| *selector = val as usize);
+            T::update_selectors(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
         } else {
             Ok(false)
         }
@@ -680,15 +735,15 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = HeadphoneCtl::default();
+        let mut ctl = HeadphoneCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerStreamSrcCtl::default();
+        let mut ctl = MixerStreamSrcCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

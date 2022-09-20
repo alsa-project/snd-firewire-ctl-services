@@ -170,11 +170,14 @@ impl AvcLevelCtlOperation<Fw410AuxOutputProtocol> for AuxOutputCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcSelectorParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(Fw410PhysOutputProtocol::create_level_parameters())
+        Self(
+            Fw410PhysOutputProtocol::create_level_parameters(),
+            Fw410PhysOutputProtocol::create_selector_parameters(),
+        )
     }
 }
 
@@ -212,14 +215,25 @@ impl AvcSelectorCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
         "analog-output-9/10",
     ];
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output", "aux-output-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters);
+struct HeadphoneCtl(AvcLevelParameters, AvcSelectorParameters);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
-        Self(Fw410HeadphoneProtocol::create_level_parameters())
+        Self(
+            Fw410HeadphoneProtocol::create_level_parameters(),
+            Fw410HeadphoneProtocol::create_selector_parameters(),
+        )
     }
 }
 
@@ -240,6 +254,14 @@ impl AvcSelectorCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
     const SELECTOR_NAME: &'static str = "headphone-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["headphone-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output", "aux-output-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.1
+    }
 }
 
 impl MaudioNormalMixerCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
@@ -256,13 +278,27 @@ impl MaudioNormalMixerCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
     ];
 }
 
-#[derive(Default)]
-struct SpdifInputCtl;
+#[derive(Debug)]
+struct SpdifInputCtl(AvcSelectorParameters);
+
+impl Default for SpdifInputCtl {
+    fn default() -> Self {
+        Self(Fw410SpdifOutputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<Fw410SpdifOutputProtocol> for SpdifInputCtl {
     const SELECTOR_NAME: &'static str = "S/PDIF-input-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["S/PDIF-input-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &["coaxial-input-1/2", "optical-input-1/2"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Default)]
@@ -578,15 +614,15 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = HeadphoneCtl::default();
+        let mut ctl = HeadphoneCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = SpdifInputCtl::default();
+        let mut ctl = SpdifInputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

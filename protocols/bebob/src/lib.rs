@@ -515,8 +515,9 @@ pub trait AvcMuteOperation: AvcAudioFeatureSpecification {
     }
 }
 
-/// The parameter of selectors.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+/// The parameter of selectors. The `Default` trait should be implemented to call
+/// `AvcSelectorOperation::create_selector_parameters()`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvcSelectorParameters {
     /// The index for entry in the list of function block.
     pub selectors: Vec<usize>,
@@ -566,18 +567,6 @@ pub trait AvcSelectorOperation {
             })
     }
 
-    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        if idx >= Self::FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of selector: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_selector_parameters();
-        Self::cache_selectors(avc, &mut params, timeout_ms)?;
-
-        Ok(params.selectors[idx])
-    }
-
     /// Update the hardware when detecting any changes in the parameters.
     fn update_selectors(
         avc: &BebobAvc,
@@ -598,24 +587,5 @@ pub trait AvcSelectorOperation {
                 avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                     .map(|_| *old = new)
             })
-    }
-
-    fn write_selector(
-        avc: &BebobAvc,
-        idx: usize,
-        val: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if idx >= Self::FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of selector: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_selector_parameters();
-        params.selectors[idx] = val;
-        let mut p = Self::create_selector_parameters();
-        params.selectors[idx] = !val;
-
-        Self::update_selectors(avc, &params, &mut p, timeout_ms)
     }
 }

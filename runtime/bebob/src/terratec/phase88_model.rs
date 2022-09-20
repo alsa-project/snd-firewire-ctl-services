@@ -43,13 +43,27 @@ impl SamplingClkSrcCtlOperation<Phase88ClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct PhysInputCtl;
+#[derive(Debug)]
+struct PhysInputCtl(AvcSelectorParameters);
+
+impl Default for PhysInputCtl {
+    fn default() -> Self {
+        Self(Phase88PhysInputProtocol::create_selector_parameters())
+    }
+}
 
 impl AvcSelectorCtlOperation<Phase88PhysInputProtocol> for PhysInputCtl {
     const SELECTOR_NAME: &'static str = "analog-input-7/8-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["analog-intput-7/8"];
     const ITEM_LABELS: &'static [&'static str] = &["line", "mic"];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Debug)]
@@ -101,13 +115,14 @@ impl AvcMuteCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
 }
 
 #[derive(Debug)]
-struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters);
+struct MixerStreamSrcCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for MixerStreamSrcCtl {
     fn default() -> Self {
         Self(
             Phase88MixerStreamSourceProtocol::create_level_parameters(),
             Phase88MixerStreamSourceProtocol::create_mute_parameters(),
+            Phase88MixerStreamSourceProtocol::create_selector_parameters(),
         )
     }
 }
@@ -147,16 +162,25 @@ impl AvcSelectorCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSr
         "stream-input-7/8",
         "stream-input-9/10",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
-struct MixerOutputCtl(AvcLevelParameters, AvcMuteParameters);
+struct MixerOutputCtl(AvcLevelParameters, AvcMuteParameters, AvcSelectorParameters);
 
 impl Default for MixerOutputCtl {
     fn default() -> Self {
         Self(
             Phase88MixerOutputProtocol::create_level_parameters(),
             Phase88MixerOutputProtocol::create_mute_parameters(),
+            Phase88MixerOutputProtocol::create_selector_parameters(),
         )
     }
 }
@@ -197,6 +221,14 @@ impl AvcSelectorCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
         "digital-output-1/2",
         "unused",
     ];
+
+    fn state(&self) -> &AvcSelectorParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
+        &mut self.2
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Phase88Model {
@@ -435,15 +467,15 @@ mod test {
     fn test_selector_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysInputCtl::default();
+        let mut ctl = PhysInputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerStreamSrcCtl::default();
+        let mut ctl = MixerStreamSrcCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerOutputCtl::default();
+        let mut ctl = MixerOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
