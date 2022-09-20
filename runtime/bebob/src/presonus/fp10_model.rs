@@ -78,6 +78,8 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
         self.phys_out_ctl.load_balance(card_cntr)?;
         self.phys_out_ctl.load_mute(card_cntr)?;
 
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -87,10 +89,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .clk_ctl
@@ -178,7 +177,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for Fp10Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }

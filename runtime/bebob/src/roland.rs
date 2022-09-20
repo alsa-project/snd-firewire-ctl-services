@@ -121,6 +121,8 @@ where
         self.analog_in_ctl.load_level(card_cntr)?;
         self.analog_in_ctl.load_balance(card_cntr)?;
 
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -130,10 +132,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .analog_in_ctl
