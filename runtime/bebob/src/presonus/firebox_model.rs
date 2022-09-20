@@ -274,6 +274,7 @@ impl Default for MixerOutputCtl {
         )
     }
 }
+
 impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
@@ -365,6 +366,11 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_out_ctl
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -381,10 +387,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .phys_out_ctl
@@ -393,10 +396,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.headphone_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .headphone_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.headphone_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self.headphone_ctl.read_selector(
             &self.avc,
@@ -409,21 +409,11 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_balances(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.read_mute(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.mixer_phys_src_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.read_mute(
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self.mixer_stream_src_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_selector(
             &self.avc,
@@ -436,10 +426,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.mixer_out_ctl.read_balances(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_out_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .analog_in_ctl

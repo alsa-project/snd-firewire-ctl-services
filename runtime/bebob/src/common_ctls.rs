@@ -281,15 +281,12 @@ pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
             .map(|_| ())
     }
 
-    fn read_mute(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn cache_mutes(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_mutes(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_mutes(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::MUTE_NAME {
-            T::cache_mutes(avc, self.state_mut(), timeout_ms)?;
             elem_value.set_bool(&self.state().mutes);
             Ok(true)
         } else {

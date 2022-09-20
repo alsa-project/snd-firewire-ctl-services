@@ -129,6 +129,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
         self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_out_ctl
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -147,10 +148,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
             Ok(true)
         } else if self.phys_out_ctl.read_balances(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
