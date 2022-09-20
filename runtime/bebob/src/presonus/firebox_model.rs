@@ -128,11 +128,14 @@ impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
 }
 
 #[derive(Debug)]
-struct MixerPhysSrcCtl(AvcLevelParameters);
+struct MixerPhysSrcCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for MixerPhysSrcCtl {
     fn default() -> Self {
-        Self(FireboxMixerPhysSourceProtocol::create_level_parameters())
+        Self(
+            FireboxMixerPhysSourceProtocol::create_level_parameters(),
+            FireboxMixerPhysSourceProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -158,6 +161,14 @@ impl AvcLevelCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
 
 impl AvcLrBalanceCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
@@ -202,11 +213,14 @@ impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSr
 }
 
 #[derive(Debug)]
-struct MixerOutputCtl(AvcLevelParameters);
+struct MixerOutputCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for MixerOutputCtl {
     fn default() -> Self {
-        Self(FireboxMixerOutputProtocol::create_level_parameters())
+        Self(
+            FireboxMixerOutputProtocol::create_level_parameters(),
+            FireboxMixerOutputProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
@@ -224,6 +238,14 @@ impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
 
 impl AvcLrBalanceCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {

@@ -43,11 +43,14 @@ impl SamplingClkSrcCtlOperation<FirexonClkProtocol> for ClkCtl {
 }
 
 #[derive(Debug)]
-struct PhysOutputCtl(AvcLevelParameters);
+struct PhysOutputCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for PhysOutputCtl {
     fn default() -> Self {
-        Self(FirexonPhysOutputProtocol::create_level_parameters())
+        Self(
+            FirexonPhysOutputProtocol::create_level_parameters(),
+            FirexonPhysOutputProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -71,6 +74,14 @@ impl AvcLevelCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
 
 impl AvcLrBalanceCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
     const BALANCE_NAME: &'static str = "analog-output-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
@@ -85,11 +96,14 @@ impl AvcSelectorCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
 }
 
 #[derive(Debug)]
-struct MonitorSrcCtl(AvcLevelParameters);
+struct MonitorSrcCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for MonitorSrcCtl {
     fn default() -> Self {
-        Self(FirexonMonitorSourceProtocol::create_level_parameters())
+        Self(
+            FirexonMonitorSourceProtocol::create_level_parameters(),
+            FirexonMonitorSourceProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -115,6 +129,14 @@ impl AvcLevelCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
 
 impl AvcLrBalanceCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
     const BALANCE_NAME: &'static str = "monitor-source-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {

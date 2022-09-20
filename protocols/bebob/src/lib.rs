@@ -356,8 +356,9 @@ pub trait AvcLevelOperation: AvcAudioFeatureSpecification {
     }
 }
 
-/// The parameters of L/R balance.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+/// The parameters of L/R balance. The `Default` trait should be implemented to call
+/// `AvcLrBalanceOperation::create_lr_balance_parameters()`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvcLrBalanceParameters {
     /// The L/R balances.
     pub balances: Vec<i16>,
@@ -408,18 +409,6 @@ pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
             })
     }
 
-    fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
-        if idx >= Self::ENTRIES.len() {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_lr_balance_parameters();
-        Self::cache_lr_balances(avc, &mut params, timeout_ms)?;
-
-        Ok(params.balances[idx])
-    }
-
     /// Update the hardware when detecting any changes in the parameters.
     fn update_lr_balances(
         avc: &BebobAvc,
@@ -446,24 +435,6 @@ pub trait AvcLrBalanceOperation: AvcAudioFeatureSpecification {
                 avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                     .map(|_| *old = new)
             })
-    }
-
-    fn write_lr_balance(
-        avc: &BebobAvc,
-        idx: usize,
-        balance: i16,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if idx >= Self::ENTRIES.len() {
-            let msg = format!("Invalid index of function block list: {}", idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_lr_balance_parameters();
-        let mut p = Self::create_lr_balance_parameters();
-        params.balances[idx] = balance;
-        p.balances[idx] = !balance;
-        Self::update_lr_balances(avc, &params, &mut p, timeout_ms)
     }
 }
 

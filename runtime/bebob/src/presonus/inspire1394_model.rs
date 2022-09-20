@@ -174,11 +174,14 @@ impl AvcMuteCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
 }
 
 #[derive(Debug)]
-struct MixerPhysSourceCtl(AvcLevelParameters);
+struct MixerPhysSourceCtl(AvcLevelParameters, AvcLrBalanceParameters);
 
 impl Default for MixerPhysSourceCtl {
     fn default() -> Self {
-        Self(Inspire1394MixerAnalogSourceProtocol::create_level_parameters())
+        Self(
+            Inspire1394MixerAnalogSourceProtocol::create_level_parameters(),
+            Inspire1394MixerAnalogSourceProtocol::create_lr_balance_parameters(),
+        )
     }
 }
 
@@ -202,6 +205,14 @@ impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSou
 
 impl AvcLrBalanceCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
     const BALANCE_NAME: &'static str = "mixer-analog-source-balance";
+
+    fn state(&self) -> &AvcLrBalanceParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLrBalanceParameters {
+        &mut self.1
+    }
 }
 
 impl AvcMuteCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
