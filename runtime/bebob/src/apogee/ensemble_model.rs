@@ -53,6 +53,7 @@ fn input_output_copy_from_meter(model: &mut EnsembleModel) {
 
 impl EnsembleModel {
     pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         EnsembleMeterProtocol::whole_update(&mut self.avc, &mut self.meter_ctl.0, FCP_TIMEOUT_MS)?;
         EnsembleConverterProtocol::whole_update(
             &mut self.avc,
@@ -124,10 +125,7 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .clk_ctl
@@ -267,8 +265,7 @@ impl NotifyModel<(SndUnit, FwNode), bool> for EnsembleModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 

@@ -57,6 +57,8 @@ impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
         let req = FwReq::default();
         Mbox2proIoProtocol::init(&req, &unit.1, TIMEOUT_MS)?;
 
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -66,10 +68,7 @@ impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .clk_ctl
@@ -127,8 +126,7 @@ impl NotifyModel<(SndUnit, FwNode), bool> for Mbox2proModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 

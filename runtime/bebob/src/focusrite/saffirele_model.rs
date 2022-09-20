@@ -92,6 +92,7 @@ impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {
 
 impl SaffireLeModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         SaffireLeMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
         SaffireLeOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
         SaffireLeSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
@@ -153,10 +154,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .clk_ctl
@@ -257,8 +255,7 @@ impl NotifyModel<(SndUnit, FwNode), bool> for SaffireLeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 

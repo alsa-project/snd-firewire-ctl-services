@@ -106,10 +106,7 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
@@ -285,8 +282,7 @@ impl<T: MediaClockFrequencyOperation> NotifyModel<(SndUnit, FwNode), bool> for S
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.clk_ctl
-            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 

@@ -14,16 +14,13 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn read_freq(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn cache_freq(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_freq(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_freq(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
-                T::cache_freq(avc, self.state_mut(), timeout_ms)?;
                 elem_value.set_enum(&[self.state().freq_idx as u32]);
                 Ok(true)
             }
