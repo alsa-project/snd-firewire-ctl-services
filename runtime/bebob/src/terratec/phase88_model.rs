@@ -52,8 +52,14 @@ impl AvcSelectorCtlOperation<Phase88PhysInputProtocol> for PhysInputCtl {
     const ITEM_LABELS: &'static [&'static str] = &["line", "mic"];
 }
 
-#[derive(Default)]
-struct MixerPhysSrcCtl;
+#[derive(Debug)]
+struct MixerPhysSrcCtl(AvcLevelParameters);
+
+impl Default for MixerPhysSrcCtl {
+    fn default() -> Self {
+        Self(Phase88MixerPhysSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-phys-source-gain";
@@ -69,18 +75,40 @@ impl AvcLevelCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
         "digital-input-1",
         "digital-input-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
 }
 
-#[derive(Default)]
-struct MixerStreamSrcCtl;
+#[derive(Debug)]
+struct MixerStreamSrcCtl(AvcLevelParameters);
+
+impl Default for MixerStreamSrcCtl {
+    fn default() -> Self {
+        Self(Phase88MixerStreamSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-stream-source-gain";
     const PORT_LABELS: &'static [&'static str] = &["stream-source-1", "stream-source-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCtl {
@@ -99,12 +127,26 @@ impl AvcSelectorCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSr
     ];
 }
 
-#[derive(Default)]
-struct MixerOutputCtl;
+#[derive(Debug)]
+struct MixerOutputCtl(AvcLevelParameters);
+
+impl Default for MixerOutputCtl {
+    fn default() -> Self {
+        Self(Phase88MixerOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
@@ -359,15 +401,15 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = MixerPhysSrcCtl::default();
+        let mut ctl = MixerPhysSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerStreamSrcCtl::default();
+        let mut ctl = MixerStreamSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerOutputCtl::default();
+        let mut ctl = MixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

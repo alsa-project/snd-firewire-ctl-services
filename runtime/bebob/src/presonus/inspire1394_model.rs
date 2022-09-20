@@ -64,8 +64,14 @@ impl AsMut<Inspire1394Meter> for MeterCtl {
 
 impl MeterCtlOperation<Inspire1394MeterProtocol> for MeterCtl {}
 
-#[derive(Default)]
-struct PhysInputCtl;
+#[derive(Debug)]
+struct PhysInputCtl(AvcLevelParameters);
+
+impl Default for PhysInputCtl {
+    fn default() -> Self {
+        Self(Inspire1394PhysInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
     const LEVEL_NAME: &'static str = "analog-input-gain";
@@ -75,6 +81,14 @@ impl AvcLevelCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
         "analog-input-3",
         "analog-input-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
@@ -101,12 +115,26 @@ impl SwitchCtlOperation<Inspire1394PhonoProtocol> for PhysInputCtl {
     const SWITCH_LABELS: &'static [&'static str] = &["analog-input-3/4"];
 }
 
-#[derive(Default)]
-struct PhysOutputCtl;
+#[derive(Debug)]
+struct PhysOutputCtl(AvcLevelParameters);
+
+impl Default for PhysOutputCtl {
+    fn default() -> Self {
+        Self(Inspire1394PhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = "analog-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["analog-output-1", "analog-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
@@ -119,20 +147,40 @@ impl AvcSelectorCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output-1/2", "stream-input-1/2"];
 }
 
-#[derive(Default)]
-struct HeadphoneCtl;
+#[derive(Debug)]
+struct HeadphoneCtl(AvcLevelParameters);
+
+impl Default for HeadphoneCtl {
+    fn default() -> Self {
+        Self(Inspire1394HeadphoneProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-volume";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
     const MUTE_NAME: &'static str = "headphone-mute";
 }
 
-#[derive(Default)]
-struct MixerPhysSourceCtl;
+#[derive(Debug)]
+struct MixerPhysSourceCtl(AvcLevelParameters);
+
+impl Default for MixerPhysSourceCtl {
+    fn default() -> Self {
+        Self(Inspire1394MixerAnalogSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
     const LEVEL_NAME: &'static str = "mixer-analog-source-gain";
@@ -142,6 +190,14 @@ impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSou
         "analog-input-3",
         "analog-input-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
@@ -152,12 +208,26 @@ impl AvcMuteCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSour
     const MUTE_NAME: &'static str = "mixer-analog-source-mute";
 }
 
-#[derive(Default)]
-struct MixerStreamSourceCtl;
+#[derive(Debug)]
+struct MixerStreamSourceCtl(AvcLevelParameters);
+
+impl Default for MixerStreamSourceCtl {
+    fn default() -> Self {
+        Self(Inspire1394MixerStreamSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSourceCtl {
     const LEVEL_NAME: &'static str = "mixer-stream-source-gain";
     const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSourceCtl {

@@ -45,8 +45,14 @@ impl SamplingClkSrcCtlOperation<FireboxClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct PhysOutputCtl;
+#[derive(Debug)]
+struct PhysOutputCtl(AvcLevelParameters);
+
+impl Default for PhysOutputCtl {
+    fn default() -> Self {
+        Self(FireboxPhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = OUT_VOL_NAME;
@@ -58,6 +64,14 @@ impl AvcLevelCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
         "analog-output-5",
         "analog-output-6",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
@@ -75,12 +89,26 @@ impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const ITEM_LABELS: &'static [&'static str] = &["stream-input", "mixer-output-1/2"];
 }
 
-#[derive(Default)]
-struct HeadphoneCtl;
+#[derive(Debug)]
+struct HeadphoneCtl(AvcLevelParameters);
+
+impl Default for HeadphoneCtl {
+    fn default() -> Self {
+        Self(FireboxHeadphoneProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-gain";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
@@ -99,8 +127,14 @@ impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     ];
 }
 
-#[derive(Default)]
-struct MixerPhysSrcCtl;
+#[derive(Debug)]
+struct MixerPhysSrcCtl(AvcLevelParameters);
+
+impl Default for MixerPhysSrcCtl {
+    fn default() -> Self {
+        Self(FireboxMixerPhysSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-phys-source-gain";
@@ -112,6 +146,14 @@ impl AvcLevelCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
         "digital-input-1",
         "digital-input-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
@@ -122,12 +164,26 @@ impl AvcMuteCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
 }
 
-#[derive(Default)]
-struct MixerStreamSrcCtl;
+#[derive(Debug)]
+struct MixerStreamSrcCtl(AvcLevelParameters);
+
+impl Default for MixerStreamSrcCtl {
+    fn default() -> Self {
+        Self(FireboxMixerStreamSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-stream-source-gain";
     const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
@@ -145,12 +201,25 @@ impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSr
     ];
 }
 
-#[derive(Default)]
-struct MixerOutputCtl;
+#[derive(Debug)]
+struct MixerOutputCtl(AvcLevelParameters);
 
+impl Default for MixerOutputCtl {
+    fn default() -> Self {
+        Self(FireboxMixerOutputProtocol::create_level_parameters())
+    }
+}
 impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
@@ -534,23 +603,23 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = HeadphoneCtl::default();
+        let mut ctl = HeadphoneCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerPhysSrcCtl::default();
+        let mut ctl = MixerPhysSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerStreamSrcCtl::default();
+        let mut ctl = MixerStreamSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerOutputCtl::default();
+        let mut ctl = MixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

@@ -41,8 +41,14 @@ impl SamplingClkSrcCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct Quatafire610InputCtl;
+#[derive(Debug)]
+struct Quatafire610InputCtl(AvcLevelParameters);
+
+impl Default for Quatafire610InputCtl {
+    fn default() -> Self {
+        Self(Quatafire610PhysInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Quatafire610PhysInputProtocol> for Quatafire610InputCtl {
     const LEVEL_NAME: &'static str = "phys-input-gain";
@@ -54,14 +60,28 @@ impl AvcLevelCtlOperation<Quatafire610PhysInputProtocol> for Quatafire610InputCt
         "digital-input-1",
         "digital-input-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Quatafire610PhysInputProtocol> for Quatafire610InputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
 }
 
-#[derive(Default)]
-struct Quatafire610OutputCtl;
+#[derive(Debug)]
+struct Quatafire610OutputCtl(AvcLevelParameters);
+
+impl Default for Quatafire610OutputCtl {
+    fn default() -> Self {
+        Self(Quatafire610PhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Quatafire610PhysOutputProtocol> for Quatafire610OutputCtl {
     const LEVEL_NAME: &'static str = OUT_VOL_NAME;
@@ -75,6 +95,14 @@ impl AvcLevelCtlOperation<Quatafire610PhysOutputProtocol> for Quatafire610Output
         "analog-output-7",
         "analog-output-8",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
@@ -216,11 +244,11 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = Quatafire610InputCtl::default();
+        let mut ctl = Quatafire610InputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = Quatafire610OutputCtl::default();
+        let mut ctl = Quatafire610OutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

@@ -128,7 +128,10 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
         mute_avail: false,
     };
 
-    fn load_level(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &AvcLevelParameters;
+    fn state_mut(&mut self) -> &mut AvcLevelParameters;
+
+    fn load_level(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         assert_eq!(
             Self::PORT_LABELS.len(),
             T::ENTRIES.len(),
@@ -152,35 +155,44 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
     }
 
     fn read_level(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::LEVEL_NAME {
-            ElemValueAccessor::<i32>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
-                T::read_level(avc, idx, timeout_ms).map(|level| level as i32)
-            })
-            .map(|_| true)
+            T::cache_levels(avc, self.state_mut(), timeout_ms)?;
+            let vals: Vec<i32> = self
+                .state()
+                .levels
+                .iter()
+                .map(|&level| level as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
         } else {
             Ok(false)
         }
     }
 
     fn write_level(
-        &self,
+        &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::LEVEL_NAME {
-            ElemValueAccessor::<i32>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
-                T::write_level(avc, idx, val as i16, timeout_ms)
-            })
-            .map(|_| true)
+            let mut params = self.state().clone();
+            let vals = &new.int()[..params.levels.len()];
+            params
+                .levels
+                .iter_mut()
+                .zip(vals)
+                .for_each(|(level, &val)| *level = val as i16);
+            T::update_levels(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
         } else {
             Ok(false)
         }
