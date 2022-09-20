@@ -184,6 +184,8 @@ impl CtlModel<(SndUnit, FwNode)> for AureonModel {
         self.phys_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.mon_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -205,17 +207,11 @@ impl CtlModel<(SndUnit, FwNode)> for AureonModel {
             Ok(true)
         } else if self.mon_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mon_out_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mon_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_out_ctl
-            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
         } else if self.spdif_out_ctl.read_selector(
             &self.avc,
