@@ -50,7 +50,7 @@ use super::*;
 
 /// The protocol implementation for media and sampling clock. They are not configurable by
 /// software.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FaClkProtocol;
 
 impl MediaClockFrequencyOperation for FaClkProtocol {

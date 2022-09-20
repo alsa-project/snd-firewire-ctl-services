@@ -83,7 +83,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of Ensemble FireWire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct EnsembleClkProtocol;
 
 impl MediaClockFrequencyOperation for EnsembleClkProtocol {

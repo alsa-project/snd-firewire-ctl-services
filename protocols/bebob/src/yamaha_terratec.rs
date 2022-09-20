@@ -113,6 +113,7 @@
 use super::*;
 
 /// The protocol implementation of media and sampling clock for Yamaha Go 44/46 and PHASE 24/X24 FW;
+#[derive(Default, Debug)]
 pub struct GoPhase24ClkProtocol;
 
 impl MediaClockFrequencyOperation for GoPhase24ClkProtocol {

@@ -66,31 +66,44 @@
 use {super::*, std::ops::Range};
 
 /// The protocol implementation for media clock of FireWire 1814.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw1814ClkProtocol;
 
 impl MediaClockFrequencyOperation for Fw1814ClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
 
-    fn read_clk_freq(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
-        read_clk_freq(avc, Self::FREQ_LIST, timeout_ms)
+    fn cache_freq(
+        avc: &BebobAvc,
+        params: &mut MediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        cache_freq(avc, params, Self::FREQ_LIST, timeout_ms)
     }
 }
 
 /// The protocol implementation for media clock of ProjectMix I/O.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ProjectMixClkProtocol;
 
 impl MediaClockFrequencyOperation for ProjectMixClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
 
-    fn read_clk_freq(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
-        read_clk_freq(avc, Self::FREQ_LIST, timeout_ms)
+    fn cache_freq(
+        avc: &BebobAvc,
+        params: &mut MediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        cache_freq(avc, params, Self::FREQ_LIST, timeout_ms)
     }
 }
 
 // NOTE: Special models doesn't support any bridgeco extension.
-fn read_clk_freq(avc: &BebobAvc, freq_list: &[u32], timeout_ms: u32) -> Result<usize, Error> {
+fn cache_freq(
+    avc: &BebobAvc,
+    params: &mut MediaClockParameters,
+    freq_list: &[u32],
+    timeout_ms: u32,
+) -> Result<(), Error> {
     let mut op = OutputPlugSignalFormat::new(0);
     avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
     let fdf = AmdtpFdf::from(&op.0.fdf[..]);
@@ -101,6 +114,7 @@ fn read_clk_freq(avc: &BebobAvc, freq_list: &[u32], timeout_ms: u32) -> Result<u
             let msg = format!("Unexpected value of FDF: {:?}", fdf);
             Error::new(FileError::Io, &msg)
         })
+        .map(|freq_idx| params.freq_idx = freq_idx)
 }
 
 /// AV/C vendor-dependent command for specific LED switch.

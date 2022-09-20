@@ -35,7 +35,7 @@
 use super::*;
 
 /// The protocol implementation of clock operation.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FireboxClkProtocol;
 
 impl MediaClockFrequencyOperation for FireboxClkProtocol {

@@ -49,7 +49,7 @@
 use super::*;
 
 /// The protocol implementation of clock operation.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394ClkProtocol;
 
 impl MediaClockFrequencyOperation for Inspire1394ClkProtocol {

@@ -75,7 +75,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of ProFire Lightbridge.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PflClkProtocol;
 
 impl MediaClockFrequencyOperation for PflClkProtocol {

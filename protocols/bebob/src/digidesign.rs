@@ -51,7 +51,7 @@
 use super::*;
 
 /// The protocol implementation of operation for media clock and sampling clock.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Mbox2proClkProtocol;
 
 impl MediaClockFrequencyOperation for Mbox2proClkProtocol {

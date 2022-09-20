@@ -187,7 +187,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock of FireWire 410.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw410ClkProtocol;
 
 impl MediaClockFrequencyOperation for Fw410ClkProtocol {
@@ -362,7 +362,7 @@ impl MaudioNormalMixerOperation for Fw410HeadphoneProtocol {
 }
 
 /// The protocol implementation for media and sampling clock of FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SoloClkProtocol;
 
 impl MediaClockFrequencyOperation for SoloClkProtocol {
@@ -458,7 +458,7 @@ impl MaudioNormalMixerOperation for SoloMixerProtocol {
 }
 
 /// The protocol implementation for media and sampling clock of FireWire Audiophile.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AudiophileClkProtocol;
 
 impl MediaClockFrequencyOperation for AudiophileClkProtocol {
@@ -599,7 +599,7 @@ impl MaudioNormalMixerOperation for AudiophileMixerProtocol {
 }
 
 /// The protocol implementation for media and sampling clock of Ozonic.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct OzonicClkProtocol;
 
 impl MediaClockFrequencyOperation for OzonicClkProtocol {

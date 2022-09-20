@@ -38,7 +38,7 @@
 use super::*;
 
 /// The protocol implementation for media and sampling clock.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88ClkProtocol;
 
 impl MediaClockFrequencyOperation for Phase88ClkProtocol {
