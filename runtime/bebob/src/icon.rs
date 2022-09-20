@@ -170,6 +170,9 @@ impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -184,10 +187,7 @@ impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
             Ok(true)
         } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .phys_out_ctl
@@ -204,10 +204,7 @@ impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
             .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mon_src_ctl
-            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mon_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .mon_src_ctl
@@ -219,10 +216,7 @@ impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
             .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mixer_src_ctl
-            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

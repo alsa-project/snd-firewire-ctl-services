@@ -154,15 +154,12 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
             .map(|_| ())
     }
 
-    fn read_level(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn cache_levels(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_levels(avc, self.state_mut(), timeout_ms)
+    }
+
+    fn read_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::LEVEL_NAME {
-            T::cache_levels(avc, self.state_mut(), timeout_ms)?;
             let vals: Vec<i32> = self
                 .state()
                 .levels

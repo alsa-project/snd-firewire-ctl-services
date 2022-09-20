@@ -111,6 +111,8 @@ impl CtlModel<(SndUnit, FwNode)> for ScratchampModel {
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -125,15 +127,9 @@ impl CtlModel<(SndUnit, FwNode)> for ScratchampModel {
             Ok(true)
         } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .output_ctl
-            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.output_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .headphone_ctl
-            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.headphone_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
