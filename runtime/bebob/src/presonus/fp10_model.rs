@@ -40,8 +40,14 @@ impl SamplingClkSrcCtlOperation<Fp10ClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct PhysOutputCtl;
+#[derive(Debug)]
+struct PhysOutputCtl(AvcLevelParameters);
+
+impl Default for PhysOutputCtl {
+    fn default() -> Self {
+        Self(Fp10PhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = OUT_VOL_NAME;
@@ -56,6 +62,14 @@ impl AvcLevelCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
         "analog-output-7",
         "analog-output-8",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {

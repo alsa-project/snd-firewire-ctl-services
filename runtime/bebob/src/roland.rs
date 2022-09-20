@@ -56,8 +56,17 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct MixerAnalogSourceCtl<T: AvcAudioFeatureSpecification>(PhantomData<T>);
+#[derive(Debug)]
+pub struct MixerAnalogSourceCtl<T: AvcAudioFeatureSpecification>(
+    AvcLevelParameters,
+    PhantomData<T>,
+);
+
+impl<T: AvcLevelOperation> Default for MixerAnalogSourceCtl<T> {
+    fn default() -> Self {
+        Self(T::create_level_parameters(), Default::default())
+    }
+}
 
 impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol>
     for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>
@@ -72,6 +81,14 @@ impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol>
         "analog-input-5",
         "analog-input-6",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Fa66MixerAnalogSourceProtocol>
@@ -97,6 +114,14 @@ impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol>
         "analog-input-9",
         "analog-input-10",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
@@ -190,11 +215,11 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
+        let mut ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
+        let mut ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

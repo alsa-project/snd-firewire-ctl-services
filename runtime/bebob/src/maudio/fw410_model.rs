@@ -68,8 +68,14 @@ impl AsRef<MaudioNormalMeter> for MeterCtl {
 
 impl MaudioNormalMeterCtlOperation<Fw410MeterProtocol> for MeterCtl {}
 
-#[derive(Default)]
-struct PhysInputCtl;
+#[derive(Debug)]
+struct PhysInputCtl(AvcLevelParameters);
+
+impl Default for PhysInputCtl {
+    fn default() -> Self {
+        Self(Fw410PhysInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fw410PhysInputProtocol> for PhysInputCtl {
     const LEVEL_NAME: &'static str = "phys-input-gain";
@@ -79,14 +85,28 @@ impl AvcLevelCtlOperation<Fw410PhysInputProtocol> for PhysInputCtl {
         "digital-input-1",
         "digital-input-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<Fw410PhysInputProtocol> for PhysInputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
 }
 
-#[derive(Default)]
-struct AuxSourceCtl;
+#[derive(Debug)]
+struct AuxSourceCtl(AvcLevelParameters);
+
+impl Default for AuxSourceCtl {
+    fn default() -> Self {
+        Self(Fw410AuxSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fw410AuxSourceProtocol> for AuxSourceCtl {
     const LEVEL_NAME: &'static str = "aux-source-gain";
@@ -106,18 +126,46 @@ impl AvcLevelCtlOperation<Fw410AuxSourceProtocol> for AuxSourceCtl {
         "stream-input-9",
         "stream-input-10",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
-struct AuxOutputCtl;
+#[derive(Debug)]
+struct AuxOutputCtl(AvcLevelParameters);
+
+impl Default for AuxOutputCtl {
+    fn default() -> Self {
+        Self(Fw410AuxOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fw410AuxOutputProtocol> for AuxOutputCtl {
     const LEVEL_NAME: &'static str = "aux-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["aux-output-1", "aux-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
-struct PhysOutputCtl;
+#[derive(Debug)]
+struct PhysOutputCtl(AvcLevelParameters);
+
+impl Default for PhysOutputCtl {
+    fn default() -> Self {
+        Self(Fw410PhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = "output-volume";
@@ -133,6 +181,14 @@ impl AvcLevelCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
         "digital-output-1",
         "digital-output-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcSelectorCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
@@ -147,12 +203,26 @@ impl AvcSelectorCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
     const ITEM_LABELS: &'static [&'static str] = &["mixer-output", "aux-output-1/2"];
 }
 
-#[derive(Default)]
-struct HeadphoneCtl;
+#[derive(Debug)]
+struct HeadphoneCtl(AvcLevelParameters);
+
+impl Default for HeadphoneCtl {
+    fn default() -> Self {
+        Self(Fw410HeadphoneProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-volume";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcSelectorCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
@@ -482,23 +552,23 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysInputCtl::default();
+        let mut ctl = PhysInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = AuxSourceCtl::default();
+        let mut ctl = AuxSourceCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = AuxOutputCtl::default();
+        let mut ctl = AuxOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = HeadphoneCtl::default();
+        let mut ctl = HeadphoneCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

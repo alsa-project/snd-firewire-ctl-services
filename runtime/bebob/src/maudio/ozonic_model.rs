@@ -64,8 +64,14 @@ impl AsRef<MaudioNormalMeter> for MeterCtl {
 
 impl MaudioNormalMeterCtlOperation<OzonicMeterProtocol> for MeterCtl {}
 
-#[derive(Default)]
-struct PhysInputCtl;
+#[derive(Debug)]
+struct PhysInputCtl(AvcLevelParameters);
+
+impl Default for PhysInputCtl {
+    fn default() -> Self {
+        Self(OzonicPhysInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<OzonicPhysInputProtocol> for PhysInputCtl {
     const LEVEL_NAME: &'static str = "phys-input-gain";
@@ -75,14 +81,28 @@ impl AvcLevelCtlOperation<OzonicPhysInputProtocol> for PhysInputCtl {
         "analog-input-3",
         "analog-input-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<OzonicPhysInputProtocol> for PhysInputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
 }
 
-#[derive(Default)]
-struct StreamInputCtl;
+#[derive(Debug)]
+struct StreamInputCtl(AvcLevelParameters);
+
+impl Default for StreamInputCtl {
+    fn default() -> Self {
+        Self(OzonicStreamInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<OzonicStreamInputProtocol> for StreamInputCtl {
     const LEVEL_NAME: &'static str = "stream-input-gain";
@@ -92,6 +112,14 @@ impl AvcLevelCtlOperation<OzonicStreamInputProtocol> for StreamInputCtl {
         "stream-input-3",
         "stream-input-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Default)]
@@ -290,11 +318,11 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysInputCtl::default();
+        let mut ctl = PhysInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = StreamInputCtl::default();
+        let mut ctl = StreamInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

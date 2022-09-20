@@ -53,8 +53,14 @@ impl SamplingClkSrcCtlOperation<GoPhase24ClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct MixerSourceCtl;
+#[derive(Debug)]
+struct MixerSourceCtl(AvcLevelParameters);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(GoPhase24MixerSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
     const LEVEL_NAME: &'static str = "mixer-source-gain";
@@ -70,6 +76,14 @@ impl AvcLevelCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
         "stream-input-5",
         "stream-input-6",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
@@ -117,8 +131,14 @@ impl AvcSelectorCtlOperation<GoPhase24CoaxHeadphoneProtocol> for CoaxHeadphoneCt
     ];
 }
 
-#[derive(Default)]
-struct OptPhysOutputCtl;
+#[derive(Debug)]
+struct OptPhysOutputCtl(AvcLevelParameters);
+
+impl Default for OptPhysOutputCtl {
+    fn default() -> Self {
+        Self(GoPhase24OptPhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
     const LEVEL_NAME: &'static str = "phy-output-volume";
@@ -128,6 +148,14 @@ impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
         "analog-output-3",
         "analog-output-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
@@ -151,24 +179,52 @@ impl AvcSelectorCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCt
     ];
 }
 
-#[derive(Default)]
-struct CoaxMixerOutputCtl;
+#[derive(Debug)]
+struct CoaxMixerOutputCtl(AvcLevelParameters);
+
+impl Default for CoaxMixerOutputCtl {
+    fn default() -> Self {
+        Self(GoPhase24CoaxMixerOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-output-mute";
 }
 
-#[derive(Default)]
-struct OptMixerOutputCtl;
+#[derive(Debug)]
+struct OptMixerOutputCtl(AvcLevelParameters);
+
+impl Default for OptMixerOutputCtl {
+    fn default() -> Self {
+        Self(GoPhase24OptMixerOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl {
@@ -520,19 +576,19 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = OptPhysOutputCtl::default();
+        let mut ctl = OptPhysOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = CoaxMixerOutputCtl::default();
+        let mut ctl = CoaxMixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerSourceCtl::default();
+        let mut ctl = MixerSourceCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = OptMixerOutputCtl::default();
+        let mut ctl = OptMixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

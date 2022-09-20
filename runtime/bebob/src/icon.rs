@@ -42,8 +42,14 @@ impl SamplingClkSrcCtlOperation<FirexonClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct PhysOutputCtl;
+#[derive(Debug)]
+struct PhysOutputCtl(AvcLevelParameters);
+
+impl Default for PhysOutputCtl {
+    fn default() -> Self {
+        Self(FirexonPhysOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = "analog-output-volume";
@@ -53,6 +59,14 @@ impl AvcLevelCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
         "analog-output-3",
         "analog-output-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
@@ -70,8 +84,14 @@ impl AvcSelectorCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
         &["mixer-output-1/2", "stream-input-3/4", "stream-input-5/6"];
 }
 
-#[derive(Default)]
-struct MonitorSrcCtl;
+#[derive(Debug)]
+struct MonitorSrcCtl(AvcLevelParameters);
+
+impl Default for MonitorSrcCtl {
+    fn default() -> Self {
+        Self(FirexonMonitorSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
     const LEVEL_NAME: &'static str = "monitor-source-gain";
@@ -83,6 +103,14 @@ impl AvcLevelCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
         "digital-input-1",
         "digital-input-2",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcLrBalanceCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
@@ -93,12 +121,26 @@ impl AvcMuteCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
     const MUTE_NAME: &'static str = "monitor-source-mute";
 }
 
-#[derive(Default)]
-struct MixerSrcCtl;
+#[derive(Debug)]
+struct MixerSrcCtl(AvcLevelParameters);
+
+impl Default for MixerSrcCtl {
+    fn default() -> Self {
+        Self(FirexonMixerSourceProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<FirexonMixerSourceProtocol> for MixerSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-source-gain";
     const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2", "monitor-output-1/2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
@@ -298,15 +340,15 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysOutputCtl::default();
+        let mut ctl = PhysOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MonitorSrcCtl::default();
+        let mut ctl = MonitorSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerSrcCtl::default();
+        let mut ctl = MixerSrcCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

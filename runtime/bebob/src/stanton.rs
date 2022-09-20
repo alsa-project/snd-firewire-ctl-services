@@ -41,8 +41,14 @@ impl SamplingClkSrcCtlOperation<ScratchampClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct ScratchampOutputCtl;
+#[derive(Debug)]
+struct ScratchampOutputCtl(AvcLevelParameters);
+
+impl Default for ScratchampOutputCtl {
+    fn default() -> Self {
+        Self(ScratchampOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<ScratchampOutputProtocol> for ScratchampOutputCtl {
     const LEVEL_NAME: &'static str = OUT_VOL_NAME;
@@ -52,14 +58,36 @@ impl AvcLevelCtlOperation<ScratchampOutputProtocol> for ScratchampOutputCtl {
         "analog-output-3",
         "analog-output-4",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
-struct ScratchampHeadphoneCtl;
+#[derive(Debug)]
+struct ScratchampHeadphoneCtl(AvcLevelParameters);
+
+impl Default for ScratchampHeadphoneCtl {
+    fn default() -> Self {
+        Self(ScratchampHeadphoneProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<ScratchampHeadphoneProtocol> for ScratchampHeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-volume";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for ScratchampModel {
@@ -190,11 +218,11 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = ScratchampOutputCtl::default();
+        let mut ctl = ScratchampOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = ScratchampHeadphoneCtl::default();
+        let mut ctl = ScratchampHeadphoneCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

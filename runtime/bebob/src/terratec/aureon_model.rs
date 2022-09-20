@@ -32,12 +32,26 @@ impl MediaClkFreqCtlOperation<AureonClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
-struct PhysInputCtl;
+#[derive(Debug)]
+struct PhysInputCtl(AvcLevelParameters);
+
+impl Default for PhysInputCtl {
+    fn default() -> Self {
+        Self(AureonPhysInputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<AureonPhysInputProtocol> for PhysInputCtl {
     const LEVEL_NAME: &'static str = "analog-input-gain";
     const PORT_LABELS: &'static [&'static str] = &["analog-input-1/2", "analog-input-3/4"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 #[derive(Default)]
@@ -54,20 +68,40 @@ impl AvcSelectorCtlOperation<AureonMonitorSourceProtocol> for MonitorSourceCtl {
     ];
 }
 
-#[derive(Default)]
-struct MonitorOutputCtl;
+#[derive(Debug)]
+struct MonitorOutputCtl(AvcLevelParameters);
+
+impl Default for MonitorOutputCtl {
+    fn default() -> Self {
+        Self(AureonMonitorOutputProtocol::create_level_parameters())
+    }
+}
 
 impl AvcLevelCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
     const LEVEL_NAME: &'static str = "monitor-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["monitor-output-1/2"];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
     const MUTE_NAME: &'static str = "monitor-output-mute";
 }
 
-#[derive(Default)]
-struct MixerOutputCtl;
+#[derive(Debug)]
+struct MixerOutputCtl(AvcLevelParameters);
+
+impl Default for MixerOutputCtl {
+    fn default() -> Self {
+        Self(AureonMixerOutputProtocol::create_level_parameters())
+    }
+}
 
 #[derive(Default)]
 struct SpdifOutputCtl;
@@ -90,6 +124,14 @@ impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
         "mixer-output-7",
         "mixer-output-8",
     ];
+
+    fn state(&self) -> &AvcLevelParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut AvcLevelParameters {
+        &mut self.0
+    }
 }
 
 impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
@@ -265,15 +307,15 @@ mod test {
     fn test_level_ctl_definition() {
         let mut card_cntr = CardCntr::default();
 
-        let ctl = PhysInputCtl::default();
+        let mut ctl = PhysInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MonitorOutputCtl::default();
+        let mut ctl = MonitorOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
-        let ctl = MixerOutputCtl::default();
+        let mut ctl = MixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
