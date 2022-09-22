@@ -973,8 +973,9 @@ impl MaudioNormalMixerOperation for OzonicMixerProtocol {
     ];
 }
 
-/// The parameter of mixer.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+/// The parameter of mixer. The `Default` trait should be implemented to call
+/// `MaudioNormalMixerOperation::create_mixer_parameters()`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MaudioNormalMixerParameters(pub Vec<Vec<bool>>);
 
 /// The trait for mixer operation.
@@ -995,6 +996,8 @@ pub trait MaudioNormalMixerOperation {
         ])
     }
 
+    /// The ASIC get heavy load from AV/C status request for mixer parameters, thus this method
+    /// often brings timeout.
     fn cache(
         avc: &BebobAvc,
         params: &mut MaudioNormalMixerParameters,
@@ -1029,26 +1032,6 @@ pub trait MaudioNormalMixerOperation {
             })
     }
 
-    fn read_mixer_src(
-        avc: &BebobAvc,
-        dst_idx: usize,
-        src_idx: usize,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if dst_idx >= Self::DST_FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of destination ID list: {}", dst_idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        if src_idx >= Self::SRC_FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of source ID list: {}", src_idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_mixer_parameters();
-        Self::cache(avc, &mut params, timeout_ms).map(|_| params.0[dst_idx][src_idx])
-    }
-
     fn update(
         avc: &BebobAvc,
         params: &MaudioNormalMixerParameters,
@@ -1081,30 +1064,5 @@ pub trait MaudioNormalMixerOperation {
                         })
                 },
             )
-    }
-
-    fn write_mixer_src(
-        avc: &BebobAvc,
-        dst_idx: usize,
-        src_idx: usize,
-        state: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if dst_idx >= Self::DST_FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of destination ID list: {}", dst_idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        if src_idx >= Self::SRC_FUNC_BLOCK_ID_LIST.len() {
-            let msg = format!("Invalid index of source ID list: {}", src_idx);
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut params = Self::create_mixer_parameters();
-        params.0[dst_idx][src_idx] = state;
-        let mut p = Self::create_mixer_parameters();
-        p.0[dst_idx][src_idx] = !state;
-
-        Self::update(avc, &params, &mut p, timeout_ms)
     }
 }

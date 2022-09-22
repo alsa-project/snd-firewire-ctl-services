@@ -226,13 +226,18 @@ impl AvcSelectorCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
 }
 
 #[derive(Debug)]
-struct HeadphoneCtl(AvcLevelParameters, AvcSelectorParameters);
+struct HeadphoneCtl(
+    AvcLevelParameters,
+    AvcSelectorParameters,
+    MaudioNormalMixerParameters,
+);
 
 impl Default for HeadphoneCtl {
     fn default() -> Self {
         Self(
             Fw410HeadphoneProtocol::create_level_parameters(),
             Fw410HeadphoneProtocol::create_selector_parameters(),
+            Fw410HeadphoneProtocol::create_mixer_parameters(),
         )
     }
 }
@@ -276,6 +281,14 @@ impl MaudioNormalMixerCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
         "mixer-output-7/8",
         "mixer-output-9/10",
     ];
+
+    fn state(&self) -> &MaudioNormalMixerParameters {
+        &self.2
+    }
+
+    fn state_mut(&mut self) -> &mut MaudioNormalMixerParameters {
+        &mut self.2
+    }
 }
 
 #[derive(Debug)]
@@ -301,8 +314,14 @@ impl AvcSelectorCtlOperation<Fw410SpdifOutputProtocol> for SpdifInputCtl {
     }
 }
 
-#[derive(Default)]
-struct MixerCtl;
+#[derive(Debug)]
+struct MixerCtl(MaudioNormalMixerParameters);
+
+impl Default for MixerCtl {
+    fn default() -> Self {
+        Self(Fw410MixerProtocol::create_mixer_parameters())
+    }
+}
 
 impl MaudioNormalMixerCtlOperation<Fw410MixerProtocol> for MixerCtl {
     const MIXER_NAME: &'static str = "mixer-source";
@@ -324,6 +343,14 @@ impl MaudioNormalMixerCtlOperation<Fw410MixerProtocol> for MixerCtl {
         "analog-input-7/8",
         "digital-input-1/2",
     ];
+
+    fn state(&self) -> &MaudioNormalMixerParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut MaudioNormalMixerParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
@@ -354,12 +381,10 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
         self.phys_output_ctl.load_selector(card_cntr)?;
         self.hp_ctl.load_level(card_cntr)?;
         self.hp_ctl.load_selector(card_cntr)?;
-        self.hp_ctl
-            .load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
+        self.hp_ctl.load_src_state(card_cntr)?;
         self.spdif_input_ctl.load_selector(card_cntr)?;
 
-        self.mixer_ctl
-            .load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
+        self.mixer_ctl.load_src_state(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
@@ -378,6 +403,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
         self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
         self.spdif_input_ctl
             .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -414,10 +440,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             Ok(true)
         } else if self.spdif_input_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_ctl
-            .read_src_state(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_ctl.read_src_state(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -616,11 +639,10 @@ mod test {
 
     #[test]
     fn test_mixer_ctl_definition() {
-        let avc = BebobAvc::default();
         let mut card_cntr = CardCntr::default();
 
-        let ctl = MixerCtl::default();
-        let error = ctl.load_src_state(&mut card_cntr, &avc, 100).unwrap_err();
+        let mut ctl = MixerCtl::default();
+        let error = ctl.load_src_state(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
