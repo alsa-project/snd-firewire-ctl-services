@@ -395,7 +395,9 @@ impl MeterCtl {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        SaffireMeterProtocol::cache(req, node, &mut self.1, timeout_ms)
+        let res = SaffireMeterProtocol::cache(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -468,7 +470,9 @@ impl SpecificCtl {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        SaffireSpecificProtocol::cache(req, node, &mut self.0, timeout_ms)
+        let res = SaffireSpecificProtocol::cache(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -511,8 +515,10 @@ impl SpecificCtl {
             MODE_192_KHZ_NAME => {
                 let mut params = self.0.clone();
                 params.mode_192khz = elem_value.boolean()[0];
-                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_PAIR_1_SRC_NAME => {
                 let mut params = self.0.clone();
@@ -525,8 +531,10 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIXER_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -539,13 +547,22 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms)?;
-                if params.mixer_mode == SaffireMixerMode::StereoSeparated {
-                    SaffireSeparatedMixerProtocol::cache(req, node, separated_params, timeout_ms)?;
-                } else {
-                    SaffirePairedMixerProtocol::cache(req, node, paired_params, timeout_ms)?;
-                }
-                Ok(true)
+                let res =
+                    SaffireSpecificProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.and_then(|_| {
+                    if params.mixer_mode == SaffireMixerMode::StereoSeparated {
+                        SaffireSeparatedMixerProtocol::cache(
+                            req,
+                            node,
+                            separated_params,
+                            timeout_ms,
+                        )
+                    } else {
+                        SaffirePairedMixerProtocol::cache(req, node, paired_params, timeout_ms)
+                    }
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -611,7 +628,9 @@ impl ReverbCtl {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        SaffireReverbProtocol::cache(req, node, &mut self.0, timeout_ms)
+        let res = SaffireReverbProtocol::cache(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -650,32 +669,60 @@ impl ReverbCtl {
                 let amounts = &mut params.amounts;
                 let vals = &elem_value.int()[..amounts.len()];
                 amounts.copy_from_slice(&vals);
-                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireReverbProtocol::update(
+                    req,
+                    &mut unit.1,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_ROOM_SIZE_NAME => {
                 let mut params = self.0.clone();
                 let room_sizes = &mut params.room_sizes;
                 let vals = &elem_value.int()[..room_sizes.len()];
                 room_sizes.copy_from_slice(&vals);
-                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireReverbProtocol::update(
+                    req,
+                    &mut unit.1,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_DIFFUSION_NAME => {
                 let mut params = self.0.clone();
                 let diffusion = &mut params.room_sizes;
                 let vals = &elem_value.int()[..diffusion.len()];
                 diffusion.copy_from_slice(&vals);
-                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireReverbProtocol::update(
+                    req,
+                    &mut unit.1,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_TONE_NAME => {
                 let mut params = self.0.clone();
                 let tones = &mut params.room_sizes;
                 let vals = &elem_value.int()[..tones.len()];
                 tones.copy_from_slice(&vals);
-                SaffireReverbProtocol::update(req, &mut unit.1, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireReverbProtocol::update(
+                    req,
+                    &mut unit.1,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -744,16 +791,9 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
-    }
-
-    fn write_state(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::cache(req, &unit.1, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_src_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -796,7 +836,9 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, &unit.1, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
         } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
@@ -813,7 +855,9 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, &unit.1, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
         } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
@@ -830,7 +874,9 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, &unit.1, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
         } else {
             Ok(false)
