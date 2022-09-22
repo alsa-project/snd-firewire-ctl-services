@@ -88,7 +88,7 @@ trait SaffireOutputCtlOperation<
         Ok(measure_elem_id_list)
     }
 
-    fn measure_params(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
@@ -185,6 +185,10 @@ trait SaffireThroughCtlOperation<T: SaffireParametersOperation<SaffireThroughPar
         card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {

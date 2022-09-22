@@ -144,7 +144,7 @@ impl SaffireModel {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         SaffireMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
-        SaffireOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
+        self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         SaffireSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
         SaffireSeparatedMixerProtocol::cache(
             &self.req,
@@ -334,8 +334,7 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireModel {
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
-        self.out_ctl
-            .measure_params(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
