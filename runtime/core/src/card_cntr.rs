@@ -56,11 +56,28 @@ impl Drop for CardCntr {
     fn drop(&mut self) {
         self.entries
             .iter()
-            .filter_map(|(_, v)| v.elem_id())
+            .filter_map(|(elem_info, _)| elem_id_from_elem_info(elem_info))
             .for_each(|elem_id| {
                 let _ = self.card.remove_elems(&elem_id);
             });
     }
+}
+
+fn elem_id_from_elem_info(elem_info: &ElemInfo) -> Option<ElemId> {
+    match elem_info {
+        ElemInfo::Iec60958(info) => info.elem_id(),
+        ElemInfo::Boolean(info) => info.elem_id(),
+        ElemInfo::Bytes(info) => info.elem_id(),
+        ElemInfo::Integer(info) => info.elem_id(),
+        ElemInfo::Integer64(info) => info.elem_id(),
+        ElemInfo::Enumerated(info) => info.elem_id(),
+    }
+}
+
+fn match_elem_id(elem_info: &ElemInfo, elem_id: &ElemId) -> bool {
+    elem_id_from_elem_info(elem_info)
+        .map(|e| e.eq(elem_id))
+        .unwrap_or_default()
 }
 
 impl CardCntr {
@@ -287,27 +304,20 @@ impl CardCntr {
         T: CtlModel<O>,
     {
         if events.contains(ElemEventMask::REMOVE) {
-            self.entries.retain(|(_, v)| match v.elem_id() {
-                Some(e) => e != *elem_id,
-                None => true,
-            });
+            self.entries
+                .retain(|(elem_info, _)| match_elem_id(elem_info, elem_id));
             return Ok(());
         }
 
         if events.contains(ElemEventMask::ADD) {
-            for (_, v) in &mut self.entries {
-                let e = match v.elem_id() {
-                    Some(e) => e,
-                    None => continue,
-                };
-
-                if e != *elem_id {
+            for (elem_info, v) in &mut self.entries {
+                if !match_elem_id(elem_info, elem_id) {
                     continue;
                 }
 
                 let mut val = ElemValue::new();
 
-                if let Ok(res) = ctl_model.read(unit, &e, &mut val) {
+                if let Ok(res) = ctl_model.read(unit, &elem_id, &mut val) {
                     if !res {
                         continue;
                     }
@@ -316,7 +326,7 @@ impl CardCntr {
                         continue;
                     }
 
-                    if let Err(_) = self.card.write_elem_value(&e, &val) {
+                    if let Err(_) = self.card.write_elem_value(&elem_id, &val) {
                         continue;
                     }
 
@@ -326,18 +336,13 @@ impl CardCntr {
         }
 
         if events.contains(ElemEventMask::VALUE) {
-            for (_, v) in &mut self.entries {
-                let e = match v.elem_id() {
-                    Some(e) => e,
-                    None => continue,
-                };
-
-                if e != *elem_id {
+            for (elem_info, v) in &mut self.entries {
+                if !match_elem_id(elem_info, elem_id) {
                     continue;
                 }
 
                 let mut val = ElemValue::new();
-                if self.card.read_elem_value(&e, &mut val).is_err() {
+                if self.card.read_elem_value(&elem_id, &mut val).is_err() {
                     continue;
                 }
 
@@ -346,7 +351,7 @@ impl CardCntr {
                     continue;
                 }
 
-                match ctl_model.write(unit, &e, v, &val) {
+                match ctl_model.write(unit, &elem_id, v, &val) {
                     Ok(res) => {
                         if res {
                             *v = val;
@@ -355,7 +360,7 @@ impl CardCntr {
                     }
                     Err(err) => {
                         // Back to old values.
-                        self.card.write_elem_value(&e, v)?;
+                        self.card.write_elem_value(&elem_id, v)?;
                         return Err(err);
                     }
                 }
@@ -383,10 +388,7 @@ impl CardCntr {
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
-                .filter(|(_, elem_value)| match elem_value.elem_id() {
-                    Some(eid) => eid == *elem_id,
-                    None => false,
-                })
+                .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
                 .try_for_each(|(_, elem_value)| {
                     if ctl_model.measure_elem(unit, elem_id, elem_value)? {
                         card.write_elem_value(elem_id, elem_value)?;
@@ -416,10 +418,7 @@ impl CardCntr {
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
-                .filter(|(_, elem_value)| match elem_value.elem_id() {
-                    Some(eid) => eid == *elem_id,
-                    None => false,
-                })
+                .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
                 .try_for_each(|(_, elem_value)| {
                     if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
                         card.write_elem_value(elem_id, elem_value)?;
