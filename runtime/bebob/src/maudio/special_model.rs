@@ -44,35 +44,15 @@ struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
 impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        MaudioSpecialMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
-        MaudioSpecialInputProtocol::whole_update(
-            &self.req,
-            &unit.1,
-            &mut self.input_ctl.0,
-            &mut self.cache,
-            TIMEOUT_MS,
-        )?;
-        MaudioSpecialOutputProtocol::whole_update(
-            &self.req,
-            &unit.1,
-            &mut self.output_ctl.0,
-            &mut self.cache,
-            TIMEOUT_MS,
-        )?;
-        MaudioSpecialAuxProtocol::whole_update(
-            &self.req,
-            &unit.1,
-            &mut self.aux_ctl.0,
-            &mut self.cache,
-            TIMEOUT_MS,
-        )?;
-        MaudioSpecialMixerProtocol::whole_update(
-            &self.req,
-            &unit.1,
-            &mut self.mixer_ctl.0,
-            &mut self.cache,
-            TIMEOUT_MS,
-        )?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.input_ctl
+            .cache(&self.req, &unit.1, &mut self.cache, TIMEOUT_MS)?;
+        self.output_ctl
+            .cache(&self.req, &unit.1, &mut self.cache, TIMEOUT_MS)?;
+        self.aux_ctl
+            .cache(&self.req, &unit.1, &mut self.cache, TIMEOUT_MS)?;
+        self.mixer_ctl
+            .cache(&self.req, &unit.1, &mut self.cache, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -189,8 +169,7 @@ impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)> for Specia
         let switch = self.meter_ctl.0.switch;
         let prev_rotaries = self.meter_ctl.0.rotaries[..2].to_vec();
 
-        self.meter_ctl
-            .measure_state(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         if switch != self.meter_ctl.0.switch {
             let mut op = MaudioSpecialLedSwitch::new(self.meter_ctl.0.switch);
@@ -424,7 +403,7 @@ impl MeterCtl {
         Ok(())
     }
 
-    fn measure_state(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         MaudioSpecialMeterProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
@@ -580,6 +559,16 @@ impl InputCtl {
         })?;
 
         Ok(())
+    }
+
+    fn cache(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        cache: &mut MaudioSpecialStateCache,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MaudioSpecialInputProtocol::whole_update(req, node, &mut self.0, cache, timeout_ms)
     }
 
     fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
@@ -802,6 +791,16 @@ impl OutputCtl {
         Ok(())
     }
 
+    fn cache(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        cache: &mut MaudioSpecialStateCache,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MaudioSpecialOutputProtocol::whole_update(req, node, &mut self.0, cache, timeout_ms)
+    }
+
     fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
         let vals: Vec<i32> = gains.iter().map(|&val| val as i32).collect();
         elem_value.set_int(&vals);
@@ -1019,6 +1018,16 @@ impl AuxCtl {
         Ok(())
     }
 
+    fn cache(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        cache: &mut MaudioSpecialStateCache,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MaudioSpecialAuxProtocol::whole_update(req, node, &mut self.0, cache, timeout_ms)
+    }
+
     fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
         let vals: Vec<i32> = gains.iter().map(|&val| val as i32).collect();
         elem_value.set_int(&vals);
@@ -1167,6 +1176,16 @@ impl MixerCtl {
         let _ = Self::add_bool_elem(card_cntr, MIXER_STREAM_SRC_NAME, &STREAM_INPUT_PAIR_LABELS)?;
 
         Ok(())
+    }
+
+    fn cache(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        cache: &mut MaudioSpecialStateCache,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MaudioSpecialMixerProtocol::whole_update(req, node, &mut self.0, cache, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
