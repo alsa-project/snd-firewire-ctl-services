@@ -339,24 +339,51 @@ impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     }
 }
 
-#[derive(Debug)]
-struct AnalogInputCtl(AvcSelectorParameters);
+#[derive(Default, Debug)]
+struct AnalogInputCtl(FireboxAnalogInputParameters);
 
-impl Default for AnalogInputCtl {
-    fn default() -> Self {
-        Self(FireboxAnalogInputProtocol::create_selector_parameters())
-    }
-}
-
-impl SwitchCtlOperation<FireboxAnalogInputProtocol> for AnalogInputCtl {
+impl AnalogInputCtl {
     const SWITCH_NAME: &'static str = "analog-input-boost";
 
-    fn state(&self) -> &AvcSelectorParameters {
-        &self.0
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, self.0.boosts.len(), true)
+            .map(|_| ())
     }
 
-    fn state_mut(&mut self) -> &mut AvcSelectorParameters {
-        &mut self.0
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        FireboxAnalogInputProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            Self::SWITCH_NAME => {
+                elem_value.set_bool(&self.0.boosts);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            Self::SWITCH_NAME => {
+                let mut params = self.0.clone();
+                let vals = &new.boolean()[..params.boosts.len()];
+                params.boosts.copy_from_slice(&vals);
+                FireboxAnalogInputProtocol::update(avc, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
     }
 }
 
@@ -391,8 +418,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
-
-        self.analog_in_ctl.load_switch(card_cntr)?;
+        self.analog_in_ctl.load(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
@@ -420,6 +446,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_stream_src_ctl
             .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.analog_in_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -467,10 +494,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self.mixer_out_ctl.read_mutes(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .analog_in_ctl
-            .read_switch(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.analog_in_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -597,7 +621,7 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
             Ok(true)
         } else if self
             .analog_in_ctl
-            .write_switch(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -622,68 +646,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for FireboxModel {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         self.clk_ctl.read_freq(elem_id, elem_value)
-    }
-}
-
-trait SwitchCtlOperation<T: AvcSelectorOperation> {
-    const SWITCH_NAME: &'static str;
-
-    const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len();
-
-    fn state(&self) -> &AvcSelectorParameters;
-    fn state_mut(&mut self) -> &mut AvcSelectorParameters;
-
-    fn load_switch(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        *self.state_mut() = T::create_selector_parameters();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
-            .map(|_| ())
-    }
-
-    fn read_switch(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if elem_id.name().as_str() == Self::SWITCH_NAME {
-            T::cache_selectors(avc, self.state_mut(), timeout_ms)?;
-            let vals: Vec<bool> = self
-                .state()
-                .selectors
-                .iter()
-                .map(|&selectors| selectors > 0)
-                .collect();
-            elem_value.set_bool(&vals);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write_switch(
-        &mut self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if elem_id.name().as_str() == Self::SWITCH_NAME {
-            let mut params = self.state().clone();
-            let vals = &new.boolean()[..params.selectors.len()];
-            params
-                .selectors
-                .iter_mut()
-                .zip(vals)
-                .for_each(|(selector, &val)| *selector = val as usize);
-            T::update_selectors(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
-        } else {
-            Ok(false)
-        }
     }
 }
 
