@@ -180,7 +180,9 @@ trait MaudioNormalMeterCtlOperation<O: MaudioNormalMeterProtocol> {
         let meter = self.state_mut();
         let switch_state = meter.switch;
 
-        O::read_meter(req, node, meter, timeout_ms)?;
+        let res = O::read_meter(req, node, meter, timeout_ms);
+        debug!(params = ?meter, res = ?res);
+        res?;
 
         if switch_state != meter.switch {
             let state = meter.switch.unwrap();
@@ -352,7 +354,9 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
         params.0.iter_mut().for_each(|levels| {
             levels.iter_mut().for_each(|level| *level = !(*level));
         });
-        O::update(avc, self.state(), &mut params, timeout_ms)
+        let res = O::update(avc, self.state(), &mut params, timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_src_state(
@@ -382,7 +386,9 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
             let mut params = self.state().clone();
             let vals = &new.boolean()[..Self::SRC_COUNT];
             params.0[dst_idx].copy_from_slice(&vals);
-            O::update(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
+            let res = O::update(avc, &params, self.state_mut(), timeout_ms);
+            debug!(params = ?self.state(), ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }
