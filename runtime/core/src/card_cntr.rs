@@ -10,7 +10,7 @@ use {
 #[derive(Default)]
 pub struct CardCntr {
     pub card: Card,
-    entries: Vec<ElemValue>,
+    entries: Vec<(ElemInfo, ElemValue)>,
 }
 
 pub trait CtlModel<O: Sized> {
@@ -56,7 +56,7 @@ impl Drop for CardCntr {
     fn drop(&mut self) {
         self.entries
             .iter()
-            .filter_map(|v| v.elem_id())
+            .filter_map(|(_, v)| v.elem_id())
             .for_each(|elem_id| {
                 let _ = self.card.remove_elems(&elem_id);
             });
@@ -244,7 +244,7 @@ impl CardCntr {
                     Some(elem_id) => {
                         let mut v = ElemValue::new();
                         self.card.read_elem_value(&elem_id, &mut v)?;
-                        self.entries.push(v);
+                        self.entries.push((elem_info, v));
                         Ok(())
                     }
                     None => {
@@ -287,7 +287,7 @@ impl CardCntr {
         T: CtlModel<O>,
     {
         if events.contains(ElemEventMask::REMOVE) {
-            self.entries.retain(|v| match v.elem_id() {
+            self.entries.retain(|(_, v)| match v.elem_id() {
                 Some(e) => e != *elem_id,
                 None => true,
             });
@@ -295,7 +295,7 @@ impl CardCntr {
         }
 
         if events.contains(ElemEventMask::ADD) {
-            for v in &mut self.entries {
+            for (_, v) in &mut self.entries {
                 let e = match v.elem_id() {
                     Some(e) => e,
                     None => continue,
@@ -326,7 +326,7 @@ impl CardCntr {
         }
 
         if events.contains(ElemEventMask::VALUE) {
-            for v in &mut self.entries {
+            for (_, v) in &mut self.entries {
                 let e = match v.elem_id() {
                     Some(e) => e,
                     None => continue,
@@ -383,11 +383,11 @@ impl CardCntr {
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
-                .filter(|elem_value| match elem_value.elem_id() {
+                .filter(|(_, elem_value)| match elem_value.elem_id() {
                     Some(eid) => eid == *elem_id,
                     None => false,
                 })
-                .try_for_each(|elem_value| {
+                .try_for_each(|(_, elem_value)| {
                     if ctl_model.measure_elem(unit, elem_id, elem_value)? {
                         card.write_elem_value(elem_id, elem_value)?;
                     }
@@ -416,11 +416,11 @@ impl CardCntr {
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
-                .filter(|elem_value| match elem_value.elem_id() {
+                .filter(|(_, elem_value)| match elem_value.elem_id() {
                     Some(eid) => eid == *elem_id,
                     None => false,
                 })
-                .try_for_each(|elem_value| {
+                .try_for_each(|(_, elem_value)| {
                     if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
                         card.write_elem_value(elem_id, elem_value)?;
                     }
