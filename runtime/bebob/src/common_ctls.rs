@@ -15,7 +15,9 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
     }
 
     fn cache_freq(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_freq(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_freq(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_freq(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -42,9 +44,10 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
                 unit.lock()?;
                 let mut params = self.state().clone();
                 params.freq_idx = new.enumerated()[0] as usize;
-                let res = T::update_freq(avc, &params, self.state_mut(), timeout_ms).map(|_| true);
+                let res = T::update_freq(avc, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
                 let _ = unit.unlock();
-                res
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -77,7 +80,9 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
     }
 
     fn cache_src(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_src(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_src(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_src(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -104,9 +109,10 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
                 unit.lock()?;
                 let mut params = self.state().clone();
                 params.src_idx = new.enumerated()[0] as usize;
-                let res = T::update_src(avc, &params, self.state_mut(), timeout_ms).map(|_| true);
+                let res = T::update_src(avc, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
                 let _ = unit.unlock();
-                res
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -155,7 +161,9 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
     }
 
     fn cache_levels(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_levels(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_levels(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -189,7 +197,9 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
                 .iter_mut()
                 .zip(vals)
                 .for_each(|(level, &val)| *level = val as i16);
-            T::update_levels(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
+            let res = T::update_levels(avc, &params, self.state_mut(), timeout_ms);
+            debug!(params = ?self.state(), ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }
@@ -223,7 +233,9 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
     }
 
     fn cache_balances(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_lr_balances(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_lr_balances(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_balances(
@@ -261,7 +273,9 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLrBalanceOperation> {
                 .iter_mut()
                 .zip(vals)
                 .for_each(|(balance, &val)| *balance = val as i16);
-            T::update_lr_balances(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
+            let res = T::update_lr_balances(avc, &params, self.state_mut(), timeout_ms);
+            debug!(params = ?self.state(), ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }
@@ -282,7 +296,9 @@ pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
     }
 
     fn cache_mutes(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_mutes(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_mutes(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_mutes(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -306,7 +322,9 @@ pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
             let mut params = self.state().clone();
             let vals = &new.boolean()[..params.mutes.len()];
             params.mutes.copy_from_slice(&vals);
-            T::update_mutes(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
+            let res = T::update_mutes(avc, &params, self.state_mut(), timeout_ms);
+            debug!(params = ?self.state(), ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }
@@ -345,7 +363,9 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
     }
 
     fn cache_selectors(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_selectors(avc, self.state_mut(), timeout_ms)
+        let res = T::cache_selectors(avc, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_selectors(
@@ -383,7 +403,9 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
                 .iter_mut()
                 .zip(vals)
                 .for_each(|(selector, &val)| *selector = val as usize);
-            T::update_selectors(avc, &params, self.state_mut(), timeout_ms).map(|_| true)
+            let res = T::update_selectors(avc, &params, self.state_mut(), timeout_ms);
+            debug!(params = ?self.state(), ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }

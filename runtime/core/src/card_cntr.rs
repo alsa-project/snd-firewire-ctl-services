@@ -643,7 +643,7 @@ impl CardCntr {
                 .iter_mut()
                 .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
                 .try_for_each(|(elem_info, elem_value)| {
-                    let _enter = debug_span!("hardware");
+                    let _enter = debug_span!("hardware").entered();
 
                     let res = ctl_model.measure_elem(unit, elem_id, elem_value);
                     debug!(
@@ -653,13 +653,17 @@ impl CardCntr {
                     );
                     res?;
 
-                    let _enter = debug_span!("kernel");
+                    _enter.exit();
+
+                    let _enter = debug_span!("kernel").entered();
                     let res = card.write_elem_value(elem_id, elem_value);
                     debug!(
                         numid = elem_id.numid(),
                         values = value_array_literal(elem_info, &elem_value),
                         ?res,
                     );
+                    _enter.exit();
+
                     res
                 })
         })
@@ -688,7 +692,7 @@ impl CardCntr {
                 .iter_mut()
                 .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
                 .try_for_each(|(elem_info, elem_value)| {
-                    let _enter = debug_span!("hardware");
+                    let _enter = debug_span!("hardware").entered();
                     let res = ctl_model.read_notified_elem(unit, elem_id, elem_value);
                     debug!(
                         numid = elem_id.numid(),
@@ -697,13 +701,18 @@ impl CardCntr {
                     );
                     res?;
 
-                    let _enter = debug_span!("kernel");
+                    _enter.exit();
+
+                    let _enter = debug_span!("kernel").entered();
                     let res = card.write_elem_value(elem_id, elem_value);
                     debug!(
                         numid = elem_id.numid(),
                         values = value_array_literal(elem_info, &elem_value),
                         ?res,
                     );
+
+                    _enter.exit();
+
                     res
                 })
         })
