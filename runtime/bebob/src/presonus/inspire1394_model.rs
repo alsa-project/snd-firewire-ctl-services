@@ -48,22 +48,93 @@ impl SamplingClkSrcCtlOperation<Inspire1394ClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(Vec<ElemId>, Inspire1394Meter);
 
-impl AsRef<Inspire1394Meter> for MeterCtl {
-    fn as_ref(&self) -> &Inspire1394Meter {
-        &self.1
+impl MeterCtl {
+    const STREAM_INPUT_METER_NAME: &'static str = "stream-input";
+
+    const METER_TLV: DbInterval = DbInterval {
+        min: -14400,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Inspire1394MeterProtocol::LEVEL_MIN,
+                Inspire1394MeterProtocol::LEVEL_MAX,
+                Inspire1394MeterProtocol::LEVEL_STEP,
+                4,
+                Some(&Into::<Vec<u32>>::into(Self::METER_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Inspire1394MeterProtocol::LEVEL_MIN,
+                Inspire1394MeterProtocol::LEVEL_MAX,
+                Inspire1394MeterProtocol::LEVEL_STEP,
+                2,
+                Some(&Into::<Vec<u32>>::into(Self::METER_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Inspire1394MeterProtocol::LEVEL_MIN,
+                Inspire1394MeterProtocol::LEVEL_MAX,
+                Inspire1394MeterProtocol::LEVEL_STEP,
+                2,
+                Some(&Into::<Vec<u32>>::into(Self::METER_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn cache(
+        &mut self,
+        req: &FwReq,
+        unit: &(SndUnit, FwNode),
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Inspire1394MeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            IN_METER_NAME => {
+                elem_value.set_int(&self.1.phys_inputs);
+                Ok(true)
+            }
+            Self::STREAM_INPUT_METER_NAME => {
+                elem_value.set_int(&self.1.stream_inputs);
+                Ok(true)
+            }
+            OUT_METER_NAME => {
+                elem_value.set_int(&self.1.phys_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
-
-impl AsMut<Inspire1394Meter> for MeterCtl {
-    fn as_mut(&mut self) -> &mut Inspire1394Meter {
-        &mut self.1
-    }
-}
-
-impl MeterCtlOperation<Inspire1394MeterProtocol> for MeterCtl {}
 
 #[derive(Debug)]
 struct PhysInputCtl(AvcLevelParameters, AvcMuteParameters);
@@ -405,9 +476,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl
-            .load_meter(card_cntr, &self.req, unit, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr)?;
 
         self.phys_in_ctl.load_level(card_cntr)?;
         self.phys_in_ctl.load_mute(card_cntr)?;
@@ -623,7 +692,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Inspire1394Model {
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.measure_meter(&self.req, unit, TIMEOUT_MS)
+        self.meter_ctl.cache(&self.req, unit, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -632,102 +701,6 @@ impl MeasureModel<(SndUnit, FwNode)> for Inspire1394Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.meter_ctl.read_meter(elem_id, elem_value)
-    }
-}
-
-const STREAM_INPUT_METER_NAME: &str = "stream-input";
-
-const METER_TLV: DbInterval = DbInterval {
-    min: -14400,
-    max: 0,
-    linear: false,
-    mute_avail: false,
-};
-
-trait MeterCtlOperation<T: Inspire1394MeterOperation>:
-    AsRef<Inspire1394Meter> + AsMut<Inspire1394Meter>
-{
-    fn load_meter(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        req: &FwReq,
-        unit: &(SndUnit, FwNode),
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        T::read_meter(req, &unit.1, self.as_mut(), timeout_ms)?;
-
-        let mut measured_elem_id_list = Vec::new();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                4,
-                Some(&Into::<Vec<u32>>::into(METER_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_INPUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                2,
-                Some(&Into::<Vec<u32>>::into(METER_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                2,
-                Some(&Into::<Vec<u32>>::into(METER_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(measured_elem_id_list)
-    }
-
-    fn measure_meter(
-        &mut self,
-        req: &FwReq,
-        unit: &(SndUnit, FwNode),
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::read_meter(req, &unit.1, self.as_mut(), timeout_ms)
-    }
-
-    fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            IN_METER_NAME => {
-                elem_value.set_int(&self.as_ref().phys_inputs);
-                Ok(true)
-            }
-            STREAM_INPUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().stream_inputs);
-                Ok(true)
-            }
-            OUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().phys_outputs);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
+        self.meter_ctl.read(elem_id, elem_value)
     }
 }
