@@ -54,7 +54,7 @@ impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MeterCtl(PflMeterState, Vec<ElemId>);
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct InputParamsCtl(PflInputParameters);
 
 impl CtlModel<(SndUnit, FwNode)> for PflModel {
@@ -76,11 +76,16 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
         self.meter_ctl
             .load_state(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.input_params_ctl
-            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.input_params_ctl.load(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        PflInputParametersProtocol::update(
+            &self.req,
+            &unit.1,
+            &mut self.input_params_ctl.0,
+            TIMEOUT_MS,
+        )?;
 
         Ok(())
     }
@@ -97,7 +102,7 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_params_ctl.read_params(elem_id, elem_value)? {
+        } else if self.input_params_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -131,7 +136,7 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
             Ok(true)
         } else if self
             .input_params_ctl
-            .write_params(unit, &self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &self.req, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -282,41 +287,35 @@ impl MeterCtl {
     }
 }
 
-const ADAT_MUTE_NAME: &str = "adat-input-mute";
-const SPDIF_MUTE_NAME: &str = "spdif-input-mute";
-const FORCE_SMUX_NAME: &str = "force-S/MUX";
-
 impl InputParamsCtl {
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ADAT_MUTE_NAME, 0);
+    const ADAT_MUTE_NAME: &'static str = "adat-input-mute";
+    const SPDIF_MUTE_NAME: &'static str = "spdif-input-mute";
+    const FORCE_SMUX_NAME: &'static str = "force-S/MUX";
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ADAT_MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 4, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SPDIF_MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, FORCE_SMUX_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FORCE_SMUX_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        PflInputParametersProtocol::write_input_parameters(req, &unit.1, &mut self.0, timeout_ms)
+        Ok(())
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            ADAT_MUTE_NAME => {
+            Self::ADAT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 4, |idx| Ok(self.0.adat_mute[idx]))
                     .map(|_| true)
             }
-            SPDIF_MUTE_NAME => {
+            Self::SPDIF_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.spdif_mute))
                     .map(|_| true)
             }
-            FORCE_SMUX_NAME => {
+            Self::FORCE_SMUX_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.force_smux))
                     .map(|_| true)
             }
@@ -324,7 +323,7 @@ impl InputParamsCtl {
         }
     }
 
-    fn write_params(
+    fn write(
         &mut self,
         unit: &(SndUnit, FwNode),
         req: &FwReq,
@@ -334,7 +333,7 @@ impl InputParamsCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            ADAT_MUTE_NAME => {
+            Self::ADAT_MUTE_NAME => {
                 if unit.0.is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
@@ -346,17 +345,12 @@ impl InputParamsCtl {
                     Ok(())
                 })
                 .and_then(|_| {
-                    PflInputParametersProtocol::write_input_parameters(
-                        req,
-                        &unit.1,
-                        &mut params,
-                        timeout_ms,
-                    )?;
+                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
                     self.0 = params;
                     Ok(true)
                 })
             }
-            SPDIF_MUTE_NAME => {
+            Self::SPDIF_MUTE_NAME => {
                 if unit.0.is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
@@ -368,17 +362,12 @@ impl InputParamsCtl {
                     Ok(())
                 })
                 .and_then(|_| {
-                    PflInputParametersProtocol::write_input_parameters(
-                        req,
-                        &unit.1,
-                        &mut params,
-                        timeout_ms,
-                    )?;
+                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
                     self.0 = params;
                     Ok(true)
                 })
             }
-            FORCE_SMUX_NAME => {
+            Self::FORCE_SMUX_NAME => {
                 let mut params = self.0.clone();
 
                 ElemValueAccessor::<bool>::get_val(new, |val| {
@@ -386,12 +375,7 @@ impl InputParamsCtl {
                     Ok(())
                 })
                 .and_then(|_| {
-                    PflInputParametersProtocol::write_input_parameters(
-                        req,
-                        &unit.1,
-                        &mut params,
-                        timeout_ms,
-                    )?;
+                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
                     self.0 = params;
                     Ok(true)
                 })
