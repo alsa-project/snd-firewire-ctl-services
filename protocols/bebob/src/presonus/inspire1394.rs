@@ -205,19 +205,19 @@ pub trait Inspire1394MeterOperation {
     }
 }
 
-fn read_input_param(
+fn read_input_switch(
     avc: &BebobAvc,
-    param: &mut InputParameter,
+    switch: &mut InputSwitch,
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    let mut op = InputParameterOperation::new(param);
+    let mut op = InputSwitchOperation::new(switch);
     avc.status(&AvcAddr::Subunit(MUSIC_SUBUNIT_0), &mut op, timeout_ms)?;
-    *param = op.param;
+    *switch = op.switch;
     Ok(())
 }
 
-fn write_input_param(avc: &BebobAvc, param: &InputParameter, timeout_ms: u32) -> Result<(), Error> {
-    let mut op = InputParameterOperation::new(param);
+fn write_input_switch(avc: &BebobAvc, switch: &InputSwitch, timeout_ms: u32) -> Result<(), Error> {
+    let mut op = InputSwitchOperation::new(switch);
     avc.control(&AvcAddr::Subunit(MUSIC_SUBUNIT_0), &mut op, timeout_ms)
 }
 
@@ -229,9 +229,9 @@ impl PresonusSwitchOperation for Inspire1394PhonoProtocol {
     const CH_COUNT: usize = 1;
 
     fn read_switch(avc: &BebobAvc, _: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let mut param = InputParameter::Analog34Phono(false);
-        read_input_param(avc, &mut param, timeout_ms)?;
-        if let InputParameter::Analog34Phono(state) = param {
+        let mut param = InputSwitch::Analog34Phono(false);
+        read_input_switch(avc, &mut param, timeout_ms)?;
+        if let InputSwitch::Analog34Phono(state) = param {
             Ok(state)
         } else {
             unreachable!();
@@ -239,8 +239,8 @@ impl PresonusSwitchOperation for Inspire1394PhonoProtocol {
     }
 
     fn write_switch(avc: &BebobAvc, _: usize, val: bool, timeout_ms: u32) -> Result<(), Error> {
-        let param = InputParameter::Analog34Phono(val);
-        write_input_param(avc, &param, timeout_ms)
+        let param = InputSwitch::Analog34Phono(val);
+        write_input_switch(avc, &param, timeout_ms)
     }
 }
 
@@ -252,9 +252,9 @@ impl PresonusSwitchOperation for Inspire1394MicPhantomProtocol {
     const CH_COUNT: usize = 2;
 
     fn read_switch(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let mut param = InputParameter::Analog12Phantom(idx, false);
-        read_input_param(avc, &mut param, timeout_ms)?;
-        if let InputParameter::Analog12Phantom(_, state) = param {
+        let mut param = InputSwitch::Analog12Phantom(idx, false);
+        read_input_switch(avc, &mut param, timeout_ms)?;
+        if let InputSwitch::Analog12Phantom(_, state) = param {
             Ok(state)
         } else {
             unreachable!();
@@ -262,8 +262,8 @@ impl PresonusSwitchOperation for Inspire1394MicPhantomProtocol {
     }
 
     fn write_switch(avc: &BebobAvc, idx: usize, val: bool, timeout_ms: u32) -> Result<(), Error> {
-        let param = InputParameter::Analog12Phantom(idx, val);
-        write_input_param(avc, &param, timeout_ms)
+        let param = InputSwitch::Analog12Phantom(idx, val);
+        write_input_switch(avc, &param, timeout_ms)
     }
 }
 
@@ -275,9 +275,9 @@ impl PresonusSwitchOperation for Inspire1394MicBoostProtocol {
     const CH_COUNT: usize = 2;
 
     fn read_switch(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let mut param = InputParameter::Analog12Boost(idx, false);
-        read_input_param(avc, &mut param, timeout_ms)?;
-        if let InputParameter::Analog12Boost(_, state) = param {
+        let mut param = InputSwitch::Analog12Boost(idx, false);
+        read_input_switch(avc, &mut param, timeout_ms)?;
+        if let InputSwitch::Analog12Boost(_, state) = param {
             Ok(state)
         } else {
             unreachable!();
@@ -285,8 +285,8 @@ impl PresonusSwitchOperation for Inspire1394MicBoostProtocol {
     }
 
     fn write_switch(avc: &BebobAvc, idx: usize, val: bool, timeout_ms: u32) -> Result<(), Error> {
-        let param = InputParameter::Analog12Boost(idx, val);
-        write_input_param(avc, &param, timeout_ms)
+        let param = InputSwitch::Analog12Boost(idx, val);
+        write_input_switch(avc, &param, timeout_ms)
     }
 }
 
@@ -298,9 +298,9 @@ impl PresonusSwitchOperation for Inspire1394MicLimitProtocol {
     const CH_COUNT: usize = 2;
 
     fn read_switch(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let mut param = InputParameter::Analog12Limit(idx, false);
-        read_input_param(avc, &mut param, timeout_ms)?;
-        if let InputParameter::Analog12Limit(_, state) = param {
+        let mut param = InputSwitch::Analog12Limit(idx, false);
+        read_input_switch(avc, &mut param, timeout_ms)?;
+        if let InputSwitch::Analog12Limit(_, state) = param {
             Ok(state)
         } else {
             unreachable!();
@@ -308,8 +308,8 @@ impl PresonusSwitchOperation for Inspire1394MicLimitProtocol {
     }
 
     fn write_switch(avc: &BebobAvc, idx: usize, val: bool, timeout_ms: u32) -> Result<(), Error> {
-        let param = InputParameter::Analog12Limit(idx, val);
-        write_input_param(avc, &param, timeout_ms)
+        let param = InputSwitch::Analog12Limit(idx, val);
+        write_input_switch(avc, &param, timeout_ms)
     }
 }
 
@@ -321,12 +321,18 @@ pub trait PresonusSwitchOperation {
     fn write_switch(avc: &BebobAvc, idx: usize, val: bool, timeout_ms: u32) -> Result<(), Error>;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum InputParameter {
+/// The switch related to inputs.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum InputSwitch {
+    /// Phono mode for 2nd pair of inputs (line).
     Analog34Phono(bool),
+    /// Phantom powering for 1st pair of inputs (microphones).
     Analog12Phantom(usize, bool),
+    /// Boost for 1st pair of inputs (microphones).
     Analog12Boost(usize, bool),
+    /// Limitter for 1st pair of inputs (microphones).
     Analog12Limit(usize, bool),
+    /// Link stereo pairs.
     #[allow(dead_code)]
     AnalogStereoLink(usize, bool),
 }
@@ -337,22 +343,24 @@ const CMD_MIC_BOOST: u8 = 0x02;
 const CMD_MIC_LIMIT: u8 = 0x03;
 const CMD_STEREO_LINK: u8 = 0x05;
 
-impl Default for InputParameter {
+impl Default for InputSwitch {
     fn default() -> Self {
         Self::Analog34Phono(false)
     }
 }
 
+/// The AV/C operation for input switch.
 #[derive(Debug)]
-struct InputParameterOperation {
-    param: InputParameter,
+pub struct InputSwitchOperation {
+    /// The switch for input.
+    pub switch: InputSwitch,
     op: VendorDependent,
 }
 
-impl Default for InputParameterOperation {
+impl Default for InputSwitchOperation {
     fn default() -> Self {
         Self {
-            param: Default::default(),
+            switch: Default::default(),
             op: VendorDependent {
                 company_id: PRESONUS_OUI,
                 data: vec![0; 3],
@@ -361,42 +369,42 @@ impl Default for InputParameterOperation {
     }
 }
 
-impl InputParameterOperation {
-    fn new(param: &InputParameter) -> Self {
+impl InputSwitchOperation {
+    fn new(switch: &InputSwitch) -> Self {
         let mut op = Self::default();
-        op.param = *param;
+        op.switch = *switch;
         op
     }
 }
 
-impl AvcOp for InputParameterOperation {
+impl AvcOp for InputSwitchOperation {
     const OPCODE: u8 = VendorDependent::OPCODE;
 }
 
-impl AvcControl for InputParameterOperation {
+impl AvcControl for InputSwitchOperation {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        match self.param {
-            InputParameter::Analog34Phono(state) => {
+        match self.switch {
+            InputSwitch::Analog34Phono(state) => {
                 self.op.data[0] = CMD_PHONO;
                 self.op.data[1] = 0x00;
                 self.op.data[2] = state as u8;
             }
-            InputParameter::Analog12Phantom(ch, state) => {
+            InputSwitch::Analog12Phantom(ch, state) => {
                 self.op.data[0] = CMD_MIC_PHANTOM;
                 self.op.data[1] = 1 + ch as u8;
                 self.op.data[2] = state as u8;
             }
-            InputParameter::Analog12Boost(ch, state) => {
+            InputSwitch::Analog12Boost(ch, state) => {
                 self.op.data[0] = CMD_MIC_BOOST;
                 self.op.data[1] = 1 + ch as u8;
                 self.op.data[2] = state as u8;
             }
-            InputParameter::Analog12Limit(ch, state) => {
+            InputSwitch::Analog12Limit(ch, state) => {
                 self.op.data[0] = CMD_MIC_LIMIT;
                 self.op.data[1] = 1 + ch as u8;
                 self.op.data[2] = state as u8;
             }
-            InputParameter::AnalogStereoLink(ch, state) => {
+            InputSwitch::AnalogStereoLink(ch, state) => {
                 self.op.data[0] = CMD_STEREO_LINK;
                 self.op.data[1] = 1 + ch as u8;
                 self.op.data[2] = state as u8;
@@ -410,26 +418,26 @@ impl AvcControl for InputParameterOperation {
     }
 }
 
-impl AvcStatus for InputParameterOperation {
+impl AvcStatus for InputSwitchOperation {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        match self.param {
-            InputParameter::Analog34Phono(_) => {
+        match self.switch {
+            InputSwitch::Analog34Phono(_) => {
                 self.op.data[0] = CMD_PHONO;
                 self.op.data[1] = 0x00;
             }
-            InputParameter::Analog12Phantom(ch, _) => {
+            InputSwitch::Analog12Phantom(ch, _) => {
                 self.op.data[0] = CMD_PHONO;
                 self.op.data[1] = 1 + ch as u8;
             }
-            InputParameter::Analog12Boost(ch, _) => {
+            InputSwitch::Analog12Boost(ch, _) => {
                 self.op.data[0] = CMD_PHONO;
                 self.op.data[1] = 1 + ch as u8;
             }
-            InputParameter::Analog12Limit(ch, _) => {
+            InputSwitch::Analog12Limit(ch, _) => {
                 self.op.data[0] = CMD_PHONO;
                 self.op.data[1] = 1 + ch as u8;
             }
-            InputParameter::AnalogStereoLink(ch, _) => {
+            InputSwitch::AnalogStereoLink(ch, _) => {
                 self.op.data[0] = CMD_STEREO_LINK;
                 self.op.data[1] = 1 + ch as u8;
             }
@@ -439,24 +447,22 @@ impl AvcStatus for InputParameterOperation {
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.op, addr, operands)?;
-        match &mut self.param {
-            InputParameter::Analog34Phono(state) => {
+        AvcControl::parse_operands(&mut self.op, addr, operands).map(|_| match &mut self.switch {
+            InputSwitch::Analog34Phono(state) => {
                 *state = self.op.data[2] > 0;
             }
-            InputParameter::Analog12Phantom(_, state) => {
+            InputSwitch::Analog12Phantom(_, state) => {
                 *state = self.op.data[2] > 0;
             }
-            InputParameter::Analog12Boost(_, state) => {
+            InputSwitch::Analog12Boost(_, state) => {
                 *state = self.op.data[2] > 0;
             }
-            InputParameter::Analog12Limit(_, state) => {
+            InputSwitch::Analog12Limit(_, state) => {
                 *state = self.op.data[2] > 0;
             }
-            InputParameter::AnalogStereoLink(_, state) => {
+            InputSwitch::AnalogStereoLink(_, state) => {
                 *state = self.op.data[2] > 0;
             }
-        }
-        Ok(())
+        })
     }
 }
