@@ -338,7 +338,7 @@ impl AvcSelectorOperation for Fw410SpdifOutputProtocol {
 }
 
 /// The protocol implementation for mixer in FireWire 410.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw410MixerProtocol;
 
 impl MaudioNormalMixerOperation for Fw410MixerProtocol {
@@ -397,7 +397,7 @@ impl SamplingClockSourceOperation for SoloClkProtocol {
 }
 
 /// The protocol implementation for meter in FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SoloMeterProtocol;
 
 impl MaudioNormalMeterProtocol for SoloMeterProtocol {
@@ -454,7 +454,7 @@ impl AvcSelectorOperation for SoloSpdifOutputProtocol {
 }
 
 /// The protocol implementation for mixer in FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SoloMixerProtocol;
 
 impl MaudioNormalMixerOperation for SoloMixerProtocol {
@@ -604,7 +604,7 @@ impl AvcSelectorOperation for AudiophileHeadphoneProtocol {
 }
 
 /// The protocol implementation for mixer in FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AudiophileMixerProtocol;
 
 impl MaudioNormalMixerOperation for AudiophileMixerProtocol {
@@ -957,7 +957,7 @@ pub trait MaudioNormalMeterProtocol {
 }
 
 /// The protocol implementation for mixer in FireWire Solo.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct OzonicMixerProtocol;
 
 impl MaudioNormalMixerOperation for OzonicMixerProtocol {
@@ -973,10 +973,61 @@ impl MaudioNormalMixerOperation for OzonicMixerProtocol {
     ];
 }
 
+/// The parameter of mixer.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct MaudioNormalMixerParameters(pub Vec<Vec<bool>>);
+
 /// The trait for mixer operation.
 pub trait MaudioNormalMixerOperation {
     const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, AudioCh)];
     const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, AudioCh)];
+
+    const SRC_OFF: i16 = 0x8000u16 as i16;
+    const SRC_ON: i16 = 0;
+
+    fn create_mixer_parameters() -> MaudioNormalMixerParameters {
+        MaudioNormalMixerParameters(vec![
+            vec![
+                Default::default();
+                Self::SRC_FUNC_BLOCK_ID_LIST.len()
+            ];
+            Self::DST_FUNC_BLOCK_ID_LIST.len()
+        ])
+    }
+
+    fn cache(
+        avc: &BebobAvc,
+        params: &mut MaudioNormalMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.0.len(), Self::DST_FUNC_BLOCK_ID_LIST.len());
+        assert_eq!(params.0[0].len(), Self::SRC_FUNC_BLOCK_ID_LIST.len());
+
+        params
+            .0
+            .iter_mut()
+            .zip(Self::DST_FUNC_BLOCK_ID_LIST)
+            .try_for_each(|(srcs, &(dst_func_block_id, dst_audio_ch))| {
+                srcs.iter_mut()
+                    .zip(Self::SRC_FUNC_BLOCK_ID_LIST)
+                    .try_for_each(|(src, &(src_func_block_id, src_audio_ch))| {
+                        let mut op = AudioProcessing::new(
+                            dst_func_block_id,
+                            CtlAttr::Current,
+                            src_func_block_id,
+                            src_audio_ch,
+                            dst_audio_ch,
+                            ProcessingCtl::Mixer(vec![-1]),
+                        );
+                        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                            .map(|_| {
+                                if let ProcessingCtl::Mixer(data) = op.ctl {
+                                    *src = data[0] == Self::SRC_ON
+                                }
+                            })
+                    })
+            })
+    }
 
     fn read_mixer_src(
         avc: &BebobAvc,
@@ -984,37 +1035,52 @@ pub trait MaudioNormalMixerOperation {
         src_idx: usize,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let &(dst_func_block_id, dst_audio_ch) = Self::DST_FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(dst_idx)
-            .ok_or_else(|| {
+        if dst_idx >= Self::DST_FUNC_BLOCK_ID_LIST.len() {
             let msg = format!("Invalid index of destination ID list: {}", dst_idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let &(src_func_block_id, src_audio_ch) = Self::SRC_FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(src_idx)
-            .ok_or_else(|| {
-            let msg = format!("Invalid index of source ID list: {}", src_idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let mut op = AudioProcessing::new(
-            dst_func_block_id,
-            CtlAttr::Current,
-            src_func_block_id,
-            src_audio_ch,
-            dst_audio_ch,
-            ProcessingCtl::Mixer(vec![-1]),
-        );
-        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
-
-        if let ProcessingCtl::Mixer(data) = op.ctl {
-            Ok(data[0] == 0)
-        } else {
-            unreachable!();
+            Err(Error::new(FileError::Inval, &msg))?;
         }
+
+        if src_idx >= Self::SRC_FUNC_BLOCK_ID_LIST.len() {
+            let msg = format!("Invalid index of source ID list: {}", src_idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut params = Self::create_mixer_parameters();
+        Self::cache(avc, &mut params, timeout_ms).map(|_| params.0[dst_idx][src_idx])
+    }
+
+    fn update(
+        avc: &BebobAvc,
+        params: &MaudioNormalMixerParameters,
+        old: &mut MaudioNormalMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        old.0
+            .iter_mut()
+            .zip(params.0.iter())
+            .zip(Self::DST_FUNC_BLOCK_ID_LIST)
+            .try_for_each(
+                |((old_srcs, new_srcs), &(dst_func_block_id, dst_audio_ch))| {
+                    old_srcs
+                        .iter_mut()
+                        .zip(new_srcs.iter())
+                        .zip(Self::SRC_FUNC_BLOCK_ID_LIST)
+                        .filter(|((o, n), _)| !n.eq(o))
+                        .try_for_each(|((old, &new), &(src_func_block_id, src_audio_ch))| {
+                            let val = if new { Self::SRC_ON } else { Self::SRC_OFF };
+                            let mut op = AudioProcessing::new(
+                                dst_func_block_id,
+                                CtlAttr::Current,
+                                src_func_block_id,
+                                src_audio_ch,
+                                dst_audio_ch,
+                                ProcessingCtl::Mixer(vec![val]),
+                            );
+                            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                                .map(|_| *old = new)
+                        })
+                },
+            )
     }
 
     fn write_mixer_src(
@@ -1024,34 +1090,21 @@ pub trait MaudioNormalMixerOperation {
         state: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &(dst_func_block_id, dst_audio_ch) = Self::DST_FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(dst_idx)
-            .ok_or_else(|| {
-            let msg = format!(
-                "Invalid argument for index of destination ID list: {}",
-                dst_idx
-            );
-            Error::new(FileError::Inval, &msg)
-        })?;
+        if dst_idx >= Self::DST_FUNC_BLOCK_ID_LIST.len() {
+            let msg = format!("Invalid index of destination ID list: {}", dst_idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
 
-        let &(src_func_block_id, src_audio_ch) = Self::SRC_FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(src_idx)
-            .ok_or_else(|| {
-            let msg = format!("Invalid argument for index of source ID list: {}", src_idx);
-            Error::new(FileError::Inval, &msg)
-        })?;
+        if src_idx >= Self::SRC_FUNC_BLOCK_ID_LIST.len() {
+            let msg = format!("Invalid index of source ID list: {}", src_idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
 
-        let val = if state { 0 } else { 0x8000u16 as i16 };
-        let mut op = AudioProcessing::new(
-            dst_func_block_id,
-            CtlAttr::Current,
-            src_func_block_id,
-            src_audio_ch,
-            dst_audio_ch,
-            ProcessingCtl::Mixer(vec![val]),
-        );
-        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+        let mut params = Self::create_mixer_parameters();
+        params.0[dst_idx][src_idx] = state;
+        let mut p = Self::create_mixer_parameters();
+        p.0[dst_idx][src_idx] = !state;
+
+        Self::update(avc, &params, &mut p, timeout_ms)
     }
 }
