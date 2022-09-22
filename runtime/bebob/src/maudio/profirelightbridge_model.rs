@@ -263,7 +263,7 @@ impl MeterCtl {
         PflMeterProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::DETECTED_RATE_NAME => {
                 let freq = Self::DETECTED_INPUT_FREQ_LIST
@@ -308,7 +308,7 @@ impl InputParamsCtl {
         PflInputParametersProtocol::update(req, node, &mut self.0, timeout_ms)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ADAT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 4, |idx| Ok(self.0.adat_mute[idx]))

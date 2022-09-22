@@ -356,7 +356,7 @@ impl AnalogInputCtl {
         FireboxAnalogInputProtocol::cache(avc, &mut self.0, timeout_ms)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::SWITCH_NAME => {
                 elem_value.set_bool(&self.0.boosts);

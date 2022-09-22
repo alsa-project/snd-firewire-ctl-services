@@ -384,7 +384,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockSpecification>
         T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
-    fn read_freq(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_freq(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 elem_value.set_enum(&[self.state().freq_idx as u32]);
@@ -450,7 +450,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSpecifica
         T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
-    fn read_src(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_src(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 elem_value.set_enum(&[self.state().src_idx as u32]);

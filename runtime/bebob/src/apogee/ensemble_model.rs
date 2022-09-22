@@ -545,7 +545,7 @@ impl ConvertCtl {
         EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             FORMAT_CONVERT_TARGET_NAME => {
                 let pos = Self::FORMAT_CONVERT_TARGETS
@@ -683,7 +683,7 @@ impl DisplayCtl {
         EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             DISPLAY_ENABLE_NAME => {
                 elem_value.set_bool(&[self.0.enabled]);
@@ -840,7 +840,7 @@ impl InputCtl {
         EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_LIMIT_NAME => {
                 elem_value.set_bool(&self.0.limits);
@@ -1046,7 +1046,7 @@ impl<'a> OutputCtl {
         EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUTPUT_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, Self::OUT_LABELS.len(), |i| {
@@ -1309,7 +1309,7 @@ impl RouteCtl {
         EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_SRC_NAME => {
                 let vals: Vec<u32> = self
@@ -1470,7 +1470,7 @@ impl MixerCtl {
         EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -1547,7 +1547,7 @@ impl StreamCtl {
         EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             STREAM_MODE_NAME => {
                 let pos = Self::STREAM_MODES
