@@ -157,8 +157,14 @@ impl AvcSelectorCtlOperation<SoloSpdifOutputProtocol> for SpdifOutputCtl {
     }
 }
 
-#[derive(Default)]
-struct MixerCtl;
+#[derive(Debug)]
+struct MixerCtl(MaudioNormalMixerParameters);
+
+impl Default for MixerCtl {
+    fn default() -> Self {
+        Self(SoloMixerProtocol::create_mixer_parameters())
+    }
+}
 
 impl MaudioNormalMixerCtlOperation<SoloMixerProtocol> for MixerCtl {
     const MIXER_NAME: &'static str = "mixer-source";
@@ -169,6 +175,14 @@ impl MaudioNormalMixerCtlOperation<SoloMixerProtocol> for MixerCtl {
         "stream-input-1/2",
         "stream-input-3/4",
     ];
+
+    fn state(&self) -> &MaudioNormalMixerParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut MaudioNormalMixerParameters {
+        &mut self.0
+    }
 }
 
 impl CtlModel<(SndUnit, FwNode)> for SoloModel {
@@ -197,8 +211,7 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
 
         self.spdif_output_ctl.load_selector(card_cntr)?;
 
-        self.mixer_ctl
-            .load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
+        self.mixer_ctl.load_src_state(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
@@ -210,6 +223,7 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
         self.spdif_output_ctl
             .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -234,10 +248,7 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
             Ok(true)
         } else if self.spdif_output_ctl.read_selectors(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_ctl
-            .read_src_state(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_ctl.read_src_state(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -383,11 +394,10 @@ mod test {
 
     #[test]
     fn test_mixer_ctl_definition() {
-        let avc = BebobAvc::default();
         let mut card_cntr = CardCntr::default();
 
-        let ctl = MixerCtl::default();
-        let error = ctl.load_src_state(&mut card_cntr, &avc, 100).unwrap_err();
+        let mut ctl = MixerCtl::default();
+        let error = ctl.load_src_state(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
