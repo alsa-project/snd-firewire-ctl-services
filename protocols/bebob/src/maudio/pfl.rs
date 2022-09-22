@@ -116,7 +116,7 @@ pub struct PflMeterProtocol;
 const METER_SIZE: usize = 56;
 
 /// The protocol implementation for input parameters.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PflInputParametersProtocol;
 
 /// Nominal frequency detected for any external input.
@@ -210,16 +210,19 @@ impl PflMeterProtocol {
 const CACHE_SIZE: usize = 24;
 
 /// Parameters of input configuration.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PflInputParameters {
+    /// Whether to mute ADAT inputs.
     pub adat_mute: [bool; 4],
+    /// Whether to mute S/PDIF inputs.
     pub spdif_mute: bool,
+    /// Use ADAT S/MUX at higher sampling rate.
     pub force_smux: bool,
     cache: [u8; CACHE_SIZE],
 }
 
 impl PflInputParametersProtocol {
-    pub fn write_input_parameters(
+    pub fn update(
         req: &FwReq,
         node: &FwNode,
         params: &mut PflInputParameters,
