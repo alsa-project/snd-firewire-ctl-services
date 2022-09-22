@@ -13,7 +13,7 @@ mod latter_ctls;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     firewire_fireface_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -45,7 +45,7 @@ pub struct FfRuntime {
 }
 
 impl RuntimeOperation<u32> for FfRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let unit = SndUnit::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;

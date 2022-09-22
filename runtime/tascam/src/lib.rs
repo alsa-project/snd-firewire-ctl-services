@@ -16,7 +16,7 @@ mod seq_cntr;
 use {
     alsaseq::{prelude::*, *},
     asynch_runtime::*,
-    core::{card_cntr::*, RuntimeOperation},
+    core::{card_cntr::*, *},
     firewire_tascam_protocols as protocols,
     glib::{source, Error, FileError, IsA},
     hinawa::{
@@ -46,7 +46,7 @@ const FW1082_SW_VERSION: u32 = 0x800003;
 const FW1804_SW_VERSION: u32 = 0x800004;
 
 impl RuntimeOperation<(String, u32)> for TascamRuntime {
-    fn new((subsystem, sysnum): (String, u32)) -> Result<Self, Error> {
+    fn new((subsystem, sysnum): (String, u32), _: Option<LogLevel>) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {
                 let unit = SndTascam::new();

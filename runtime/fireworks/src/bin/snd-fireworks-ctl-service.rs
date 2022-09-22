@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {clap::Parser, core::cmdline::*, fireworks_runtime::EfwRuntime};
+use {
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+    fireworks_runtime::EfwRuntime,
+};
 
 struct EfwServiceCmd;
 
@@ -13,8 +17,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, u32, EfwRuntime> for EfwServiceCmd {
-    fn params(args: &Arguments) -> u32 {
-        args.card_id
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, None) 
     }
 }
 

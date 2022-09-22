@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {clap::Parser, core::cmdline::*, fireface_runtime::FfRuntime};
+use {
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+    fireface_runtime::FfRuntime,
+};
 
 struct FfServiceCmd;
 
@@ -13,8 +17,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, u32, FfRuntime> for FfServiceCmd {
-    fn params(args: &Arguments) -> u32 {
-        args.card_id
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, None)
     }
 }
 

@@ -4,7 +4,7 @@ mod model;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     firewire_digi00x_protocols as protocols,
     glib::{
         source, {Error, FileError},
@@ -71,7 +71,7 @@ const SPECIFIER_ID_DIGI003: u32 = 0x0000aa;
 const SPECIFIER_ID_DIGI003_RACK: u32 = 0x0000ab;
 
 impl RuntimeOperation<u32> for Dg00xRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let unit = SndDigi00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 

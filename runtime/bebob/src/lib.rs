@@ -21,7 +21,7 @@ mod yamaha_terratec;
 use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     firewire_bebob_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -71,7 +71,7 @@ impl Drop for BebobRuntime {
 }
 
 impl RuntimeOperation<u32> for BebobRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndUnit::new();
         unit.open(&path, 0)?;

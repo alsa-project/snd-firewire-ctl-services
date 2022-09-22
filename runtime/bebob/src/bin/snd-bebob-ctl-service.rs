@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {bebob_runtime::BebobRuntime, clap::Parser, core::cmdline::*};
+use {
+    bebob_runtime::BebobRuntime,
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+};
 
 struct BebobServiceCmd;
 
@@ -13,8 +17,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, u32, BebobRuntime> for BebobServiceCmd {
-    fn params(args: &Arguments) -> u32 {
-        args.card_id
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, None)
     }
 }
 
