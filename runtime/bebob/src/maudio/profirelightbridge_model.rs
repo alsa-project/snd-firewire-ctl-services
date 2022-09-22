@@ -51,7 +51,7 @@ impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(PflMeterState, Vec<ElemId>);
 
 #[derive(Default, Debug)]
@@ -73,13 +73,13 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
             .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl
-            .load_state(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr)?;
 
         self.input_params_ctl.load(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, FCP_TIMEOUT_MS)?;
         PflInputParametersProtocol::update(
             &self.req,
             &unit.1,
@@ -100,7 +100,7 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
             Ok(true)
         } else if self.clk_ctl.read_src(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_params_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -151,7 +151,7 @@ impl MeasureModel<(SndUnit, FwNode)> for PflModel {
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -160,7 +160,7 @@ impl MeasureModel<(SndUnit, FwNode)> for PflModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.meter_ctl.read_state(elem_id, elem_value)
+        self.meter_ctl.read(elem_id, elem_value)
     }
 }
 
@@ -193,12 +193,13 @@ fn detected_input_freq_to_str(freq: &PflDetectedInputFreq) -> &str {
     }
 }
 
-const DETECTED_RATE_NAME: &str = "detected-rate";
-const SYNC_STATUS_NAME: &str = "sync status";
-
-const ANALOG_OUTPUT_LABELS: [&str; 2] = ["analog-output-1", "analog-output-2"];
-
 impl MeterCtl {
+    const DETECTED_RATE_NAME: &'static str = "detected-rate";
+    const SYNC_STATUS_NAME: &'static str = "sync status";
+
+    const ANALOG_OUTPUT_LABELS: &'static [&'static str; 2] =
+        &["analog-output-1", "analog-output-2"];
+
     const METER_TLV: DbInterval = DbInterval {
         min: -14400,
         max: 0,
@@ -206,7 +207,7 @@ impl MeterCtl {
         mute_avail: false,
     };
 
-    const DETECTED_INPUT_FREQ_LIST: [PflDetectedInputFreq; 5] = [
+    const DETECTED_INPUT_FREQ_LIST: &'static [PflDetectedInputFreq; 5] = &[
         PflDetectedInputFreq::Unavailable,
         PflDetectedInputFreq::R44100,
         PflDetectedInputFreq::R48000,
@@ -214,13 +215,7 @@ impl MeterCtl {
         PflDetectedInputFreq::R96000,
     ];
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -229,7 +224,7 @@ impl MeterCtl {
                 PflMeterProtocol::METER_MIN,
                 PflMeterProtocol::METER_MAX,
                 PflMeterProtocol::METER_STEP,
-                ANALOG_OUTPUT_LABELS.len(),
+                Self::ANALOG_OUTPUT_LABELS.len(),
                 Some(&Into::<Vec<u32>>::into(Self::METER_TLV)),
                 false,
             )
@@ -241,32 +236,27 @@ impl MeterCtl {
             .collect();
 
         // For detection of sampling clock frequency.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DETECTED_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DETECTED_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         // For sync status.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SYNC_STATUS_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SYNC_STATUS_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.measure_state(unit, req, timeout_ms)
+        Ok(())
     }
 
-    fn measure_state(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        PflMeterProtocol::read_meter(req, &unit.1, &mut self.0, timeout_ms)
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        PflMeterProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
-    fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            DETECTED_RATE_NAME => {
+            Self::DETECTED_RATE_NAME => {
                 let freq = Self::DETECTED_INPUT_FREQ_LIST
                     .iter()
                     .position(|&f| f == self.0.detected_input_freq)
@@ -278,7 +268,7 @@ impl MeterCtl {
                 elem_value.set_int(&self.0.phys_outputs);
                 Ok(true)
             }
-            SYNC_STATUS_NAME => {
+            Self::SYNC_STATUS_NAME => {
                 elem_value.set_bool(&[self.0.sync_status]);
                 Ok(true)
             }
