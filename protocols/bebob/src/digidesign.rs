@@ -85,7 +85,7 @@ impl SamplingClockSourceOperation for Mbox2proClkProtocol {
 }
 
 /// The protocol implementation to initialize input/output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Mbox2proIoProtocol;
 
 impl Mbox2proIoProtocol {
