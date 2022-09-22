@@ -402,7 +402,9 @@ impl MeterCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleMeterProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleMeterProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -542,7 +544,9 @@ impl ConvertCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -598,14 +602,26 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.format_target = target;
-                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = EnsembleConverterProtocol::partial_update(
+                    avc,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             CD_MODE_NAME => {
                 let mut params = self.0.clone();
                 params.cd_mode = elem_value.boolean()[0];
-                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = EnsembleConverterProtocol::partial_update(
+                    avc,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             RATE_CONVERT_TARGET_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -618,8 +634,14 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.rate_target = target;
-                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = EnsembleConverterProtocol::partial_update(
+                    avc,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             RATE_CONVERT_RATE_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -632,8 +654,14 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.converted_rate = converted_rate;
-                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = EnsembleConverterProtocol::partial_update(
+                    avc,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -680,7 +708,9 @@ impl DisplayCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -720,14 +750,18 @@ impl DisplayCtl {
             DISPLAY_ENABLE_NAME => {
                 let mut params = self.0.clone();
                 params.enabled = elem_value.boolean()[0];
-                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DISPLAY_ILLUMINATE_NAME => {
                 let mut params = self.0.clone();
                 params.illuminate = elem_value.boolean()[0];
-                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DISPLAY_TARGET_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -740,14 +774,18 @@ impl DisplayCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.target = target;
-                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DISPLAY_OVERHOLD_NAME => {
                 let mut params = self.0.clone();
                 params.overhold = elem_value.boolean()[0];
-                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -837,7 +875,9 @@ impl InputCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -896,8 +936,10 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_LEVEL_NAME => {
                 let vals = &elem_value.enumerated()[..Self::INPUT_LABELS.len()];
@@ -916,8 +958,10 @@ impl InputCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIC_GAIN_NAME => {
                 let vals = &elem_value.int()[..Self::MIC_LABELS.len()];
@@ -927,8 +971,10 @@ impl InputCtl {
                     .iter_mut()
                     .enumerate()
                     .for_each(|(i, gain)| *gain = vals[i] as u8);
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIC_PHANTOM_NAME => {
                 let mut params = self.0.clone();
@@ -937,8 +983,10 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIC_POLARITY_NAME => {
                 let mut params = self.0.clone();
@@ -947,8 +995,10 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_OPT_IFACE_MODE_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -958,8 +1008,10 @@ impl InputCtl {
                 })?;
                 let mut params = self.0.clone();
                 params.opt_iface_mode = mode;
-                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1043,7 +1095,9 @@ impl<'a> OutputCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1112,14 +1166,18 @@ impl<'a> OutputCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_VOL_NAME => {
                 let mut params = self.0.clone();
                 params.vol = elem_value.int()[0] as u8;
-                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             HP_VOL_NAME => {
                 let vals = &elem_value.int()[..Self::HP_LABELS.len()];
@@ -1129,8 +1187,10 @@ impl<'a> OutputCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(vol, &val)| *vol = val as u8);
-                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_OPT_IFACE_MODE_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -1140,8 +1200,10 @@ impl<'a> OutputCtl {
                     Error::new(FileError::Inval, &msg)
                 })?;
                 params.opt_iface_mode = mode;
-                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1306,7 +1368,9 @@ impl RouteCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1361,8 +1425,10 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             CAPTURE_SOURCE_NAME => {
                 let vals = &elem_value.enumerated()[..Self::CAPTURE_LABELS.len()];
@@ -1372,8 +1438,10 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             HP_SRC_NAME => {
                 let vals = &elem_value.enumerated()[..Self::HEADPHONE_LABELS.len()];
@@ -1383,8 +1451,10 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1467,7 +1537,9 @@ impl MixerCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1503,8 +1575,10 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(gain, &val)| *gain = val as i16);
-                EnsembleMixerProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    EnsembleMixerProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1544,7 +1618,9 @@ impl StreamCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        let res = EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1581,6 +1657,7 @@ impl StreamCtl {
                 unit.0.lock()?;
                 let res =
                     EnsembleStreamProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
                 let _ = unit.0.unlock();
                 res.map(|_| true)
             }
