@@ -352,9 +352,7 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
         params.0.iter_mut().for_each(|levels| {
             levels.iter_mut().for_each(|level| *level = !(*level));
         });
-        let res = O::update(avc, self.state(), &mut params, timeout_ms);
-        debug!(params = ?self.state(), ?res);
-        res
+        O::update(avc, self.state(), &mut params, timeout_ms)
     }
 
     fn read_src_state(
