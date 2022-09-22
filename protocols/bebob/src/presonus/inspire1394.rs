@@ -71,12 +71,6 @@ impl SamplingClockSourceOperation for Inspire1394ClkProtocol {
     ];
 }
 
-/// The protocol implementation of meter information.
-#[derive(Default)]
-pub struct Inspire1394MeterProtocol;
-
-impl Inspire1394MeterOperation for Inspire1394MeterProtocol {}
-
 /// The protocol implementation of physical input.
 #[derive(Default, Debug)]
 pub struct Inspire1394PhysInputProtocol;
@@ -158,7 +152,7 @@ impl AvcMuteOperation for Inspire1394MixerStreamSourceProtocol {}
 const METER_FRAME_SIZE: usize = 32;
 
 /// The structure of meter information for Inspire 1394.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Inspire1394Meter {
     pub phys_inputs: [i32; 4],
     pub stream_inputs: [i32; 2],
@@ -166,13 +160,20 @@ pub struct Inspire1394Meter {
     frame: [u8; METER_FRAME_SIZE],
 }
 
-/// The trait for meter information operation.
-pub trait Inspire1394MeterOperation {
-    const LEVEL_MIN: i32 = 0;
-    const LEVEL_MAX: i32 = 0x07ffffff;
-    const LEVEL_STEP: i32 = 0x100;
+/// The protocol implementation of meter information.
+#[derive(Default, Debug)]
+pub struct Inspire1394MeterProtocol;
 
-    fn read_meter(
+impl Inspire1394MeterProtocol {
+    /// The minimum value of detected signal level.
+    pub const LEVEL_MIN: i32 = 0;
+    /// The maximum value of detected signal level.
+    pub const LEVEL_MAX: i32 = 0x07ffffff;
+    /// The step value of detected signal level.
+    pub const LEVEL_STEP: i32 = 0x100;
+
+    /// Cache state of hardware to the parameters.
+    pub fn cache(
         req: &FwReq,
         node: &FwNode,
         meter: &mut Inspire1394Meter,
