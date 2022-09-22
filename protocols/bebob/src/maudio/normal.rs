@@ -771,8 +771,9 @@ impl AvcControl for AudiophileLedSwitch {
     }
 }
 
-/// The structure to express metering information.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+/// The structure to express metering information. The `Default` trait should be implemented to
+/// call `MaudioNormalMeterProtocol::create_meter()`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MaudioNormalMeter {
     pub phys_inputs: Vec<i32>,
     pub stream_inputs: Option<Vec<i32>>,
