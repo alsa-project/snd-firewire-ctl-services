@@ -110,7 +110,7 @@ impl SamplingClockSourceOperation for PflClkProtocol {
 }
 
 /// The protocol implementation for meter information.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PflMeterProtocol;
 
 const METER_SIZE: usize = 56;
@@ -136,10 +136,13 @@ impl Default for PflDetectedInputFreq {
 }
 
 /// Information of hardware metering.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PflMeterState {
+    /// Detected input frequency.
     pub detected_input_freq: PflDetectedInputFreq,
+    /// Detected signal level of outputs.
     pub phys_outputs: [i32; 2],
+    /// The status of sampling clock.
     pub sync_status: bool,
     cache: [u8; METER_SIZE],
 }
@@ -156,11 +159,15 @@ impl Default for PflMeterState {
 }
 
 impl PflMeterProtocol {
+    /// The minimum value of detected signal level.
     pub const METER_MIN: i32 = 0;
+    /// The maximum value of detected signal level.
     pub const METER_MAX: i32 = 0x007fffff;
+    /// The step value of detected signal level.
     pub const METER_STEP: i32 = 0x100;
 
-    pub fn read_meter(
+    /// Cache state of hardware for the parameters.
+    pub fn cache(
         req: &FwReq,
         node: &FwNode,
         meter: &mut PflMeterState,
