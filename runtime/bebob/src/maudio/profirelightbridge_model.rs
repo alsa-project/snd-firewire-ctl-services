@@ -61,13 +61,9 @@ impl PflModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.meter_ctl.cache(&self.req, &unit.1, FCP_TIMEOUT_MS)?;
-        PflInputParametersProtocol::update(
-            &self.req,
-            &unit.1,
-            &mut self.input_params_ctl.0,
-            TIMEOUT_MS,
-        )?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.input_params_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -308,6 +304,10 @@ impl InputParamsCtl {
         Ok(())
     }
 
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        PflInputParametersProtocol::update(req, node, &mut self.0, timeout_ms)
+    }
+
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ADAT_MUTE_NAME => {
@@ -331,7 +331,7 @@ impl InputParamsCtl {
         unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
@@ -342,16 +342,12 @@ impl InputParamsCtl {
                 }
 
                 let mut params = self.0.clone();
+                let mutes = &mut params.adat_mute;
+                let vals = &new.boolean()[..mutes.len()];
+                mutes.copy_from_slice(vals);
 
-                ElemValueAccessor::<bool>::get_vals(new, old, 4, |idx, val| {
-                    params.adat_mute[idx] = val;
-                    Ok(())
-                })
-                .and_then(|_| {
-                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
-                    self.0 = params;
-                    Ok(true)
-                })
+                PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
+                    .map(|_| true)
             }
             Self::SPDIF_MUTE_NAME => {
                 if unit.0.is_locked() {
@@ -359,29 +355,17 @@ impl InputParamsCtl {
                 }
 
                 let mut params = self.0.clone();
+                params.spdif_mute = new.boolean()[0];
 
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    params.spdif_mute = val;
-                    Ok(())
-                })
-                .and_then(|_| {
-                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
-                    self.0 = params;
-                    Ok(true)
-                })
+                PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
+                    .map(|_| true)
             }
             Self::FORCE_SMUX_NAME => {
                 let mut params = self.0.clone();
+                params.force_smux = new.boolean()[0];
 
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    params.force_smux = val;
-                    Ok(())
-                })
-                .and_then(|_| {
-                    PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)?;
-                    self.0 = params;
-                    Ok(true)
-                })
+                PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
