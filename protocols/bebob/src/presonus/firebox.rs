@@ -158,12 +158,85 @@ impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
 
 impl AvcMuteOperation for FireboxMixerOutputProtocol {}
 
-/// The protocol implementation of analog input.
+/// The parameters of analog inputs.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct FireboxAnalogInputParameters {
+    /// Boost signal for analog input 1-4.
+    pub boosts: [bool; FireboxAnalogInputProtocol::CH_COUNT],
+}
+
+/// The protocol implementation of analog inputs.
+#[derive(Default, Debug)]
 pub struct FireboxAnalogInputProtocol;
 
 impl FireboxAnalogInputProtocol {
     const BOOST_OFF: i16 = VolumeData::VALUE_MIN;
     const BOOST_ON: i16 = VolumeData::VALUE_ZERO;
+
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0a, 0x0b];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+
+    const CH_COUNT: usize = 4;
+
+    /// Cache state of hardware to the parameters.
+    pub fn cache(
+        avc: &BebobAvc,
+        params: &mut FireboxAnalogInputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        params
+            .boosts
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, boost)| {
+                let func_block_id = Self::FUNC_BLOCK_ID_LIST[i / 2];
+                let input_plug_id = Self::INPUT_PLUG_ID_LIST[i % 2];
+
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    AudioCh::Each(input_plug_id),
+                    FeatureCtl::Volume(VolumeData::new(1)),
+                );
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| {
+                        if let FeatureCtl::Volume(data) = op.ctl {
+                            *boost = data.0[0] == Self::BOOST_ON;
+                        }
+                    })
+            })
+    }
+
+    /// Update hardware when detecting changes in the parameters.
+    pub fn update(
+        avc: &BebobAvc,
+        params: &FireboxAnalogInputParameters,
+        prev: &mut FireboxAnalogInputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        prev.boosts
+            .iter_mut()
+            .zip(params.boosts.iter())
+            .enumerate()
+            .filter(|(_, (o, n))| !o.eq(n))
+            .try_for_each(|(i, (old, &new))| {
+                let func_block_id = Self::FUNC_BLOCK_ID_LIST[i / 2];
+                let input_plug_id = Self::INPUT_PLUG_ID_LIST[i % 2];
+
+                let mut op = AudioFeature::new(
+                    func_block_id,
+                    CtlAttr::Current,
+                    AudioCh::Each(input_plug_id),
+                    FeatureCtl::Volume(VolumeData(vec![if new {
+                        Self::BOOST_ON
+                    } else {
+                        Self::BOOST_OFF
+                    }])),
+                );
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                    .map(|_| *old = new)
+            })
+    }
 }
 
 impl AvcSelectorOperation for FireboxAnalogInputProtocol {
