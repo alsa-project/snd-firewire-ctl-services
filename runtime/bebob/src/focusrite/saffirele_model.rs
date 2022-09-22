@@ -102,21 +102,13 @@ impl SaffireLeModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        SaffireLeMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        SaffireLeSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
-        SaffireLeMixerLowRateProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.mixer_low_rate_ctl.0,
-            TIMEOUT_MS,
-        )?;
-        SaffireLeMixerMiddleRateProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.mixer_middle_rate_ctl.0,
-            TIMEOUT_MS,
-        )?;
+        self.specific_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_low_rate_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_middle_rate_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.through_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
@@ -275,7 +267,7 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireLeModel {
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
@@ -379,13 +371,8 @@ impl MeterCtl {
         Ok(measured_elem_id_list)
     }
 
-    fn measure_meter(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        SaffireLeMeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms)
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireLeMeterProtocol::cache(req, node, &mut self.1, timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -417,6 +404,10 @@ impl SpecificCtl {
     fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_INPUT_2_3_HIGH_GAIN, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 2, false).map(|_| ())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireLeSpecificProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -485,6 +476,10 @@ impl MixerLowRateCtl {
             .map(|_| ())?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireLeMixerLowRateProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
     fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -592,6 +587,10 @@ impl MixerMiddleRateCtl {
             .map(|_| ())?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireLeMixerMiddleRateProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
     fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
