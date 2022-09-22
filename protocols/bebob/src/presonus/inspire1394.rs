@@ -205,6 +205,83 @@ pub trait Inspire1394MeterOperation {
     }
 }
 
+/// The parameters of input switches.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Inspire1394SwitchParameters {
+    /// Phono mode in 2nd input pair (lines).
+    pub pair1_phono: bool,
+    /// Phantom powering in 1st input pair (microphones).
+    pub pair0_phantom: [bool; 2],
+    /// Signal boost in 1st input pair (microphones).
+    pub pair0_boost: [bool; 2],
+    /// Signal limit in 1st input pair (microphones).
+    pub pair0_limit: [bool; 2],
+}
+
+/// Protocol implementation to operate input switches.
+#[derive(Default, Debug)]
+pub struct Inspire1394SwitchProtocol;
+
+impl Inspire1394SwitchProtocol {
+    pub fn cache(
+        avc: &BebobAvc,
+        params: &mut Inspire1394SwitchParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        [
+            InputSwitch::Analog34Phono(Default::default()),
+            InputSwitch::Analog12Phantom(0, Default::default()),
+            InputSwitch::Analog12Phantom(1, Default::default()),
+            InputSwitch::Analog12Boost(0, Default::default()),
+            InputSwitch::Analog12Boost(1, Default::default()),
+            InputSwitch::Analog12Limit(0, Default::default()),
+            InputSwitch::Analog12Limit(1, Default::default()),
+        ]
+        .iter()
+        .try_for_each(|switch| {
+            let mut op = InputSwitchOperation::new(switch);
+            avc.status(&AvcAddr::Subunit(MUSIC_SUBUNIT_0), &mut op, timeout_ms)?;
+            match op.switch {
+                InputSwitch::Analog34Phono(val) => params.pair1_phono = val,
+                InputSwitch::Analog12Phantom(idx, val) => params.pair0_phantom[idx] = val,
+                InputSwitch::Analog12Boost(idx, val) => params.pair0_boost[idx] = val,
+                InputSwitch::Analog12Limit(idx, val) => params.pair0_limit[idx] = val,
+                _ => (),
+            }
+            Ok(())
+        })
+    }
+
+    pub fn update(
+        avc: &BebobAvc,
+        params: &Inspire1394SwitchParameters,
+        prev: &mut Inspire1394SwitchParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::build_switches(prev)
+            .iter()
+            .zip(Self::build_switches(params).iter())
+            .filter(|(o, n)| !n.eq(o))
+            .try_for_each(|(_, new)| {
+                let mut op = InputSwitchOperation::new(new);
+                avc.control(&AvcAddr::Subunit(MUSIC_SUBUNIT_0), &mut op, timeout_ms)
+            })
+            .map(|_| *prev = *params)
+    }
+
+    fn build_switches(params: &Inspire1394SwitchParameters) -> Vec<InputSwitch> {
+        vec![
+            InputSwitch::Analog34Phono(params.pair1_phono),
+            InputSwitch::Analog12Phantom(0, params.pair0_phantom[0]),
+            InputSwitch::Analog12Phantom(1, params.pair0_phantom[1]),
+            InputSwitch::Analog12Boost(0, params.pair0_boost[0]),
+            InputSwitch::Analog12Boost(1, params.pair0_boost[1]),
+            InputSwitch::Analog12Limit(0, params.pair0_limit[0]),
+            InputSwitch::Analog12Limit(1, params.pair0_limit[1]),
+        ]
+    }
+}
+
 fn read_input_switch(
     avc: &BebobAvc,
     switch: &mut InputSwitch,
