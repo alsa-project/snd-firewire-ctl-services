@@ -89,7 +89,9 @@ trait SaffireOutputCtlOperation<
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -133,7 +135,9 @@ trait SaffireOutputCtlOperation<
                 params
                     .mutes
                     .copy_from_slice(&elem_value.boolean()[..T::MUTE_COUNT]);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             OUT_VOL_NAME => {
                 let mut params = self.state().clone();
@@ -142,28 +146,36 @@ trait SaffireOutputCtlOperation<
                     .iter_mut()
                     .zip(&elem_value.int()[..T::VOL_COUNT])
                     .for_each(|(vol, val)| *vol = *val as u8);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             OUT_HWCTL_NAME => {
                 let mut params = self.state().clone();
                 params
                     .hwctls
                     .copy_from_slice(&elem_value.boolean()[..T::HWCTL_COUNT]);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             OUT_DIM_NAME => {
                 let mut params = self.state().clone();
                 params
                     .dims
                     .copy_from_slice(&elem_value.boolean()[..T::DIM_COUNT]);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             OUT_PAD_NAME => {
                 let mut params = self.state().clone();
                 params
                     .pads
                     .copy_from_slice(&elem_value.boolean()[..T::PAD_COUNT]);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -188,7 +200,9 @@ trait SaffireThroughCtlOperation<T: SaffireParametersOperation<SaffireThroughPar
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -217,12 +231,16 @@ trait SaffireThroughCtlOperation<T: SaffireParametersOperation<SaffireThroughPar
             MIDI_THROUGH_NAME => {
                 let mut params = self.state().clone();
                 params.midi = elem_value.boolean()[0];
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             AC3_THROUGH_NAME => {
                 let mut params = self.state().clone();
                 params.ac3 = elem_value.boolean()[0];
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }

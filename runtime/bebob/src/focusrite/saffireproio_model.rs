@@ -381,7 +381,9 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockSpecification>
     }
 
     fn cache_freq(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_freq(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -410,6 +412,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockSpecification>
                 let res =
                     T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.0.unlock();
+                debug!(params = ?self.state(), ?res);
                 res
             }
             _ => Ok(false),
@@ -447,7 +450,9 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSpecifica
     }
 
     fn cache_src(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_src(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -476,7 +481,8 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSpecifica
                 let res =
                     T::update(req, &unit.1, &params, self.state_mut(), timeout_ms).map(|_| true);
                 let _ = unit.0.unlock();
-                res
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -523,7 +529,9 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation> {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -613,7 +621,9 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -668,7 +678,9 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(gain, &val)| *gain = val as i16);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
@@ -679,7 +691,9 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(gain, &val)| *gain = val as i16);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
@@ -692,7 +706,9 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
                         .zip(vals)
                         .for_each(|(gain, &val)| *gain = val as i16);
                 }
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -761,7 +777,9 @@ impl SaffireProioMixerCtl {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        SaffireProioMixerProtocol::cache(req, node, &mut self.0, timeout_ms)
+        let res = SaffireProioMixerProtocol::cache(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -817,8 +835,9 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
                 let mut params = self.0.clone();
@@ -828,8 +847,9 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_NAME => {
                 let mut params = self.0.clone();
@@ -839,8 +859,9 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -901,7 +922,9 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation> {
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache(req, node, self.state_mut(), timeout_ms)
+        let res = T::cache(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
+        res
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -950,21 +973,27 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation> {
             HEAD_ROOM_NAME => {
                 let mut params = self.state().clone();
                 params.head_room = elem_value.boolean()[0];
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             PHANTOM_POWERING_NAME => {
                 let mut params = self.state().clone();
                 let phantom_powerings = &mut params.phantom_powerings;
                 let vals = &elem_value.boolean()[..phantom_powerings.len()];
                 phantom_powerings.copy_from_slice(&vals);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             INSERT_SWAP_NAME => {
                 let mut params = self.state().clone();
                 let insert_swaps = &mut params.insert_swaps;
                 let vals = &elem_value.boolean()[..insert_swaps.len()];
                 insert_swaps.copy_from_slice(&vals);
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             STANDALONE_MODE_NAME => {
                 let mut params = self.state().clone();
@@ -977,17 +1006,23 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             ADAT_ENABLE_NAME => {
                 let mut params = self.state().clone();
                 params.adat_enabled = elem_value.boolean()[0];
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             DIRECT_MONITORING_NAME => {
                 let mut params = self.state().clone();
                 params.direct_monitoring = elem_value.boolean()[0];
-                T::update(req, node, &params, self.state_mut(), timeout_ms).map(|_| true)
+                let res = T::update(req, node, &params, self.state_mut(), timeout_ms);
+                debug!(params = ?self.state(), ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
