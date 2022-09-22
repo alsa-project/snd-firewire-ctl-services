@@ -46,6 +46,7 @@ impl SamplingClkSrcCtlOperation<Fw410ClkProtocol> for ClkCtl {
     }
 }
 
+#[derive(Debug)]
 struct MeterCtl(Vec<ElemId>, MaudioNormalMeter);
 
 impl Default for MeterCtl {
@@ -54,19 +55,15 @@ impl Default for MeterCtl {
     }
 }
 
-impl AsMut<MaudioNormalMeter> for MeterCtl {
-    fn as_mut(&mut self) -> &mut MaudioNormalMeter {
+impl MaudioNormalMeterCtlOperation<Fw410MeterProtocol> for MeterCtl {
+    fn state(&self) -> &MaudioNormalMeter {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut MaudioNormalMeter {
         &mut self.1
     }
 }
-
-impl AsRef<MaudioNormalMeter> for MeterCtl {
-    fn as_ref(&self) -> &MaudioNormalMeter {
-        &self.1
-    }
-}
-
-impl MaudioNormalMeterCtlOperation<Fw410MeterProtocol> for MeterCtl {}
 
 #[derive(Debug)]
 struct PhysInputCtl(AvcLevelParameters, AvcLrBalanceParameters);

@@ -42,10 +42,10 @@ fn audiophile_switch_state_to_string(state: &AudiophileSwitchState) -> String {
     .to_string()
 }
 
-trait MaudioNormalMeterCtlOperation<O>: AsMut<MaudioNormalMeter> + AsRef<MaudioNormalMeter>
-where
-    O: MaudioNormalMeterProtocol,
-{
+trait MaudioNormalMeterCtlOperation<O: MaudioNormalMeterProtocol> {
+    fn state(&self) -> &MaudioNormalMeter;
+    fn state_mut(&mut self) -> &mut MaudioNormalMeter;
+
     fn load_meter(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -53,7 +53,7 @@ where
         node: &FwNode,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        O::read_meter(req, node, self.as_mut(), timeout_ms)?;
+        O::read_meter(req, node, self.state_mut(), timeout_ms)?;
 
         let mut measure_elem_id_list = Vec::new();
 
@@ -177,7 +177,7 @@ where
         avc: &BebobAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let meter = self.as_mut();
+        let meter = self.state_mut();
         let switch_state = meter.switch;
 
         O::read_meter(req, node, meter, timeout_ms)?;
@@ -192,7 +192,7 @@ where
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        let meter = self.as_ref();
+        let meter = self.state();
 
         match elem_id.name().as_str() {
             IN_METER_NAME => {
@@ -271,7 +271,7 @@ where
         match elem_id.name().as_str() {
             SWITCH_NAME => {
                 if O::HAS_SWITCH {
-                    if let Some(switch) = &mut self.as_mut().switch {
+                    if let Some(switch) = &mut self.state_mut().switch {
                         ElemValueAccessor::<u32>::get_val(new, |val| {
                             let state = SWITCH_LIST
                                 .iter()
