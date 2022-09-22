@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {clap::Parser, core::cmdline::*, dice_runtime::DiceRuntime};
+use {
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+    dice_runtime::DiceRuntime,
+};
 
 struct DiceServiceCmd;
 
@@ -13,8 +17,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, u32, DiceRuntime> for DiceServiceCmd {
-    fn params(args: &Arguments) -> u32 {
-        args.card_id
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, None)
     }
 }
 

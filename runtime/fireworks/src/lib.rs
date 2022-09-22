@@ -63,7 +63,7 @@ impl Drop for EfwRuntime {
 }
 
 impl RuntimeOperation<u32> for EfwRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let unit = SndEfw::default();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 

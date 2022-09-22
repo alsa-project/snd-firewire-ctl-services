@@ -20,7 +20,7 @@ use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
     common_ctl::*,
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     firewire_dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -54,7 +54,7 @@ pub struct DiceRuntime {
 }
 
 impl RuntimeOperation<u32> for DiceRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let unit = SndDice::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;

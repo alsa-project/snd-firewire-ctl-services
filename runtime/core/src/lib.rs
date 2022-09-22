@@ -5,10 +5,22 @@ pub mod cmdline;
 pub mod dispatcher;
 pub mod elem_value_accessor;
 
-use glib::Error;
+use {clap::ArgEnum, glib::Error};
+
+/// The level to debug runtime.
+#[derive(ArgEnum, Debug, Copy, Clone, Eq, PartialEq)]
+pub enum LogLevel {
+    Debug,
+}
+
+impl Default for LogLevel {
+    fn default() -> Self {
+        Self::Debug
+    }
+}
 
 pub trait RuntimeOperation<T>: Sized {
-    fn new(arg: T) -> Result<Self, Error>;
+    fn new(arg: T, log_level: Option<LogLevel>) -> Result<Self, Error>;
     fn listen(&mut self) -> Result<(), Error>;
     fn run(&mut self) -> Result<(), Error>;
 }

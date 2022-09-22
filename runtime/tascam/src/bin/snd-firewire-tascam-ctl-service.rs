@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {clap::Parser, core::cmdline::*, tascam_runtime::TascamRuntime};
+use {
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+    tascam_runtime::TascamRuntime,
+};
 
 struct TascamServiceCmd;
 
@@ -15,8 +19,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, (String, u32), TascamRuntime> for TascamServiceCmd {
-    fn params(args: &Arguments) -> (String, u32) {
-        (args.subsystem.clone(), args.sysnum)
+    fn params(args: &Arguments) -> ((String, u32), Option<LogLevel>) {
+        ((args.subsystem.clone(), args.sysnum), None)
     }
 }
 

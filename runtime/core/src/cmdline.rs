@@ -2,7 +2,7 @@
 // Copyright (c) 2022 Takashi Sakamoto
 
 use {
-    super::RuntimeOperation,
+    super::*,
     alsactl::CardError,
     alsaseq::UserClientError,
     clap::Parser,
@@ -16,21 +16,21 @@ where
     A: Parser,
     R: RuntimeOperation<T>,
 {
-    fn params(args: &A) -> T;
+    fn params(args: &A) -> (T, Option<LogLevel>);
 
     fn run() {
-        let code = A::try_parse()
-            .map_err(|err| err.to_string())
-            .map(|args| Self::params(&args))
-            .and_then(|params| {
-                R::new(params)
-                    .and_then(|mut runtime| {
-                        runtime.listen()?;
-                        runtime.run()?;
-                        Ok(libc::EXIT_SUCCESS)
-                    })
-                    .map_err(|err| specific_err_to_string(&err))
+        // NOTE: clap(v3.2.20)::Parser::parse() can exit process with 2 when detecting any error
+        // or printing help.
+        let args = A::parse();
+        let (params, log_level) = Self::params(&args);
+
+        let code = R::new(params, log_level)
+            .and_then(|mut runtime| {
+                runtime.listen()?;
+                runtime.run()?;
+                Ok(libc::EXIT_SUCCESS)
             })
+            .map_err(|err| specific_err_to_string(&err))
             .unwrap_or_else(|msg| {
                 eprintln!("{}", msg);
                 libc::EXIT_FAILURE

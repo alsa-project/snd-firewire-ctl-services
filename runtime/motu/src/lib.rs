@@ -31,7 +31,7 @@ mod v3_ctls;
 
 use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
-    core::RuntimeOperation,
+    core::*,
     firewire_motu_protocols as protocols,
     glib::{Error, FileError},
     hinawa::{
@@ -63,7 +63,7 @@ pub enum MotuRuntime {
 }
 
 impl RuntimeOperation<u32> for MotuRuntime {
-    fn new(card_id: u32) -> Result<Self, Error> {
+    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
         let cdev = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndMotu::new();
         unit.open(&cdev, 0)?;

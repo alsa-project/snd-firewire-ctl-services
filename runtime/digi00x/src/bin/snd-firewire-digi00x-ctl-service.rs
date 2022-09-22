@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {clap::Parser, core::cmdline::*, digi00x_runtime::Dg00xRuntime};
+use {
+    clap::Parser,
+    core::{cmdline::*, LogLevel},
+    digi00x_runtime::Dg00xRuntime,
+};
 
 struct Dg00xServiceCmd;
 
@@ -13,8 +17,8 @@ struct Arguments {
 }
 
 impl ServiceCmd<Arguments, u32, Dg00xRuntime> for Dg00xServiceCmd {
-    fn params(args: &Arguments) -> u32 {
-        args.card_id
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, None)
     }
 }
 
