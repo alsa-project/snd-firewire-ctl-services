@@ -8,7 +8,7 @@ use {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct EnsembleModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -125,7 +125,7 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
 
         self.stream_ctl.load_params(card_cntr)?;
 
-        self.cache(unit)
+        Ok(())
     }
 
     fn read(

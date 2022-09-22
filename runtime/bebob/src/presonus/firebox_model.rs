@@ -6,7 +6,7 @@ use {
     protocols::{presonus::firebox::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FireboxModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -387,6 +387,40 @@ impl AnalogInputCtl {
     }
 }
 
+impl FireboxModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.analog_in_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
     fn load(
         &mut self,
@@ -419,34 +453,6 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
         self.analog_in_ctl.load(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.headphone_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.headphone_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.headphone_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.analog_in_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

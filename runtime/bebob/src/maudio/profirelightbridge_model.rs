@@ -6,7 +6,7 @@ use {
     protocols::{maudio::pfl::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PflModel {
     avc: BebobAvc,
     req: FwReq,
@@ -57,6 +57,22 @@ struct MeterCtl(PflMeterState, Vec<ElemId>);
 #[derive(Default, Debug)]
 struct InputParamsCtl(PflInputParameters);
 
+impl PflModel {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, FCP_TIMEOUT_MS)?;
+        PflInputParametersProtocol::update(
+            &self.req,
+            &unit.1,
+            &mut self.input_params_ctl.0,
+            TIMEOUT_MS,
+        )?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for PflModel {
     fn load(
         &mut self,
@@ -76,16 +92,6 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
         self.meter_ctl.load(card_cntr)?;
 
         self.input_params_ctl.load(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.meter_ctl.cache(&self.req, &unit.1, FCP_TIMEOUT_MS)?;
-        PflInputParametersProtocol::update(
-            &self.req,
-            &unit.1,
-            &mut self.input_params_ctl.0,
-            TIMEOUT_MS,
-        )?;
 
         Ok(())
     }

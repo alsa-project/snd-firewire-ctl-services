@@ -6,7 +6,7 @@ use {
     protocols::{terratec::aureon::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AureonModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -188,6 +188,23 @@ impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
     }
 }
 
+impl AureonModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_src_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.spdif_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for AureonModel {
     fn load(
         &mut self,
@@ -207,17 +224,6 @@ impl CtlModel<(SndUnit, FwNode)> for AureonModel {
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.spdif_out_ctl.load_selector(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_src_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.spdif_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

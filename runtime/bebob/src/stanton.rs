@@ -8,7 +8,7 @@ use {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ScratchampModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -90,6 +90,17 @@ impl AvcLevelCtlOperation<ScratchampHeadphoneProtocol> for ScratchampHeadphoneCt
     }
 }
 
+impl ScratchampModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.headphone_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for ScratchampModel {
     fn load(
         &mut self,
@@ -108,11 +119,6 @@ impl CtlModel<(SndUnit, FwNode)> for ScratchampModel {
 
         self.output_ctl.load_level(card_cntr)?;
         self.headphone_ctl.load_level(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.output_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.headphone_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

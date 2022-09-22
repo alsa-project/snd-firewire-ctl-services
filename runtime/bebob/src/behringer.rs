@@ -8,7 +8,7 @@ use {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fca610Model {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -40,6 +40,15 @@ impl SamplingClkSrcCtlOperation<Fca610ClkProtocol> for ClkCtl {
     }
 }
 
+impl Fca610Model {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Fca610Model {
     fn load(
         &mut self,
@@ -54,9 +63,6 @@ impl CtlModel<(SndUnit, FwNode)> for Fca610Model {
         self.clk_ctl
             .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

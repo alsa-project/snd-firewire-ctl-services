@@ -6,7 +6,7 @@ use {
     protocols::{presonus::inspire1394::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Inspire1394Model {
     avc: BebobAvc,
     req: FwReq,
@@ -460,6 +460,32 @@ impl InputSwitchCtl {
     }
 }
 
+impl Inspire1394Model {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.input_switch_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
     fn load(
         &mut self,
@@ -491,26 +517,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
         self.mixer_stream_src_ctl.load_mute(card_cntr)?;
         self.input_switch_ctl.load(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.hp_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.hp_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.input_switch_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

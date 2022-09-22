@@ -6,7 +6,7 @@ use {
     protocols::{terratec::phase88::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Phase88Model {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -231,6 +231,32 @@ impl AvcSelectorCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
     }
 }
 
+impl Phase88Model {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_phys_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+
+        self.phys_in_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_stream_src_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Phase88Model {
     fn load(
         &mut self,
@@ -256,26 +282,6 @@ impl CtlModel<(SndUnit, FwNode)> for Phase88Model {
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_selector(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_phys_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-
-        self.phys_in_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_stream_src_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

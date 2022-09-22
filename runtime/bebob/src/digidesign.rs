@@ -6,7 +6,7 @@ use {
     protocols::{digidesign::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Mbox2proModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -46,6 +46,18 @@ impl SamplingClkSrcCtlOperation<Mbox2proClkProtocol> for ClkCtl {
     }
 }
 
+impl Mbox2proModel {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        let req = FwReq::default();
+        Mbox2proIoProtocol::init(&req, &unit.1, TIMEOUT_MS)?;
+
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
     fn load(
         &mut self,
@@ -61,12 +73,6 @@ impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
         self.clk_ctl
             .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
-
-        let req = FwReq::default();
-        Mbox2proIoProtocol::init(&req, &unit.1, TIMEOUT_MS)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
