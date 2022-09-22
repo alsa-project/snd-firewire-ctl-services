@@ -331,7 +331,10 @@ where
         elem_id_list.extend_from_slice(&self.clk_ctl.2);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+        if locked {
+            C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
+        }
         Ok(())
     }
 

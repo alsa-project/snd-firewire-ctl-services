@@ -317,7 +317,10 @@ impl NotifyModel<(SndUnit, FwNode), bool> for AureonModel {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+        if locked {
+            self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
