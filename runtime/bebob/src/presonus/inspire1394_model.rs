@@ -17,6 +17,7 @@ pub struct Inspire1394Model {
     hp_ctl: HeadphoneCtl,
     mixer_phys_src_ctl: MixerPhysSourceCtl,
     mixer_stream_src_ctl: MixerStreamSourceCtl,
+    input_switch_ctl: InputSwitchCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -104,26 +105,6 @@ impl AvcMuteCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
     fn state_mut(&mut self) -> &mut AvcMuteParameters {
         &mut self.1
     }
-}
-
-impl SwitchCtlOperation<Inspire1394MicPhantomProtocol> for PhysInputCtl {
-    const SWITCH_NAME: &'static str = "mic-phantom";
-    const SWITCH_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
-}
-
-impl SwitchCtlOperation<Inspire1394MicBoostProtocol> for PhysInputCtl {
-    const SWITCH_NAME: &'static str = "mic-boost";
-    const SWITCH_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
-}
-
-impl SwitchCtlOperation<Inspire1394MicLimitProtocol> for PhysInputCtl {
-    const SWITCH_NAME: &'static str = "mic-limit";
-    const SWITCH_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
-}
-
-impl SwitchCtlOperation<Inspire1394PhonoProtocol> for PhysInputCtl {
-    const SWITCH_NAME: &'static str = "line-input-phono";
-    const SWITCH_LABELS: &'static [&'static str] = &["analog-input-3/4"];
 }
 
 #[derive(Debug)]
@@ -311,6 +292,103 @@ impl AvcMuteCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSo
     }
 }
 
+#[derive(Default, Debug)]
+struct InputSwitchCtl(Inspire1394SwitchParameters);
+
+impl InputSwitchCtl {
+    const MIC_PHANTOM_NAME: &'static str = "mic-phantom";
+    const MIC_BOOST_NAME: &'static str = "mic-boost";
+    const MIC_LIMIT_NAME: &'static str = "mic-limit";
+    const LINE_PHONO_NAME: &'static str = "line-input-phono";
+
+    const MIC_PHANTOM_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
+    const MIC_BOOST_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
+    const MIC_LIMIT_LABELS: &'static [&'static str] = &["analog-input-1", "analog-input-2"];
+    const LINE_PHONO_LABELS: &'static [&'static str] = &["analog-input-3/4"];
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        [
+            (Self::MIC_PHANTOM_NAME, Self::MIC_PHANTOM_LABELS),
+            (Self::MIC_BOOST_NAME, Self::MIC_BOOST_LABELS),
+            (Self::MIC_LIMIT_NAME, Self::MIC_LIMIT_LABELS),
+            (Self::LINE_PHONO_NAME, Self::LINE_PHONO_LABELS),
+        ]
+        .iter()
+        .try_for_each(|(name, labels)| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, labels.len(), true)
+                .map(|_| ())
+        })
+    }
+
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        Inspire1394SwitchProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            Self::MIC_PHANTOM_NAME => {
+                elem_value.set_bool(&self.0.pair0_phantom);
+                Ok(true)
+            }
+            Self::MIC_BOOST_NAME => {
+                elem_value.set_bool(&self.0.pair0_boost);
+                Ok(true)
+            }
+            Self::MIC_LIMIT_NAME => {
+                elem_value.set_bool(&self.0.pair0_limit);
+                Ok(true)
+            }
+            Self::LINE_PHONO_NAME => {
+                elem_value.set_bool(&[self.0.pair1_phono]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            Self::MIC_PHANTOM_NAME => {
+                let mut params = self.0.clone();
+                let vals = &new.boolean()[..2];
+                params.pair0_phantom.copy_from_slice(&vals);
+                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
+                Ok(true)
+            }
+            Self::MIC_BOOST_NAME => {
+                let mut params = self.0.clone();
+                let vals = &new.boolean()[..2];
+                params.pair0_boost.copy_from_slice(&vals);
+                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
+                Ok(true)
+            }
+            Self::MIC_LIMIT_NAME => {
+                let mut params = self.0.clone();
+                let vals = &new.boolean()[..2];
+                params.pair0_limit.copy_from_slice(&vals);
+                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
+                Ok(true)
+            }
+            Self::LINE_PHONO_NAME => {
+                let mut params = self.0.clone();
+                params.pair1_phono = new.boolean()[0];
+                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
     fn load(
         &mut self,
@@ -333,19 +411,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
 
         self.phys_in_ctl.load_level(card_cntr)?;
         self.phys_in_ctl.load_mute(card_cntr)?;
-        SwitchCtlOperation::<Inspire1394MicPhantomProtocol>::load_switch(
-            &self.phys_in_ctl,
-            card_cntr,
-        )?;
-        SwitchCtlOperation::<Inspire1394MicBoostProtocol>::load_switch(
-            &self.phys_in_ctl,
-            card_cntr,
-        )?;
-        SwitchCtlOperation::<Inspire1394MicLimitProtocol>::load_switch(
-            &self.phys_in_ctl,
-            card_cntr,
-        )?;
-        SwitchCtlOperation::<Inspire1394PhonoProtocol>::load_switch(&self.phys_in_ctl, card_cntr)?;
         self.phys_out_ctl.load_level(card_cntr)?;
         self.phys_out_ctl.load_mute(card_cntr)?;
         self.phys_out_ctl.load_selector(card_cntr)?;
@@ -356,6 +421,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
         self.mixer_stream_src_ctl.load_mute(card_cntr)?;
+        self.input_switch_ctl.load(card_cntr)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
@@ -375,6 +441,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_out_ctl
             .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.input_switch_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -392,38 +459,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         } else if self.phys_in_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_in_ctl.read_mutes(elem_id, elem_value)? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicPhantomProtocol>::read_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicBoostProtocol>::read_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicLimitProtocol>::read_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394PhonoProtocol>::read_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            elem_value,
-            FCP_TIMEOUT_MS,
-        )? {
             Ok(true)
         } else if self.phys_out_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
@@ -444,6 +479,8 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         } else if self.mixer_stream_src_ctl.read_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_mutes(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_switch_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -484,42 +521,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .phys_in_ctl
             .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
         {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicPhantomProtocol>::write_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicBoostProtocol>::write_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394MicLimitProtocol>::write_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if SwitchCtlOperation::<Inspire1394PhonoProtocol>::write_switch(
-            &self.phys_in_ctl,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
             Ok(true)
         } else if self
             .phys_out_ctl
@@ -585,6 +586,11 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             new,
             FCP_TIMEOUT_MS,
         )? {
+            Ok(true)
+        } else if self
+            .input_switch_ctl
+            .write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -722,53 +728,6 @@ trait MeterCtlOperation<T: Inspire1394MeterOperation>:
                 Ok(true)
             }
             _ => Ok(false),
-        }
-    }
-}
-
-trait SwitchCtlOperation<T: PresonusSwitchOperation> {
-    const SWITCH_NAME: &'static str;
-    const SWITCH_LABELS: &'static [&'static str];
-
-    fn load_switch(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, T::CH_COUNT, true)
-            .map(|_| ())
-    }
-
-    fn read_switch(
-        &self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if elem_id.name().as_str() == Self::SWITCH_NAME {
-            ElemValueAccessor::<bool>::set_vals(elem_value, T::CH_COUNT, |idx| {
-                T::read_switch(avc, idx, timeout_ms)
-            })
-            .map(|_| true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write_switch(
-        &self,
-        avc: &BebobAvc,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if elem_id.name().as_str() == Self::SWITCH_NAME {
-            ElemValueAccessor::<bool>::get_vals(new, old, T::CH_COUNT, |idx, val| {
-                T::write_switch(avc, idx, val, timeout_ms)
-            })
-            .map(|_| true)
-        } else {
-            Ok(false)
         }
     }
 }
