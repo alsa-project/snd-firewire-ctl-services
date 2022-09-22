@@ -189,13 +189,8 @@ where
         C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
         C::cache(&self.req, &unit.1, &mut self.clk_ctl.1, TIMEOUT_MS)?;
         M::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
-        SaffireProioOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.0, TIMEOUT_MS)?;
-        SaffireProioThroughProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.through_ctl.0,
-            TIMEOUT_MS,
-        )?;
+        self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.through_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         O::cache(&self.req, &unit.1, &mut self.monitor_ctl.0, TIMEOUT_MS)?;
         SaffireProioMixerProtocol::cache(&self.req, &unit.1, &mut self.mixer_ctl.0, TIMEOUT_MS)?;
         S::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
