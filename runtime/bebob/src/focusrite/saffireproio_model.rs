@@ -186,14 +186,14 @@ where
     S: SaffireProioSpecificOperation,
 {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
-        C::cache(&self.req, &unit.1, &mut self.clk_ctl.1, TIMEOUT_MS)?;
-        M::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
+        self.clk_ctl.cache_freq(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.through_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        O::cache(&self.req, &unit.1, &mut self.monitor_ctl.0, TIMEOUT_MS)?;
-        SaffireProioMixerProtocol::cache(&self.req, &unit.1, &mut self.mixer_ctl.0, TIMEOUT_MS)?;
-        S::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
+        self.monitor_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.specific_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -328,7 +328,7 @@ where
 
     fn parse_notification(&mut self, unit: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
         if locked {
-            C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
+            self.clk_ctl.cache_src(&self.req, &unit.1, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -356,7 +356,7 @@ where
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -378,6 +378,10 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockSpecification>
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+    }
+
+    fn cache_freq(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_freq(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -440,6 +444,10 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSpecifica
             .map(|mut elem_id| elem_id_list.append(&mut elem_id))?;
 
         Ok(elem_id_list)
+    }
+
+    fn cache_src(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_src(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -514,13 +522,8 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation> {
         Ok(measured_elem_id_list)
     }
 
-    fn measure_state(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::cache(req, &unit.1, self.state_mut(), timeout_ms)
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -607,6 +610,10 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
         }
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -753,6 +760,10 @@ impl SaffireProioMixerCtl {
         Ok(())
     }
 
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireProioMixerProtocol::cache(req, node, &mut self.0, timeout_ms)
+    }
+
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PRO_MIXER_MONITOR_SRC_NAME => {
@@ -887,6 +898,10 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation> {
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
