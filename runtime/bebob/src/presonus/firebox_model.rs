@@ -353,7 +353,9 @@ impl AnalogInputCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        FireboxAnalogInputProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = FireboxAnalogInputProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -379,8 +381,9 @@ impl AnalogInputCtl {
                 let mut params = self.0.clone();
                 let vals = &new.boolean()[..params.boosts.len()];
                 params.boosts.copy_from_slice(&vals);
-                FireboxAnalogInputProtocol::update(avc, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = FireboxAnalogInputProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
