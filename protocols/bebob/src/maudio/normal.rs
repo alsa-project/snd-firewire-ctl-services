@@ -212,7 +212,7 @@ impl SamplingClockSourceOperation for Fw410ClkProtocol {
 }
 
 /// The protocol implementation for meter in FireWire 410.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw410MeterProtocol;
 
 impl MaudioNormalMeterProtocol for Fw410MeterProtocol {
@@ -497,7 +497,7 @@ impl SamplingClockSourceOperation for AudiophileClkProtocol {
 }
 
 /// The protocol implementation for meter in FireWire Audiophile.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AudiophileMeterProtocol;
 
 impl MaudioNormalMeterProtocol for AudiophileMeterProtocol {
@@ -646,7 +646,7 @@ impl SamplingClockSourceOperation for OzonicClkProtocol {
 }
 
 /// The protocol implementation for meter in Ozonic.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct OzonicMeterProtocol;
 
 impl MaudioNormalMeterProtocol for OzonicMeterProtocol {
@@ -772,6 +772,7 @@ impl AvcControl for AudiophileLedSwitch {
 }
 
 /// The structure to express metering information.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MaudioNormalMeter {
     pub phys_inputs: Vec<i32>,
     pub stream_inputs: Option<Vec<i32>>,
