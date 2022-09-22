@@ -114,7 +114,9 @@ impl MeterCtl {
         unit: &(SndUnit, FwNode),
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Inspire1394MeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms)
+        let res = Inspire1394MeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -394,7 +396,9 @@ impl InputSwitchCtl {
     }
 
     fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        Inspire1394SwitchProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = Inspire1394SwitchProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -432,28 +436,32 @@ impl InputSwitchCtl {
                 let mut params = self.0.clone();
                 let vals = &new.boolean()[..2];
                 params.pair0_phantom.copy_from_slice(&vals);
-                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
-                Ok(true)
+                let res = Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MIC_BOOST_NAME => {
                 let mut params = self.0.clone();
                 let vals = &new.boolean()[..2];
                 params.pair0_boost.copy_from_slice(&vals);
-                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
-                Ok(true)
+                let res = Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MIC_LIMIT_NAME => {
                 let mut params = self.0.clone();
                 let vals = &new.boolean()[..2];
                 params.pair0_limit.copy_from_slice(&vals);
-                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
-                Ok(true)
+                let res = Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::LINE_PHONO_NAME => {
                 let mut params = self.0.clone();
                 params.pair1_phono = new.boolean()[0];
-                Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms)?;
-                Ok(true)
+                let res = Inspire1394SwitchProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
