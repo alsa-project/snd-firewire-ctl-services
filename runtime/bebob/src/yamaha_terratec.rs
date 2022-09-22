@@ -6,7 +6,7 @@ use {
     protocols::{yamaha_terratec::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GoPhase24CoaxModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -17,7 +17,7 @@ pub struct GoPhase24CoaxModel {
     mixer_out_ctl: CoaxMixerOutputCtl,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GoPhase24OptModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -326,6 +326,24 @@ impl AvcMuteCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl 
     }
 }
 
+impl GoPhase24CoaxModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_in_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
     fn load(
         &mut self,
@@ -349,18 +367,6 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
         self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_in_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -479,6 +485,19 @@ impl NotifyModel<(SndUnit, FwNode), bool> for GoPhase24CoaxModel {
     }
 }
 
+impl GoPhase24OptModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
     fn load(
         &mut self,
@@ -502,13 +521,6 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
         self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
-
-        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

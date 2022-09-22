@@ -6,7 +6,7 @@ use {
     protocols::{icon::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FirexonModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -201,6 +201,25 @@ impl AvcLevelCtlOperation<FirexonMixerSourceProtocol> for MixerSrcCtl {
     }
 }
 
+impl FirexonModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_src_ctl.cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mon_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_out_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
     fn load(
         &mut self,
@@ -225,19 +244,6 @@ impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
         self.mon_src_ctl.load_balance(card_cntr)?;
         self.mon_src_ctl.load_mute(card_cntr)?;
         self.mixer_src_ctl.load_level(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_src_ctl.cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mon_src_ctl.cache_mutes(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

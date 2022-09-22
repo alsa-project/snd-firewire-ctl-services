@@ -8,7 +8,7 @@ use {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Quatafire610Model {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -116,6 +116,18 @@ impl AvcLevelCtlOperation<Quatafire610PhysOutputProtocol> for Quatafire610Output
     }
 }
 
+impl Quatafire610Model {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl.cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
     fn load(
         &mut self,
@@ -135,12 +147,6 @@ impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
         self.input_ctl.load_level(card_cntr)?;
         self.input_ctl.load_balance(card_cntr)?;
         self.output_ctl.load_level(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.input_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.output_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.input_ctl.cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

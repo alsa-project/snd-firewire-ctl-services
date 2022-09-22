@@ -242,7 +242,7 @@ where
 
         self.specific_ctl.load_params(card_cntr)?;
 
-        self.cache(unit)
+        Ok(())
     }
 
     fn read(

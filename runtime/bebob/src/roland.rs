@@ -10,7 +10,7 @@ use {
 pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
 pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FaModel<T>
 where
     T: AvcLevelOperation + AvcLrBalanceOperation,
@@ -151,6 +151,21 @@ impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
     }
 }
 
+impl<T> FaModel<T>
+where
+    T: AvcLevelOperation + AvcLrBalanceOperation,
+    MixerAnalogSourceCtl<T>: AvcLevelCtlOperation<T> + AvcLrBalanceCtlOperation<T>,
+{
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.analog_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.analog_in_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl<T> CtlModel<(SndUnit, FwNode)> for FaModel<T>
 where
     T: AvcLevelOperation + AvcLrBalanceOperation,
@@ -166,11 +181,6 @@ where
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
         self.analog_in_ctl.load_balance(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.analog_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.analog_in_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

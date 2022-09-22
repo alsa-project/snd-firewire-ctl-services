@@ -3,7 +3,7 @@
 
 use super::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Fw410Model {
     avc: BebobAvc,
     req: FwReq,
@@ -350,6 +350,31 @@ impl MaudioNormalMixerCtlOperation<Fw410MixerProtocol> for MixerCtl {
     }
 }
 
+impl Fw410Model {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_input_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.aux_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.aux_output_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_output_ctl
+            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_input_ctl
+            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
+        self.phys_output_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.spdif_input_ctl
+            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
     fn load(
         &mut self,
@@ -380,27 +405,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
         self.hp_ctl.load_selector(card_cntr)?;
         self.hp_ctl.load_src_state(card_cntr)?;
         self.spdif_input_ctl.load_selector(card_cntr)?;
-
         self.mixer_ctl.load_src_state(card_cntr)?;
-
-        self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
-        self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_input_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.aux_src_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.aux_output_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_output_ctl
-            .cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.hp_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_input_ctl
-            .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
-        self.phys_output_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.hp_ctl.cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.spdif_input_ctl
-            .cache_selectors(&self.avc, FCP_TIMEOUT_MS)?;
-        self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }

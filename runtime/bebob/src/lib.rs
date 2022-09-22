@@ -134,6 +134,8 @@ impl RuntimeOperation<u32> for BebobRuntime {
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        self.model.cache(&mut self.unit)?;
+
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,

@@ -27,12 +27,14 @@ use super::{
     *,
 };
 
+#[derive(Debug)]
 pub struct BebobModel {
     ctl_model: Model,
     pub measure_elem_list: Vec<alsactl::ElemId>,
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
+#[derive(Debug)]
 enum Model {
     ApogeeEnsemble(EnsembleModel),
     BehringerFca610(Fca610Model),
@@ -206,6 +208,39 @@ impl BebobModel {
         }
 
         Ok(())
+    }
+
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        match &mut self.ctl_model {
+            Model::ApogeeEnsemble(m) => m.cache(unit),
+            Model::BehringerFca610(m) => m.cache(unit),
+            Model::DigidesignMbox2pro(m) => m.cache(unit),
+            Model::EsiQuatafire610(m) => m.cache(unit),
+            Model::FocusriteSaffirePro26io(m) => m.cache(unit),
+            Model::FocusriteSaffirePro10io(m) => m.cache(unit),
+            Model::FocusriteSaffire(m) => m.cache(unit),
+            Model::FocusriteSaffireLe(m) => m.cache(unit),
+            Model::IconFirexon(m) => m.cache(unit),
+            Model::MaudioOzonic(m) => m.cache(unit),
+            Model::MaudioSolo(m) => m.cache(unit),
+            Model::MaudioAudiophile(m) => m.cache(unit),
+            Model::MaudioFw410(m) => m.cache(unit),
+            Model::MaudioPfl(m) => m.cache(unit),
+            Model::MaudioFw1814(m) => m.cache(unit),
+            Model::MaudioProjectMix(m) => m.cache(unit),
+            Model::PresonusFp10(m) => m.cache(unit),
+            Model::PresonusFirebox(m) => m.cache(unit),
+            Model::PresonusInspire1394(m) => m.cache(unit),
+            Model::RolandFa101(m) => m.cache(unit),
+            Model::RolandFa66(m) => m.cache(unit),
+            Model::StantonScratchamp(m) => m.cache(unit),
+            Model::TerratecAureon(m) => m.cache(unit),
+            Model::TerratecPhase24(m) => m.cache(unit),
+            Model::TerratecPhaseX24(m) => m.cache(unit),
+            Model::TerratecPhase88(m) => m.cache(unit),
+            Model::YamahaGo44(m) => m.cache(unit),
+            Model::YamahaGo46(m) => m.cache(unit),
+        }
     }
 
     pub fn dispatch_elem_event(

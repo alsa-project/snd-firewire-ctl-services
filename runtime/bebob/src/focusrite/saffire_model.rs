@@ -3,7 +3,7 @@
 
 use super::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireModel {
     req: FwReq,
     avc: BebobAvc,
@@ -200,7 +200,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
 
         self.reverb_ctl.load_params(card_cntr)?;
 
-        self.cache(unit)
+        Ok(())
     }
 
     fn read(

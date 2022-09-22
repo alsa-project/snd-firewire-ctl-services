@@ -10,7 +10,7 @@ use {
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpecialModel<T: MediaClockFrequencyOperation> {
     avc: BebobAvc,
     req: FwReq,
@@ -97,7 +97,7 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
         self.aux_ctl.load_params(card_cntr)?;
         self.mixer_ctl.load_params(card_cntr)?;
 
-        self.cache(unit)
+        Ok(())
     }
 
     fn read(
