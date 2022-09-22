@@ -143,22 +143,14 @@ impl SaffireModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        SaffireMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        SaffireSpecificProtocol::cache(&self.req, &unit.1, &mut self.specific_ctl.0, TIMEOUT_MS)?;
-        SaffireSeparatedMixerProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.separated_mixer_ctl.1,
-            TIMEOUT_MS,
-        )?;
-        SaffirePairedMixerProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.paired_mixer_ctl.1,
-            TIMEOUT_MS,
-        )?;
-        SaffireReverbProtocol::cache(&self.req, &unit.1, &mut self.reverb_ctl.0, TIMEOUT_MS)?;
+        self.specific_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.separated_mixer_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.paired_mixer_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.reverb_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -333,7 +325,7 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireModel {
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
@@ -402,13 +394,8 @@ impl MeterCtl {
         Ok(measured_elem_id_list)
     }
 
-    fn measure_meter(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        SaffireMeterProtocol::cache(req, &unit.1, &mut self.1, timeout_ms)
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireMeterProtocol::cache(req, node, &mut self.1, timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -478,6 +465,10 @@ impl SpecificCtl {
             .map(|_| ())?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireSpecificProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -619,6 +610,10 @@ impl ReverbCtl {
         Ok(())
     }
 
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        SaffireReverbProtocol::cache(req, node, &mut self.0, timeout_ms)
+    }
+
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_AMOUNT_NAME => {
@@ -746,6 +741,10 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation> {
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(measured_elem_id_list)
+    }
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache(req, node, self.state_mut(), timeout_ms)
     }
 
     fn write_state(
