@@ -63,30 +63,14 @@ impl EnsembleModel {
     pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
-        EnsembleMeterProtocol::whole_update(&mut self.avc, &mut self.meter_ctl.0, FCP_TIMEOUT_MS)?;
-        EnsembleConverterProtocol::whole_update(
-            &mut self.avc,
-            &mut self.convert_ctl.0,
-            FCP_TIMEOUT_MS,
-        )?;
-        EnsembleDisplayProtocol::whole_update(
-            &mut self.avc,
-            &mut self.display_ctl.0,
-            FCP_TIMEOUT_MS,
-        )?;
-        EnsembleInputProtocol::whole_update(&mut self.avc, &mut self.input_ctl.0, FCP_TIMEOUT_MS)?;
-        EnsembleOutputProtocol::whole_update(
-            &mut self.avc,
-            &mut self.output_ctl.0,
-            FCP_TIMEOUT_MS,
-        )?;
-        EnsembleSourceProtocol::whole_update(&mut self.avc, &mut self.route_ctl.0, FCP_TIMEOUT_MS)?;
-        EnsembleMixerProtocol::whole_update(&mut self.avc, &mut self.mixer_ctl.0, FCP_TIMEOUT_MS)?;
-        EnsembleStreamProtocol::whole_update(
-            &mut self.avc,
-            &mut self.stream_ctl.0,
-            FCP_TIMEOUT_MS,
-        )?;
+        self.meter_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.convert_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.display_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.route_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.stream_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
         Ok(())
     }
 }
@@ -234,7 +218,7 @@ impl MeasureModel<(SndUnit, FwNode)> for EnsembleModel {
 
     fn measure_states(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
-            .measure_state(&mut self.avc, FCP_TIMEOUT_MS)
+            .cache(&mut self.avc, FCP_TIMEOUT_MS)
             .map(|_| input_output_copy_from_meter(self))
     }
 
@@ -417,7 +401,7 @@ impl MeterCtl {
         Ok(())
     }
 
-    fn measure_state(&mut self, avc: &mut BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
         EnsembleMeterProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
@@ -557,6 +541,10 @@ impl ConvertCtl {
         Ok(())
     }
 
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms)
+    }
+
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             FORMAT_CONVERT_TARGET_NAME => {
@@ -689,6 +677,10 @@ impl DisplayCtl {
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -842,6 +834,10 @@ impl InputCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1044,6 +1040,10 @@ impl<'a> OutputCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1305,6 +1305,10 @@ impl RouteCtl {
         Ok(())
     }
 
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms)
+    }
+
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_SRC_NAME => {
@@ -1462,6 +1466,10 @@ impl MixerCtl {
         Ok(())
     }
 
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms)
+    }
+
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
@@ -1533,6 +1541,10 @@ impl StreamCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
+    }
+
+    fn cache(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {

@@ -1004,7 +1004,7 @@ impl EnsembleMeterProtocol {
 
     /// Update the given parameters by the state of hardware.
     pub fn whole_update(
-        avc: &mut BebobAvc,
+        avc: &BebobAvc,
         meter: &mut EnsembleMeter,
         timeout_ms: u32,
     ) -> Result<(), Error> {
