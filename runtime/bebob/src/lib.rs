@@ -34,6 +34,7 @@ use {
     nix::sys::signal,
     std::{convert::TryFrom, sync::mpsc},
     ta1394_avc_general::config_rom::*,
+    tracing::Level,
 };
 
 enum Event {
@@ -71,7 +72,14 @@ impl Drop for BebobRuntime {
 }
 
 impl RuntimeOperation<u32> for BebobRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let path = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndUnit::new();
         unit.open(&path, 0)?;
