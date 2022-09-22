@@ -5,6 +5,8 @@ use {
     super::*,
     alsactl::{prelude::*, *},
     glib::FileError,
+    std::fmt::Debug,
+    tracing::{debug, debug_span, enabled, Level},
 };
 
 #[derive(Default)]
@@ -80,6 +82,110 @@ fn match_elem_id(elem_info: &ElemInfo, elem_id: &ElemId) -> bool {
         .unwrap_or_default()
 }
 
+fn dump_elem_info(elem_info: &ElemInfo) {
+    if let Some(elem_id) = elem_id_from_elem_info(elem_info) {
+        match elem_info {
+            ElemInfo::Iec60958(info) => {
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner()
+                );
+            }
+            ElemInfo::Boolean(info) => {
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner(),
+                    value_count=?info.value_count()
+                );
+            }
+            ElemInfo::Bytes(info) => {
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner(),
+                    value_count=?info.value_count()
+                );
+            }
+            ElemInfo::Integer(info) => {
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner(),
+                    value_count=?info.value_count(),
+                    value_min=?info.value_min(),
+                    value_max=?info.value_max(),
+                    value_step=?info.value_step()
+                );
+            }
+            ElemInfo::Integer64(info) => {
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner(),
+                    value_count=?info.value_count(),
+                    value_min=?info.value_min(),
+                    value_max=?info.value_max(),
+                    value_step=?info.value_step()
+                );
+            }
+            ElemInfo::Enumerated(info) => {
+                let labels: Vec<String> = info
+                    .labels()
+                    .iter()
+                    .map(|label| label.to_string())
+                    .collect();
+                debug!(
+                    numid=?elem_id.numid(),
+                    access=?info.access(),
+                    elem_type=?info.elem_type(),
+                    owner=?info.owner(),
+                    value_count=?info.value_count(),
+                    ?labels
+                );
+            }
+        }
+    }
+}
+
+fn value_array_literal(elem_info: &ElemInfo, elem_value: &ElemValue) -> String {
+    match elem_info {
+        ElemInfo::Iec60958(_) => {
+            format!(
+                "{:?} {:?}",
+                elem_value.iec60958_channel_status(),
+                elem_value.iec60958_user_data()
+            )
+        }
+        ElemInfo::Boolean(info) => {
+            let count = info.value_count() as usize;
+            format!("{:?}", &elem_value.boolean()[..count])
+        }
+        ElemInfo::Bytes(info) => {
+            let count = info.value_count() as usize;
+            format!("{:?}", &elem_value.bytes()[..count])
+        }
+        ElemInfo::Integer(info) => {
+            let count = info.value_count() as usize;
+            format!("{:?}", &elem_value.int()[..count])
+        }
+        ElemInfo::Integer64(info) => {
+            let count = info.value_count() as usize;
+            format!("{:?}", &elem_value.int64()[..count])
+        }
+        ElemInfo::Enumerated(info) => {
+            let count = info.value_count() as usize;
+            format!("{:?}", &elem_value.enumerated()[..count])
+        }
+    }
+}
+
 impl CardCntr {
     pub fn add_bool_elems(
         &mut self,
@@ -88,13 +194,26 @@ impl CardCntr {
         value_count: usize,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
+        let _entry = debug_span!("boolean").entered();
+
         let elem_info = ElemInfoBoolean::new();
         elem_info.set_value_count(value_count as u32);
 
         let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_access(access);
 
-        self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)
+        let res = self.register_elems(&elem_id, elem_count, &elem_info, None, unlock);
+        debug!(
+            name = ?elem_id.name().as_str(),
+            iface = ?elem_id.iface(),
+            device_id = ?elem_id.device_id(),
+            subdevice_id = ?elem_id.subdevice_id(),
+            index = ?elem_id.index(),
+            ?elem_count,
+            ?unlock,
+            ?res,
+        );
+        res
     }
 
     pub fn add_enum_elems<O>(
@@ -107,8 +226,10 @@ impl CardCntr {
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error>
     where
-        O: AsRef<str>,
+        O: AsRef<str> + Debug,
     {
+        let _entry = debug_span!("enumerated").entered();
+
         let entries = labels
             .iter()
             .map(|entry| entry.as_ref())
@@ -121,7 +242,21 @@ impl CardCntr {
         let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_access(access);
 
-        self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
+        let res = self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock);
+        debug!(
+            name = ?elem_id.name().as_str(),
+            iface = ?elem_id.iface(),
+            device_id = ?elem_id.device_id(),
+            subdevice_id = ?elem_id.subdevice_id(),
+            index = ?elem_id.index(),
+            ?elem_count,
+            ?value_count,
+            ?labels,
+            ?tlv,
+            ?unlock,
+            ?res,
+        );
+        res
     }
 
     pub fn add_bytes_elems(
@@ -132,6 +267,8 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
+        let _entry = debug_span!("bytes").entered();
+
         let elem_info = ElemInfoBytes::new();
         elem_info.set_value_count(value_count as u32);
 
@@ -141,7 +278,20 @@ impl CardCntr {
         }
         elem_info.set_access(access);
 
-        self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
+        let res = self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock);
+        debug!(
+            name = ?elem_id.name().as_str(),
+            iface = ?elem_id.iface(),
+            device_id = ?elem_id.device_id(),
+            subdevice_id = ?elem_id.subdevice_id(),
+            index = ?elem_id.index(),
+            ?elem_count,
+            ?value_count,
+            ?tlv,
+            ?unlock,
+            ?res,
+        );
+        res
     }
 
     pub fn add_int_elems(
@@ -155,6 +305,8 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
+        let _entry = debug_span!("integer").entered();
+
         let elem_info = ElemInfoInteger::new();
         elem_info.set_value_count(value_count as u32);
         elem_info.set_value_min(min);
@@ -167,7 +319,23 @@ impl CardCntr {
         }
         elem_info.set_access(access);
 
-        self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
+        let res = self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock);
+        debug!(
+            name = ?elem_id.name().as_str(),
+            iface = ?elem_id.iface(),
+            device_id = ?elem_id.device_id(),
+            subdevice_id = ?elem_id.subdevice_id(),
+            index = ?elem_id.index(),
+            ?elem_count,
+            ?min,
+            ?max,
+            ?step,
+            ?value_count,
+            ?tlv,
+            ?unlock,
+            ?res,
+        );
+        res
     }
 
     pub fn add_iec60958_elem(
@@ -176,14 +344,27 @@ impl CardCntr {
         elem_count: usize,
         unlock: bool,
     ) -> Result<ElemId, Error> {
+        let _entry = debug_span!("iec60958").entered();
+
         let elem_info = ElemInfoIec60958::new();
 
         let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_access(access);
 
-        let mut elem_id_list =
-            self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)?;
+        let res = self.register_elems(&elem_id, elem_count, &elem_info, None, unlock);
 
+        debug!(
+            name = ?elem_id.name().as_str(),
+            iface = ?elem_id.iface(),
+            device_id = ?elem_id.device_id(),
+            subdevice_id = ?elem_id.subdevice_id(),
+            index = ?elem_id.index(),
+            ?elem_count,
+            ?unlock,
+            ?res,
+        );
+
+        let mut elem_id_list = res?;
         Ok(elem_id_list.remove(0))
     }
 
@@ -195,6 +376,8 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
+        let _enter = debug_span!("register").entered();
+
         // If already registered, reuse them if possible.
         let elem_id_list = self.card.elem_id_list()?;
         let elem_id_list = match elem_id_list.iter().position(|eid| eid.eq(elem_id)) {
@@ -261,6 +444,20 @@ impl CardCntr {
                     Some(elem_id) => {
                         let mut v = ElemValue::new();
                         self.card.read_elem_value(&elem_id, &mut v)?;
+
+                        debug!(
+                            numid = ?elem_id.numid(),
+                            name = ?elem_id.name().as_str(),
+                            iface = ?elem_id.iface(),
+                            device_id = ?elem_id.device_id(),
+                            subdevice_id = ?elem_id.subdevice_id(),
+                            index = ?elem_id.index(),
+                        );
+
+                        if enabled!(Level::DEBUG) {
+                            dump_elem_info(&elem_info);
+                        }
+
                         self.entries.push((elem_info, v));
                         Ok(())
                     }
@@ -277,15 +474,18 @@ impl CardCntr {
             })?;
 
         if let Some(cntr) = tlv {
-            elem_id_list
-                .iter()
-                .try_for_each(|elem_id| self.card.write_elem_tlv(&elem_id, &cntr))?;
+            elem_id_list.iter().try_for_each(|elem_id| {
+                let res = self.card.write_elem_tlv(&elem_id, &cntr);
+                debug!(numid=?elem_id.numid(), ?tlv, ?res);
+                res
+            })?;
         }
 
         if unlock {
             elem_id_list.iter().for_each(|elem_id| {
                 // Ignore any errors.
-                let _ = self.card.lock_elem(&elem_id, false);
+                let res = self.card.lock_elem(&elem_id, false);
+                debug!(numid=?elem_id.numid(), ?unlock, ?res);
             });
         }
 
@@ -304,12 +504,18 @@ impl CardCntr {
         T: CtlModel<O>,
     {
         if events.contains(ElemEventMask::REMOVE) {
+            let _enter = debug_span!("remove").entered();
+
+            debug!(numid = ?elem_id.numid());
+
             self.entries
                 .retain(|(elem_info, _)| match_elem_id(elem_info, elem_id));
             return Ok(());
         }
 
         if events.contains(ElemEventMask::ADD) {
+            let _enter = debug_span!("add").entered();
+
             for (elem_info, v) in &mut self.entries {
                 if !match_elem_id(elem_info, elem_id) {
                     continue;
@@ -317,16 +523,34 @@ impl CardCntr {
 
                 let mut val = ElemValue::new();
 
-                if let Ok(res) = ctl_model.read(unit, &elem_id, &mut val) {
-                    if !res {
+                let _enter = debug_span!("hardware").entered();
+
+                let res = ctl_model.read(unit, &elem_id, &mut val);
+                debug!(
+                    numid = elem_id.numid(),
+                    values = value_array_literal(elem_info, &val),
+                    ?res,
+                );
+
+                _enter.exit();
+
+                if let Ok(res) = res {
+                    if !res || v.equal(&val) {
                         continue;
                     }
 
-                    if v.equal(&val) {
-                        continue;
-                    }
+                    let _enter = debug_span!("kernel").entered();
 
-                    if let Err(_) = self.card.write_elem_value(&elem_id, &val) {
+                    let res = self.card.write_elem_value(&elem_id, &val);
+                    debug!(
+                        numid = elem_id.numid(),
+                        values = value_array_literal(elem_info, &val),
+                        ?res,
+                    );
+
+                    _enter.exit();
+
+                    if res.is_err() {
                         continue;
                     }
 
@@ -336,33 +560,60 @@ impl CardCntr {
         }
 
         if events.contains(ElemEventMask::VALUE) {
+            let _enter = debug_span!("value").entered();
+
             for (elem_info, v) in &mut self.entries {
                 if !match_elem_id(elem_info, elem_id) {
                     continue;
                 }
 
+                let _enter = debug_span!("local").entered();
+
+                debug!(
+                    numid = elem_id.numid(),
+                    values = value_array_literal(elem_info, &v),
+                );
+
+                _enter.exit();
+
+                let _enter = debug_span!("kernel").entered();
+
                 let mut val = ElemValue::new();
-                if self.card.read_elem_value(&elem_id, &mut val).is_err() {
-                    continue;
-                }
+                let res = self.card.read_elem_value(&elem_id, &mut val);
+                debug!(
+                    numid = elem_id.numid(),
+                    values = value_array_literal(elem_info, &val),
+                    ?res,
+                );
+
+                _enter.exit();
 
                 // No need to update the hardware.
-                if v.equal(&val) {
+                if res.is_err() || v.equal(&val) {
                     continue;
                 }
 
-                match ctl_model.write(unit, &elem_id, v, &val) {
-                    Ok(res) => {
-                        if res {
-                            *v = val;
-                            return Ok(());
-                        }
+                let _enter = debug_span!("hardware").entered();
+
+                let res = ctl_model.write(unit, &elem_id, v, &val);
+                debug!(
+                    numid = elem_id.numid(),
+                    old_values = value_array_literal(elem_info, &v),
+                    new_values = value_array_literal(elem_info, &val),
+                    ?res,
+                );
+
+                _enter.exit();
+
+                if let Ok(res) = res {
+                    if res {
+                        *v = val;
+                        return Ok(());
                     }
-                    Err(err) => {
-                        // Back to old values.
-                        self.card.write_elem_value(&elem_id, v)?;
-                        return Err(err);
-                    }
+                } else {
+                    // Back to old values.
+                    self.card.write_elem_value(&elem_id, v)?;
+                    res?;
                 }
             }
         }
@@ -383,18 +634,33 @@ impl CardCntr {
         let card = &self.card;
         let entries = &mut self.entries;
 
+        let enter = debug_span!("cache").entered();
         ctl_model.measure_states(unit)?;
+        enter.exit();
 
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
                 .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
-                .try_for_each(|(_, elem_value)| {
-                    if ctl_model.measure_elem(unit, elem_id, elem_value)? {
-                        card.write_elem_value(elem_id, elem_value)?;
-                    }
+                .try_for_each(|(elem_info, elem_value)| {
+                    let _enter = debug_span!("hardware");
 
-                    Ok(())
+                    let res = ctl_model.measure_elem(unit, elem_id, elem_value);
+                    debug!(
+                        numid = elem_id.numid(),
+                        values = value_array_literal(elem_info, &elem_value),
+                        ?res,
+                    );
+                    res?;
+
+                    let _enter = debug_span!("kernel");
+                    let res = card.write_elem_value(elem_id, elem_value);
+                    debug!(
+                        numid = elem_id.numid(),
+                        values = value_array_literal(elem_info, &elem_value),
+                        ?res,
+                    );
+                    res
                 })
         })
     }
@@ -413,18 +679,32 @@ impl CardCntr {
         let card = &self.card;
         let entries = &mut self.entries;
 
+        let _enter = debug_span!("cache").entered();
         ctl_model.parse_notification(unit, notification)?;
+        _enter.exit();
 
         elem_id_list.iter().try_for_each(|elem_id| {
             entries
                 .iter_mut()
                 .filter(|(elem_info, _)| match_elem_id(elem_info, elem_id))
-                .try_for_each(|(_, elem_value)| {
-                    if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
-                        card.write_elem_value(elem_id, elem_value)?;
-                    }
+                .try_for_each(|(elem_info, elem_value)| {
+                    let _enter = debug_span!("hardware");
+                    let res = ctl_model.read_notified_elem(unit, elem_id, elem_value);
+                    debug!(
+                        numid = elem_id.numid(),
+                        values = value_array_literal(elem_info, &elem_value),
+                        ?res,
+                    );
+                    res?;
 
-                    Ok(())
+                    let _enter = debug_span!("kernel");
+                    let res = card.write_elem_value(elem_id, elem_value);
+                    debug!(
+                        numid = elem_id.numid(),
+                        values = value_array_literal(elem_info, &elem_value),
+                        ?res,
+                    );
+                    res
                 })
         })
     }
