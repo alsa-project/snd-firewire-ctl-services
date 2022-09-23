@@ -5,7 +5,6 @@ use {
     super::*,
     alsactl::{prelude::*, *},
     glib::FileError,
-    std::fmt::Debug,
     tracing::{debug, debug_span, enabled, Level},
 };
 
@@ -226,7 +225,7 @@ impl CardCntr {
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error>
     where
-        O: AsRef<str> + Debug,
+        O: AsRef<str>,
     {
         let _entry = debug_span!("enumerated").entered();
 
@@ -251,7 +250,7 @@ impl CardCntr {
             index = ?elem_id.index(),
             ?elem_count,
             ?value_count,
-            ?labels,
+            ?entries,
             ?tlv,
             ?unlock,
             ?res,
