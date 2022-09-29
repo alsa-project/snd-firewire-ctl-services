@@ -18,8 +18,12 @@ const ANALOG_INPUT_LEVEL_OFFSET: usize = 0x02b4;
 const LED_OFFSET: usize = 0x02bc;
 
 /// Protocol implementation specific to Liquid Saffire 56.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct LiquidS56Protocol;
+
+impl TcatOperation for LiquidS56Protocol {}
+
+impl TcatGlobalSectionSpecification for LiquidS56Protocol {}
 
 impl Tcd22xxSpecOperation for LiquidS56Protocol {
     const INPUTS: &'static [Input] = &[

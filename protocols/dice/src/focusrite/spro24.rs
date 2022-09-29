@@ -89,8 +89,12 @@
 use super::{tcat::tcd22xx_spec::*, *};
 
 /// Protocol implementation specific to Saffire Pro 24.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct SPro24Protocol;
+
+impl TcatOperation for SPro24Protocol {}
+
+impl TcatGlobalSectionSpecification for SPro24Protocol {}
 
 impl Tcd22xxSpecOperation for SPro24Protocol {
     const INPUTS: &'static [Input] = &[
