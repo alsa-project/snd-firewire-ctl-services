@@ -9,8 +9,12 @@
 use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
 /// Protocol implementation of Studio Konnekt 48.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Studiok48Protocol;
+
+impl TcatOperation for Studiok48Protocol {}
+
+impl TcatGlobalSectionSpecification for Studiok48Protocol {}
 
 /// Segment for output level. 0x0000..0x0013 (4 quads).
 pub type Studiok48LineOutLevelSegment = TcKonnektSegment<StudioLineOutLevel>;

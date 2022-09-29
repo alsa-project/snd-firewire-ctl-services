@@ -9,8 +9,12 @@
 use super::*;
 
 /// Protocol implementation of Konnekt Live.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct KliveProtocol;
+
+impl TcatOperation for KliveProtocol {}
+
+impl TcatGlobalSectionSpecification for KliveProtocol {}
 
 /// Segment for knob. 0x0000..0x0027 (36 quads).
 pub type KliveKnobSegment = TcKonnektSegment<KliveKnob>;
