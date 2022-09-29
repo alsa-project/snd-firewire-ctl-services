@@ -7,7 +7,7 @@ use {super::*, protocols::tcelectronic::studio::*};
 pub struct Studiok48Model {
     req: FwReq,
     sections: GeneralSections,
-    ctl: CommonCtl,
+    common_ctl: CommonCtl,
     lineout_ctl: LineoutCtl,
     remote_ctl: RemoteCtl,
     config_ctl: ConfigCtl,
@@ -22,8 +22,15 @@ const TIMEOUT_MS: u32 = 20;
 
 impl Studiok48Model {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        Studiok48Protocol::read_general_sections(
+            &self.req,
+            &unit.1,
+            &mut self.sections,
+            TIMEOUT_MS,
+        )?;
+
+        self.common_ctl
+            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -35,19 +42,12 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let caps = GlobalSectionProtocol::read_clock_caps(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
+        self.common_ctl.load(card_cntr, &self.sections).map(
+            |(measured_elem_id_list, notified_elem_id_list)| {
+                self.common_ctl.0 = measured_elem_id_list;
+                self.common_ctl.1 = notified_elem_id_list;
+            },
         )?;
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.lineout_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
@@ -81,18 +81,11 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.lineout_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -122,12 +115,12 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
+        if self.common_ctl.write(
+            &unit.0,
+            &self.req,
+            &unit.1,
+            &mut self.sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -180,7 +173,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
 
 impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.1);
         elem_id_list.extend_from_slice(&self.lineout_ctl.1);
         elem_id_list.extend_from_slice(&self.remote_ctl.1);
         elem_id_list.extend_from_slice(&self.config_ctl.1);
@@ -191,25 +184,34 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        &msg: &u32,
+    ) -> Result<(), Error> {
+        self.common_ctl.parse_notification(
+            &self.req,
+            &unit.1,
+            &mut self.sections,
+            msg,
+            TIMEOUT_MS,
+        )?;
         self.lineout_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.remote_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.mixer_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.phys_out_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -220,7 +222,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read_notified_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.lineout_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -246,15 +248,15 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
 
 impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.mixer_ctl.3);
         elem_id_list.extend_from_slice(&self.reverb_ctl.3);
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.3);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.common_ctl
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
@@ -270,7 +272,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.measure_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read_measured_elem(elem_id, elem_value)? {
             Ok(true)
@@ -283,6 +285,11 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         }
     }
 }
+
+#[derive(Default, Debug)]
+struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
+
+impl CommonCtlOperation<Studiok48Protocol> for CommonCtl {}
 
 fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     match level {
