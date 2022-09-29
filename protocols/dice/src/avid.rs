@@ -10,6 +10,7 @@ use super::{
     tcat::{
         extension::{appl_section::*, *},
         tcd22xx_spec::*,
+        *,
     },
     *,
 };
@@ -32,8 +33,12 @@ const REVERB_DURATION_OFFSET: usize = 0x48;
 const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
 
 /// Protocol implementation of Avid Mbox 3 Pro.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Mbox3Protocol;
+
+impl TcatOperation for Mbox3Protocol {}
+
+impl TcatGlobalSectionSpecification for Mbox3Protocol {}
 
 impl Tcd22xxSpecOperation for Mbox3Protocol {
     const INPUTS: &'static [Input] = &[
