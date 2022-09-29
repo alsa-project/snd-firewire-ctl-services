@@ -16,6 +16,15 @@ pub struct FStudioModel {
 
 const TIMEOUT_MS: u32 = 20;
 
+impl FStudioModel {
+    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+        self.sections =
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 // MEMO: the device returns 'SPDIF\ADAT\Word Clock\Unused\Unused\Unused\Unused\Internal\\'.
 const AVAIL_CLK_SRC_LABELS: [&str; 13] = [
     "S/PDIF",
@@ -39,8 +48,6 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
             &mut unit.1,
