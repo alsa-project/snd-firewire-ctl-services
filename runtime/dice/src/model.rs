@@ -25,7 +25,8 @@ enum Model {
     TcKlive(KliveModel),
     TcDesktopk6(Desktopk6Model),
     TcItwin(ItwinModel),
-    AlesisIoFw(IoFwModel),
+    AlesisIo14fw(Io14fwModel),
+    AlesisIo26fw(Io26fwModel),
     LexiconIonix(IonixModel),
     PresonusFStudio(FStudioModel),
     Extension(ExtensionModel),
@@ -77,7 +78,11 @@ impl DiceModel {
             (0x000166, 0x000023) => Model::TcKlive(KliveModel::default()),
             (0x000166, 0x000024) => Model::TcDesktopk6(Desktopk6Model::default()),
             (0x000166, 0x000027) => Model::TcItwin(ItwinModel::default()),
-            (0x000595, 0x000001) => Model::AlesisIoFw(IoFwModel::default()),
+            (0x000595, 0x000001) => {
+                // NOTE: Both iO 14 and 26 FireWire have the same identifier. Let us to detect
+                // actual model later.
+                Model::AlesisIo14fw(Default::default())
+            }
             (0x000fd7, 0x000001) => Model::LexiconIonix(IonixModel::default()),
             (0x000a92, 0x000008) => Model::PresonusFStudio(FStudioModel::default()),
             (0x000d6c, 0x000010) => Model::MaudioPfire2626(Pfire2626Model::default()),
@@ -125,6 +130,13 @@ impl DiceModel {
             }
         }
 
+        // Replace model data when it is Alesis iO 26 FireWire.
+        if let Model::AlesisIo14fw(_) = &self.model {
+            if detect_io26fw_model(&mut unit.1)? {
+                self.model = Model::AlesisIo26fw(Default::default())
+            }
+        };
+
         match &mut self.model {
             Model::Minimal(m) => m.load(unit, card_cntr),
             Model::TcK24d(m) => m.load(unit, card_cntr),
@@ -133,7 +145,8 @@ impl DiceModel {
             Model::TcKlive(m) => m.load(unit, card_cntr),
             Model::TcDesktopk6(m) => m.load(unit, card_cntr),
             Model::TcItwin(m) => m.load(unit, card_cntr),
-            Model::AlesisIoFw(m) => m.load(unit, card_cntr),
+            Model::AlesisIo14fw(m) => m.load(unit, card_cntr),
+            Model::AlesisIo26fw(m) => m.load(unit, card_cntr),
             Model::LexiconIonix(m) => m.load(unit, card_cntr),
             Model::PresonusFStudio(m) => m.load(unit, card_cntr),
             Model::Extension(m) => m.load(unit, card_cntr),
@@ -159,7 +172,8 @@ impl DiceModel {
             Model::TcKlive(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::TcDesktopk6(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::TcItwin(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            Model::AlesisIoFw(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::AlesisIo14fw(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::AlesisIo26fw(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::LexiconIonix(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::PresonusFStudio(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::Extension(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -189,7 +203,8 @@ impl DiceModel {
             Model::TcKlive(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::TcDesktopk6(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::TcItwin(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
-            Model::AlesisIoFw(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::AlesisIo14fw(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::AlesisIo26fw(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::LexiconIonix(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::PresonusFStudio(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::Extension(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
@@ -229,7 +244,8 @@ impl DiceModel {
             Model::TcKlive(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TcDesktopk6(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TcItwin(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::AlesisIoFw(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::AlesisIo14fw(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::AlesisIo26fw(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::LexiconIonix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFStudio(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::Extension(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -284,7 +300,10 @@ impl DiceModel {
             Model::TcItwin(m) => {
                 card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
-            Model::AlesisIoFw(m) => {
+            Model::AlesisIo14fw(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::AlesisIo26fw(m) => {
                 card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::LexiconIonix(m) => {
@@ -348,7 +367,8 @@ impl DiceModel {
             Model::TcKlive(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::TcDesktopk6(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::TcItwin(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
-            Model::AlesisIoFw(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::AlesisIo14fw(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::AlesisIo26fw(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::LexiconIonix(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::PresonusFStudio(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::Extension(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
