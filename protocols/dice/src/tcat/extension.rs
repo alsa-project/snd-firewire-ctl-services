@@ -27,22 +27,22 @@ use {
 };
 
 /// Sections for protocol extension.
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct ExtensionSections {
-    pub caps: Section,
-    pub cmd: Section,
-    pub mixer: Section,
-    pub peak: Section,
-    pub router: Section,
-    pub stream_format: Section,
-    pub current_config: Section,
-    pub standalone: Section,
-    pub application: Section,
+    pub caps: Section<()>,
+    pub cmd: Section<()>,
+    pub mixer: Section<()>,
+    pub peak: Section<()>,
+    pub router: Section<()>,
+    pub stream_format: Section<()>,
+    pub current_config: Section<()>,
+    pub standalone: Section<()>,
+    pub application: Section<()>,
 }
 
 impl ExtensionSections {
     const SECTION_COUNT: usize = 9;
-    const SIZE: usize = Section::SIZE * Self::SECTION_COUNT;
+    const SIZE: usize = SECTION_ENTRY_SIZE * Self::SECTION_COUNT;
 }
 
 impl From<&[u8]> for ExtensionSections {
@@ -272,38 +272,56 @@ mod test {
             caps: Section {
                 offset: 0x44,
                 size: 0x40,
+                raw: vec![0; 0x40],
+                ..Default::default()
             },
             cmd: Section {
                 offset: 0x3c,
                 size: 0x38,
+                raw: vec![0; 0x38],
+                ..Default::default()
             },
             mixer: Section {
                 offset: 0x34,
                 size: 0x30,
+                raw: vec![0; 0x30],
+                ..Default::default()
             },
             peak: Section {
                 offset: 0x2c,
                 size: 0x28,
+                raw: vec![0; 0x28],
+                ..Default::default()
             },
             router: Section {
                 offset: 0x24,
                 size: 0x20,
+                raw: vec![0; 0x20],
+                ..Default::default()
             },
             stream_format: Section {
                 offset: 0x1c,
                 size: 0x18,
+                raw: vec![0; 0x18],
+                ..Default::default()
             },
             current_config: Section {
                 offset: 0x14,
                 size: 0x10,
+                raw: vec![0; 0x10],
+                ..Default::default()
             },
             standalone: Section {
                 offset: 0x0c,
                 size: 0x08,
+                raw: vec![0; 0x08],
+                ..Default::default()
             },
             application: Section {
                 offset: 0x04,
                 size: 0x00,
+                raw: Vec::new(),
+                ..Default::default()
             },
         };
         assert_eq!(space, ExtensionSections::from(&raw[..]));
