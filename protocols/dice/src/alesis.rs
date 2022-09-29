@@ -16,8 +16,12 @@ use {
 };
 
 /// Protocol implementation specific to iO 14 FireWire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Io14fwProtocol;
+
+impl TcatOperation for Io14fwProtocol {}
+
+impl TcatGlobalSectionSpecification for Io14fwProtocol {}
 
 impl IofwMeterOperation for Io14fwProtocol {
     const ANALOG_INPUT_COUNT: usize = 4;
@@ -35,8 +39,12 @@ impl IofwOutputOperation for Io14fwProtocol {
 }
 
 /// Protocol implementation specific to iO 26 FireWire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Io26fwProtocol;
+
+impl TcatOperation for Io26fwProtocol {}
+
+impl TcatGlobalSectionSpecification for Io26fwProtocol {}
 
 impl IofwMeterOperation for Io26fwProtocol {
     const ANALOG_INPUT_COUNT: usize = 8;
