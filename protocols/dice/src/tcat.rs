@@ -30,6 +30,7 @@ use {
 mod utils;
 
 pub use {
+    ext_sync_section::ExtendedSyncParameters,
     global_section::{GlobalParameters, TcatGlobalSectionSpecification},
     rx_stream_format_section::RxStreamFormatParameters,
     tx_stream_format_section::TxStreamFormatParameters,
@@ -74,7 +75,7 @@ pub struct GeneralSections {
     pub global: Section<GlobalParameters>,
     pub tx_stream_format: Section<TxStreamFormatParameters>,
     pub rx_stream_format: Section<RxStreamFormatParameters>,
-    pub ext_sync: Section<()>,
+    pub ext_sync: Section<ExtendedSyncParameters>,
     pub reserved: Section<()>,
 }
 
@@ -116,6 +117,7 @@ pub enum GeneralProtocolError {
     Global,
     TxStreamFormat,
     RxStreamFormat,
+    ExtendedSync,
     Invalid(i32),
 }
 
@@ -125,6 +127,7 @@ impl std::fmt::Display for GeneralProtocolError {
             GeneralProtocolError::Global => "global",
             GeneralProtocolError::TxStreamFormat => "tx-stream-format",
             GeneralProtocolError::RxStreamFormat => "rx-stream-format",
+            GeneralProtocolError::ExtendedSync => "external-sync",
             GeneralProtocolError::Invalid(_) => "invalid",
         };
 
@@ -142,6 +145,7 @@ impl ErrorDomain for GeneralProtocolError {
             GeneralProtocolError::Global => 0,
             GeneralProtocolError::TxStreamFormat => 1,
             GeneralProtocolError::RxStreamFormat => 2,
+            GeneralProtocolError::ExtendedSync => 3,
             GeneralProtocolError::Invalid(v) => v,
         }
     }
@@ -151,6 +155,7 @@ impl ErrorDomain for GeneralProtocolError {
             0 => GeneralProtocolError::Global,
             1 => GeneralProtocolError::TxStreamFormat,
             2 => GeneralProtocolError::RxStreamFormat,
+            3 => GeneralProtocolError::ExtendedSync,
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
