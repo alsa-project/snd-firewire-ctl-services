@@ -3,35 +3,43 @@
 
 use {
     super::{tcd22xx_ctl::*, *},
-    protocols::{maudio::*, tcat::extension::*},
+    protocols::{
+        maudio::*,
+        tcat::{extension::*, tcd22xx_spec::*},
+    },
+    std::marker::PhantomData,
 };
 
 const TIMEOUT_MS: u32 = 20;
 
+pub type Pfire2626Model = PfireModel<Pfire2626Protocol>;
+pub type Pfire610Model = PfireModel<Pfire610Protocol>;
+
 #[derive(Default)]
-pub struct Pfire2626Model {
+pub struct PfireModel<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Pfire2626Tcd22xxCtl,
-    specific_ctl: Pfire2626SpecificCtl,
+    tcd22xx_ctl: PfireTcd22xxCtl<T>,
+    specific_ctl: PfireSpecificCtl<T>,
 }
 
-#[derive(Default)]
-struct Pfire2626SpecificCtl([bool; Pfire2626Protocol::KNOB_COUNT]);
-
-impl SpecificCtlOperation<Pfire2626Protocol> for Pfire2626SpecificCtl {
-    fn state(&self) -> &[bool] {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut [bool] {
-        &mut self.0
-    }
-}
-
-impl CtlModel<(SndDice, FwNode)> for Pfire2626Model {
+impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     fn load(
         &mut self,
         unit: &mut (SndDice, FwNode),
@@ -39,10 +47,7 @@ impl CtlModel<(SndDice, FwNode)> for Pfire2626Model {
     ) -> Result<(), Error> {
         self.sections =
             GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        let caps = ClockCaps::new(
-            &Pfire2626Protocol::AVAIL_CLK_RATES,
-            Pfire2626Protocol::AVAIL_CLK_SRCS,
-        );
+        let caps = ClockCaps::new(T::AVAIL_CLK_RATES, T::AVAIL_CLK_SRCS);
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
             &mut unit.1,
@@ -156,7 +161,14 @@ impl CtlModel<(SndDice, FwNode)> for Pfire2626Model {
     }
 }
 
-impl NotifyModel<(SndDice, FwNode), u32> for Pfire2626Model {
+impl<T> NotifyModel<(SndDice, FwNode), u32> for PfireModel<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
@@ -192,7 +204,14 @@ impl NotifyModel<(SndDice, FwNode), u32> for Pfire2626Model {
     }
 }
 
-impl MeasureModel<(SndDice, FwNode)> for Pfire2626Model {
+impl<T> MeasureModel<(SndDice, FwNode)> for PfireModel<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
@@ -226,33 +245,36 @@ impl MeasureModel<(SndDice, FwNode)> for Pfire2626Model {
     }
 }
 
-#[derive(Default)]
-struct Pfire2626Tcd22xxCtl(Tcd22xxCtl);
+#[derive(Debug)]
+pub struct PfireSpecificCtl<T>(Vec<bool>, PhantomData<T>)
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation;
 
-impl Tcd22xxCtlOperation<Pfire2626Protocol> for Pfire2626Tcd22xxCtl {
-    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
-        &self.0
-    }
-
-    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
-        &mut self.0
+impl<T> Default for PfireSpecificCtl<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
+    fn default() -> Self {
+        Self(vec![Default::default(); T::KNOB_COUNT], Default::default())
     }
 }
 
-#[derive(Default)]
-pub struct Pfire610Model {
-    req: FwReq,
-    sections: GeneralSections,
-    extension_sections: ExtensionSections,
-    ctl: CommonCtl,
-    tcd22xx_ctl: Pfire610Tcd22xxCtl,
-    specific_ctl: Pfire610SpecificCtl,
-}
-
-#[derive(Default)]
-struct Pfire610SpecificCtl([bool; Pfire610Protocol::KNOB_COUNT]);
-
-impl SpecificCtlOperation<Pfire610Protocol> for Pfire610SpecificCtl {
+impl<T> SpecificCtlOperation<T> for PfireSpecificCtl<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     fn state(&self) -> &[bool] {
         &self.0
     }
@@ -262,205 +284,23 @@ impl SpecificCtlOperation<Pfire610Protocol> for Pfire610SpecificCtl {
     }
 }
 
-impl CtlModel<(SndDice, FwNode)> for Pfire610Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        let caps = ClockCaps::new(
-            &Pfire610Protocol::AVAIL_CLK_RATES,
-            Pfire610Protocol::AVAIL_CLK_SRCS,
-        );
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.ctl.load(card_cntr, &caps, &src_labels)?;
+#[derive(Default, Debug)]
+pub struct PfireTcd22xxCtl<T>(Tcd22xxCtl, PhantomData<T>)
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation;
 
-        self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.tcd22xx_ctl.load(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            &caps,
-            &src_labels,
-            TIMEOUT_MS,
-            card_cntr,
-        )?;
-        self.specific_ctl.load(card_cntr)?;
-
-        self.tcd22xx_ctl.cache(
-            unit,
-            &mut self.req,
-            &self.sections,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
-
-        Ok(())
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.specific_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-    ) -> Result<bool, Error> {
-        if self.ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.write(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.specific_ctl.write(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl NotifyModel<(SndDice, FwNode), u32> for Pfire610Model {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
-        self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
-    }
-
-    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
-        self.tcd22xx_ctl.parse_notification(
-            unit,
-            &mut self.req,
-            &self.sections,
-            &self.extension_sections,
-            TIMEOUT_MS,
-            *msg,
-        )?;
-        Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.ctl.read_notified_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl MeasureModel<(SndDice, FwNode)> for Pfire610Model {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
-        self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
-    }
-
-    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
-        self.tcd22xx_ctl.measure_states(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
-        Ok(())
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.ctl.measure_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.measure_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-#[derive(Default)]
-struct Pfire610Tcd22xxCtl(Tcd22xxCtl);
-
-impl Tcd22xxCtlOperation<Pfire610Protocol> for Pfire610Tcd22xxCtl {
+impl<T> Tcd22xxCtlOperation<T> for PfireTcd22xxCtl<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
     fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
         &self.0
     }
@@ -488,7 +328,7 @@ const MASTER_KNOB_NAME: &str = "master-knob-target";
 const OPT_IFACE_B_MODE_NAME: &str = "optical-iface-b-mode";
 const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
-trait SpecificCtlOperation<T: PfireSpecificOperation> {
+pub trait SpecificCtlOperation<T: PfireSpecificOperation> {
     fn state(&self) -> &[bool];
     fn state_mut(&mut self) -> &mut [bool];
 

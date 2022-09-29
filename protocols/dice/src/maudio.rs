@@ -19,6 +19,7 @@ const KNOB_ASSIGN_OFFSET: usize = 0x00;
 const STANDALONE_MODE_OFFSET: usize = 0x04;
 
 /// Protocol implementation specific to ProFire 2626.
+#[derive(Default, Debug)]
 pub struct Pfire2626Protocol;
 
 impl PfireClkSpec for Pfire2626Protocol {
@@ -127,6 +128,7 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
 }
 
 /// Protocol implementation specific to ProFire 610.
+#[derive(Default, Debug)]
 pub struct Pfire610Protocol;
 
 impl PfireClkSpec for Pfire610Protocol {
@@ -140,7 +142,7 @@ impl PfireSpecificOperation for Pfire610Protocol {
 
 /// Available rates and sources of sampling clock.
 pub trait PfireClkSpec {
-    const AVAIL_CLK_RATES: [ClockRate; 7] = [
+    const AVAIL_CLK_RATES: &'static [ClockRate] = &[
         ClockRate::R32000,
         ClockRate::R44100,
         ClockRate::R48000,
