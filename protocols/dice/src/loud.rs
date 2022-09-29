@@ -6,11 +6,15 @@
 //! The module includes structure, enumeration, and trait and its implementation for hardware
 //! specification and application protocol specific to Loud (Mackie) Onyx Blackbird.
 
-use super::tcat::{extension::*, tcd22xx_spec::*};
+use super::tcat::{extension::*, tcd22xx_spec::*, *};
 
 /// Protocol implementation of Mackie Onyx Blackbird.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BlackbirdProtocol;
+
+impl TcatOperation for BlackbirdProtocol {}
+
+impl TcatGlobalSectionSpecification for BlackbirdProtocol {}
 
 impl Tcd22xxSpecOperation for BlackbirdProtocol {
     const INPUTS: &'static [Input] = &[
