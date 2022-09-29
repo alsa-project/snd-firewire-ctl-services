@@ -13,7 +13,7 @@ use {
         tcelectronic::studiok48_model::*, *,
     },
     ieee1212_config_rom::*,
-    protocols::tcat::{config_rom::*, extension::*},
+    protocols::tcat::config_rom::*,
     std::convert::TryFrom,
 };
 
@@ -120,13 +120,8 @@ impl DiceModel {
     ) -> Result<(), Error> {
         // Replace model data when protocol extension is available.
         if let Model::Minimal(_) = &mut self.model {
-            let mut req = FwReq::default();
-            if ProtocolExtension::read_extension_sections(&mut req, &mut unit.1, 100).is_ok() {
-                self.model = Model::Extension(ExtensionModel::default());
-            } else {
-                // MEMO: workaround for old firmware. Invalidate a negative effect by failure of
-                // previous transaction.
-                let _ = GeneralProtocol::read_general_sections(&mut req, &mut unit.1, 100)?;
+            if detect_extended_model(&mut unit.1) {
+                self.model = Model::Extension(Default::default());
             }
         }
 
