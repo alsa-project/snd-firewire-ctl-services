@@ -29,6 +29,8 @@ use {
 
 mod utils;
 
+pub use global_section::{GlobalParameters, TcatGlobalSectionSpecification};
+
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Section<T: Default + Debug> {
@@ -65,7 +67,7 @@ impl<T: Default + Debug> From<&[u8]> for Section<T> {
 /// The sset of sections in CSR of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct GeneralSections {
-    pub global: Section<()>,
+    pub global: Section<GlobalParameters>,
     pub tx_stream_format: Section<()>,
     pub rx_stream_format: Section<()>,
     pub ext_sync: Section<()>,
