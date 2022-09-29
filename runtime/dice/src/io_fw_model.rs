@@ -3,10 +3,7 @@
 
 use {
     super::*,
-    protocols::{
-        alesis::{meter::*, mixer::*, output::*, *},
-        tcat::tx_stream_format_section::*,
-    },
+    protocols::alesis::{meter::*, mixer::*, output::*, *},
     std::marker::PhantomData,
 };
 
@@ -18,11 +15,19 @@ pub type Io26fwModel = IofwModel<Io26fwProtocol>;
 #[derive(Default)]
 pub struct IofwModel<T>
 where
-    T: IofwMeterOperation + IofwMixerOperation + IofwOutputOperation,
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>,
 {
     req: FwReq,
     sections: GeneralSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<T>,
     meter_ctl: MeterCtl<T>,
     mixer_ctl: MixerCtl<T>,
     output_ctl: OutputCtl<T>,
@@ -30,11 +35,21 @@ where
 
 impl<T> IofwModel<T>
 where
-    T: IofwMeterOperation + IofwMixerOperation + IofwOutputOperation,
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>,
 {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.common_ctl
+            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -42,26 +57,27 @@ where
 
 impl<T> CtlModel<(SndDice, FwNode)> for IofwModel<T>
 where
-    T: IofwMeterOperation + IofwMixerOperation + IofwOutputOperation,
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn load(
         &mut self,
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let caps = GlobalSectionProtocol::read_clock_caps(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
+        self.common_ctl.load(card_cntr, &self.sections).map(
+            |(measured_elem_id_list, notified_elem_id_list)| {
+                self.common_ctl.0 = measured_elem_id_list;
+                self.common_ctl.1 = notified_elem_id_list;
+            },
         )?;
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.common_ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.meter_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -80,14 +96,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -107,15 +116,15 @@ where
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
+            &unit.0,
+            &self.req,
+            &unit.1,
+            &mut self.sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -138,15 +147,23 @@ where
 
 impl<T> NotifyModel<(SndDice, FwNode), u32> for IofwModel<T>
 where
-    T: IofwMeterOperation + IofwMixerOperation + IofwOutputOperation,
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
         self.common_ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+            .parse_notification(&self.req, &unit.1, &mut self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
@@ -155,21 +172,29 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.read_notified_elem(elem_id, elem_value)
+        self.common_ctl.read(&self.sections, elem_id, elem_value)
     }
 }
 
 impl<T> MeasureModel<(SndDice, FwNode)> for IofwModel<T>
 where
-    T: IofwMeterOperation + IofwMixerOperation + IofwOutputOperation,
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_ctl
@@ -184,7 +209,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.measure_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -194,6 +219,32 @@ where
             Ok(false)
         }
     }
+}
+
+#[derive(Default, Debug)]
+pub struct CommonCtl<T>(Vec<ElemId>, Vec<ElemId>, PhantomData<T>)
+where
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>;
+
+impl<T> CommonCtlOperation<T> for CommonCtl<T> where
+    T: IofwMeterOperation
+        + IofwMixerOperation
+        + IofwOutputOperation
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>
+{
 }
 
 #[derive(Default, Debug)]
@@ -842,15 +893,18 @@ pub trait OutputCtlOperation<T: IofwOutputOperation> {
     }
 }
 
-pub fn detect_io26fw_model(node: &mut FwNode) -> Result<bool, Error> {
-    let mut req = FwReq::default();
-    let sections = GeneralProtocol::read_general_sections(&mut req, node, TIMEOUT_MS)?;
-    let config = GlobalSectionProtocol::read_clock_config(&mut req, node, &sections, TIMEOUT_MS)?;
+pub fn detect_io26fw_model(node: &FwNode) -> Result<bool, Error> {
+    let req = FwReq::default();
+    let mut sections = GeneralSections::default();
+    Io14fwProtocol::read_general_sections(&req, node, &mut sections, TIMEOUT_MS)?;
+
+    Io14fwProtocol::whole_cache(&req, node, &mut sections.global, TIMEOUT_MS)?;
+    let config = &sections.global.params.clock_config;
 
     match config.rate {
         ClockRate::R32000 | ClockRate::R44100 | ClockRate::R48000 | ClockRate::AnyLow => {
-            let entries =
-                TxStreamFormatSectionProtocol::read_entries(&mut req, node, &sections, TIMEOUT_MS)?;
+            Io14fwProtocol::whole_cache(&req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
+            let entries = &sections.tx_stream_format.params.0;
             if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 16 {
                 Ok(true)
             } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 8 {
@@ -863,8 +917,8 @@ pub fn detect_io26fw_model(node: &mut FwNode) -> Result<bool, Error> {
             }
         }
         ClockRate::R88200 | ClockRate::R96000 | ClockRate::AnyMid => {
-            let entries =
-                TxStreamFormatSectionProtocol::read_entries(&mut req, node, &sections, TIMEOUT_MS)?;
+            Io14fwProtocol::whole_cache(&req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
+            let entries = &sections.tx_stream_format.params.0;
             if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 4 {
                 Ok(true)
             } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 4 {
@@ -877,8 +931,7 @@ pub fn detect_io26fw_model(node: &mut FwNode) -> Result<bool, Error> {
             }
         }
         ClockRate::R176400 | ClockRate::R192000 | ClockRate::AnyHigh => {
-            let nickname =
-                GlobalSectionProtocol::read_nickname(&mut req, node, &sections, TIMEOUT_MS)?;
+            let nickname = &sections.global.params.nickname;
             match nickname.as_str() {
                 "iO 26" => Ok(true),
                 "iO 14" => Ok(false),
