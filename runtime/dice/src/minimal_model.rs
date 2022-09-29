@@ -7,70 +7,54 @@ use super::*;
 pub struct MinimalModel {
     req: FwReq,
     sections: GeneralSections,
-    ctl: CommonCtl,
+    common_ctl: CommonCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
 
 impl MinimalModel {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        GeneralProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.common_ctl
+            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for MinimalModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        let caps = GlobalSectionProtocol::read_clock_caps(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.ctl.load(card_cntr, &caps, &src_labels)
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.common_ctl.load(card_cntr, &self.sections).map(
+            |(measured_elem_id_list, notified_elem_id_list)| {
+                self.common_ctl.0 = measured_elem_id_list;
+                self.common_ctl.1 = notified_elem_id_list;
+            },
+        )
     }
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )
+        self.common_ctl.read(&self.sections, elem_id, elem_value)
     }
 
     fn write(
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        self.ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
+        self.common_ctl.write(
+            &unit.0,
+            &self.req,
+            &unit.1,
+            &mut self.sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )
@@ -79,12 +63,12 @@ impl CtlModel<(SndDice, FwNode)> for MinimalModel {
 
 impl NotifyModel<(SndDice, FwNode), u32> for MinimalModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+        self.common_ctl
+            .parse_notification(&self.req, &unit.1, &mut self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
@@ -93,18 +77,18 @@ impl NotifyModel<(SndDice, FwNode), u32> for MinimalModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.ctl.read_notified_elem(elem_id, elem_value)
+        self.common_ctl.read(&self.sections, elem_id, elem_value)
     }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)
+        self.common_ctl
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -113,6 +97,18 @@ impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.ctl.measure_elem(elem_id, elem_value)
+        self.common_ctl.read(&self.sections, elem_id, elem_value)
     }
 }
+
+#[derive(Default, Debug)]
+struct GeneralProtocol;
+
+impl TcatOperation for GeneralProtocol {}
+
+impl TcatGlobalSectionSpecification for GeneralProtocol {}
+
+#[derive(Default, Debug)]
+struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
+
+impl CommonCtlOperation<GeneralProtocol> for CommonCtl {}
