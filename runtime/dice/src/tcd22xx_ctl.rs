@@ -217,7 +217,7 @@ where
         node: &mut FwNode,
         req: &mut FwReq,
         sections: &ExtensionSections,
-        clk_caps: &ClockCaps,
+        avail_rates: &[ClockRate],
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
@@ -228,8 +228,7 @@ where
         // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
         // such models that second rx or tx stream is not available at mode of low rate.
         let mut rate_modes: Vec<RateMode> = Vec::default();
-        clk_caps
-            .get_rate_entries()
+        avail_rates
             .iter()
             .map(|&r| RateMode::from(r))
             .for_each(|m| {
@@ -675,28 +674,31 @@ where
 
     fn load_standalone(
         &mut self,
-        caps: &ClockCaps,
-        src_labels: &ClockSourceLabels,
+        avail_rates: &[ClockRate],
+        avail_sources: &[ClockSource],
+        clock_source_labels: &[(ClockSource, String)],
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let rates = caps.get_rate_entries();
-        let srcs = caps.get_src_entries(src_labels);
-
-        let labels = srcs
+        let labels: Vec<&str> = avail_sources
             .iter()
-            .map(|s| s.get_label(&src_labels, false).unwrap())
-            .collect::<Vec<_>>();
+            .filter_map(|src| {
+                clock_source_labels
+                    .iter()
+                    .find(|(s, _)| src.eq(s))
+                    .map(|(_, l)| l.as_str())
+            })
+            .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        if srcs
+        if avail_sources
             .iter()
-            .find(|&s| {
-                *s == ClockSource::Aes1
-                    || *s == ClockSource::Aes2
-                    || *s == ClockSource::Aes3
-                    || *s == ClockSource::Aes4
+            .find(|&src| {
+                src.eq(&ClockSource::Aes1)
+                    || src.eq(&ClockSource::Aes2)
+                    || src.eq(&ClockSource::Aes3)
+                    || src.eq(&ClockSource::Aes4)
             })
             .is_some()
         {
@@ -710,16 +712,20 @@ where
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
-        if srcs.iter().find(|&s| *s == ClockSource::Adat).is_some() {
+        if avail_sources
+            .iter()
+            .find(|&src| src.eq(&ClockSource::Adat))
+            .is_some()
+        {
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_ADAT_MODE_NAME, 0);
             let _ =
                 card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::ADAT_MODE_LABELS, None, true)?;
         }
 
-        if srcs
+        if avail_sources
             .iter()
-            .find(|&s| *s == ClockSource::WordClock)
+            .find(|&src| src.eq(&ClockSource::WordClock))
             .is_some()
         {
             let elem_id =
@@ -746,7 +752,10 @@ where
                 card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
         }
 
-        let labels = rates.iter().map(|r| r.to_string()).collect::<Vec<_>>();
+        let labels: Vec<String> = avail_rates
+            .iter()
+            .map(|r| clock_rate_to_string(r))
+            .collect();
 
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
@@ -757,8 +766,8 @@ where
         );
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        self.tcd22xx_ctl_mut().standalone_ctl.rates = rates;
-        self.tcd22xx_ctl_mut().standalone_ctl.srcs = srcs;
+        self.tcd22xx_ctl_mut().standalone_ctl.rates = avail_rates.to_vec();
+        self.tcd22xx_ctl_mut().standalone_ctl.srcs = avail_sources.to_vec();
 
         Ok(())
     }
@@ -783,7 +792,10 @@ where
                     .iter()
                     .position(|&s| s == src)
                     .ok_or_else(|| {
-                        let msg = format!("Unexpected value for source: {}", src);
+                        let msg = format!(
+                            "Unexpected value for source: {}",
+                            clock_source_to_string(&src)
+                        );
                         Error::new(FileError::Nxio, &msg)
                     })
                     .map(|pos| pos as u32)
@@ -850,7 +862,10 @@ where
                         .iter()
                         .position(|&r| r == rate)
                         .ok_or_else(|| {
-                            let msg = format!("Unexpected value for rate: {}", rate);
+                            let msg = format!(
+                                "Unexpected value for rate: {}",
+                                clock_rate_to_string(&rate)
+                            );
                             Error::new(FileError::Nxio, &msg)
                         })
                         .map(|pos| pos as u32)
@@ -983,8 +998,9 @@ where
         unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
-        caps: &ClockCaps,
-        src_labels: &ClockSourceLabels,
+        avail_rates: &[ClockRate],
+        avail_sources: &[ClockSource],
+        clock_source_labels: &[(ClockSource, String)],
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
@@ -992,9 +1008,16 @@ where
             CapsSectionProtocol::read_caps(req, &mut unit.1, sections, timeout_ms)?;
 
         self.load_meter(&mut unit.1, req, sections, timeout_ms, card_cntr)?;
-        self.load_router(&mut unit.1, req, sections, caps, timeout_ms, card_cntr)?;
+        self.load_router(
+            &mut unit.1,
+            req,
+            sections,
+            avail_rates,
+            timeout_ms,
+            card_cntr,
+        )?;
         self.load_mixer(card_cntr)?;
-        self.load_standalone(caps, src_labels, card_cntr)?;
+        self.load_standalone(avail_rates, avail_sources, clock_source_labels, card_cntr)?;
 
         Ok(())
     }
@@ -1101,12 +1124,9 @@ where
         sections: &GeneralSections,
         extension_sections: &ExtensionSections,
         timeout_ms: u32,
-        msg: u32,
+        _: u32,
     ) -> Result<(), Error> {
-        if GeneralProtocol::has_clock_accepted(msg) {
-            self.cache(unit, req, sections, extension_sections, timeout_ms)?;
-        }
-        Ok(())
+        self.cache(unit, req, sections, extension_sections, timeout_ms)
     }
 
     fn read_notified_elem(
