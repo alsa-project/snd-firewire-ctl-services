@@ -58,14 +58,25 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
+        let avail_rates = caps.get_rate_entries();
+        let avail_sources = caps.get_src_entries(&src_labels);
+        let clock_source_labels: Vec<(ClockSource, String)> = avail_sources
+            .iter()
+            .filter_map(|&src| {
+                src.get_label(&src_labels, false)
+                    .map(|l| (src, l.to_string()))
+            })
+            .collect();
+
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
             unit,
             &mut self.req,
             &self.extension_sections,
-            &caps,
-            &src_labels,
+            &avail_rates,
+            &avail_sources,
+            &clock_source_labels,
             TIMEOUT_MS,
             card_cntr,
         )?;
