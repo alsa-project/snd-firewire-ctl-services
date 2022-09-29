@@ -11,6 +11,7 @@ use super::{
         extension::{appl_section::*, *},
         global_section::*,
         tcd22xx_spec::*,
+        *,
     },
     *,
 };
@@ -21,6 +22,19 @@ const STANDALONE_MODE_OFFSET: usize = 0x04;
 /// Protocol implementation specific to ProFire 2626.
 #[derive(Default, Debug)]
 pub struct Pfire2626Protocol;
+
+impl TcatOperation for Pfire2626Protocol {}
+
+impl TcatGlobalSectionSpecification for Pfire2626Protocol {
+    const AVAILABLE_CLOCK_SOURCE_OVERRIDE: Option<&'static [ClockSource]> = Some(&[
+        ClockSource::Aes1,
+        ClockSource::Aes4,
+        ClockSource::Adat,
+        ClockSource::Tdif,
+        ClockSource::WordClock,
+        ClockSource::Internal,
+    ]);
+}
 
 impl PfireClkSpec for Pfire2626Protocol {
     const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
@@ -130,6 +144,13 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
 /// Protocol implementation specific to ProFire 610.
 #[derive(Default, Debug)]
 pub struct Pfire610Protocol;
+
+impl TcatOperation for Pfire610Protocol {}
+
+impl TcatGlobalSectionSpecification for Pfire610Protocol {
+    const AVAILABLE_CLOCK_SOURCE_OVERRIDE: Option<&'static [ClockSource]> =
+        Some(&[ClockSource::Aes1, ClockSource::Internal]);
+}
 
 impl PfireClkSpec for Pfire610Protocol {
     const AVAIL_CLK_SRCS: &'static [ClockSource] = &[ClockSource::Aes1, ClockSource::Internal];
