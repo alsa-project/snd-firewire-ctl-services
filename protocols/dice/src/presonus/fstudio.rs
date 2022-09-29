@@ -3,11 +3,27 @@
 
 //! Protocol implementation for PreSonus FireStudio.
 
-use super::{tcat::*, *};
+use super::{super::tcat::global_section::*, *};
 
 /// Protocol implementation specific to FireStudio.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FStudioProtocol;
+
+impl TcatOperation for FStudioProtocol {}
+
+// MEMO: the device returns 'SPDIF\ADAT\Word Clock\Unused\Unused\Unused\Unused\Internal\\'.
+impl TcatGlobalSectionSpecification for FStudioProtocol {
+    const CLOCK_SOURCE_LABEL_TABLE: &'static [ClockSource] = &[
+        ClockSource::Aes1,
+        ClockSource::Adat,
+        ClockSource::WordClock,
+        ClockSource::Arx1,
+        ClockSource::Arx2,
+        ClockSource::Arx3,
+        ClockSource::Arx4,
+        ClockSource::Internal,
+    ];
+}
 
 const OFFSET: usize = 0x00700000;
 

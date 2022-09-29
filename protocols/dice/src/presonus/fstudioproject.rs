@@ -3,11 +3,15 @@
 
 //! Protocol implementation for PreSonus FireStudio Project.
 
-use super::tcat::{extension::*, tcd22xx_spec::*};
+use super::tcat::{extension::*, tcd22xx_spec::*, *};
 
 /// Protocol implementation of PreSonus FireStudio Project.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FStudioProjectProtocol;
+
+impl TcatOperation for FStudioProjectProtocol {}
+
+impl TcatGlobalSectionSpecification for FStudioProjectProtocol {}
 
 impl Tcd22xxSpecOperation for FStudioProjectProtocol {
     const INPUTS: &'static [Input] = &[
