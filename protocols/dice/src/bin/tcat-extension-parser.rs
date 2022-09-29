@@ -5,14 +5,53 @@ use {
     firewire_dice_protocols as protocols,
     glib::{Error, FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
-    protocols::tcat::extension::{
-        caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
-        peak_section::*, standalone_section::*, *,
+    protocols::tcat::{
+        extension::{
+            caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
+            peak_section::*, standalone_section::*, *,
+        },
+        global_section::*,
     },
     std::{sync::Arc, thread},
 };
 
 const TIMEOUT_MS: u32 = 20;
+
+fn clock_rate_to_string(rate: &ClockRate) -> String {
+    match rate {
+        ClockRate::R32000 => "32000".to_string(),
+        ClockRate::R44100 => "44100".to_string(),
+        ClockRate::R48000 => "48000".to_string(),
+        ClockRate::R88200 => "88200".to_string(),
+        ClockRate::R96000 => "96000".to_string(),
+        ClockRate::R176400 => "176400".to_string(),
+        ClockRate::R192000 => "192000".to_string(),
+        ClockRate::AnyLow => "Any-low".to_string(),
+        ClockRate::AnyMid => "Any-mid".to_string(),
+        ClockRate::AnyHigh => "Any-high".to_string(),
+        ClockRate::None => "None".to_string(),
+        ClockRate::Reserved(val) => format!("Reserved({})", val),
+    }
+}
+
+fn clock_source_to_string(source: &ClockSource) -> String {
+    match source {
+        ClockSource::Aes1 => "AES1".to_string(),
+        ClockSource::Aes2 => "AES2".to_string(),
+        ClockSource::Aes3 => "AES3".to_string(),
+        ClockSource::Aes4 => "AES4".to_string(),
+        ClockSource::AesAny => "AES-ANY".to_string(),
+        ClockSource::Adat => "ADAT".to_string(),
+        ClockSource::Tdif => "TDIF".to_string(),
+        ClockSource::WordClock => "Word-Clock".to_string(),
+        ClockSource::Arx1 => "AVS-Audio-RX1".to_string(),
+        ClockSource::Arx2 => "AVS-Audio-RX2".to_string(),
+        ClockSource::Arx3 => "AVS-Audio-RX3".to_string(),
+        ClockSource::Arx4 => "AVS-Audio-RX4".to_string(),
+        ClockSource::Internal => "Internal".to_string(),
+        ClockSource::Reserved(val) => format!("Reserved({})", val),
+    }
+}
 
 fn print_sections(sections: &ExtensionSections) {
     println!("Extension sections:");
@@ -204,7 +243,7 @@ fn print_standalone_config(
     println!("Standalone configurations:");
     let src =
         StandaloneSectionProtocol::read_standalone_clock_source(req, node, sections, TIMEOUT_MS)?;
-    println!("  clock source: {}", src);
+    println!("  clock source: {}", clock_source_to_string(&src));
     let mode =
         StandaloneSectionProtocol::read_standalone_aes_high_rate(req, node, sections, TIMEOUT_MS)?;
     println!("  AES high rate: {}", mode);
@@ -220,7 +259,7 @@ fn print_standalone_config(
     );
     let rate =
         StandaloneSectionProtocol::read_standalone_internal_rate(req, node, sections, TIMEOUT_MS)?;
-    println!("  Internal rate: {}", rate);
+    println!("  Internal rate: {}", clock_rate_to_string(&rate));
     Ok(())
 }
 
