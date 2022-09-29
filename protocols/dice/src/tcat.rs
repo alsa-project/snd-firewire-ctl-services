@@ -444,16 +444,6 @@ impl GeneralProtocol {
 
         Ok(())
     }
-
-    pub fn read_general_sections(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<GeneralSections, Error> {
-        let mut data = [0; GeneralSections::SIZE];
-        GeneralProtocol::read(req, node, 0, &mut data, timeout_ms)
-            .map(|_| GeneralSections::from(&data[..]))
-    }
 }
 
 /// Parameter of stream format for IEC 60958.
@@ -470,25 +460,3 @@ const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
 const NOTIFY_LOCK_CHG: u32 = 0x00000010;
 const NOTIFY_CLOCK_ACCEPTED: u32 = 0x00000020;
 const NOTIFY_EXT_STATUS: u32 = 0x00000040;
-
-impl GeneralProtocol {
-    pub fn has_rx_config_changed(msg: u32) -> bool {
-        msg & msg & NOTIFY_RX_CFG_CHG > 0
-    }
-
-    pub fn has_tx_config_changed(msg: u32) -> bool {
-        msg & NOTIFY_TX_CFG_CHG > 0
-    }
-
-    pub fn has_lock_changed(msg: u32) -> bool {
-        msg & NOTIFY_LOCK_CHG > 0
-    }
-
-    pub fn has_clock_accepted(msg: u32) -> bool {
-        msg & NOTIFY_CLOCK_ACCEPTED > 0
-    }
-
-    pub fn has_ext_status_changed(msg: u32) -> bool {
-        msg & NOTIFY_EXT_STATUS > 0
-    }
-}

@@ -21,6 +21,9 @@ pub struct ExtendedSyncParameters {
     pub adat_user_data: Option<u8>,
 }
 
+const ADAT_USER_DATA_MASK: u32 = 0x0f;
+const ADAT_USER_DATA_UNAVAIL: u32 = 0x10;
+
 impl<O: TcatOperation> TcatSectionSerdes<ExtendedSyncParameters> for O {
     const MIN_SIZE: usize = 16;
 
@@ -43,10 +46,10 @@ impl<O: TcatOperation> TcatSectionSerdes<ExtendedSyncParameters> for O {
 
         quadlet.copy_from_slice(&raw[12..16]);
         let val = u32::from_be_bytes(quadlet);
-        params.adat_user_data = if val & ExtSyncBlock::ADAT_USER_DATA_UNAVAIL > 0 {
+        params.adat_user_data = if val & ADAT_USER_DATA_UNAVAIL > 0 {
             None
         } else {
-            Some((val & ExtSyncBlock::ADAT_USER_DATA_MASK) as u8)
+            Some((val & ADAT_USER_DATA_MASK) as u8)
         };
 
         Ok(())
@@ -54,76 +57,6 @@ impl<O: TcatOperation> TcatSectionSerdes<ExtendedSyncParameters> for O {
 }
 
 impl<O: TcatOperation> TcatSectionOperation<ExtendedSyncParameters> for O {}
-
-pub struct ExtSyncBlock(Vec<u8>);
-
-impl ExtSyncBlock {
-    const SIZE: usize = 0x10;
-
-    const SYNC_SRC_OFFSET: usize = 0x00;
-    const SYNC_LOCKED_OFFSET: usize = 0x04;
-    const SYNC_RATE_OFFSET: usize = 0x08;
-    const SYNC_ADAT_DATA_BITS: usize = 0x0c;
-
-    const ADAT_USER_DATA_MASK: u32 = 0x0f;
-    const ADAT_USER_DATA_UNAVAIL: u32 = 0x10;
-
-    pub fn get_sync_src(&self) -> ClockSource {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&self.0[Self::SYNC_SRC_OFFSET..(Self::SYNC_SRC_OFFSET + 4)]);
-        ClockSource::from(u32::from_be_bytes(quadlet) as u8)
-    }
-
-    pub fn get_sync_src_locked(&self) -> bool {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&self.0[Self::SYNC_LOCKED_OFFSET..(Self::SYNC_LOCKED_OFFSET + 4)]);
-        u32::from_be_bytes(quadlet) > 0
-    }
-
-    pub fn get_sync_src_rate(&self) -> ClockRate {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&self.0[Self::SYNC_RATE_OFFSET..(Self::SYNC_RATE_OFFSET + 4)]);
-        ClockRate::from(u32::from_be_bytes(quadlet) as u8)
-    }
-
-    pub fn get_sync_src_adat_user_data(&self) -> Option<u8> {
-        let mut quadlet = [0; 4];
-        quadlet
-            .copy_from_slice(&self.0[Self::SYNC_ADAT_DATA_BITS..(Self::SYNC_ADAT_DATA_BITS + 4)]);
-        let val = u32::from_be_bytes(quadlet);
-        if val & Self::ADAT_USER_DATA_UNAVAIL > 0 {
-            None
-        } else {
-            Some((val & Self::ADAT_USER_DATA_MASK) as u8)
-        }
-    }
-}
-
-/// Protocol implementaion of external synchronization section.
-#[derive(Default)]
-pub struct ExtSyncSectionProtocol;
-
-impl ExtSyncSectionProtocol {
-    pub fn read_block(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ExtSyncBlock, Error> {
-        if sections.ext_sync.size < ExtSyncBlock::SIZE {
-            let msg = format!(
-                "Ext sync section has {} less size than {} expected",
-                sections.ext_sync.size,
-                ExtSyncBlock::SIZE
-            );
-            Err(Error::new(FileError::Nxio, &msg))
-        } else {
-            let mut data = vec![0; sections.ext_sync.size];
-            GeneralProtocol::read(req, node, sections.ext_sync.offset, &mut data, timeout_ms)
-                .map(|_| ExtSyncBlock(data))
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {

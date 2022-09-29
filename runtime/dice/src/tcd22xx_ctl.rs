@@ -1030,8 +1030,7 @@ where
         extension_sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let config =
-            GlobalSectionProtocol::read_clock_config(req, &mut unit.1, &sections, timeout_ms)?;
+        let config = &sections.global.params.clock_config;
         let rate_mode = RateMode::from(config.rate);
 
         let ctls = self.tcd22xx_ctl_mut();

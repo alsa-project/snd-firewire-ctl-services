@@ -25,7 +25,7 @@ pub struct TxStreamFormatEntry {
 }
 
 impl TryFrom<&[u8]> for TxStreamFormatEntry {
-    type Error = Error;
+    type Error = String;
 
     fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
         let mut quadlet = [0; 4];
@@ -41,10 +41,8 @@ impl TryFrom<&[u8]> for TxStreamFormatEntry {
         quadlet.copy_from_slice(&raw[12..16]);
         let speed = u32::from_be_bytes(quadlet);
 
-        let labels = parse_labels(&raw[16..272]).map_err(|e| {
-            let msg = format!("Invalid data for string: {}", e);
-            Error::new(GeneralProtocolError::TxStreamFormat, &msg)
-        })?;
+        let labels =
+            parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
 
         let iec60958 = if raw.len() > 272 {
             parse_iec60958_params(&raw[272..280])
@@ -159,7 +157,6 @@ impl<O: TcatOperation> TcatSectionSerdes<TxStreamFormatParameters> for O {
                 } else {
                     TxStreamFormatEntry::try_from(&raw[pos..(pos + size)])
                         .map(|entry| entries.push(entry))
-                        .map_err(|e| e.message().to_string())
                 }
             })
             .map(|_| params.0 = entries)
@@ -177,112 +174,6 @@ impl<O: TcatSectionOperation<TxStreamFormatParameters>>
     TcatNotifiedSectionOperation<TxStreamFormatParameters> for O
 {
     const NOTIFY_FLAG: u32 = NOTIFY_TX_CFG_CHG;
-}
-
-/// Protocol implementation of tx stream format section.
-#[derive(Default)]
-pub struct TxStreamFormatSectionProtocol;
-
-impl TxStreamFormatSectionProtocol {
-    pub fn read_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<Vec<TxStreamFormatEntry>, Error> {
-        let mut data = [0; 8];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.tx_stream_format.offset,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&data[..4]);
-        let count = u32::from_be_bytes(quadlet) as usize;
-
-        quadlet.copy_from_slice(&data[4..8]);
-        let size = 4 * u32::from_be_bytes(quadlet) as usize;
-
-        let mut entries = Vec::new();
-        let mut data = vec![0; size];
-        (0..count)
-            .try_for_each(|i| {
-                GeneralProtocol::read(
-                    req,
-                    node,
-                    sections.tx_stream_format.offset + 8 + (i * size),
-                    &mut data,
-                    timeout_ms,
-                )
-                .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-                let entry = TxStreamFormatEntry::try_from(&data[..]).map_err(|e| {
-                    Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string())
-                })?;
-                entries.push(entry);
-                Ok(())
-            })
-            .map(|_| entries)
-    }
-
-    pub fn write_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        entries: &[TxStreamFormatEntry],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 8];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.tx_stream_format.offset,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&data[..4]);
-        let count = std::cmp::min(u32::from_be_bytes(quadlet) as usize, entries.len());
-
-        quadlet.copy_from_slice(&data[4..8]);
-        let size = 4 * u32::from_be_bytes(quadlet) as usize;
-
-        (0..count).try_for_each(|i| {
-            let mut expected_fmt = entries[i].clone();
-
-            let mut curr = vec![0; size];
-            GeneralProtocol::read(
-                req,
-                node,
-                sections.tx_stream_format.offset + 8 + (i * size),
-                &mut curr,
-                timeout_ms,
-            )
-            .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-            let curr_fmt = TxStreamFormatEntry::try_from(&curr[..])
-                .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-            expected_fmt.iso_channel = curr_fmt.iso_channel;
-
-            if expected_fmt != curr_fmt {
-                let mut raw = Into::<Vec<u8>>::into(&expected_fmt);
-                GeneralProtocol::write(
-                    req,
-                    node,
-                    sections.tx_stream_format.offset + 8 + (i * size),
-                    &mut raw,
-                    timeout_ms,
-                )
-                .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
-            }
-
-            Ok(())
-        })
-    }
 }
 
 #[cfg(test)]
