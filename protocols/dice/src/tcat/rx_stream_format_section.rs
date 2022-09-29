@@ -114,20 +114,22 @@ impl RxStreamFormatSectionProtocol {
 
         let mut entries = Vec::new();
         let mut data = vec![0; size];
-        (0..count).try_for_each(|i| {
-            GeneralProtocol::read(
-                req,
-                node,
-                sections.rx_stream_format.offset + 8 + (i * size),
-                &mut data,
-                timeout_ms,
-            )
-            .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
-            let entry = RxStreamEntry::try_from(&data[..])
+        (0..count)
+            .try_for_each(|i| {
+                GeneralProtocol::read(
+                    req,
+                    node,
+                    sections.rx_stream_format.offset + 8 + (i * size),
+                    &mut data,
+                    timeout_ms,
+                )
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
-            entries.push(entry);
-            Ok(())
-        })
+                let entry = RxStreamEntry::try_from(&data[..]).map_err(|e| {
+                    Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string())
+                })?;
+                entries.push(entry);
+                Ok(())
+            })
             .map(|_| entries)
     }
 
