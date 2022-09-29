@@ -89,6 +89,21 @@ impl From<&[u8]> for GeneralSections {
     }
 }
 
+/// Serializer and deserializer for parameters in TCAT section.
+pub trait TcatSectionSerdes<T> {
+    /// Minimum size of section for parameters.
+    const MIN_SIZE: usize;
+
+    /// The type of error.
+    const ERROR_TYPE: GeneralProtocolError;
+
+    /// Serialize parameters for section.
+    fn serialize(params: &T, raw: &mut [u8]) -> Result<(), String>;
+
+    /// Deserialize section for parameters.
+    fn deserialize(params: &mut T, raw: &[u8]) -> Result<(), String>;
+}
+
 /// Any error of general protocol.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GeneralProtocolError {
@@ -133,6 +148,216 @@ impl ErrorDomain for GeneralProtocolError {
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
+    }
+}
+
+/// Operation of TCAT general protocol.
+pub trait TcatOperation {
+    /// Initiate read transaction to offset in specific address space and finish it.
+    fn read(
+        req: &FwReq,
+        node: &FwNode,
+        offset: usize,
+        mut frames: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut addr = BASE_ADDR + offset as u64;
+
+        while frames.len() > 0 {
+            let len = std::cmp::min(frames.len(), GeneralProtocol::MAX_FRAME_SIZE);
+            let tcode = if len == 4 {
+                FwTcode::ReadQuadletRequest
+            } else {
+                FwTcode::ReadBlockRequest
+            };
+
+            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+
+            addr += len as u64;
+            frames = &mut frames[len..];
+        }
+
+        Ok(())
+    }
+
+    /// Initiate write transaction to offset in specific address space and finish it.
+    fn write(
+        req: &FwReq,
+        node: &FwNode,
+        offset: usize,
+        mut frames: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut addr = BASE_ADDR + (offset as u64);
+
+        while frames.len() > 0 {
+            let len = std::cmp::min(frames.len(), GeneralProtocol::MAX_FRAME_SIZE);
+            let tcode = if len == 4 {
+                FwTcode::WriteQuadletRequest
+            } else {
+                FwTcode::WriteBlockRequest
+            };
+
+            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+
+            addr += len as u64;
+            frames = &mut frames[len..];
+        }
+
+        Ok(())
+    }
+
+    /// Read section layout.
+    fn read_general_sections(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &mut GeneralSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = [0; GeneralSections::SIZE];
+        Self::read(req, node, 0, &mut raw, timeout_ms).map(|_| {
+            *sections = GeneralSections::from(&raw[..]);
+        })
+    }
+}
+
+fn check_section_cache<T>(
+    section: &Section<T>,
+    min_size: usize,
+    error_type: GeneralProtocolError,
+) -> Result<(), Error>
+where
+    T: Default + Debug,
+{
+    if section.size < min_size {
+        let msg = format!(
+            "The size of section should be larger than {}, actually {}",
+            min_size, section.size
+        );
+        Err(Error::new(error_type, &msg))
+    } else if section.raw.len() == 0 {
+        Err(Error::new(error_type, "The section is not initialized yet"))
+    } else {
+        Ok(())
+    }
+}
+
+/// Operation for parameters in section of TCAT general protocol.
+pub trait TcatSectionOperation<T>: TcatOperation + TcatSectionSerdes<T>
+where
+    T: Default + Debug,
+{
+    /// Cache whole section and deserialize for parameters.
+    fn whole_cache(
+        req: &FwReq,
+        node: &FwNode,
+        section: &mut Section<T>,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
+        Self::read(req, node, section.offset, &mut section.raw, timeout_ms)?;
+        Self::deserialize(&mut section.params, &section.raw)
+            .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+    }
+}
+
+/// Operation to change content in section of TCAT general protocol for parameters.
+pub trait TcatMutableSectionOperation<T>: TcatOperation + TcatSectionSerdes<T>
+where
+    T: Default + Debug,
+{
+    /// Update whole section by the parameters.
+    fn whole_update(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        section: &mut Section<T>,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
+        let mut raw = section.raw.clone();
+        Self::serialize(params, &mut raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
+        Self::write(req, node, section.offset, &mut raw, timeout_ms)?;
+        section.raw.copy_from_slice(&raw);
+        Self::deserialize(&mut section.params, &raw)
+            .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+    }
+
+    /// Update part of section for any change at the parameters.
+    fn partial_update(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        section: &mut Section<T>,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
+        let mut raw = section.raw.clone();
+        Self::serialize(params, &mut raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
+        (0..section.size)
+            .step_by(4)
+            .try_for_each(|pos| {
+                let new = &mut raw[pos..(pos + 4)];
+                if new != &section.raw[pos..(pos + 4)] {
+                    Self::write(req, node, section.offset + pos, new, timeout_ms)
+                        .map(|_| section.raw[pos..(pos + 4)].copy_from_slice(new))
+                } else {
+                    Ok(())
+                }
+            })
+            .and_then(|_| {
+                Self::deserialize(&mut section.params, &raw)
+                    .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+            })
+    }
+}
+
+/// Operation for notified parameters in section of TCAT general protocol.
+pub trait TcatNotifiedSectionOperation<T>: TcatSectionOperation<T>
+where
+    T: Default + Debug,
+{
+    /// Flag in message notified for any change in section.
+    const NOTIFY_FLAG: u32;
+
+    /// Check message to be notified or not.
+    fn notified(_: &Section<T>, msg: u32) -> bool {
+        msg & Self::NOTIFY_FLAG > 0
+    }
+}
+
+/// Operation for fluctuated content in section of TCAT general protocol.
+pub trait TcatFluctuatedSectionOperation<T>: TcatSectionOperation<T>
+where
+    T: Default + Debug,
+{
+    /// The set of address offsets in which any value is changed apart from software operation;
+    /// e.g. hardware metering.
+    const FLUCTUATED_OFFSETS: &'static [usize];
+
+    /// Cache part of section for fluctuated values, then deserialize for parameters.
+    fn partial_cache(
+        req: &FwReq,
+        node: &FwNode,
+        section: &mut Section<T>,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
+        Self::FLUCTUATED_OFFSETS
+            .iter()
+            .try_for_each(|&offset| {
+                Self::read(
+                    req,
+                    node,
+                    section.offset + offset,
+                    &mut section.raw[offset..(offset + 4)],
+                    timeout_ms,
+                )
+            })
+            .and_then(|_| {
+                Self::deserialize(&mut section.params, &section.raw)
+                    .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+            })
     }
 }
 
@@ -215,30 +440,30 @@ pub struct Iec60958Param {
     pub enable: bool,
 }
 
-impl GeneralProtocol {
-    const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
-    const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
-    const NOTIFY_LOCK_CHG: u32 = 0x00000010;
-    const NOTIFY_CLOCK_ACCEPTED: u32 = 0x00000020;
-    const NOTIFY_EXT_STATUS: u32 = 0x00000040;
+const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
+const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
+const NOTIFY_LOCK_CHG: u32 = 0x00000010;
+const NOTIFY_CLOCK_ACCEPTED: u32 = 0x00000020;
+const NOTIFY_EXT_STATUS: u32 = 0x00000040;
 
+impl GeneralProtocol {
     pub fn has_rx_config_changed(msg: u32) -> bool {
-        msg & msg & Self::NOTIFY_RX_CFG_CHG > 0
+        msg & msg & NOTIFY_RX_CFG_CHG > 0
     }
 
     pub fn has_tx_config_changed(msg: u32) -> bool {
-        msg & Self::NOTIFY_TX_CFG_CHG > 0
+        msg & NOTIFY_TX_CFG_CHG > 0
     }
 
     pub fn has_lock_changed(msg: u32) -> bool {
-        msg & Self::NOTIFY_LOCK_CHG > 0
+        msg & NOTIFY_LOCK_CHG > 0
     }
 
     pub fn has_clock_accepted(msg: u32) -> bool {
-        msg & Self::NOTIFY_CLOCK_ACCEPTED > 0
+        msg & NOTIFY_CLOCK_ACCEPTED > 0
     }
 
     pub fn has_ext_status_changed(msg: u32) -> bool {
-        msg & Self::NOTIFY_EXT_STATUS > 0
+        msg & NOTIFY_EXT_STATUS > 0
     }
 }
