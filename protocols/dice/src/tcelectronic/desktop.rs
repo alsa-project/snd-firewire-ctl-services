@@ -14,8 +14,12 @@ const DESKTOP_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00040000;
 const DESKTOP_PANEL_NOTIFY_FLAG: u32 = 0x00080000;
 
 /// Protocol implementation of Desktop Konnekt 6.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Desktopk6Protocol;
+
+impl TcatOperation for Desktopk6Protocol {}
+
+impl TcatGlobalSectionSpecification for Desktopk6Protocol {}
 
 /// Segment for panel. 0x0008..0x0097 (36 quads).
 pub type Desktopk6HwStateSegment = TcKonnektSegment<DesktopHwState>;

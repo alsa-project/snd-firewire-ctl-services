@@ -9,8 +9,12 @@
 use super::*;
 
 /// Protocol implementation of Konnekt 24d.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct K24dProtocol;
+
+impl TcatOperation for K24dProtocol {}
+
+impl TcatGlobalSectionSpecification for K24dProtocol {}
 
 /// Segment for knob. 0x0000..0x0027 (36 quads).
 pub type K24dKnobSegment = TcKonnektSegment<K24dKnob>;

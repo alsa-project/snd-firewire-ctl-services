@@ -9,8 +9,12 @@
 use super::*;
 
 /// Protocol implementation of Impact Twin.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ItwinProtocol;
+
+impl TcatOperation for ItwinProtocol {}
+
+impl TcatGlobalSectionSpecification for ItwinProtocol {}
 
 /// Segment for knob. 0x0000..0x0027 (36 quads).
 pub type ItwinKnobSegment = TcKonnektSegment<ItwinKnob>;
