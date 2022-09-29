@@ -24,25 +24,25 @@ use {
     super::*,
     glib::{error::ErrorDomain, Quark},
     hinawa::{prelude::FwReqExtManual, FwTcode},
-    std::convert::TryFrom,
+    std::{convert::TryFrom, fmt::Debug},
 };
 
 mod utils;
 
 /// Section in control and status register (CSR) of node.
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Section {
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct Section<T: Default + Debug> {
+    pub params: T,
     pub offset: usize,
     pub size: usize,
+    raw: Vec<u8>,
 }
 
-impl Section {
-    pub const SIZE: usize = 8;
-}
+const SECTION_ENTRY_SIZE: usize = 8;
 
-impl From<&[u8]> for Section {
+impl<T: Default + Debug> From<&[u8]> for Section<T> {
     fn from(data: &[u8]) -> Self {
-        assert!(data.len() >= Self::SIZE);
+        assert!(data.len() >= SECTION_ENTRY_SIZE);
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let offset = 4 * u32::from_be_bytes(quadlet) as usize;
@@ -50,23 +50,31 @@ impl From<&[u8]> for Section {
         quadlet.copy_from_slice(&data[4..8]);
         let size = 4 * u32::from_be_bytes(quadlet) as usize;
 
-        Section { offset, size }
+        let params = Default::default();
+        let raw = vec![0; size];
+
+        Section {
+            params,
+            offset,
+            size,
+            raw,
+        }
     }
 }
 
 /// The sset of sections in CSR of node.
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct GeneralSections {
-    pub global: Section,
-    pub tx_stream_format: Section,
-    pub rx_stream_format: Section,
-    pub ext_sync: Section,
-    pub reserved: Section,
+    pub global: Section<()>,
+    pub tx_stream_format: Section<()>,
+    pub rx_stream_format: Section<()>,
+    pub ext_sync: Section<()>,
+    pub reserved: Section<()>,
 }
 
 impl GeneralSections {
     const SECTION_COUNT: usize = 5;
-    const SIZE: usize = Section::SIZE * Self::SECTION_COUNT;
+    const SIZE: usize = SECTION_ENTRY_SIZE * Self::SECTION_COUNT;
 }
 
 impl From<&[u8]> for GeneralSections {
