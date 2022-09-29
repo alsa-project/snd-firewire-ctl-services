@@ -32,6 +32,22 @@ where
     specific_ctl: PfireSpecificCtl<T>,
 }
 
+impl<T> PfireModel<T>
+where
+    T: Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation
+        + PfireClkSpec
+        + PfireSpecificOperation,
+{
+    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+        self.sections =
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
 where
     T: Tcd22xxSpecOperation
@@ -45,8 +61,6 @@ where
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = ClockCaps::new(T::AVAIL_CLK_RATES, T::AVAIL_CLK_SRCS);
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,

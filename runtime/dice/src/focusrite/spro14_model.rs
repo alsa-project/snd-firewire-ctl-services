@@ -16,14 +16,21 @@ pub struct SPro14Model {
 
 const TIMEOUT_MS: u32 = 20;
 
+impl SPro14Model {
+    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+        self.sections =
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndDice, FwNode)> for SPro14Model {
     fn load(
         &mut self,
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
             &mut unit.1,

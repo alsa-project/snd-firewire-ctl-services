@@ -113,11 +113,7 @@ impl DiceModel {
         })
     }
 
-    pub fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         // Replace model data when protocol extension is available.
         if let Model::Minimal(_) = &mut self.model {
             if detect_extended_model(&mut unit.1) {
@@ -132,6 +128,39 @@ impl DiceModel {
             }
         };
 
+        match &mut self.model {
+            Model::Minimal(m) => m.cache(unit),
+            Model::TcK24d(m) => m.cache(unit),
+            Model::TcK8(m) => m.cache(unit),
+            Model::TcStudiok48(m) => m.cache(unit),
+            Model::TcKlive(m) => m.cache(unit),
+            Model::TcDesktopk6(m) => m.cache(unit),
+            Model::TcItwin(m) => m.cache(unit),
+            Model::AlesisIo14fw(m) => m.cache(unit),
+            Model::AlesisIo26fw(m) => m.cache(unit),
+            Model::LexiconIonix(m) => m.cache(unit),
+            Model::PresonusFStudio(m) => m.cache(unit),
+            Model::Extension(m) => m.cache(unit),
+            Model::MaudioPfire2626(m) => m.cache(unit),
+            Model::MaudioPfire610(m) => m.cache(unit),
+            Model::AvidMbox3(m) => m.cache(unit),
+            Model::LoudBlackbird(m) => m.cache(unit),
+            Model::FocusriteSPro40(m) => m.cache(unit),
+            Model::FocusriteLiquidS56(m) => m.cache(unit),
+            Model::FocusriteSPro24(m) => m.cache(unit),
+            Model::FocusriteSPro24Dsp(m) => m.cache(unit),
+            Model::FocusriteSPro14(m) => m.cache(unit),
+            Model::FocusriteSPro26(m) => m.cache(unit),
+            Model::PresonusFStudioProject(m) => m.cache(unit),
+            Model::PresonusFStudioMobile(m) => m.cache(unit),
+        }
+    }
+
+    pub fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         match &mut self.model {
             Model::Minimal(m) => m.load(unit, card_cntr),
             Model::TcK24d(m) => m.load(unit, card_cntr),
