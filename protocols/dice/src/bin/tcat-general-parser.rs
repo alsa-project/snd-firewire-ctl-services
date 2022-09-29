@@ -5,15 +5,54 @@ use {
     firewire_dice_protocols as protocols,
     glib::{Error, FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
-    protocols::tcat::{
-        ext_sync_section::*, global_section::*, rx_stream_format_section::*,
-        tx_stream_format_section::*, *,
-    },
+    protocols::tcat::{global_section::*, *},
     std::sync::Arc,
     std::thread,
 };
 
 const TIMEOUT_MS: u32 = 20;
+
+struct Protocol;
+
+impl TcatOperation for Protocol {}
+
+impl TcatGlobalSectionSpecification for Protocol {}
+
+fn clock_rate_to_string(rate: &ClockRate) -> String {
+    match rate {
+        ClockRate::R32000 => "32000".to_string(),
+        ClockRate::R44100 => "44100".to_string(),
+        ClockRate::R48000 => "48000".to_string(),
+        ClockRate::R88200 => "88200".to_string(),
+        ClockRate::R96000 => "96000".to_string(),
+        ClockRate::R176400 => "176400".to_string(),
+        ClockRate::R192000 => "192000".to_string(),
+        ClockRate::AnyLow => "Any-low".to_string(),
+        ClockRate::AnyMid => "Any-mid".to_string(),
+        ClockRate::AnyHigh => "Any-high".to_string(),
+        ClockRate::None => "None".to_string(),
+        ClockRate::Reserved(val) => format!("Reserved({})", val),
+    }
+}
+
+fn clock_source_to_string(source: &ClockSource) -> String {
+    match source {
+        ClockSource::Aes1 => "AES1".to_string(),
+        ClockSource::Aes2 => "AES2".to_string(),
+        ClockSource::Aes3 => "AES3".to_string(),
+        ClockSource::Aes4 => "AES4".to_string(),
+        ClockSource::AesAny => "AES-ANY".to_string(),
+        ClockSource::Adat => "ADAT".to_string(),
+        ClockSource::Tdif => "TDIF".to_string(),
+        ClockSource::WordClock => "Word-Clock".to_string(),
+        ClockSource::Arx1 => "AVS-Audio-RX1".to_string(),
+        ClockSource::Arx2 => "AVS-Audio-RX2".to_string(),
+        ClockSource::Arx3 => "AVS-Audio-RX3".to_string(),
+        ClockSource::Arx4 => "AVS-Audio-RX4".to_string(),
+        ClockSource::Internal => "Internal".to_string(),
+        ClockSource::Reserved(val) => format!("Reserved({})", val),
+    }
+}
 
 fn print_sections(sections: &GeneralSections) {
     println!("General sections:");
@@ -36,95 +75,123 @@ fn print_sections(sections: &GeneralSections) {
 }
 
 fn print_global_section(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    sections: &GeneralSections,
+    req: &FwReq,
+    node: &FwNode,
+    sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    let owner = GlobalSectionProtocol::read_owner_addr(req, node, sections, TIMEOUT_MS)?;
-    println!("Owner:");
-    println!("  node ID:        0x{:04x}", owner >> 48);
-    println!("  offset:         0x{:012x}", owner & 0xffffffffu64);
+    Protocol::whole_cache(req, node, &mut sections.global, TIMEOUT_MS)?;
 
-    let latest_notification =
-        GlobalSectionProtocol::read_latest_notification(req, node, sections, TIMEOUT_MS)?;
-    println!("Last Notification:0x{:08x}", latest_notification);
+    let params = &sections.global.params;
 
-    let nickname = GlobalSectionProtocol::read_nickname(req, node, sections, TIMEOUT_MS)?;
-    println!("Nickname:         '{}'", nickname);
+    println!("Parameters in global section:");
+    println!("  Owner:");
+    println!("    node ID:        0x{:04x}", params.owner >> 48);
+    println!(
+        "    offset:         0x{:012x}",
+        params.owner & 0xffffffffu64
+    );
 
-    let config = GlobalSectionProtocol::read_clock_config(req, node, sections, TIMEOUT_MS)?;
-    println!("Clock configureation:");
-    println!("  rate:           {}", config.rate);
-    println!("  src:            {}", config.src);
+    println!("  Last Notification:0x{:08x}", params.latest_notification);
 
-    let enabled = GlobalSectionProtocol::read_enabled(req, node, sections, TIMEOUT_MS)?;
-    println!("Enabled:          {}", enabled);
+    println!("  Nickname:         '{}'", params.nickname);
 
-    let status = GlobalSectionProtocol::read_clock_status(req, node, sections, TIMEOUT_MS)?;
-    println!("Status:");
-    println!("  rate:           {}", status.rate);
-    println!("  source is locked:  {}", status.src_is_locked);
+    println!("  Clock configureation:");
+    println!(
+        "    rate:           {}",
+        clock_rate_to_string(&params.clock_config.rate)
+    );
+    println!(
+        "    src:            {}",
+        clock_source_to_string(&params.clock_config.src)
+    );
 
-    let curr_rate = GlobalSectionProtocol::read_current_rate(req, node, sections, TIMEOUT_MS)?;
-    println!("Sampling rate:    {}", curr_rate);
+    println!("  Enabled:          {}", params.enable);
 
-    let version = GlobalSectionProtocol::read_version(req, node, sections, TIMEOUT_MS)?;
-    println!("Version:          0x{:08x}", version);
+    println!("  Status:");
+    println!(
+        "    rate:           {}",
+        clock_rate_to_string(&params.clock_status.rate)
+    );
+    println!(
+        "    source is locked:  {}",
+        params.clock_status.src_is_locked
+    );
 
-    let labels = GlobalSectionProtocol::read_clock_source_labels(req, node, sections, TIMEOUT_MS)?;
-    let caps = GlobalSectionProtocol::read_clock_caps(req, node, sections, TIMEOUT_MS)?;
+    println!("  Sampling rate:    {}", params.current_rate);
 
-    let rates = caps
-        .get_rate_entries()
+    println!("  Version:          0x{:08x}", params.version);
+
+    let rates: Vec<String> = params
+        .avail_rates
         .iter()
-        .map(|r| r.to_string())
-        .collect::<Vec<_>>();
-    let srcs = caps
-        .get_src_entries(&labels)
+        .map(|r| clock_rate_to_string(r))
+        .collect();
+    let srcs: Vec<String> = params
+        .avail_sources
         .iter()
-        .map(|s| s.get_label(&labels, false).unwrap())
-        .collect::<Vec<_>>();
-    println!("Clock capabilities:");
-    println!("  rate:           {}", rates.join(", "));
-    println!("  src:            {}", srcs.join(", "));
+        .map(|s| clock_source_to_string(s))
+        .collect();
+    println!("  Clock capabilities:");
+    println!("    rate:           {}", rates.join(", "));
+    println!("    src:            {}", srcs.join(", "));
 
-    let ext_srcs = ExtSourceStates::get_entries(&caps, &labels);
-    let states = GlobalSectionProtocol::read_clock_source_states(req, node, sections, TIMEOUT_MS)?;
-    println!("Clock states:");
-    let locked = ext_srcs
+    let locked: Vec<String> = params
+        .external_source_states
+        .sources
         .iter()
-        .filter(|s| s.is_locked(&states))
-        .map(|s| s.get_label(&labels, true).unwrap())
-        .collect::<Vec<_>>();
-    let slipped = ext_srcs
+        .zip(params.external_source_states.locked.iter())
+        .filter_map(|(src, state)| {
+            params
+                .clock_source_labels
+                .iter()
+                .find(|(s, _)| s.eq(src))
+                .map(|(_, label)| (label, state))
+        })
+        .map(|(label, state)| format!("\"{}\"({})", label, state))
+        .collect();
+    let slipped: Vec<String> = params
+        .external_source_states
+        .sources
         .iter()
-        .filter(|s| s.is_slipped(&states))
-        .map(|s| s.get_label(&labels, true).unwrap())
-        .collect::<Vec<_>>();
-    println!("  locked:         {}", locked.join(", "));
-    println!("  slipped:        {}", slipped.join(", "));
+        .zip(params.external_source_states.slipped.iter())
+        .filter_map(|(src, state)| {
+            params
+                .clock_source_labels
+                .iter()
+                .find(|(s, _)| s.eq(src))
+                .map(|(_, label)| (label, state))
+        })
+        .map(|(label, state)| format!("\"{}\"({})", label, state))
+        .collect();
+    println!("  External clock states:");
+    println!("    locked: {}", locked.join(", "));
+    println!("    slipped: {}", slipped.join(", "));
 
     Ok(())
 }
 
 fn print_tx_stream_formats(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    sections: &GeneralSections,
+    req: &FwReq,
+    node: &FwNode,
+    sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    let entries = TxStreamFormatSectionProtocol::read_entries(req, node, sections, TIMEOUT_MS)?;
-    println!("Tx stream format entries:");
+    Protocol::whole_cache(req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
+
+    let entries = &sections.tx_stream_format.params.0;
+
+    println!("Parameters in tx stream format section");
+    println!("  Tx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
-        println!("  Stream {}:", i);
-        println!("    iso channel:  {}", entry.iso_channel);
-        println!("    pcm:          {}", entry.pcm);
-        println!("    midi:         {}", entry.midi);
-        println!("    speed:        {}", entry.speed);
-        println!("    channel name:");
+        println!("    Stream {}:", i);
+        println!("      iso channel:  {}", entry.iso_channel);
+        println!("      pcm:          {}", entry.pcm);
+        println!("      midi:         {}", entry.midi);
+        println!("      speed:        {}", entry.speed);
+        println!("      channel name:");
         entry.labels.iter().enumerate().for_each(|(i, label)| {
             println!("      ch {}:       {}", i, label);
         });
-        println!("    IEC 60958 parameters:");
+        println!("      IEC 60958 parameters:");
         entry
             .iec60958
             .iter()
@@ -132,7 +199,7 @@ fn print_tx_stream_formats(
             .filter(|(_, param)| param.enable)
             .for_each(|(i, param)| {
                 println!(
-                    "      ch {}: cap: {}, enable: {}",
+                    "        ch {}: cap: {}, enable: {}",
                     i, param.cap, param.enable
                 );
             });
@@ -141,23 +208,26 @@ fn print_tx_stream_formats(
 }
 
 fn print_rx_stream_formats(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    sections: &GeneralSections,
+    req: &FwReq,
+    node: &FwNode,
+    sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    let entries = RxStreamFormatSectionProtocol::read_entries(req, node, sections, TIMEOUT_MS)?;
-    println!("Rx stream format entries:");
+    Protocol::whole_cache(req, node, &mut sections.rx_stream_format, TIMEOUT_MS)?;
+
+    let entries = &sections.rx_stream_format.params.0;
+    println!("Parameters in tx stream format section");
+    println!("  Rx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
-        println!("  Stream {}:", i);
-        println!("    iso channel:  {}", entry.iso_channel);
-        println!("    start:        {}", entry.start);
-        println!("    pcm:          {}", entry.pcm);
-        println!("    midi:         {}", entry.midi);
-        println!("    channel name:");
+        println!("    Stream {}:", i);
+        println!("      iso channel:  {}", entry.iso_channel);
+        println!("      start:        {}", entry.start);
+        println!("      pcm:          {}", entry.pcm);
+        println!("      midi:         {}", entry.midi);
+        println!("      channel name:");
         entry.labels.iter().enumerate().for_each(|(i, label)| {
-            println!("      ch {}:       {}", i, label);
+            println!("        ch {}:       {}", i, label);
         });
-        println!("    IEC 60958 parameters:");
+        println!("      IEC 60958 parameters:");
         entry
             .iec60958
             .iter()
@@ -165,7 +235,7 @@ fn print_rx_stream_formats(
             .filter(|(_, param)| param.enable)
             .for_each(|(i, param)| {
                 println!(
-                    "      ch {}: cap: {}, enable: {}",
+                    "        ch {}: cap: {}, enable: {}",
                     i, param.cap, param.enable
                 );
             });
@@ -173,19 +243,30 @@ fn print_rx_stream_formats(
     Ok(())
 }
 
-fn print_ext_sync(req: &mut FwReq, node: &mut FwNode, sections: &GeneralSections) {
-    let _ = ExtSyncSectionProtocol::read_block(req, node, sections, TIMEOUT_MS).map(|blk| {
-        println!("External sync:");
-        println!("  source:         {}", blk.get_sync_src());
-        println!("  locked:         {}", blk.get_sync_src_locked());
-        println!("  rate:           {}", blk.get_sync_src_rate());
-        print!("  ADAT user data: ");
-        if let Some(bits) = blk.get_sync_src_adat_user_data() {
-            println!("{:02x}", bits);
-        } else {
-            println!("N/A");
-        }
-    });
+fn print_ext_sync(req: &FwReq, node: &FwNode, sections: &mut GeneralSections) -> Result<(), Error> {
+    Protocol::whole_cache(req, node, &mut sections.ext_sync, TIMEOUT_MS)?;
+
+    let params = &sections.ext_sync.params;
+
+    println!("Parameters in external synchronization section");
+    println!("  External sync:");
+    println!(
+        "    source:         {}",
+        clock_source_to_string(&params.clk_src)
+    );
+    println!("    locked:         {}", params.clk_src_locked);
+    println!(
+        "    rate:           {}",
+        clock_rate_to_string(&params.clk_rate)
+    );
+    print!("    ADAT user data: ");
+    if let Some(bits) = params.adat_user_data {
+        println!("{:02x}", bits);
+    } else {
+        println!("N/A");
+    }
+
+    Ok(())
 }
 
 fn main() {
@@ -219,21 +300,23 @@ fn main() {
                         .map(|src| (node, src))
                 })
         })
-        .and_then(|(mut node, src)| {
+        .and_then(|(node, src)| {
             let ctx = MainContext::new();
             let _ = src.attach(Some(&ctx));
             let dispatcher = Arc::new(MainLoop::new(Some(&ctx), false));
             let d = dispatcher.clone();
             let th = thread::spawn(move || d.run());
 
-            let mut req = FwReq::new();
-            let result = GeneralProtocol::read_general_sections(&mut req, &mut node, TIMEOUT_MS)
-                .and_then(|sections| {
+            let mut sections = GeneralSections::default();
+
+            let req = FwReq::new();
+            let result = Protocol::read_general_sections(&req, &node, &mut sections, TIMEOUT_MS)
+                .and_then(|_| {
                     print_sections(&sections);
-                    print_global_section(&mut req, &mut node, &sections)?;
-                    print_tx_stream_formats(&mut req, &mut node, &sections)?;
-                    print_rx_stream_formats(&mut req, &mut node, &sections)?;
-                    print_ext_sync(&mut req, &mut node, &sections);
+                    print_global_section(&req, &node, &mut sections)?;
+                    print_tx_stream_formats(&req, &node, &mut sections)?;
+                    print_rx_stream_formats(&req, &node, &mut sections)?;
+                    print_ext_sync(&req, &node, &mut sections)?;
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
