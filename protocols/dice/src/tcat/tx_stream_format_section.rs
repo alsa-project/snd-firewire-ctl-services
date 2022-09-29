@@ -84,6 +84,95 @@ impl From<&TxStreamFormatEntry> for Vec<u8> {
     }
 }
 
+/// Parameters for format of transmit streams.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct TxStreamFormatParameters(pub Vec<TxStreamFormatEntry>);
+
+impl<O: TcatOperation> TcatSectionSerdes<TxStreamFormatParameters> for O {
+    const MIN_SIZE: usize = 8;
+
+    const ERROR_TYPE: GeneralProtocolError = GeneralProtocolError::TxStreamFormat;
+
+    fn serialize(params: &TxStreamFormatParameters, raw: &mut [u8]) -> Result<(), String> {
+        // The number of streams is read-only.
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        let count = u32::from_be_bytes(quadlet) as usize;
+
+        if count != params.0.len() {
+            Err(format!(
+                "The count of entries should be {}, actually {}",
+                count,
+                params.0.len(),
+            ))?;
+        }
+
+        // The size of stream format entry is read-only as well.
+        quadlet.copy_from_slice(&raw[4..8]);
+        let size = 4 * u32::from_be_bytes(quadlet) as usize;
+
+        let mut entries = Vec::new();
+        params.0.iter().try_for_each(|entry| {
+            let mut data = Vec::from(entry);
+            if data.len() > size {
+                Err(format!(
+                    "The size of interpreted entry should be less than {}, actually {}",
+                    size,
+                    data.len()
+                ))
+            } else {
+                if data.len() < size {
+                    data.resize(size, 0);
+                }
+                entries.push(data);
+                Ok(())
+            }
+        })?;
+
+        entries.iter_mut().enumerate().try_for_each(|(i, entry)| {
+            let pos = 8 + i * size;
+            raw[pos..(pos + size)].copy_from_slice(entry);
+            Ok(())
+        })
+    }
+
+    fn deserialize(params: &mut TxStreamFormatParameters, raw: &[u8]) -> Result<(), String> {
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        let count = u32::from_be_bytes(quadlet) as usize;
+
+        quadlet.copy_from_slice(&raw[4..8]);
+        let size = 4 * u32::from_be_bytes(quadlet) as usize;
+
+        let mut entries = Vec::new();
+        (0..count)
+            .try_for_each(|i| {
+                let pos = 8 + i * size;
+                if raw[pos..].len() < size {
+                    Err(format!("Expected {}, actually {}", size, raw[pos..].len()))
+                } else {
+                    TxStreamFormatEntry::try_from(&raw[pos..(pos + size)])
+                        .map(|entry| entries.push(entry))
+                        .map_err(|e| e.message().to_string())
+                }
+            })
+            .map(|_| params.0 = entries)
+    }
+}
+
+impl<O: TcatOperation> TcatSectionOperation<TxStreamFormatParameters> for O {}
+
+impl<O: TcatSectionOperation<TxStreamFormatParameters>>
+    TcatMutableSectionOperation<TxStreamFormatParameters> for O
+{
+}
+
+impl<O: TcatSectionOperation<TxStreamFormatParameters>>
+    TcatNotifiedSectionOperation<TxStreamFormatParameters> for O
+{
+    const NOTIFY_FLAG: u32 = NOTIFY_TX_CFG_CHG;
+}
+
 /// Protocol implementation of tx stream format section.
 #[derive(Default)]
 pub struct TxStreamFormatSectionProtocol;
@@ -187,5 +276,45 @@ impl TxStreamFormatSectionProtocol {
 
             Ok(())
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    struct Protocol;
+
+    impl TcatOperation for Protocol {}
+
+    #[test]
+    fn tx_stream_format_params_serdes() {
+        let params = TxStreamFormatParameters(vec![
+            TxStreamFormatEntry {
+                iso_channel: 32,
+                pcm: 4,
+                midi: 2,
+                speed: 4,
+                labels: vec![
+                    "a".to_string(),
+                    "b".to_string(),
+                    "c".to_string(),
+                    "d".to_string(),
+                ],
+                iec60958: [Iec60958Param {
+                    cap: true,
+                    enable: false,
+                }; IEC60958_CHANNELS],
+            };
+            4
+        ]);
+        let mut raw = [0u8; 2048];
+        raw[..4].copy_from_slice(&4u32.to_be_bytes());
+        raw[4..8].copy_from_slice(&80u32.to_be_bytes());
+        Protocol::serialize(&params, &mut raw).unwrap();
+        let mut p = TxStreamFormatParameters(vec![Default::default(); 4]);
+        Protocol::deserialize(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
     }
 }

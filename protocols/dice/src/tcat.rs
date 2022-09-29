@@ -29,7 +29,10 @@ use {
 
 mod utils;
 
-pub use global_section::{GlobalParameters, TcatGlobalSectionSpecification};
+pub use {
+    global_section::{GlobalParameters, TcatGlobalSectionSpecification},
+    tx_stream_format_section::TxStreamFormatParameters,
+};
 
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -68,7 +71,7 @@ impl<T: Default + Debug> From<&[u8]> for Section<T> {
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct GeneralSections {
     pub global: Section<GlobalParameters>,
-    pub tx_stream_format: Section<()>,
+    pub tx_stream_format: Section<TxStreamFormatParameters>,
     pub rx_stream_format: Section<()>,
     pub ext_sync: Section<()>,
     pub reserved: Section<()>,
