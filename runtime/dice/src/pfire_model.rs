@@ -257,7 +257,7 @@ where
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .partial_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
