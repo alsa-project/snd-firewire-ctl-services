@@ -36,17 +36,6 @@ impl TcatGlobalSectionSpecification for Pfire2626Protocol {
     ]);
 }
 
-impl PfireClkSpec for Pfire2626Protocol {
-    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
-        ClockSource::Aes1,
-        ClockSource::Aes4,
-        ClockSource::Adat,
-        ClockSource::Tdif,
-        ClockSource::WordClock,
-        ClockSource::Internal,
-    ];
-}
-
 impl PfireSpecificOperation for Pfire2626Protocol {
     const HAS_OPT_IFACE_B: bool = true;
     const SUPPORT_STANDALONE_CONVERTER: bool = true;
@@ -152,28 +141,9 @@ impl TcatGlobalSectionSpecification for Pfire610Protocol {
         Some(&[ClockSource::Aes1, ClockSource::Internal]);
 }
 
-impl PfireClkSpec for Pfire610Protocol {
-    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[ClockSource::Aes1, ClockSource::Internal];
-}
-
 impl PfireSpecificOperation for Pfire610Protocol {
     const HAS_OPT_IFACE_B: bool = false;
     const SUPPORT_STANDALONE_CONVERTER: bool = false;
-}
-
-/// Available rates and sources of sampling clock.
-pub trait PfireClkSpec {
-    const AVAIL_CLK_RATES: &'static [ClockRate] = &[
-        ClockRate::R32000,
-        ClockRate::R44100,
-        ClockRate::R48000,
-        ClockRate::R88200,
-        ClockRate::R96000,
-        ClockRate::R176400,
-        ClockRate::R192000,
-    ];
-
-    const AVAIL_CLK_SRCS: &'static [ClockSource];
 }
 
 // NOTE: the second rx stream is firstly available at higher sampling rate.
