@@ -31,6 +31,7 @@ mod utils;
 
 pub use {
     global_section::{GlobalParameters, TcatGlobalSectionSpecification},
+    rx_stream_format_section::RxStreamFormatParameters,
     tx_stream_format_section::TxStreamFormatParameters,
 };
 
@@ -72,7 +73,7 @@ impl<T: Default + Debug> From<&[u8]> for Section<T> {
 pub struct GeneralSections {
     pub global: Section<GlobalParameters>,
     pub tx_stream_format: Section<TxStreamFormatParameters>,
-    pub rx_stream_format: Section<()>,
+    pub rx_stream_format: Section<RxStreamFormatParameters>,
     pub ext_sync: Section<()>,
     pub reserved: Section<()>,
 }
