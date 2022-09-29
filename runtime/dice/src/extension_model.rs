@@ -345,3 +345,16 @@ impl Tcd22xxCtlOperation<ExtensionProtocol> for ExtensionTcd22xxCtl {
         &mut self.0
     }
 }
+
+pub fn detect_extended_model(node: &mut FwNode) -> bool {
+    let mut req = FwReq::default();
+    let res = ProtocolExtension::read_extension_sections(&mut req, node, 100);
+
+    // MEMO: workaround for old firmware. Invalidate the negative effect by failure of
+    // previous transaction.
+    if res.is_err() {
+        let _ = GeneralProtocol::read_general_sections(&mut req, node, 100);
+    }
+
+    res.is_ok()
+}
