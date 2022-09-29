@@ -8,7 +8,7 @@
 use super::{utils::*, *};
 
 /// Nominal sampling rate.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClockRate {
     /// 32.0 kHz.
     R32000,
@@ -48,10 +48,6 @@ impl ClockRate {
     const ANY_MID_VAL: u8 = 0x08;
     const ANY_HIGH_VAL: u8 = 0x09;
     const NONE_VAL: u8 = 0x0a;
-
-    pub fn is_supported(&self, caps: &ClockCaps) -> bool {
-        caps.rate_bits & (1 << u8::from(*self)) > 0
-    }
 }
 
 impl Default for ClockRate {
@@ -118,28 +114,8 @@ impl TryFrom<u32> for ClockRate {
     }
 }
 
-impl std::fmt::Display for ClockRate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let label = match self {
-            Self::R32000 => "32000".to_string(),
-            Self::R44100 => "44100".to_string(),
-            Self::R48000 => "48000".to_string(),
-            Self::R88200 => "88200".to_string(),
-            Self::R96000 => "96000".to_string(),
-            Self::R176400 => "176400".to_string(),
-            Self::R192000 => "192000".to_string(),
-            Self::AnyLow => "Any-low".to_string(),
-            Self::AnyMid => "Any-mid".to_string(),
-            Self::AnyHigh => "Any-high".to_string(),
-            Self::None => "None".to_string(),
-            Self::Reserved(val) => format!("Reserved({})", val),
-        };
-        write!(f, "{}", label)
-    }
-}
-
 /// Nominal sampling rate.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClockSource {
     /// IEC 60958 receiver 0.
     Aes1,
@@ -191,43 +167,6 @@ impl ClockSource {
     const ARX3_VAL: u8 = 0x0a;
     const ARX4_VAL: u8 = 0x0b;
     const INTERNAL_VAL: u8 = 0x0c;
-
-    pub fn is_supported(&self, caps: &ClockCaps, labels: &ClockSourceLabels) -> bool {
-        let idx = u8::from(*self) as usize;
-        (caps.src_bits & (1u16 << idx) > 0)
-            && labels
-                .entries
-                .iter()
-                .nth(idx)
-                .filter(|&l| l != "Unused" && l != "unused")
-                .is_some()
-    }
-
-    pub fn get_label<'a>(&self, labels: &'a ClockSourceLabels, is_ext: bool) -> Option<&'a str> {
-        if is_ext && *self == ClockSource::Arx1 {
-            Some("Stream")
-        } else {
-            let idx = u8::from(*self) as usize;
-            labels.entries.iter().nth(idx).map(|l| l.as_str())
-        }
-    }
-
-    fn parse(src: ClockSource, flags: u16) -> bool {
-        ExtSourceStates::SRCS
-            .iter()
-            .enumerate()
-            .find(|&(_, &s)| s == src)
-            .map(|(i, _)| flags & (1 << i) > 0)
-            .unwrap_or(false)
-    }
-
-    pub fn is_locked(&self, states: &ExtSourceStates) -> bool {
-        Self::parse(*self, states.locked_bits)
-    }
-
-    pub fn is_slipped(&self, states: &ExtSourceStates) -> bool {
-        Self::parse(*self, states.slipped_bits)
-    }
 }
 
 impl From<u8> for ClockSource {
@@ -272,30 +211,8 @@ impl From<ClockSource> for u8 {
     }
 }
 
-impl std::fmt::Display for ClockSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let label = match self {
-            Self::Aes1 => "AES1".to_string(),
-            Self::Aes2 => "AES2".to_string(),
-            Self::Aes3 => "AES3".to_string(),
-            Self::Aes4 => "AES4".to_string(),
-            Self::AesAny => "AES-ANY".to_string(),
-            Self::Adat => "ADAT".to_string(),
-            Self::Tdif => "TDIF".to_string(),
-            Self::WordClock => "Word-Clock".to_string(),
-            Self::Arx1 => "ARX1".to_string(),
-            Self::Arx2 => "ARX2".to_string(),
-            Self::Arx3 => "ARX3".to_string(),
-            Self::Arx4 => "ARX4".to_string(),
-            Self::Internal => "Internal".to_string(),
-            Self::Reserved(val) => format!("Reserved({})", val),
-        };
-        write!(f, "{}", label)
-    }
-}
-
 /// Configuration of clock.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClockConfig {
     /// For frequency of media clock.
     pub rate: ClockRate,
@@ -330,7 +247,7 @@ impl From<ClockConfig> for u32 {
 }
 
 /// Status of sampling clock.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClockStatus {
     /// Whether the current clock source is locked.
     pub src_is_locked: bool,
@@ -354,143 +271,6 @@ impl From<u32> for ClockStatus {
             rate,
         }
     }
-}
-
-/// States of available clock source.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct ExtSourceStates {
-    locked_bits: u16,
-    slipped_bits: u16,
-}
-
-impl ExtSourceStates {
-    const LOCKED_BITS_MASK: u32 = 0x0000ffff;
-    const LOCKED_BITS_SHIFT: usize = 0;
-    const SLIPPED_BITS_MASK: u32 = 0xffff0000;
-    const SLIPPED_BITS_SHIFT: usize = 16;
-
-    const SRCS: [ClockSource; 11] = [
-        ClockSource::Aes1,
-        ClockSource::Aes2,
-        ClockSource::Aes3,
-        ClockSource::Aes4,
-        ClockSource::Adat,
-        ClockSource::Tdif,
-        ClockSource::Arx1,
-        ClockSource::Arx2,
-        ClockSource::Arx3,
-        ClockSource::Arx4,
-        ClockSource::WordClock,
-    ];
-
-    pub fn get_entries(caps: &ClockCaps, labels: &ClockSourceLabels) -> Vec<ClockSource> {
-        Self::SRCS
-            .iter()
-            .filter(|&s| s.is_supported(caps, labels) || *s == ClockSource::Arx1)
-            .copied()
-            .collect()
-    }
-}
-
-impl From<u32> for ExtSourceStates {
-    fn from(val: u32) -> Self {
-        let locked_bits = ((val & Self::LOCKED_BITS_MASK) >> Self::LOCKED_BITS_SHIFT) as u16;
-        let slipped_bits = ((val & Self::SLIPPED_BITS_MASK) >> Self::SLIPPED_BITS_SHIFT) as u16;
-        ExtSourceStates {
-            locked_bits,
-            slipped_bits,
-        }
-    }
-}
-
-/// Capabilities of clock configurations.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct ClockCaps {
-    pub rate_bits: u16,
-    pub src_bits: u16,
-}
-
-impl ClockCaps {
-    const RATE_MASK: u32 = 0x0000ffff;
-    const RATE_SHIFT: usize = 0;
-    const SRC_MASK: u32 = 0xffff0000;
-    const SRC_SHIFT: usize = 16;
-
-    const RATES: [ClockRate; 11] = [
-        ClockRate::R32000,
-        ClockRate::R44100,
-        ClockRate::R48000,
-        ClockRate::R88200,
-        ClockRate::R96000,
-        ClockRate::R176400,
-        ClockRate::R192000,
-        ClockRate::AnyLow,
-        ClockRate::AnyMid,
-        ClockRate::AnyHigh,
-        ClockRate::None,
-    ];
-
-    const SRCS: [ClockSource; 13] = [
-        ClockSource::Aes1,
-        ClockSource::Aes2,
-        ClockSource::Aes3,
-        ClockSource::Aes4,
-        ClockSource::AesAny,
-        ClockSource::Adat,
-        ClockSource::Tdif,
-        ClockSource::WordClock,
-        ClockSource::Arx1,
-        ClockSource::Arx2,
-        ClockSource::Arx3,
-        ClockSource::Arx4,
-        ClockSource::Internal,
-    ];
-
-    pub fn new(rates: &[ClockRate], srcs: &[ClockSource]) -> Self {
-        let rate_bits = rates
-            .iter()
-            .fold(0, |val, &r| val | (1 << u8::from(r) as u16));
-        let src_bits = srcs
-            .iter()
-            .fold(0, |val, &s| val | (1 << u8::from(s) as u16));
-        ClockCaps {
-            rate_bits,
-            src_bits,
-        }
-    }
-
-    pub fn get_rate_entries(&self) -> Vec<ClockRate> {
-        Self::RATES
-            .iter()
-            .filter(|&r| r.is_supported(self))
-            .copied()
-            .collect()
-    }
-
-    pub fn get_src_entries(&self, labels: &ClockSourceLabels) -> Vec<ClockSource> {
-        Self::SRCS
-            .iter()
-            .filter(|s| s.is_supported(self, labels))
-            .copied()
-            .collect()
-    }
-}
-
-impl From<u32> for ClockCaps {
-    fn from(val: u32) -> Self {
-        let rate_bits = ((val & Self::RATE_MASK) >> Self::RATE_SHIFT) as u16;
-        let src_bits = ((val & Self::SRC_MASK) >> Self::SRC_SHIFT) as u16;
-        ClockCaps {
-            rate_bits,
-            src_bits,
-        }
-    }
-}
-
-/// Labels for source of sampling clock.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct ClockSourceLabels {
-    pub entries: Vec<String>,
 }
 
 /// The states of external signal sources of sampling clock.
@@ -566,6 +346,50 @@ const CLOCK_SOURCE_STREAM_LABEL_TABLE: [(ClockSource, &'static str); 4] = [
     (ClockSource::Arx4, "Stream-4"),
 ];
 
+const CLOCK_CAPS_RATE_TABLE: [ClockRate; 11] = [
+    ClockRate::R32000,
+    ClockRate::R44100,
+    ClockRate::R48000,
+    ClockRate::R88200,
+    ClockRate::R96000,
+    ClockRate::R176400,
+    ClockRate::R192000,
+    ClockRate::AnyLow,
+    ClockRate::AnyMid,
+    ClockRate::AnyHigh,
+    ClockRate::None,
+];
+
+const CLOCK_CAPS_SRC_TABLE: [ClockSource; 13] = [
+    ClockSource::Aes1,
+    ClockSource::Aes2,
+    ClockSource::Aes3,
+    ClockSource::Aes4,
+    ClockSource::AesAny,
+    ClockSource::Adat,
+    ClockSource::Tdif,
+    ClockSource::WordClock,
+    ClockSource::Arx1,
+    ClockSource::Arx2,
+    ClockSource::Arx3,
+    ClockSource::Arx4,
+    ClockSource::Internal,
+];
+
+const EXTERNAL_CLOCK_SOURCE_TABLE: [ClockSource; 11] = [
+    ClockSource::Aes1,
+    ClockSource::Aes2,
+    ClockSource::Aes3,
+    ClockSource::Aes4,
+    ClockSource::Adat,
+    ClockSource::Tdif,
+    ClockSource::Arx1,
+    ClockSource::Arx2,
+    ClockSource::Arx3,
+    ClockSource::Arx4,
+    ClockSource::WordClock,
+];
+
 impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<GlobalParameters> for O {
     const MIN_SIZE: usize = 96;
 
@@ -605,7 +429,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
             let rate_bits = (val & 0x0000ffff) as u16;
             let src_bits = ((val & 0xffff0000) >> 16) as u16;
 
-            let avail_rates = ClockCaps::RATES
+            let avail_rates = CLOCK_CAPS_RATE_TABLE
                 .iter()
                 .enumerate()
                 .filter(|(i, _)| rate_bits & (1 << i) > 0)
@@ -618,7 +442,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
             labels
                 .iter_mut()
                 .filter(|(src, _)| {
-                    ClockCaps::SRCS
+                    CLOCK_CAPS_SRC_TABLE
                         .iter()
                         .enumerate()
                         .find(|(i, s)| src.eq(s) && (src_bits & (1 << i)) > 0)
@@ -636,7 +460,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
             let avail_srcs = if let Some(table) = Self::AVAILABLE_CLOCK_SOURCE_OVERRIDE {
                 table.to_vec()
             } else {
-                ClockCaps::SRCS
+                CLOCK_CAPS_SRC_TABLE
                     .iter()
                     .enumerate()
                     .filter(|(i, _)| src_bits & (1 << i) > 0)
@@ -706,18 +530,18 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         let locked_bits = (val & 0x0000ffff) as u16;
         let slipped_bits = ((val & 0xffff0000) >> 16) as u16;
 
-        let srcs: Vec<ClockSource> = ExtSourceStates::SRCS
+        let srcs: Vec<ClockSource> = EXTERNAL_CLOCK_SOURCE_TABLE
             .iter()
             .filter(|src| src_labels.iter().find(|(s, _)| src.eq(&s)).is_some())
             .copied()
             .collect();
-        let locked: Vec<bool> = ExtSourceStates::SRCS
+        let locked: Vec<bool> = EXTERNAL_CLOCK_SOURCE_TABLE
             .iter()
             .enumerate()
             .filter(|(_, src)| srcs.iter().find(|s| src.eq(s)).is_some())
             .map(|(i, _)| locked_bits & (1 << i) > 0)
             .collect();
-        let slipped: Vec<bool> = ExtSourceStates::SRCS
+        let slipped: Vec<bool> = EXTERNAL_CLOCK_SOURCE_TABLE
             .iter()
             .enumerate()
             .filter(|(_, src)| srcs.iter().find(|s| src.eq(s)).is_some())
@@ -765,299 +589,6 @@ impl<O: TcatSectionOperation<GlobalParameters>> TcatFluctuatedSectionOperation<G
 
 /// The maximum size of nickname in bytes.
 pub const NICKNAME_MAX_SIZE: usize = 64;
-
-/// Protocol implementaion of global section.
-pub struct GlobalSectionProtocol;
-
-const OWNER_OFFSET: usize = 0x00;
-const LATEST_NOTIFICATION_OFFSET: usize = 0x04;
-const NICKNAME_OFFSET: usize = 0x0c;
-const CLK_SELECT_OFFSET: usize = 0x4c;
-const ENABLED_OFFSET: usize = 0x50;
-const STATUS_OFFSET: usize = 0x54;
-const CLK_SRC_STATES_OFFSET: usize = 0x58;
-const CURRENT_RATE_OFFSET: usize = 0x5c;
-const VERSION_OFFSET: usize = 0x60;
-const CLK_CAPS_OFFSET: usize = 0x64;
-const CLK_NAMES_OFFSET: usize = 0x68;
-
-impl GlobalSectionProtocol {
-    const CLK_NAMES_MAX_SIZE: usize = 256;
-
-    pub fn read_owner_addr(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<u64, Error> {
-        let mut data = [0; 8];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + OWNER_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| {
-            let mut quadlet = [0; 4];
-            quadlet.copy_from_slice(&data[..4]);
-            let mut addr = (u32::from_be_bytes(quadlet) as u64) << 32;
-
-            quadlet.copy_from_slice(&data[4..8]);
-            addr |= u32::from_be_bytes(quadlet) as u64;
-
-            addr
-        })
-    }
-
-    pub fn read_latest_notification(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<u32, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + LATEST_NOTIFICATION_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| u32::from_be_bytes(data))
-    }
-
-    pub fn write_nickname<N>(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        name: N,
-        timeout_ms: u32,
-    ) -> Result<(), Error>
-    where
-        N: AsRef<str>,
-    {
-        let mut data = build_label(name, NICKNAME_MAX_SIZE);
-        GeneralProtocol::write(
-            req,
-            node,
-            sections.global.offset + NICKNAME_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-    }
-
-    pub fn read_nickname(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<String, Error> {
-        let mut data = vec![0; NICKNAME_MAX_SIZE];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + NICKNAME_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .and_then(|_| {
-            parse_label(&data[..]).map_err(|e| {
-                let msg = format!("Fail to parse data for string: {}", e);
-                Error::new(GeneralProtocolError::Global, &msg)
-            })
-        })
-    }
-
-    pub fn write_clock_config(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        config: ClockConfig,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 4];
-        let val = u32::from(config);
-        data.copy_from_slice(&val.to_be_bytes());
-        GeneralProtocol::write(
-            req,
-            node,
-            sections.global.offset + CLK_SELECT_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-    }
-
-    pub fn read_clock_config(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ClockConfig, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + CLK_SELECT_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| ClockConfig::from(u32::from_be_bytes(data)))
-    }
-
-    pub fn read_enabled(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + ENABLED_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| u32::from_be_bytes(data) > 0)
-    }
-
-    pub fn read_clock_status(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ClockStatus, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + STATUS_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| ClockStatus::from(u32::from_be_bytes(data)))
-    }
-
-    pub fn read_clock_source_states(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ExtSourceStates, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + CLK_SRC_STATES_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| ExtSourceStates::from(u32::from_be_bytes(data)))
-    }
-
-    pub fn read_current_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<u32, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + CURRENT_RATE_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| u32::from_be_bytes(data))
-    }
-
-    pub fn read_version(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<u32, Error> {
-        let mut data = [0; 4];
-        GeneralProtocol::read(
-            req,
-            node,
-            sections.global.offset + VERSION_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-        .map(|_| u32::from_be_bytes(data))
-    }
-
-    pub fn read_clock_caps(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ClockCaps, Error> {
-        if sections.global.size > CLK_CAPS_OFFSET {
-            let mut data = [0; 4];
-            GeneralProtocol::read(
-                req,
-                node,
-                sections.global.offset + CLK_CAPS_OFFSET,
-                &mut data,
-                timeout_ms,
-            )
-            .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-            .map(|_| ClockCaps::from(u32::from_be_bytes(data)))
-        } else {
-            let caps = ClockCaps::new(
-                &[ClockRate::R44100, ClockRate::R48000],
-                &[ClockSource::Internal],
-            );
-            Ok(caps)
-        }
-    }
-
-    pub fn read_clock_source_labels(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &GeneralSections,
-        timeout_ms: u32,
-    ) -> Result<ClockSourceLabels, Error> {
-        if sections.global.size > Self::CLK_NAMES_MAX_SIZE {
-            let mut data = vec![0; Self::CLK_NAMES_MAX_SIZE];
-            GeneralProtocol::read(
-                req,
-                node,
-                sections.global.offset + CLK_NAMES_OFFSET,
-                &mut data,
-                timeout_ms,
-            )
-            .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
-            .and_then(|_| {
-                parse_labels(&data[..])
-                    .map_err(|e| {
-                        let msg = format!("Fail to parse data for strings: {}", e);
-                        Error::new(GeneralProtocolError::Global, &msg)
-                    })
-                    .map(|entries| ClockSourceLabels { entries })
-            })
-        } else {
-            let mut entries = vec!["".to_string(); 12];
-            entries.push("Internal".to_string());
-            Ok(ClockSourceLabels { entries })
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
