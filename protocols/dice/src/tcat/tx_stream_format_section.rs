@@ -8,13 +8,19 @@
 use super::{utils::*, *};
 
 /// Entry for stream format in stream transmitted by the node.
-#[derive(Default, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TxStreamFormatEntry {
+    /// The channel number for isochronous packet stream.
     pub iso_channel: i8,
+    /// The number of PCM channels.
     pub pcm: u32,
+    /// The number of MIDI ports.
     pub midi: u32,
+    /// The code to express transferring speed defined in IEEE 1394 specification.
     pub speed: u32,
+    /// The list of names for data channel.
     pub labels: Vec<String>,
+    /// The mode for each channel of IEC 60958.
     pub iec60958: [Iec60958Param; IEC60958_CHANNELS],
 }
 
