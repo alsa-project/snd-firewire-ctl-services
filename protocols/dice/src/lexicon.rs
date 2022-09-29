@@ -20,7 +20,12 @@ const METER_OFFSET: usize = 0x0500;
 const EFFECT_OFFSET: usize = 0x4000;
 
 /// Protocol implementation specific to Lexicon I-ONIX FW810s.
+#[derive(Default, Debug)]
 pub struct IonixProtocol;
+
+impl TcatOperation for IonixProtocol {}
+
+impl TcatGlobalSectionSpecification for IonixProtocol {}
 
 fn lexicon_read(
     req: &mut FwReq,
