@@ -8,13 +8,19 @@
 use super::{utils::*, *};
 
 /// Entry for stream format in stream received by the node.
-#[derive(Default, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RxStreamEntry {
+    /// The channel number for isochronous packet stream.
     pub iso_channel: i8,
+    /// The start position of data channels from the beginning of payload in quadlet count.
     pub start: u32,
+    /// The number of PCM channels.
     pub pcm: u32,
+    /// The number of MIDI ports.
     pub midi: u32,
+    /// The list of names for data channel.
     pub labels: Vec<String>,
+    /// The mode for each channel of IEC 60958.
     pub iec60958: [Iec60958Param; IEC60958_CHANNELS],
 }
 

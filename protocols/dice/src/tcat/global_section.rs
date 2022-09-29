@@ -10,17 +10,29 @@ use super::{utils::*, *};
 /// Nominal sampling rate.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClockRate {
+    /// 32.0 kHz.
     R32000,
+    /// 44.1 kHz.
     R44100,
+    /// 48.0 kHz.
     R48000,
+    /// 88.2 kHz.
     R88200,
+    /// 96.0 kHz.
     R96000,
+    /// 176.4 kHz.
     R176400,
+    /// 192.0 kHz.
     R192000,
+    /// Smaller than 48.0 kHz.
     AnyLow,
+    /// Between 48.0 and 96.0 kHz.
     AnyMid,
+    /// Larger than 96.0 kHz.
     AnyHigh,
+    /// Not available.
     None,
+    /// Unspecified
     Reserved(u8),
 }
 
@@ -129,19 +141,33 @@ impl std::fmt::Display for ClockRate {
 /// Nominal sampling rate.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClockSource {
+    /// IEC 60958 receiver 0.
     Aes1,
+    /// IEC 60958 receiver 1.
     Aes2,
+    /// IEC 60958 receiver 2.
     Aes3,
+    /// IEC 60958 receiver 3.
     Aes4,
+    /// Any IEC 60958 receiver.
     AesAny,
+    /// ADAT receiver.
     Adat,
+    /// TDIF receiver.
     Tdif,
+    /// Word clock.
     WordClock,
+    /// Audio Video System Receiver 0.
     Arx1,
+    /// Audio Video System Receiver 1.
     Arx2,
+    /// Audio Video System Receiver 2.
     Arx3,
+    /// Audio Video System Receiver 3.
     Arx4,
+    /// Internal oscillator.
     Internal,
+    /// Unspecified.
     Reserved(u8),
 }
 
@@ -271,7 +297,9 @@ impl std::fmt::Display for ClockSource {
 /// Configuration of clock.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ClockConfig {
+    /// For frequency of media clock.
     pub rate: ClockRate,
+    /// For signal source of sampling clock.
     pub src: ClockSource,
 }
 
@@ -304,7 +332,9 @@ impl From<ClockConfig> for u32 {
 /// Status of sampling clock.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ClockStatus {
+    /// Whether the current clock source is locked.
     pub src_is_locked: bool,
+    /// The detected frequency of media clock.
     pub rate: ClockRate,
 }
 

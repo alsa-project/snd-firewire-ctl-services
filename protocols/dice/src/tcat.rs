@@ -39,9 +39,13 @@ pub use {
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Section<T: Default + Debug> {
+    /// Parameters as intermediate expression.
     pub params: T,
+    /// The offset of section in specific address space.
     pub offset: usize,
+    /// The size of section.
     pub size: usize,
+    /// The raw data as hardware cache.
     raw: Vec<u8>,
 }
 
@@ -72,9 +76,13 @@ impl<T: Default + Debug> From<&[u8]> for Section<T> {
 /// The sset of sections in CSR of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct GeneralSections {
+    /// For global settings.
     pub global: Section<GlobalParameters>,
+    /// For tx stream format settings.
     pub tx_stream_format: Section<TxStreamFormatParameters>,
+    /// For rx stream format settings.
     pub rx_stream_format: Section<RxStreamFormatParameters>,
+    /// For extended status of synchronization for signal sources of sampling clock.
     pub ext_sync: Section<ExtendedSyncParameters>,
     pub reserved: Section<()>,
 }
@@ -114,9 +122,13 @@ pub trait TcatSectionSerdes<T> {
 /// Any error of general protocol.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GeneralProtocolError {
+    /// Error to operate for global settings.
     Global,
+    /// Error to operate for tx stream format settings.
     TxStreamFormat,
+    /// Error to operate for rx stream format settings.
     RxStreamFormat,
+    /// Error to operate for external synchronization states.
     ExtendedSync,
     Invalid(i32),
 }
@@ -447,7 +459,9 @@ impl GeneralProtocol {
 /// Parameter of stream format for IEC 60958.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Iec60958Param {
+    /// The corresponding channel supports IEC 60958 bit stream.
     pub cap: bool,
+    /// The corresponding channel is enabled for IEC 60958 bit stream.
     pub enable: bool,
 }
 
