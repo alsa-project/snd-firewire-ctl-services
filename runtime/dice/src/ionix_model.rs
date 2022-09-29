@@ -7,7 +7,7 @@ use {super::*, protocols::lexicon::*};
 pub struct IonixModel {
     req: FwReq,
     sections: GeneralSections,
-    ctl: CommonCtl,
+    common_ctl: CommonCtl,
     meter_ctl: MeterCtl,
     mixer_ctl: MixerCtl,
 }
@@ -16,32 +16,23 @@ const TIMEOUT_MS: u32 = 20;
 
 impl IonixModel {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        IonixProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.common_ctl
+            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for IonixModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        let caps = GlobalSectionProtocol::read_clock_caps(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.common_ctl.load(card_cntr, &self.sections).map(
+            |(measured_elem_id_list, notified_elem_id_list)| {
+                self.common_ctl.0 = measured_elem_id_list;
+                self.common_ctl.1 = notified_elem_id_list;
+            },
         )?;
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
@@ -55,14 +46,7 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self
             .mixer_ctl
@@ -81,12 +65,12 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
+        if self.common_ctl.write(
+            &unit.0,
+            &self.req,
+            &unit.1,
+            &mut self.sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -104,12 +88,12 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
 
 impl NotifyModel<(SndDice, FwNode), u32> for IonixModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+        self.common_ctl
+            .parse_notification(&self.req, &unit.1, &mut self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
@@ -118,19 +102,19 @@ impl NotifyModel<(SndDice, FwNode), u32> for IonixModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.ctl.read_notified_elem(elem_id, elem_value)
+        self.common_ctl.read(&self.sections, elem_id, elem_value)
     }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for IonixModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.meter_ctl.measured_elem_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.common_ctl
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -142,7 +126,7 @@ impl MeasureModel<(SndDice, FwNode)> for IonixModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.measure_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
             Ok(true)
@@ -151,6 +135,11 @@ impl MeasureModel<(SndDice, FwNode)> for IonixModel {
         }
     }
 }
+
+#[derive(Default, Debug)]
+struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
+
+impl CommonCtlOperation<IonixProtocol> for CommonCtl {}
 
 #[derive(Default, Debug)]
 struct MeterCtl {
