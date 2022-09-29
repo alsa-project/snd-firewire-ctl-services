@@ -8,7 +8,7 @@ pub struct SPro26Model {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
-    ctl: CommonCtl,
+    common_ctl: CommonCtl,
     tcd22xx_ctl: SPro26Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
 }
@@ -30,8 +30,10 @@ impl OutGroupCtlOperation<SPro26Protocol> for OutGroupCtl {
 
 impl SPro26Model {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        SPro26Protocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.common_ctl
+            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -43,29 +45,12 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let caps = GlobalSectionProtocol::read_clock_caps(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
+        self.common_ctl.load(card_cntr, &self.sections).map(
+            |(measured_elem_id_list, notified_elem_id_list)| {
+                self.common_ctl.0 = measured_elem_id_list;
+                self.common_ctl.1 = notified_elem_id_list;
+            },
         )?;
-        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
-            &mut self.req,
-            &mut unit.1,
-            &self.sections,
-            TIMEOUT_MS,
-        )?;
-        self.ctl.load(card_cntr, &caps, &src_labels)?;
-
-        let avail_rates = caps.get_rate_entries();
-        let avail_sources = caps.get_src_entries(&src_labels);
-        let clock_source_labels: Vec<(ClockSource, String)> = avail_sources
-            .iter()
-            .filter_map(|&src| {
-                src.get_label(&src_labels, false)
-                    .map(|l| (src, l.to_string()))
-            })
-            .collect();
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -73,9 +58,9 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
             unit,
             &mut self.req,
             &self.extension_sections,
-            &avail_rates,
-            &avail_sources,
-            &clock_source_labels,
+            &self.sections.global.params.avail_rates,
+            &self.sections.global.params.avail_sources,
+            &self.sections.global.params.clock_source_labels,
             TIMEOUT_MS,
             card_cntr,
         )?;
@@ -107,14 +92,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read(
-            unit,
-            &mut self.req,
-            &self.sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
             unit,
@@ -139,12 +117,12 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.write(
-            unit,
-            &mut self.req,
-            &self.sections,
+        if self.common_ctl.write(
+            &unit.0,
+            &self.req,
+            &unit.1,
+            &mut self.sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -176,14 +154,19 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
 
 impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.1);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
         elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+        self.common_ctl.parse_notification(
+            &self.req,
+            &unit.1,
+            &mut self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.parse_notification(
             unit,
             &mut self.req,
@@ -208,7 +191,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read_notified_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
@@ -222,13 +205,13 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
 
 impl MeasureModel<(SndDice, FwNode)> for SPro26Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.0);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.common_ctl
+            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -244,7 +227,7 @@ impl MeasureModel<(SndDice, FwNode)> for SPro26Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.measure_elem(elem_id, elem_value)? {
+        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.measure_elem(elem_id, elem_value)? {
             Ok(true)
@@ -253,6 +236,11 @@ impl MeasureModel<(SndDice, FwNode)> for SPro26Model {
         }
     }
 }
+
+#[derive(Default, Debug)]
+struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
+
+impl CommonCtlOperation<SPro26Protocol> for CommonCtl {}
 
 #[derive(Default)]
 struct SPro26Tcd22xxCtl(Tcd22xxCtl);
