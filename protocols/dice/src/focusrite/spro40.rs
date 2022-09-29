@@ -12,8 +12,12 @@ const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
 const IO_FLAGS_OFFSET: usize = 0x005c;
 
 /// Protocol implementation specific to Saffire Pro 40.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SPro40Protocol;
+
+impl TcatOperation for SPro40Protocol {}
+
+impl TcatGlobalSectionSpecification for SPro40Protocol {}
 
 impl Tcd22xxSpecOperation for SPro40Protocol {
     const INPUTS: &'static [Input] = &[

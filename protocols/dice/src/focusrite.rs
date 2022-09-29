@@ -14,7 +14,10 @@ pub mod spro26;
 pub mod spro40;
 
 use super::{
-    tcat::extension::{appl_section::*, *},
+    tcat::{
+        extension::{appl_section::*, *},
+        *,
+    },
     *,
 };
 
