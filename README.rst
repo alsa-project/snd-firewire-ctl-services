@@ -87,9 +87,6 @@ Execute temporarily ::
 All of executables can print help when either ``--help`` or ``-h`` is given as an argument of
 command line.
 
-Some executables support debug logging as well when either ``-l`` or ``--log-level`` is given
-with log level. At present, ``debug`` is just supported only for ``snd-bebob-ctl-service``.
-
 Install executables ::
 
     $ cargo install --path (path to runtime crate)
@@ -270,6 +267,21 @@ Supported protocols
    * Protocol extension for TCD2210/TCD2220 ASIC in Digital Interface Communication Engine (DICE)
    * Protocol for former models of Fireface series of RME GmbH
    * Protocol for latter models of Fireface series of RME GmbH
+
+Runtime debugging
+=================
+
+Some executables support an option for log level for debugging. When either ``-l`` or
+``--log-level`` is given with log level, they prints verbose logs to standard output.
+At present, ``debug`` is just supported for the log level.
+
+Currently this function is available for below executables:
+
+* snd-bebob-ctl-service
+* snd-dice-ctl-service
+
+This function is implemented by `tracing <https://crates.io/crates/tracing>`_ and
+`tracing-subscriber <https://crates.io/crates/tracing-subscriber>`_ crates.
 
 Design note
 ===========
