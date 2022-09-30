@@ -32,7 +32,7 @@ use {
     nix::sys::signal,
     protocols::tcat::{global_section::*, *},
     std::sync::mpsc,
-    tracing::Level,
+    tracing::{debug, debug_span, Level},
 };
 
 enum Event {
@@ -98,64 +98,89 @@ impl RuntimeOperation<u32> for DiceRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
 
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measured_elem_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
+        enter.exit();
 
         Ok(())
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
-            if let Ok(ev) = self.rx.recv() {
-                match ev {
-                    Event::Shutdown => break,
-                    Event::Disconnected => break,
-                    Event::BusReset(generation) => {
-                        println!("IEEE 1394 bus is updated: {}", generation);
-                    }
-                    Event::Elem(elem_id, events) => {
-                        if elem_id.name() != Self::TIMER_NAME {
-                            let _ = self.model.dispatch_elem_event(
-                                &mut self.unit,
-                                &mut self.card_cntr,
-                                &elem_id,
-                                &events,
-                            );
-                        } else {
-                            let mut elem_value = ElemValue::new();
-                            let _ = self
-                                .card_cntr
-                                .card
-                                .read_elem_value(&elem_id, &mut elem_value)
-                                .map(|_| {
-                                    let val = elem_value.boolean()[0];
-                                    if val {
-                                        let _ = self.start_interval_timer();
-                                    } else {
-                                        self.stop_interval_timer();
-                                    }
-                                });
-                        }
-                    }
-                    Event::Notify(msg) => {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                Event::Shutdown => break,
+                Event::Disconnected => break,
+                Event::BusReset(generation) => {
+                    debug!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem(elem_id, events) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
+                    if elem_id.name() != Self::TIMER_NAME {
+                        let _ = self.model.dispatch_elem_event(
+                            &mut self.unit,
+                            &mut self.card_cntr,
+                            &elem_id,
+                            &events,
+                        );
+                    } else {
+                        let mut elem_value = ElemValue::new();
                         let _ = self
-                            .model
-                            .dispatch_msg(&mut self.unit, &mut self.card_cntr, msg);
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .map(|_| {
+                                let val = elem_value.boolean()[0];
+                                if val {
+                                    let _ = self.start_interval_timer();
+                                } else {
+                                    self.stop_interval_timer();
+                                }
+                            });
                     }
-                    Event::Timer => {
-                        let _ = self
-                            .model
-                            .measure_elems(&mut self.unit, &mut self.card_cntr);
-                    }
+                }
+                Event::Notify(msg) => {
+                    let _enter = debug_span!("notify").entered();
+                    debug!("msg = 0x{:08x}", msg);
+                    let _ = self
+                        .model
+                        .dispatch_msg(&mut self.unit, &mut self.card_cntr, msg);
+                }
+                Event::Timer => {
+                    let _enter = debug_span!("timer").entered();
+                    let _ = self
+                        .model
+                        .measure_elems(&mut self.unit, &mut self.card_cntr);
                 }
             }
         }
+
+        enter.exit();
+
         Ok(())
     }
 }
