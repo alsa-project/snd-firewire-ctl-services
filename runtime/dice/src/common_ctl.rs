@@ -28,13 +28,23 @@ where
         sections: &mut GeneralSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::whole_cache(req, node, &mut sections.global, timeout_ms)?;
-        T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms)?;
-        T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms)?;
+        let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
+        debug!(params = ?sections.global.params, ?res);
+        res?;
+
+        let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
+        debug!(params = ?sections.tx_stream_format.params, ?res);
+        res?;
+
+        let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
+        debug!(params = ?sections.rx_stream_format.params, ?res);
+        res?;
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
-            T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms)?;
+            let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
+            debug!(params = ?sections.ext_sync.params, ?res);
+            res?;
         }
 
         Ok(())
@@ -202,6 +212,7 @@ where
                 unit.lock()?;
                 let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
                 let _ = unit.unlock();
+                debug!(?params, ?res);
                 res.map(|_| true)
             }
             CLK_SRC_NAME => {
@@ -226,6 +237,7 @@ where
                 unit.lock()?;
                 let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
                 let _ = unit.unlock();
+                debug!(?params, ?res);
                 res.map(|_| true)
             }
             NICKNAME => {
@@ -235,8 +247,9 @@ where
                     let msg = format!("Invalid bytes for string: {}", e);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                T::partial_update(req, node, &params, &mut sections.global, timeout_ms)?;
-                Ok(true)
+                let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
+                debug!(?params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -249,11 +262,15 @@ where
         sections: &mut GeneralSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::partial_cache(req, node, &mut sections.global, timeout_ms)?;
+        let res = T::partial_cache(req, node, &mut sections.global, timeout_ms);
+        debug!(params = ?sections.global.params, ?res);
+        res?;
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
-            T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms)?;
+            let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
+            debug!(params = ?sections.ext_sync.params, ?res);
+            res?;
         }
 
         Ok(())
@@ -268,13 +285,19 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if T::notified(&sections.global, msg) {
-            T::whole_cache(req, node, &mut sections.global, timeout_ms)?;
+            let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
+            debug!(params = ?sections.global.params, ?res);
+            res?;
         }
         if T::notified(&sections.tx_stream_format, msg) {
-            T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms)?;
+            let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
+            debug!(params = ?sections.global.params, ?res);
+            res?;
         }
         if T::notified(&sections.rx_stream_format, msg) {
-            T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms)?;
+            let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
+            debug!(params = ?sections.global.params, ?res);
+            res?;
         }
 
         Ok(())
