@@ -32,6 +32,7 @@ use {
     nix::sys::signal,
     protocols::tcat::{global_section::*, *},
     std::sync::mpsc,
+    tracing::Level,
 };
 
 enum Event {
@@ -54,7 +55,14 @@ pub struct DiceRuntime {
 }
 
 impl RuntimeOperation<u32> for DiceRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let unit = SndDice::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;
