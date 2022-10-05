@@ -5,6 +5,27 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Desktop Konnekt 6.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!                  +-------+
+//! XLR input -----> |       |
+//!                  | input | -> analog input-1/2 -----------> stream-output-1/2
+//! Phone input 1 -> | scene |          |          (unused) --> stream-output-3/4
+//! Phone input 2 -> |       |          |          (unused) --> stream-output-5/6
+//!                  +-------+          v
+//!                                ++=======++
+//!                                || 4 x 2 ||
+//!                         +----> ||       || -----+---------> analog-output-1/2 (main)
+//!                         |      || mixer ||      |
+//!                         |      ++=======++      |
+//! stream-input-1/2 -------+                       |
+//! stream-input-3/4 -------------------------------or--------> analog-output-3/4 (headphone)
+//! stream-input-5/6 --> (unused)
+//! ```
+//!
+//! Reverb effect is not implemented in hardware, while control items are in hardware surface.
 
 use super::tcelectronic::*;
 
@@ -58,8 +79,11 @@ segment_default!(Desktopk6Protocol, DesktopMeter);
 /// Target of meter.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MeterTarget {
+    /// Analog input 1/2.
     Input,
+    /// Mixer output 1/2 before volume adjustment.
     Pre,
+    /// Mixer output 1/2 after volume adjustment.
     Post,
 }
 
@@ -69,31 +93,26 @@ impl Default for MeterTarget {
     }
 }
 
-impl From<u32> for MeterTarget {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => Self::Post,
-            1 => Self::Pre,
-            _ => Self::Input,
-        }
-    }
+const METER_TARGETS: &[MeterTarget] = &[MeterTarget::Input, MeterTarget::Pre, MeterTarget::Post];
+
+const METER_TARGET_LABEL: &str = "meter-target";
+
+fn serialize_meter_target(target: &MeterTarget, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(METER_TARGETS, target, raw, METER_TARGET_LABEL)
 }
 
-impl From<MeterTarget> for u32 {
-    fn from(target: MeterTarget) -> Self {
-        match target {
-            MeterTarget::Post => 2,
-            MeterTarget::Pre => 1,
-            MeterTarget::Input => 0,
-        }
-    }
+fn deserialize_meter_target(target: &mut MeterTarget, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(METER_TARGETS, target, raw, METER_TARGET_LABEL)
 }
 
-/// Current scene.
+/// Current scene for analog input 1/2.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InputScene {
+    /// Microphone and instrument.
     MicInst,
+    /// Two instruments.
     DualInst,
+    /// Two line inputs for stereo.
     StereoIn,
 }
 
@@ -103,45 +122,46 @@ impl Default for InputScene {
     }
 }
 
-impl From<u32> for InputScene {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => Self::StereoIn,
-            1 => Self::DualInst,
-            _ => Self::MicInst,
-        }
-    }
+const INPUT_SCENES: &[InputScene] = &[
+    InputScene::MicInst,
+    InputScene::DualInst,
+    InputScene::StereoIn,
+];
+
+const INPUT_SCENE_LABEL: &str = "inputscene";
+
+fn serialize_input_scene(scene: &InputScene, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(INPUT_SCENES, scene, raw, INPUT_SCENE_LABEL)
 }
 
-impl From<InputScene> for u32 {
-    fn from(target: InputScene) -> Self {
-        match target {
-            InputScene::StereoIn => 2,
-            InputScene::DualInst => 1,
-            InputScene::MicInst => 0,
-        }
-    }
+fn deserialize_input_scene(scene: &mut InputScene, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(INPUT_SCENES, scene, raw, INPUT_SCENE_LABEL)
 }
 
-/// State of panel.
+/// General state of hardware.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopHwState {
+    /// The target of meter in surface.
     pub meter_target: MeterTarget,
+    /// Use mixer output as monaural.
     pub mixer_output_monaural: bool,
-    /// Whether to assign main knob to hp.
+    /// Whether to adjust volume of headphone output by main knob.
     pub knob_assign_to_hp: bool,
-    /// Whether to dim output.
+    /// Whether to dim main output.
     pub mixer_output_dim_enabled: bool,
-    /// The volume of dimmed output. -1000..-60. (-94.0..-6.0)
+    /// The volume of main output if dimmed between -1000..-60. (-94.0..-6.0 dB)
     pub mixer_output_dim_volume: i32,
+    /// The use case of analog input 1/2.
     pub input_scene: InputScene,
+    /// Multiplex reverb signal to stream input 1/2 in advance.
     pub reverb_to_master: bool,
+    /// Multiplex reverb signal to stream input 3/4 in advance.
     pub reverb_to_hp: bool,
     /// Turn on backlight in master knob.
     pub master_knob_backlight: bool,
-    /// Phantom powering in mic 0.
+    /// Phantom powering in microphone 1.
     pub mic_0_phantom: bool,
-    /// Signal boost in mic 0 by 12 dB.
+    /// Signal boost in microphone 1 by 12 dB.
     pub mic_0_boost: bool,
 }
 
@@ -156,7 +176,7 @@ impl TcKonnektSegmentSerdes<DesktopHwState> for Desktopk6Protocol {
     const SIZE: usize = 144;
 
     fn serialize(params: &DesktopHwState, raw: &mut [u8]) -> Result<(), String> {
-        params.meter_target.build_quadlet(&mut raw[..4]);
+        serialize_meter_target(&params.meter_target, &mut raw[..4])?;
         params.mixer_output_monaural.build_quadlet(&mut raw[4..8]);
         params.knob_assign_to_hp.build_quadlet(&mut raw[8..12]);
         params
@@ -165,7 +185,7 @@ impl TcKonnektSegmentSerdes<DesktopHwState> for Desktopk6Protocol {
         params
             .mixer_output_dim_volume
             .build_quadlet(&mut raw[16..20]);
-        params.input_scene.build_quadlet(&mut raw[20..24]);
+        serialize_input_scene(&params.input_scene, &mut raw[20..24])?;
 
         let mut val = 0;
         if params.reverb_to_master {
@@ -184,12 +204,12 @@ impl TcKonnektSegmentSerdes<DesktopHwState> for Desktopk6Protocol {
     }
 
     fn deserialize(params: &mut DesktopHwState, raw: &[u8]) -> Result<(), String> {
-        params.meter_target.parse_quadlet(&raw[..4]);
+        deserialize_meter_target(&mut params.meter_target, &raw[..4])?;
         params.mixer_output_monaural.parse_quadlet(&raw[4..8]);
         params.knob_assign_to_hp.parse_quadlet(&raw[8..12]);
         params.mixer_output_dim_enabled.parse_quadlet(&raw[12..16]);
         params.mixer_output_dim_volume.parse_quadlet(&raw[16..20]);
-        params.input_scene.parse_quadlet(&raw[20..24]);
+        deserialize_input_scene(&mut params.input_scene, &raw[20..24])?;
 
         let mut val = 0;
         val.parse_quadlet(&raw[28..32]);
@@ -213,6 +233,7 @@ impl TcKonnektNotifiedSegmentOperation<DesktopHwState> for Desktopk6Protocol {
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopConfig {
+    /// Sampling rate at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
@@ -239,7 +260,9 @@ impl TcKonnektNotifiedSegmentOperation<DesktopConfig> for Desktopk6Protocol {
 /// Source of headphone.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DesktopHpSrc {
+    /// Stream input 3/4.
     Stream23,
+    /// Mixer output 1/2.
     Mixer01,
 }
 
@@ -270,25 +293,29 @@ impl From<DesktopHpSrc> for u32 {
 /// State of mixer.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopMixerState {
-    /// The input level for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
+    /// The input level of microphone 1 and phone 1 for instrument, between -1000 and 0 (-94.0 and
+    /// 0.0 dB)
     pub mic_inst_level: [i32; 2],
-    /// The LR balance for ch 0 and 1. -50..50.
+    /// The LR balance of microphone 1 and phone 1 for instrument, between -50 and 50.
     pub mic_inst_pan: [i32; 2],
-    /// The level to send for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
+    /// The level to send from microphone 1 and phone 1 for instrument, between -1000 and 0 (-94.0
+    /// and 0.0 dB)
     pub mic_inst_send: [i32; 2],
-    /// The input level for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
+    /// The input level of both phone 1 and 2 for instrument, between -1000 and 0 (-94.0 and
+    /// 0.0 dB)
     pub dual_inst_level: [i32; 2],
-    /// The LR balance for ch 0 and 1. -50..50.
+    /// The LR balance  of both phone 1 and 2 for instrument, between -50 and 50.
     pub dual_inst_pan: [i32; 2],
-    /// The level to send for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
+    /// The level to send from both phone 1 and 2 for instrument, between -1000 and 0 (-94.0 and
+    /// 0.0 dB)
     pub dual_inst_send: [i32; 2],
-    /// The input level for both channels. -1000..0 (-94.0..0.0 dB)
+    /// The input level of both phone 1 and 2 for line, between -1000 and 0 (-94.0 and 0.0 dB)
     pub stereo_in_level: i32,
-    /// The LR balance for both channels. -50..50.
+    /// The LR balance of both phone 1 and 2 for line, between -50 and 50.
     pub stereo_in_pan: i32,
-    /// The level to send for both channels. -1000..0 (-94.0..0.0 dB)
+    /// The level to send of both phone 1 and 2 for line, between -1000 and 0 (-94.0 and 0.0 dB)
     pub stereo_in_send: i32,
-    /// The source of headphone.
+    /// The source of headphone output.
     pub hp_src: DesktopHpSrc,
 }
 
@@ -350,19 +377,20 @@ impl TcKonnektNotifiedSegmentOperation<DesktopMixerState> for Desktopk6Protocol 
     const NOTIFY_FLAG: u32 = DESKTOP_MIXER_STATE_NOTIFY_FLAG;
 }
 
+/// Panel in hardware surface.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopPanel {
     /// The count of panel button to push.
     pub panel_button_count: u32,
-    /// The value of main knob. -1000..0
+    /// The value of main knob, between -1000 and 0.
     pub main_knob_value: i32,
-    /// The value of phone knob. -1000..0
+    /// The value of phone knob, between -1000 and 0.
     pub phone_knob_value: i32,
-    /// The value of mix knob. 0..1000.
+    /// The value of mix knob, between 0 and 1000.
     pub mix_knob_value: u32,
     /// The state of reverb LED.
     pub reverb_led_on: bool,
-    /// The value of reverb knob. -1000..0
+    /// The value of reverb knob, between -1000 and 0.
     pub reverb_knob_value: i32,
     /// The state of FireWire LED.
     pub firewire_led: FireWireLedState,
@@ -401,6 +429,8 @@ impl TcKonnektMutableSegmentOperation<DesktopPanel> for Desktopk6Protocol {}
 impl TcKonnektNotifiedSegmentOperation<DesktopPanel> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_PANEL_NOTIFY_FLAG;
 }
+
+/// Hardware metering.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopMeter {
     pub analog_inputs: [i32; 2],
