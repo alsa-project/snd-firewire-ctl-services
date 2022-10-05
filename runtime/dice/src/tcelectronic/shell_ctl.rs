@@ -142,7 +142,7 @@ fn phys_src_params_iter_mut(
 
 pub trait ShellMixerStateCtlOperation<S, T, U>
 where
-    S: Clone,
+    S: Clone + Debug,
     U: TcKonnektSegmentOperation<S>
         + TcKonnektSegmentOperation<T>
         + TcKonnektMutableSegmentOperation<S>
@@ -362,29 +362,57 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].gain_to_mixer = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_STREAM_SRC_PAIR_PAN_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].pan_to_mixer = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.mutes.stream = elem_value.boolean()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].gain_to_send = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_PHYS_SRC_STEREO_LINK_NAME => {
                 let mut params = self.segment().data.clone();
@@ -392,8 +420,15 @@ where
                 phys_src_pair_iter_mut(state)
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.stereo_link = val);
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_PHYS_SRC_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -401,8 +436,15 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.gain_to_mixer = val);
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_PHYS_SRC_PAN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -410,8 +452,15 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.pan_to_mixer = val);
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_PHYS_SRC_MUTE_NAME => {
                 let mut params = self.segment().data.clone();
@@ -419,8 +468,15 @@ where
                 phys_src_pair_iter_mut(state)
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.stereo_link = val);
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_PHYS_SRC_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -428,29 +484,57 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.gain_to_send = val);
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUT_DIM_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_dim_enable = elem_value.boolean()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUT_VOL_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_volume = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUT_DIM_VOL_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_dim_volume = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res = U::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    self.segment_mut(),
+                    timeout_ms,
+                );
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -513,6 +597,7 @@ where
 
 pub trait ShellMixerMeterCtlOperation<S, T>
 where
+    S: Debug,
     T: TcKonnektSegmentOperation<S>,
 {
     const LEVEL_MIN: i32 = -1000;
@@ -535,7 +620,9 @@ where
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+        debug!(params = ?self.segment().data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
@@ -619,7 +706,7 @@ const MUTE_NAME: &str = "reverb-return-mute";
 
 pub trait ShellReverbReturnCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -707,22 +794,28 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::reverb_return_mut(&mut params);
                 state.plugin_mode = elem_value.boolean()[0];
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             GAIN_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::reverb_return_mut(&mut params);
                 state.return_gain = elem_value.int()[0];
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             MUTE_NAME => {
                 let mut params = self.segment().data.clone();
                 let state = Self::reverb_return_mut(&mut params);
                 state.return_mute = elem_value.boolean()[0];
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -799,8 +892,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| *src = s)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms),
         }
@@ -823,7 +918,7 @@ const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
 
 pub trait ShellMixerStreamSrcCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + ShellMixerStreamSourcePairSpecification,
@@ -894,8 +989,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&p| *pair = p)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -922,7 +1019,7 @@ const COAX_OUT_SRC_NAME: &str = "coaxial-output-source";
 
 pub trait ShellCoaxIfaceCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -979,8 +1076,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| src.0 = s)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1008,7 +1107,7 @@ const OPT_OUT_SRC_NAME: &str = "optical-output-source";
 
 pub trait ShellOptIfaceCtl<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const IN_FMTS: [ShellOptInputIfaceFormat; 3] = [
@@ -1111,8 +1210,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&f| config.input_format = f)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             OPT_OUT_FMT_NAME => {
                 let mut params = self.segment().data.clone();
@@ -1126,8 +1227,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&f| config.output_format = f)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             OPT_OUT_SRC_NAME => {
                 let mut params = self.segment().data.clone();
@@ -1141,8 +1244,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| config.output_source.0 = s)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1167,7 +1272,7 @@ fn knob0_target_to_str(target: &ShellKnob0Target) -> &str {
 
 pub trait ShellKnob0CtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + ShellKnob0TargetSpecification,
@@ -1235,8 +1340,10 @@ where
                         Error::new(FileError::Io, &msg)
                     })
                     .map(|&t| *target = t)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1261,7 +1368,7 @@ fn knob1_target_to_str(target: &ShellKnob1Target) -> &'static str {
 
 pub trait ShellKnob1CtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + TcKonnektNotifiedSegmentOperation<S>
@@ -1330,8 +1437,10 @@ where
                         Error::new(FileError::Io, &msg)
                     })
                     .map(|&t| *target = t)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
