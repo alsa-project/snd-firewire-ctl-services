@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Desktop Konnekt 6.
 
-use super::tcelectronic::{fw_led::*, standalone::*, *};
+use super::tcelectronic::{standalone::*, *};
 
 const DESKTOP_HW_STATE_NOTIFY_FLAG: u32 = 0x00010000;
 const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
@@ -382,7 +382,7 @@ impl TcKonnektSegmentSerdes<DesktopPanel> for Desktopk6Protocol {
         params.mix_knob_value.build_quadlet(&mut raw[12..16]);
         params.reverb_led_on.build_quadlet(&mut raw[16..20]);
         params.reverb_knob_value.build_quadlet(&mut raw[24..28]);
-        params.firewire_led.build_quadlet(&mut raw[36..40]);
+        serialize_fw_led_state(&params.firewire_led, &mut raw[36..40])?;
         Ok(())
     }
 
@@ -393,7 +393,7 @@ impl TcKonnektSegmentSerdes<DesktopPanel> for Desktopk6Protocol {
         params.mix_knob_value.parse_quadlet(&raw[12..16]);
         params.reverb_led_on.parse_quadlet(&raw[16..20]);
         params.reverb_knob_value.parse_quadlet(&raw[24..28]);
-        params.firewire_led.parse_quadlet(&raw[36..40]);
+        deserialize_fw_led_state(&mut params.firewire_led, &raw[36..40])?;
         Ok(())
     }
 }

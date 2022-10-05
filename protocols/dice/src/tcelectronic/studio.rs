@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
+use super::{ch_strip::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
 /// Protocol implementation of Studio Konnekt 48.
 #[derive(Default, Debug)]
@@ -1152,7 +1152,7 @@ impl TcKonnektSegmentSerdes<StudioHwState> for Studiok48Protocol {
             .analog_jack_states
             .build_quadlet_block(&mut raw[..48]);
         params.hp_state.build_quadlet_block(&mut raw[48..56]);
-        params.firewire_led.build_quadlet(&mut raw[56..60]);
+        serialize_fw_led_state(&params.firewire_led, &mut raw[56..60])?;
         params.valid_master_level.build_quadlet(&mut raw[60..64]);
         Ok(())
     }
@@ -1160,7 +1160,7 @@ impl TcKonnektSegmentSerdes<StudioHwState> for Studiok48Protocol {
     fn deserialize(params: &mut StudioHwState, raw: &[u8]) -> Result<(), String> {
         params.analog_jack_states.parse_quadlet_block(&raw[..48]);
         params.hp_state.parse_quadlet_block(&raw[48..56]);
-        params.firewire_led.parse_quadlet(&raw[56..60]);
+        deserialize_fw_led_state(&mut params.firewire_led, &raw[56..60])?;
         params.valid_master_level.parse_quadlet(&raw[60..64]);
         Ok(())
     }

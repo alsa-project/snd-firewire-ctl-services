@@ -13,7 +13,6 @@ pub mod shell;
 pub mod studio;
 
 pub mod ch_strip;
-pub mod fw_led;
 pub mod midi_send;
 pub mod prog;
 pub mod reverb;
@@ -152,4 +151,75 @@ pub trait TcKonnektNotifiedSegmentOperation<T> {
     fn is_notified_segment(_: &TcKonnektSegment<T>, msg: u32) -> bool {
         msg & Self::NOTIFY_FLAG > 0
     }
+}
+
+fn serialize_position<T: Eq + std::fmt::Debug>(
+    entries: &[T],
+    entry: &T,
+    raw: &mut [u8],
+    label: &str,
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    entries
+        .iter()
+        .position(|t| entry.eq(t))
+        .ok_or_else(|| format!("{} {:?} is not supported", label, entry))
+        .map(|pos| {
+            (pos as u32).build_quadlet(raw);
+        })
+}
+
+fn deserialize_position<T: Copy + Eq + std::fmt::Debug>(
+    entries: &[T],
+    entry: &mut T,
+    raw: &[u8],
+    label: &str,
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    entries
+        .iter()
+        .nth(val as usize)
+        .ok_or_else(|| format!("{} not found for index {}", label, val))
+        .map(|&e| *entry = e)
+}
+
+/// The state of FireWire LED.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FireWireLedState {
+    /// Off.
+    Off,
+    /// On.
+    On,
+    /// Blinking fastly.
+    BlinkFast,
+    /// Blinking slowly.
+    BlinkSlow,
+}
+
+impl Default for FireWireLedState {
+    fn default() -> Self {
+        Self::Off
+    }
+}
+
+const FW_LED_STATES: &[FireWireLedState] = &[
+    FireWireLedState::Off,
+    FireWireLedState::On,
+    FireWireLedState::BlinkSlow,
+    FireWireLedState::BlinkFast,
+];
+
+const FW_LED_STATE_LABEL: &str = "FireWire LED state";
+
+fn serialize_fw_led_state(state: &FireWireLedState, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(FW_LED_STATES, state, raw, FW_LED_STATE_LABEL)
+}
+
+fn deserialize_fw_led_state(state: &mut FireWireLedState, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(FW_LED_STATES, state, raw, FW_LED_STATE_LABEL)
 }

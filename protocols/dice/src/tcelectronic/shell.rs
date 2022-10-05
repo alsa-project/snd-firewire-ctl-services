@@ -11,7 +11,7 @@ pub mod k24d;
 pub mod k8;
 pub mod klive;
 
-use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
+use super::{ch_strip::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
 const SHELL_KNOB_NOTIFY_FLAG: u32 = 0x00010000;
 const SHELL_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
@@ -91,14 +91,14 @@ impl ShellHwState {
         assert_eq!(raw.len(), Self::SIZE, "Programming error...");
 
         self.analog_jack_states.build_quadlet_block(&mut raw[..8]);
-        self.firewire_led.build_quadlet(&mut raw[20..24]);
+        let _ = serialize_fw_led_state(&self.firewire_led, &mut raw[20..24]);
     }
 
     pub fn parse(&mut self, raw: &[u8]) {
         assert_eq!(raw.len(), Self::SIZE, "Programming error...");
 
         self.analog_jack_states.parse_quadlet_block(&raw[..8]);
-        self.firewire_led.parse_quadlet(&raw[20..24]);
+        let _ = deserialize_fw_led_state(&mut self.firewire_led, &raw[20..24]);
     }
 }
 
