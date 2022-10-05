@@ -334,7 +334,9 @@ impl LineoutCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -439,8 +441,10 @@ impl LineoutCtl {
                 Error::new(FileError::Inval, &msg)
             })
             .map(|&l| cb(&mut params, l))?;
-        Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
-            .map(|_| true)
+        let res =
+            Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res.map(|_| true)
     }
 
     fn parse_notification(
@@ -451,7 +455,9 @@ impl LineoutCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Studiok48Protocol::is_notified_segment(&self.0, msg) {
-            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -510,7 +516,9 @@ impl RemoteCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -662,14 +670,15 @@ impl RemoteCtl {
                             })
                             .map(|&s| *assign = s)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             EFFECT_BUTTON_MODE_NAME => {
                 let mut params = self.0.data.clone();
@@ -682,38 +691,41 @@ impl RemoteCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&m| params.effect_button_mode = m)?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             FALLBACK_TO_MASTER_ENABLE_NAME => {
                 let mut params = self.0.data.clone();
                 params.fallback_to_master_enable = elem_value.boolean()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             FALLBACK_TO_MASTER_DURATION_NAME => {
                 let mut params = self.0.data.clone();
                 params.fallback_to_master_duration = elem_value.int()[0] as u32;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             KNOB_PUSH_MODE_NAME => {
                 let mut params = self.0.data.clone();
@@ -726,14 +738,15 @@ impl RemoteCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&m| params.knob_push_mode = m)?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             _ => self.write_prog(req, node, elem_id, elem_value, timeout_ms),
         }
@@ -747,7 +760,9 @@ impl RemoteCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Studiok48Protocol::is_notified_segment(&self.0, msg) {
-            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -844,7 +859,9 @@ impl ConfigCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -931,14 +948,15 @@ impl ConfigCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&m| params.opt_iface_mode = m)?;
-                    Studiok48Protocol::update_partial_segment(
+                    let res = Studiok48Protocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 STANDALONE_CLK_SRC_NAME => {
                     let mut params = self.0.data.clone();
@@ -951,26 +969,28 @@ impl ConfigCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&s| params.standalone_src = s)?;
-                    Studiok48Protocol::update_partial_segment(
+                    let res = Studiok48Protocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 CLOCK_RECOVERY_NAME => {
                     let mut params = self.0.data.clone();
                     params.clock_recovery = elem_value.boolean()[0];
-                    Studiok48Protocol::update_partial_segment(
+                    let res = Studiok48Protocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -985,7 +1005,9 @@ impl ConfigCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Studiok48Protocol::is_notified_segment(&self.0, msg) {
-            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -1124,7 +1146,9 @@ impl MixerStateCtl {
     const PAN_STEP: i32 = 1;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1429,14 +1453,15 @@ impl MixerStateCtl {
                             Ok(())
                         }
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SRC_ENTRY_NAME => {
                 let mut params = self.0.data.clone();
@@ -1454,98 +1479,105 @@ impl MixerStateCtl {
                             })
                             .map(|&s| entry.src = s)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SRC_STEREO_LINK_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_pairs_iter_mut(&mut params)
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.stereo_link = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SRC_GAIN_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.gain_to_main = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SRC_PAN_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.pan_to_main = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             REVERB_SRC_GAIN_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.gain_to_reverb = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             AUX01_SRC_GAIN_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.gain_to_aux0 = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             AUX23_SRC_GAIN_NAME => {
                 let mut params = self.0.data.clone();
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.gain_to_aux1 = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SRC_MUTE_NAME => {
                 let mut params = self.0.data.clone();
@@ -1554,14 +1586,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_DIM_NAME => {
                 let mut params = self.0.data.clone();
@@ -1570,14 +1603,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.dim_enabled = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_VOL_NAME => {
                 let mut params = self.0.data.clone();
@@ -1586,14 +1620,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(pair, &val)| pair.vol = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_DIM_VOL_NAME => {
                 let mut params = self.0.data.clone();
@@ -1602,14 +1637,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(pair, &val)| pair.dim_vol = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             REVERB_RETURN_MUTE_NAME => {
                 let mut params = self.0.data.clone();
@@ -1618,14 +1654,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             REVERB_RETURN_GAIN_NAME => {
                 let mut params = self.0.data.clone();
@@ -1634,14 +1671,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             CH_STRIP_AS_PLUGIN_NAME => {
                 let mut params = self.0.data.clone();
@@ -1650,14 +1688,15 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             CH_STRIP_SRC_NAME => {
                 let mut params = self.0.data.clone();
@@ -1677,26 +1716,28 @@ impl MixerStateCtl {
                             })
                             .map(|&s| *src = s)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             CH_STRIP_23_AT_MID_RATE => {
                 let mut params = self.0.data.clone();
                 params.ch_strip_23_at_mid_rate = elem_value.boolean()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             POST_FADER_NAME => {
                 let mut params = self.0.data.clone();
@@ -1705,26 +1746,28 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIXER_ENABLE_NAME => {
                 let mut params = self.0.data.clone();
                 params.enabled = elem_value.boolean()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1738,7 +1781,9 @@ impl MixerStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Studiok48Protocol::is_notified_segment(&self.0, msg) {
-            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -1760,7 +1805,9 @@ const LEVEL_TLV: DbInterval = DbInterval {
 
 impl MixerMeterCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -2010,7 +2057,9 @@ impl PhysOutCtl {
     const DELAY_STEP: i32 = 1;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -2378,38 +2427,41 @@ impl PhysOutCtl {
             MASTER_OUT_DIM_NAME => {
                 let mut params = self.0.data.clone();
                 params.master_out.dim_enabled = elem_value.boolean()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MASTER_OUT_VOL_NAME => {
                 let mut params = self.0.data.clone();
                 params.master_out.vol = elem_value.int()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MASTER_OUT_DIM_VOL_NAME => {
                 let mut params = self.0.data.clone();
                 params.master_out.dim_vol = elem_value.int()[0];
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_STEREO_LINK_NAME => {
                 let mut params = self.0.data.clone();
@@ -2418,14 +2470,15 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair_src, val)| pair_src.stereo_link = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_MUTE_NAME => {
                 let mut params = self.0.data.clone();
@@ -2434,14 +2487,15 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_SRC_NAME => {
                 let mut params = self.0.data.clone();
@@ -2458,26 +2512,28 @@ impl PhysOutCtl {
                             })
                             .map(|&s| entry.src = s)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SELECT_NAME => {
                 let mut params = self.0.data.clone();
                 params.selected_out_grp = elem_value.enumerated()[0] as usize;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SRC_ENABLE_NAME => {
                 let mut params = self.0.data.clone();
@@ -2486,42 +2542,45 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SRC_TRIM_NAME => {
                 let mut params = self.0.data.clone();
                 phys_out_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.vol = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SRC_DELAY_NAME => {
                 let mut params = self.0.data.clone();
                 phys_out_src_params_iter_mut(&mut params)
                     .zip(elem_value.int())
                     .for_each(|(entry, &val)| entry.delay = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SRC_ASSIGN_NAME => {
                 let mut params = self.0.data.clone();
@@ -2538,14 +2597,15 @@ impl PhysOutCtl {
                 params.out_grps[index]
                     .assigned_phys_outs
                     .copy_from_slice(&vals);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_BASS_MANAGEMENT_NAME => {
                 let mut params = self.0.data.clone();
@@ -2554,14 +2614,15 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(out_grp, val)| out_grp.bass_management = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
                 let mut params = self.0.data.clone();
@@ -2582,14 +2643,15 @@ impl PhysOutCtl {
                             })
                             .map(|&freq| out_grp.main_cross_over_freq = freq)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
                 let mut params = self.0.data.clone();
@@ -2598,14 +2660,15 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(out_grp, &val)| out_grp.main_level_to_sub = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
                 let mut params = self.0.data.clone();
@@ -2614,14 +2677,15 @@ impl PhysOutCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(out_grp, &val)| out_grp.sub_level_to_sub = val);
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
                 let mut params = self.0.data.clone();
@@ -2643,14 +2707,15 @@ impl PhysOutCtl {
                             })
                             .map(|&freq| out_grp.main_filter_for_main = freq)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
                 let mut params = self.0.data.clone();
@@ -2672,14 +2737,15 @@ impl PhysOutCtl {
                             })
                             .map(|&freq| out_grp.main_filter_for_sub = freq)
                     })?;
-                Studiok48Protocol::update_partial_segment(
+                let res = Studiok48Protocol::update_partial_segment(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -2822,7 +2888,9 @@ impl HwStateCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -2910,7 +2978,9 @@ impl HwStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Studiok48Protocol::is_notified_segment(&self.0, msg) {
-            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
