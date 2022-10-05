@@ -43,7 +43,7 @@ fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
 
 pub trait ReverbStateCtlOpreation<S, T, U>
 where
-    S: Clone,
+    S: Clone + Debug,
     U: TcKonnektSegmentOperation<S>
         + TcKonnektSegmentOperation<T>
         + TcKonnektMutableSegmentOperation<S>
@@ -117,7 +117,9 @@ where
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+        let res = U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+        debug!(params = ?self.segment().data, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
@@ -418,106 +420,136 @@ where
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.input_level = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_BYPASS_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.bypass = elem_value.boolean()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_KILL_WET => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.kill_wet = elem_value.boolean()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_KILL_DRY => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.kill_dry = elem_value.boolean()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_OUTPUT_LEVEL_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.output_level = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_TIME_DECAY_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.time_decay = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_TIME_PRE_DECAY_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.time_pre_decay = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_COLOR_LOW_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.color_low = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_COLOR_HIGH_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.color_high = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_COLOR_HIGH_FACTOR_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.color_high_factor = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_MOD_RATE_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.mod_rate = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_MOD_DEPTH_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.mod_depth = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_LEVEL_EARLY_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.level_early = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_LEVEL_REVERB_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.level_reverb = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_LEVEL_DRY_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut state = Self::state_mut(&mut params);
                 state.level_dry = elem_value.int()[0];
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             REVERB_ALGORITHM_NAME => {
                 let mut params = self.segment().data.clone();
@@ -531,8 +563,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -546,7 +580,9 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if U::is_notified_segment(self.segment(), msg) {
-            U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+            let res = U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+            debug!(params = ?self.segment().data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -619,6 +655,7 @@ const METER_INPUT_TLV: DbInterval = DbInterval {
 
 pub trait ReverbMeterCtlOperation<S, T>
 where
+    S: Debug,
     T: TcKonnektSegmentOperation<S>,
 {
     fn meter(&self) -> &ReverbMeter;
@@ -627,7 +664,9 @@ where
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+        debug!(params = ?self.segment().data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
