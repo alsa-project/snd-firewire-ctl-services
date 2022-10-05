@@ -208,9 +208,7 @@ impl CommonCtlOperation<K8Protocol> for CommonCtl {}
 #[derive(Default, Debug)]
 struct KnobCtl(K8KnobSegment, Vec<ElemId>);
 
-impl ShellKnobCtlOperation<K8Knob, K8Protocol> for KnobCtl {
-    const TARGETS: [&'static str; 4] = ["Analog-1", "Analog-2", "S/PDIF-1/2", "Configurable"];
-
+impl ShellKnob0CtlOperation<K8Knob, K8Protocol> for KnobCtl {
     fn segment(&self) -> &K8KnobSegment {
         &self.0
     }
@@ -219,18 +217,16 @@ impl ShellKnobCtlOperation<K8Knob, K8Protocol> for KnobCtl {
         &mut self.0
     }
 
-    fn knob_target(params: &K8Knob) -> &ShellKnobTarget {
-        &params.target
+    fn knob0_target(params: &K8Knob) -> &ShellKnob0Target {
+        &params.knob0_target
     }
 
-    fn knob_target_mut(params: &mut K8Knob) -> &mut ShellKnobTarget {
-        &mut params.target
+    fn knob0_target_mut(params: &mut K8Knob) -> &mut ShellKnob0Target {
+        &mut params.knob0_target
     }
 }
 
-impl ShellKnob2CtlOperation<K8Knob, K8Protocol> for KnobCtl {
-    const TARGETS: &'static [&'static str] = &["Stream-input-1/2", "Mixer-1/2"];
-
+impl ShellKnob1CtlOperation<K8Knob, K8Protocol> for KnobCtl {
     fn segment(&self) -> &K8KnobSegment {
         &self.0
     }
@@ -239,12 +235,12 @@ impl ShellKnob2CtlOperation<K8Knob, K8Protocol> for KnobCtl {
         &mut self.0
     }
 
-    fn knob2_target(params: &K8Knob) -> &ShellKnob2Target {
-        &params.knob2_target
+    fn knob1_target(params: &K8Knob) -> &ShellKnob1Target {
+        &params.knob1_target
     }
 
-    fn knob2_target_mut(params: &mut K8Knob) -> &mut ShellKnob2Target {
-        &mut params.knob2_target
+    fn knob1_target_mut(params: &mut K8Knob) -> &mut ShellKnob1Target {
+        &mut params.knob1_target
     }
 }
 
@@ -254,18 +250,18 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob_target(card_cntr)
+        self.load_knob0_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-        self.load_knob2_target(card_cntr)
+        self.load_knob1_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob_target(elem_id, elem_value)? {
+        if self.read_knob0_target(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_knob2_target(elem_id, elem_value)? {
+        } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -280,9 +276,9 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(req, node, elem_id, elem_value, timeout_ms)? {
+        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -308,9 +304,9 @@ impl KnobCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.read_knob_target(elem_id, elem_value)? {
+        if self.read_knob0_target(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_knob2_target(elem_id, elem_value)? {
+        } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

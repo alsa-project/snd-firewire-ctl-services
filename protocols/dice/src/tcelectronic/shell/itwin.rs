@@ -69,25 +69,43 @@ segment_default!(ItwinProtocol, ItwinReverbMeter);
 segment_default!(ItwinProtocol, ItwinChStripMeters);
 
 /// State of knob.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinKnob {
-    pub target: ShellKnobTarget,
+    pub target: ShellKnob0Target,
     pub clock_recovery: bool,
+}
+
+impl Default for ItwinKnob {
+    fn default() -> Self {
+        Self {
+            target: <ItwinProtocol as ShellKnob0TargetSpecification>::KNOB0_TARGETS[0],
+            clock_recovery: Default::default(),
+        }
+    }
+}
+
+impl ShellKnob0TargetSpecification for ItwinProtocol {
+    const KNOB0_TARGETS: &'static [ShellKnob0Target] = &[
+        ShellKnob0Target::ChannelStrip0,
+        ShellKnob0Target::ChannelStrip1,
+        ShellKnob0Target::Reverb,
+        ShellKnob0Target::Mixer,
+    ];
 }
 
 impl TcKonnektSegmentSerdes<ItwinKnob> for ItwinProtocol {
     const NAME: &'static str = "knob";
     const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const SIZE: usize = SHELL_KNOB_SEGMENT_SIZE;
 
     fn serialize(params: &ItwinKnob, raw: &mut [u8]) -> Result<(), String> {
-        params.target.0.build_quadlet(&mut raw[..4]);
+        serialize_knob0_target::<ItwinProtocol>(&params.target, &mut raw[..4])?;
         params.clock_recovery.build_quadlet(&mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut ItwinKnob, raw: &[u8]) -> Result<(), String> {
-        params.target.0.parse_quadlet(&raw[..4]);
+        deserialize_knob0_target::<ItwinProtocol>(&mut params.target, &raw[..4])?;
         params.clock_recovery.parse_quadlet(&raw[8..12]);
         Ok(())
     }

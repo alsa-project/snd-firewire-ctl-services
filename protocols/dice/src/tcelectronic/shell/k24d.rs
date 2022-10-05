@@ -69,37 +69,60 @@ segment_default!(K24dProtocol, K24dReverbMeter);
 segment_default!(K24dProtocol, K24dChStripMeters);
 
 /// State of knob.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dKnob {
-    pub target: ShellKnobTarget,
-    pub knob2_target: ShellKnob2Target,
+    pub knob0_target: ShellKnob0Target,
+    pub knob1_target: ShellKnob1Target,
     pub prog: TcKonnektLoadedProgram,
 }
 
-impl ShellKnobTargetSpec for K24dKnob {
-    const HAS_SPDIF: bool = false;
-    const HAS_EFFECTS: bool = false;
+impl Default for K24dKnob {
+    fn default() -> Self {
+        Self {
+            knob0_target: K24dProtocol::KNOB0_TARGETS[0],
+            knob1_target: K24dProtocol::KNOB1_TARGETS[0],
+            prog: Default::default(),
+        }
+    }
 }
 
-impl ShellKnob2TargetSpec for K24dKnob {
-    const KNOB2_TARGET_COUNT: usize = 8;
+impl ShellKnob0TargetSpecification for K24dProtocol {
+    const KNOB0_TARGETS: &'static [ShellKnob0Target] = &[
+        ShellKnob0Target::Analog0,
+        ShellKnob0Target::Analog1,
+        ShellKnob0Target::Analog2_3,
+        ShellKnob0Target::Configurable,
+    ];
+}
+
+impl ShellKnob1TargetSpecification for K24dProtocol {
+    const KNOB1_TARGETS: &'static [ShellKnob1Target] = &[
+        ShellKnob1Target::Digital0_1,
+        ShellKnob1Target::Digital2_3,
+        ShellKnob1Target::Digital4_5,
+        ShellKnob1Target::Digital6_7,
+        ShellKnob1Target::Stream,
+        ShellKnob1Target::Reverb,
+        ShellKnob1Target::Mixer,
+        ShellKnob1Target::TunerPitchTone,
+    ];
 }
 
 impl TcKonnektSegmentSerdes<K24dKnob> for K24dProtocol {
     const NAME: &'static str = "knob";
     const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const SIZE: usize = SHELL_KNOB_SEGMENT_SIZE;
 
     fn serialize(params: &K24dKnob, raw: &mut [u8]) -> Result<(), String> {
-        params.target.0.build_quadlet(&mut raw[..4]);
-        params.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        serialize_knob0_target::<K24dProtocol>(&params.knob0_target, &mut raw[..4])?;
+        serialize_knob1_target::<K24dProtocol>(&params.knob1_target, &mut raw[4..8])?;
         params.prog.build(&mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut K24dKnob, raw: &[u8]) -> Result<(), String> {
-        params.target.0.parse_quadlet(&raw[..4]);
-        params.knob2_target.0.parse_quadlet(&raw[4..8]);
+        deserialize_knob0_target::<K24dProtocol>(&mut params.knob0_target, &raw[..4])?;
+        deserialize_knob1_target::<K24dProtocol>(&mut params.knob1_target, &raw[4..8])?;
         params.prog.parse(&raw[8..12]);
         Ok(())
     }

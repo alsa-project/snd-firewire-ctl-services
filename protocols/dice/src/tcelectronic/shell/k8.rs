@@ -51,35 +51,49 @@ segment_default!(K8Protocol, K8MixerMeter);
 segment_default!(K8Protocol, K8HwState);
 
 /// State of knob.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Knob {
-    pub target: ShellKnobTarget,
-    pub knob2_target: ShellKnob2Target,
+    pub knob0_target: ShellKnob0Target,
+    pub knob1_target: ShellKnob1Target,
 }
 
-impl ShellKnobTargetSpec for K8Knob {
-    const HAS_SPDIF: bool = true;
-    const HAS_EFFECTS: bool = false;
+impl Default for K8Knob {
+    fn default() -> Self {
+        Self {
+            knob0_target: K8Protocol::KNOB0_TARGETS[0],
+            knob1_target: K8Protocol::KNOB1_TARGETS[0],
+        }
+    }
 }
 
-impl ShellKnob2TargetSpec for K8Knob {
-    const KNOB2_TARGET_COUNT: usize = 2;
+impl ShellKnob0TargetSpecification for K8Protocol {
+    const KNOB0_TARGETS: &'static [ShellKnob0Target] = &[
+        ShellKnob0Target::Analog0,
+        ShellKnob0Target::Analog1,
+        ShellKnob0Target::Spdif0_1,
+        ShellKnob0Target::Configurable,
+    ];
+}
+
+impl ShellKnob1TargetSpecification for K8Protocol {
+    const KNOB1_TARGETS: &'static [ShellKnob1Target] =
+        &[ShellKnob1Target::Stream, ShellKnob1Target::Mixer];
 }
 
 impl TcKonnektSegmentSerdes<K8Knob> for K8Protocol {
     const NAME: &'static str = "knob";
     const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const SIZE: usize = SHELL_KNOB_SEGMENT_SIZE;
 
     fn serialize(params: &K8Knob, raw: &mut [u8]) -> Result<(), String> {
-        params.target.0.build_quadlet(&mut raw[..4]);
-        params.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        serialize_knob0_target::<K8Protocol>(&params.knob0_target, &mut raw[..4])?;
+        serialize_knob1_target::<K8Protocol>(&params.knob1_target, &mut raw[4..8])?;
         Ok(())
     }
 
     fn deserialize(params: &mut K8Knob, raw: &[u8]) -> Result<(), String> {
-        params.target.0.parse_quadlet(&raw[..4]);
-        params.knob2_target.0.parse_quadlet(&raw[4..8]);
+        deserialize_knob0_target::<K8Protocol>(&mut params.knob0_target, &raw[..4])?;
+        deserialize_knob1_target::<K8Protocol>(&mut params.knob1_target, &raw[4..8])?;
         Ok(())
     }
 }
