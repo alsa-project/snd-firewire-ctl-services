@@ -766,9 +766,9 @@ const SRC_NAME: &str = "standalone-clock-source";
 
 pub trait ShellStandaloneCtlOperation<S, T>: StandaloneCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + ShellStandaloneClkSpec,
+    S: TcKonnektSegmentData + ShellStandaloneClkSpec + Clone,
     TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    T: SegmentOperation<S>,
+    T: SegmentOperation<S> + TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn standalone_src(&self) -> &ShellStandaloneClkSrc;
     fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc;
@@ -822,7 +822,7 @@ where
                 })?;
                 T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
-            _ => self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms),
+            _ => self.write_standalone_rate(req, &unit.1, elem_id, elem_value, timeout_ms),
         }
     }
 }

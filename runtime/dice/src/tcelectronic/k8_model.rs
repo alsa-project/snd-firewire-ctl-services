@@ -336,16 +336,20 @@ impl ShellCoaxIfaceCtlOperation<K8Config, K8Protocol> for ConfigCtl {
 }
 
 impl StandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
+    fn segment(&self) -> &K8ConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K8ConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &K8Config) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut K8Config) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 

@@ -496,16 +496,20 @@ impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
 }
 
 impl StandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
+    fn segment(&self) -> &KliveConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &KliveConfig) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut KliveConfig) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 

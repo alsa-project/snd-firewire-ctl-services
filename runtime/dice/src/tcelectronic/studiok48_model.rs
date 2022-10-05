@@ -755,16 +755,20 @@ fn knob_push_mode_to_str(mode: &KnobPushMode) -> &'static str {
 }
 
 impl StandaloneCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
+    fn segment(&self) -> &Studiok48ConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Studiok48ConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &StudioConfig) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut StudioConfig) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 
@@ -874,7 +878,7 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)? {
+        if self.write_standalone_rate(req, &unit.1, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else if self.write_midi_sender(req, &unit.1, elem_id, elem_value, timeout_ms)? {
             Ok(true)
