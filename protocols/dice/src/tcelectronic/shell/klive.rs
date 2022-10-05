@@ -178,9 +178,9 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
 
     fn serialize(params: &KliveConfig, raw: &mut [u8]) -> Result<(), String> {
         params.opt.build(&mut raw[..12]);
-        params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
-        params.out_01_src.build_quadlet(&mut raw[16..20]);
-        params.out_23_src.build_quadlet(&mut raw[20..24]);
+        serialize_coax_out_pair_source(&params.coax_out_src, &mut raw[12..16])?;
+        serialize_phys_out_src(&params.out_01_src, &mut raw[16..20])?;
+        serialize_phys_out_src(&params.out_23_src, &mut raw[20..24])?;
         serialize_mixer_stream_source_pair::<KliveProtocol>(
             &params.mixer_stream_src_pair,
             &mut raw[24..28],
@@ -196,9 +196,9 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
 
     fn deserialize(params: &mut KliveConfig, raw: &[u8]) -> Result<(), String> {
         params.opt.parse(&raw[..12]);
-        params.coax_out_src.0.parse_quadlet(&raw[12..16]);
-        params.out_01_src.parse_quadlet(&raw[16..20]);
-        params.out_23_src.parse_quadlet(&raw[20..24]);
+        deserialize_coax_out_pair_source(&mut params.coax_out_src, &raw[12..16])?;
+        deserialize_phys_out_src(&mut params.out_01_src, &raw[16..20])?;
+        deserialize_phys_out_src(&mut params.out_23_src, &raw[20..24])?;
         deserialize_mixer_stream_source_pair::<KliveProtocol>(
             &mut params.mixer_stream_src_pair,
             &raw[24..28],

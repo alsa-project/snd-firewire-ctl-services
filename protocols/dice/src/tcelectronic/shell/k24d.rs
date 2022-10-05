@@ -158,8 +158,8 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
 
     fn serialize(params: &K24dConfig, raw: &mut [u8]) -> Result<(), String> {
         params.opt.build(&mut raw[..12]);
-        params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
-        params.out_23_src.build_quadlet(&mut raw[16..20]);
+        serialize_coax_out_pair_source(&params.coax_out_src, &mut raw[12..16])?;
+        serialize_phys_out_src(&params.out_23_src, &mut raw[16..20])?;
         serialize_standalone_clock_source::<K24dProtocol>(
             &params.standalone_src,
             &mut raw[20..24],
@@ -170,8 +170,8 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
 
     fn deserialize(params: &mut K24dConfig, raw: &[u8]) -> Result<(), String> {
         params.opt.parse(&raw[..12]);
-        params.coax_out_src.0.parse_quadlet(&raw[12..16]);
-        params.out_23_src.parse_quadlet(&raw[16..20]);
+        deserialize_coax_out_pair_source(&mut params.coax_out_src, &raw[12..16])?;
+        deserialize_phys_out_src(&mut params.out_23_src, &raw[16..20])?;
         deserialize_standalone_clock_source::<K24dProtocol>(
             &mut params.standalone_src,
             &raw[20..24],

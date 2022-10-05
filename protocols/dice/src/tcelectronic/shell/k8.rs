@@ -125,14 +125,14 @@ impl TcKonnektSegmentSerdes<K8Config> for K8Protocol {
     const SIZE: usize = 76;
 
     fn serialize(params: &K8Config, raw: &mut [u8]) -> Result<(), String> {
-        params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        serialize_coax_out_pair_source(&params.coax_out_src, &mut raw[12..16])?;
         serialize_standalone_clock_source::<K8Protocol>(&params.standalone_src, &mut raw[20..24])?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[24..28])?;
         Ok(())
     }
 
     fn deserialize(params: &mut K8Config, raw: &[u8]) -> Result<(), String> {
-        params.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        deserialize_coax_out_pair_source(&mut params.coax_out_src, &raw[12..16])?;
         deserialize_standalone_clock_source::<K8Protocol>(
             &mut params.standalone_src,
             &raw[20..24],
