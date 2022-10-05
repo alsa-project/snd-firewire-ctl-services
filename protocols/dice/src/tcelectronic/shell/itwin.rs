@@ -55,21 +55,43 @@ pub type ItwinChStripMetersSegment = TcKonnektSegment<ItwinChStripMeters>;
 impl SegmentOperation<ItwinChStripMeters> for ItwinProtocol {}
 
 /// State of knob.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinKnob {
     pub target: ShellKnobTarget,
     pub clock_recovery: bool,
 }
 
+impl TcKonnektSegmentSerdes<ItwinKnob> for ItwinProtocol {
+    const NAME: &'static str = "knob";
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+
+    fn serialize(params: &ItwinKnob, raw: &mut [u8]) -> Result<(), String> {
+        params.target.0.build_quadlet(&mut raw[..4]);
+        params.clock_recovery.build_quadlet(&mut raw[8..12]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinKnob, raw: &[u8]) -> Result<(), String> {
+        params.target.0.parse_quadlet(&raw[..4]);
+        params.clock_recovery.parse_quadlet(&raw[8..12]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinKnob> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinKnob> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for ItwinKnob {
     fn build(&self, raw: &mut [u8]) {
-        self.target.0.build_quadlet(&mut raw[..4]);
-        self.clock_recovery.build_quadlet(&mut raw[8..12]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.target.0.parse_quadlet(&raw[..4]);
-        self.clock_recovery.parse_quadlet(&raw[8..12]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
@@ -79,19 +101,20 @@ impl ShellKnobTargetSpec for ItwinKnob {
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinKnob> {
-    const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinKnob>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinKnob>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinKnob> {
-    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinKnob>>::NOTIFY_FLAG;
 }
 
 /// The number of pair for physical output.
 pub const ITWIN_PHYS_OUT_PAIR_COUNT: usize = 7;
 
 /// Source of stream for mixer.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ItwinOutputPairSrc {
     MixerOut01,
     Analog01,
@@ -163,7 +186,7 @@ impl From<u32> for ItwinOutputPairSrc {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinConfig {
     pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
     pub standalone_src: ShellStandaloneClkSrc,
@@ -183,32 +206,57 @@ impl ShellStandaloneClkSpec for ItwinConfig {
     ];
 }
 
+impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
+    const NAME: &'static str = "configuration";
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 168;
+
+    fn serialize(params: &ItwinConfig, raw: &mut [u8]) -> Result<(), String> {
+        params.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
+        params.standalone_src.build_quadlet(&mut raw[28..32]);
+        params.standalone_rate.build_quadlet(&mut raw[32..36]);
+        params
+            .output_pair_src
+            .build_quadlet_block(&mut raw[120..148]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinConfig, raw: &[u8]) -> Result<(), String> {
+        params.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
+        params.standalone_src.parse_quadlet(&raw[28..32]);
+        params.standalone_rate.parse_quadlet(&raw[32..36]);
+        params.output_pair_src.parse_quadlet_block(&raw[120..148]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinConfig> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinConfig> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for ItwinConfig {
     fn build(&self, raw: &mut [u8]) {
-        self.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
-        self.standalone_src.build_quadlet(&mut raw[28..32]);
-        self.standalone_rate.build_quadlet(&mut raw[32..36]);
-        self.output_pair_src.build_quadlet_block(&mut raw[120..148]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
-        self.standalone_src.parse_quadlet(&raw[28..32]);
-        self.standalone_rate.parse_quadlet(&raw[32..36]);
-        self.output_pair_src.parse_quadlet_block(&raw[120..148]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinConfig> {
-    const OFFSET: usize = 0x0028;
-    const SIZE: usize = 168;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinConfig>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinConfig>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinConfig> {
-    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinConfig>>::NOTIFY_FLAG;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerState {
     pub mixer: ShellMixerState,
     /// The balance between analog and stream inputs to mix. 0..1000.
@@ -249,77 +297,146 @@ impl ShellMixerStateConvert for ItwinMixerState {
     }
 }
 
+impl TcKonnektSegmentSerdes<ItwinMixerState> for ItwinProtocol {
+    const NAME: &'static str = "mixer-state";
+    const OFFSET: usize = 0x00d0;
+    const SIZE: usize = ShellMixerState::SIZE + 56;
+
+    fn serialize(params: &ItwinMixerState, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerStateConvert::build(params, raw);
+
+        params.stream_mix_balance.build_quadlet(&mut raw[348..352]);
+        params.enabled.build_quadlet(&mut raw[352..356]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinMixerState, raw: &[u8]) -> Result<(), String> {
+        ShellMixerStateConvert::parse(params, raw);
+
+        params.stream_mix_balance.parse_quadlet(&raw[348..352]);
+        params.enabled.parse_quadlet(&raw[352..356]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinMixerState> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinMixerState> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for ItwinMixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerStateConvert::build(self, raw);
-
-        self.stream_mix_balance.build_quadlet(&mut raw[348..352]);
-        self.enabled.build_quadlet(&mut raw[352..356]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerStateConvert::parse(self, raw);
-
-        self.stream_mix_balance.parse_quadlet(&raw[348..352]);
-        self.enabled.parse_quadlet(&raw[352..356]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinMixerState> {
-    const OFFSET: usize = 0x00d0;
-    const SIZE: usize = ShellMixerState::SIZE + 56;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinMixerState>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinMixerState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinMixerState> {
-    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinMixerState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinReverbState(pub ReverbState);
+
+impl TcKonnektSegmentSerdes<ItwinReverbState> for ItwinProtocol {
+    const NAME: &'static str = "reverb-state";
+    const OFFSET: usize = 0x0244;
+    const SIZE: usize = ReverbState::SIZE;
+
+    fn serialize(params: &ItwinReverbState, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinReverbState, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinReverbState> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinReverbState> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
+}
 
 impl TcKonnektSegmentData for ItwinReverbState {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinReverbState> {
-    const OFFSET: usize = 0x0244;
-    const SIZE: usize = ReverbState::SIZE;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinReverbState>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinReverbState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinReverbState> {
-    const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinReverbState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<ItwinChStripStates> for ItwinProtocol {
+    const NAME: &'static str = "channel-strip-state";
+    const OFFSET: usize = 0x028c;
+    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+
+    fn serialize(params: &ItwinChStripStates, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinChStripStates, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinChStripStates> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinChStripStates> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+}
 
 impl TcKonnektSegmentData for ItwinChStripStates {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinChStripStates> {
-    const OFFSET: usize = 0x028c;
-    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinChStripStates>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinChStripStates>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinChStripStates> {
-    const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinChStripStates>>::NOTIFY_FLAG;
 }
 
 /// The mode to listen for analog outputs.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ListeningMode {
     Monaural,
     Stereo,
@@ -358,34 +475,57 @@ impl From<ListeningMode> for u32 {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinHwState {
     pub hw_state: ShellHwState,
     pub listening_mode: ListeningMode,
 }
 
+impl TcKonnektSegmentSerdes<ItwinHwState> for ItwinProtocol {
+    const NAME: &'static str = "hardware-state";
+    const OFFSET: usize = 0x1008;
+    const SIZE: usize = ShellHwState::SIZE;
+
+    fn serialize(params: &ItwinHwState, raw: &mut [u8]) -> Result<(), String> {
+        params.hw_state.build(raw);
+        params.listening_mode.build_quadlet(&mut raw[8..12]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinHwState, raw: &[u8]) -> Result<(), String> {
+        params.hw_state.parse(raw);
+        params.listening_mode.parse_quadlet(&raw[8..12]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<ItwinHwState> for ItwinProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<ItwinHwState> for ItwinProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for ItwinHwState {
     fn build(&self, raw: &mut [u8]) {
-        self.hw_state.build(raw);
-        self.listening_mode.build_quadlet(&mut raw[8..12]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.hw_state.parse(raw);
-        self.listening_mode.parse_quadlet(&raw[8..12]);
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinHwState> {
-    const OFFSET: usize = 0x1008;
-    const SIZE: usize = ShellHwState::SIZE;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinHwState>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinHwState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinHwState> {
-    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <ItwinProtocol as TcKonnektNotifiedSegmentOperation<ItwinHwState>>::NOTIFY_FLAG;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerMeter(pub ShellMixerMeter);
 
 impl Default for ItwinMixerMeter {
@@ -407,53 +547,101 @@ impl ShellMixerMeterConvert for ItwinMixerMeter {
     }
 }
 
+impl TcKonnektSegmentSerdes<ItwinMixerMeter> for ItwinProtocol {
+    const NAME: &'static str = "mixer-meter";
+    const OFFSET: usize = 0x106c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
+
+    fn serialize(params: &ItwinMixerMeter, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::build(params, raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinMixerMeter, raw: &[u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::parse(params, raw);
+        Ok(())
+    }
+}
+
 impl TcKonnektSegmentData for ItwinMixerMeter {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerMeterConvert::build(self, raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerMeterConvert::parse(self, raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinMixerMeter> {
-    const OFFSET: usize = 0x106c;
-    const SIZE: usize = ShellMixerMeter::SIZE;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinMixerMeter>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinMixerMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinReverbMeter(pub ReverbMeter);
+
+impl TcKonnektSegmentSerdes<ItwinReverbMeter> for ItwinProtocol {
+    const NAME: &'static str = "reverb-meter";
+    const OFFSET: usize = 0x10c8;
+    const SIZE: usize = ReverbMeter::SIZE;
+
+    fn serialize(params: &ItwinReverbMeter, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinReverbMeter, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for ItwinReverbMeter {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinReverbMeter> {
-    const OFFSET: usize = 0x10c8;
-    const SIZE: usize = ReverbMeter::SIZE;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinReverbMeter>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinReverbMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<ItwinChStripMeters> for ItwinProtocol {
+    const NAME: &'static str = "channel-strip-meter";
+    const OFFSET: usize = 0x10e0;
+    const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
+
+    fn serialize(params: &ItwinChStripMeters, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut ItwinChStripMeters, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for ItwinChStripMeters {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <ItwinProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinChStripMeters> {
-    const OFFSET: usize = 0x10e0;
-    const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const OFFSET: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinChStripMeters>>::OFFSET;
+    const SIZE: usize = <ItwinProtocol as TcKonnektSegmentSerdes<ItwinChStripMeters>>::SIZE;
 }
