@@ -5,6 +5,103 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Konnekt Live.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! XLR input 1 ----------------or----+--------------------------> analog-input-1/2
+//! Phone input 1 --------------+     |
+//!                                   |
+//! XLR input 2 ----------------or----+
+//! Phone input 2 --------------+
+//!
+//! Phone input 3/4  --------------------------------------------> analog-input-3/4
+//!                               ++=========++
+//! Coaxial input --------------> || digital ||
+//!                               || input   || -----------------> digital-input-1..8
+//! Optical input --------------> || select  ||
+//!                               ++=========++
+//!
+//! analog-input-1/2 --------------------------------------------> stream-output-1/2
+//! analog-input-3/4 --------------------------------------------> stream-output-3/4
+//! channel-strip-effects-output-1/2 ----------------------------> stream-output-5/6
+//! reverb-effect-output-1/2 ------------------------------------> stream-output-7/8
+//! digital-input-1..8 ------------------------------------------> stream-output-9..16
+//!
+//!                                           ++============++
+//! analog-input-1/2 ---+                     ||            ||
+//! analog-input-3/4 ---+                     ||  channel   ||
+//! digital-input-1/2 --+-- (one of them) --> ||   strip    || --> channel-strip-effect-output-1/2
+//! digital-input-3/4 --+  (internal mode)    ||  effects   ||
+//! digital-input-5/6 --+                     ||    1/2     ||
+//! digital-input-7/8 --+                     ||            ||
+//! stream-input-5/6  ----- (plugin mode) --> ++============++
+//!
+//!                                           ++============++
+//! analog-input-1/2 --- (internal mode) ---> ||            ||
+//! analog-input-3/4 --- (internal mode) ---> ||   reverb   ||
+//! digital-input-1/2 -- (internal mode) ---> ||            ||
+//! digital-input-3/4 -- (internal mode) ---> ||   effect   || --> reverb-effect-output-1/2
+//! digital-input-5/6 -- (internal mode) ---> ||            ||
+//! digital-input-7/8 -- (internal mode) ---> ||   12 x 2   ||
+//! stream-input-7/8 --- (plugin mode) -----> ||            ||
+//!                                           ++============++
+//!
+//!
+//! stream-input-1/2 --------------(one of them) ----------------> stream-source-input-1/2
+//! stream-input-3/4 ------------------+
+//! stream-input-5/6 ------------------+
+//! stream-input-7/8 ------------------+
+//! stream-input-9/10 -----------------+
+//! stream-input-11/12 ----------------+
+//! stream-input-13/14 ----------------+
+//! stream-input-15/16 ----------------+
+//!                                      ++==========++
+//! analog-input-1/2 -----------or-----> ||          ||
+//! channel-effect-output-1/2 --+        ||          ||
+//!                                      ||          ||
+//! analog-input-3/4 -----------or-----> ||          ||
+//! channel-effect-output-1/2 --+        ||          ||
+//!                                      ||          ||
+//! digital-input-1/2 ----------or-----> ||          ||
+//! channel-effect-output-1/2 --+        ||  16 x 2  ||
+//!                                      ||          ||
+//! digital-input-3/4 ----------or-----> ||          || ---------> mixer-output-1/2
+//! channel-effect-output-1/2 --+        ||  mixer   ||
+//!                                      ||          ||
+//! digital-input-5/6 ----------or-----> ||          ||
+//! channel-effect-output-1/2 --+        ||          ||
+//!                                      ||          ||
+//! digital-input-7/8 ----------or-----> ||          ||
+//! channel-effect-output-1/2 --+        ||          ||
+//!                                      ||          ||
+//! reverb-effect-output-1/2 ----------> ||          ||
+//! stream-source-input-1/2 -----------> ||          ||
+//!                                      ++==========++
+//!
+//!
+//! stream-input-1/2 -------------(one of them) -----------------> analog-output-1/2
+//! analog-input-1/2 ------------------+
+//! mixer-output-1/2 ------------------+
+//! reverb-source-1/2 -----------------+
+//!
+//! stream-input-1/2 -------------(one of them) -----------------> analog-output-3/4
+//! analog-input-1/2 ------------------+
+//! mixer-output-1/2 ------------------+
+//! reverb-source-1/2 -----------------+
+//!
+//! stream-input-15/16 -----------(one of them) -----------------> coaxial-output-1/2
+//! analog-input-1/2 ------------------+
+//! mixer-output-1/2 ------------------+
+//! reverb-source-1/2 -----------------+
+//!
+//! stream-input-9..16 -----------(one of them) -----------------> optical-output-9..16
+//! analog-input-1/2 ------------------+
+//! mixer-output-1/2 ------------------+
+//! reverb-source-1/2 -----------------+
+//!
+//! ```
 
 use super::*;
 
@@ -71,9 +168,13 @@ segment_default!(KliveProtocol, KliveChStripMeters);
 /// State of knob.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveKnob {
+    /// Target of 1st knob.
     pub knob0_target: ShellKnob0Target,
+    /// Target of 2nd knob.
     pub knob1_target: ShellKnob1Target,
+    /// Loaded program number.
     pub prog: TcKonnektLoadedProgram,
+    /// Impedance of outputs.
     pub out_impedance: [OutputImpedance; 2],
 }
 
@@ -120,7 +221,8 @@ impl TcKonnektSegmentSerdes<KliveKnob> for KliveProtocol {
         serialize_knob0_target::<KliveProtocol>(&params.knob0_target, &mut raw[..4])?;
         serialize_knob1_target::<KliveProtocol>(&params.knob1_target, &mut raw[4..8])?;
         serialize_loaded_program(&params.prog, &mut raw[8..12])?;
-        params.out_impedance.build_quadlet_block(&mut raw[12..20]);
+        serialize_output_impedance(&params.out_impedance[0], &mut raw[12..16])?;
+        serialize_output_impedance(&params.out_impedance[1], &mut raw[16..20])?;
         Ok(())
     }
 
@@ -128,7 +230,8 @@ impl TcKonnektSegmentSerdes<KliveKnob> for KliveProtocol {
         deserialize_knob0_target::<KliveProtocol>(&mut params.knob0_target, &raw[..4])?;
         deserialize_knob1_target::<KliveProtocol>(&mut params.knob1_target, &raw[4..8])?;
         deserialize_loaded_program(&mut params.prog, &raw[8..12])?;
-        params.out_impedance.parse_quadlet_block(&raw[12..20]);
+        deserialize_output_impedance(&mut params.out_impedance[0], &raw[12..16])?;
+        deserialize_output_impedance(&mut params.out_impedance[1], &raw[16..20])?;
         Ok(())
     }
 }
@@ -142,13 +245,21 @@ impl TcKonnektNotifiedSegmentOperation<KliveKnob> for KliveProtocol {
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveConfig {
+    /// Configuration for optical interface.
     pub opt: ShellOptIfaceConfig,
+    /// Source of coaxial output.
     pub coax_out_src: ShellCoaxOutPairSrc,
+    /// Source of analog output 1/2.
     pub out_01_src: ShellPhysOutSrc,
+    /// Source of analog output 3/4.
     pub out_23_src: ShellPhysOutSrc,
+    /// Source of stream input pair as mixer source.
     pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
+    /// Source of sampling clock at standalone mode.
     pub standalone_src: ShellStandaloneClockSource,
+    /// Rate of sampling clock at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
+    /// Configuration for midi event generator.
     pub midi_sender: TcKonnektMidiSender,
 }
 
@@ -222,14 +333,23 @@ impl TcKonnektNotifiedSegmentOperation<KliveConfig> for KliveProtocol {
 /// The source of channel strip effect.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChStripSrc {
+    /// Stream input 1/2.
     Stream01,
+    /// Analog input 1/2.
     Analog01,
+    /// Analog input 3/4.
     Analog23,
+    /// Digital input 1/2.
     Digital01,
+    /// Digital input 3/4.
     Digital23,
+    /// Digital input 5/6.
     Digital45,
+    /// Digital input 7/8.
     Digital67,
+    /// Mixer output 1/2.
     MixerOutput,
+    /// Nothing.
     None,
 }
 
@@ -274,8 +394,11 @@ impl From<ChStripSrc> for u32 {
 /// The type of channel strip effect.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChStripMode {
+    /// Fablik C.
     FabrikC,
+    /// RIAA 1964.
     RIAA1964,
+    /// RIAA 1987.
     RIAA1987,
 }
 
@@ -285,24 +408,20 @@ impl Default for ChStripMode {
     }
 }
 
-impl From<u32> for ChStripMode {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => Self::RIAA1987,
-            1 => Self::RIAA1964,
-            _ => Self::FabrikC,
-        }
-    }
+const CH_STRIP_MODES: &[ChStripMode] = &[
+    ChStripMode::FabrikC,
+    ChStripMode::RIAA1964,
+    ChStripMode::RIAA1987,
+];
+
+const CH_STRIP_MODE_LABEL: &str = "channel strip mode";
+
+fn serialize_ch_strip_mode(mode: &ChStripMode, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(CH_STRIP_MODES, mode, raw, CH_STRIP_MODE_LABEL)
 }
 
-impl From<ChStripMode> for u32 {
-    fn from(effect: ChStripMode) -> Self {
-        match effect {
-            ChStripMode::FabrikC => 0,
-            ChStripMode::RIAA1964 => 1,
-            ChStripMode::RIAA1987 => 2,
-        }
-    }
+fn deserialize_ch_strip_mode(mode: &mut ChStripMode, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(CH_STRIP_MODES, mode, raw, CH_STRIP_MODE_LABEL)
 }
 
 /// State of mixer.
@@ -367,7 +486,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
             .use_ch_strip_as_plugin
             .build_quadlet(&mut raw[328..332]);
         params.ch_strip_src.build_quadlet(&mut raw[332..336]);
-        params.ch_strip_mode.build_quadlet(&mut raw[336..340]);
+        serialize_ch_strip_mode(&params.ch_strip_mode, &mut raw[336..340])?;
         params
             .use_reverb_at_mid_rate
             .build_quadlet(&mut raw[340..344]);
@@ -381,7 +500,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
         deserialize_reverb_return(&mut params.reverb_return, &raw[316..328])?;
         params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
         params.ch_strip_src.parse_quadlet(&raw[332..336]);
-        params.ch_strip_mode.parse_quadlet(&raw[336..340]);
+        deserialize_ch_strip_mode(&mut params.ch_strip_mode, &raw[336..340])?;
         params.use_reverb_at_mid_rate.parse_quadlet(&raw[340..344]);
         params.enabled.parse_quadlet(&raw[344..348]);
         Ok(())
@@ -394,6 +513,7 @@ impl TcKonnektNotifiedSegmentOperation<KliveMixerState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+/// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbState(pub ReverbState);
 
@@ -417,6 +537,7 @@ impl TcKonnektNotifiedSegmentOperation<KliveReverbState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
 }
 
+/// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
@@ -440,6 +561,7 @@ impl TcKonnektNotifiedSegmentOperation<KliveChStripStates> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
+/// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveHwState(pub ShellHwState);
 
@@ -466,6 +588,7 @@ impl TcKonnektNotifiedSegmentOperation<KliveHwState> for KliveProtocol {
 const KLIVE_METER_ANALOG_INPUT_COUNT: usize = 4;
 const KLIVE_METER_DIGITAL_INPUT_COUNT: usize = 8;
 
+/// Hardware metering for mixer function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KliveMixerMeter(pub ShellMixerMeter);
 
@@ -494,6 +617,7 @@ impl TcKonnektSegmentSerdes<KliveMixerMeter> for KliveProtocol {
     }
 }
 
+/// Hardware metering for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbMeter(pub ReverbMeter);
 
@@ -511,6 +635,7 @@ impl TcKonnektSegmentSerdes<KliveReverbMeter> for KliveProtocol {
     }
 }
 
+/// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
@@ -531,7 +656,9 @@ impl TcKonnektSegmentSerdes<KliveChStripMeters> for KliveProtocol {
 /// Impedance of output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OutputImpedance {
+    /// Unbalance.
     Unbalance,
+    /// Balance.
     Balance,
 }
 
@@ -541,20 +668,17 @@ impl Default for OutputImpedance {
     }
 }
 
-impl From<u32> for OutputImpedance {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::Unbalance,
-            _ => Self::Balance,
-        }
-    }
+const OUTPUT_IMPEDANCES: &[OutputImpedance] = &[
+    OutputImpedance::Unbalance,
+    OutputImpedance::Balance,
+];
+
+const OUTPUT_IMPEDANCE_LABEL: &str = "output impedance";
+
+fn serialize_output_impedance(impedance: &OutputImpedance, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(OUTPUT_IMPEDANCES, impedance, raw, OUTPUT_IMPEDANCE_LABEL)
 }
 
-impl From<OutputImpedance> for u32 {
-    fn from(impedance: OutputImpedance) -> Self {
-        match impedance {
-            OutputImpedance::Unbalance => 0,
-            OutputImpedance::Balance => 1,
-        }
-    }
+fn deserialize_output_impedance(impedance: &mut OutputImpedance, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(OUTPUT_IMPEDANCES, impedance, raw, OUTPUT_IMPEDANCE_LABEL)
 }
