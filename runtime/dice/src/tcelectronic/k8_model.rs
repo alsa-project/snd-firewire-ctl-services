@@ -161,9 +161,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.config_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.config_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -302,20 +302,6 @@ impl KnobCtl {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]
@@ -419,18 +405,6 @@ impl ConfigCtl {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_coax_out_src(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]
@@ -483,8 +457,8 @@ impl MixerStateCtl {
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
-                        .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.enabled]);
+                    Ok(true)
                 }
                 _ => Ok(false),
             }
@@ -601,10 +575,10 @@ impl HwStateCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                AUX_IN_ENABLED_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    Ok(self.0.data.aux_input_enabled)
-                })
-                .map(|_| true),
+                AUX_IN_ENABLED_NAME => {
+                    elem_value.set_bool(&[self.0.data.aux_input_enabled]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -618,11 +592,7 @@ impl HwStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)
     }
 
     fn parse_notification(
