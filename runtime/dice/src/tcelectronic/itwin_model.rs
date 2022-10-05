@@ -389,16 +389,20 @@ impl ShellMixerStreamSrcCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
 }
 
 impl StandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
+    fn segment(&self) -> &ItwinConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut ItwinConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &ItwinConfig) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut ItwinConfig) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 

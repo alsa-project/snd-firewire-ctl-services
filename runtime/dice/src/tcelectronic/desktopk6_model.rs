@@ -107,7 +107,7 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             Ok(true)
         } else if self
             .config_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -521,16 +521,20 @@ impl HwStateCtl {
 struct ConfigCtl(Desktopk6ConfigSegment);
 
 impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
+    fn segment(&self) -> &Desktopk6ConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Desktopk6ConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &DesktopConfig) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut DesktopConfig) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 
@@ -555,13 +559,13 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)
+        self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms)
     }
 
     fn parse_notification(

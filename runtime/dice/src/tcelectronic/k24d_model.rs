@@ -439,16 +439,20 @@ impl ShellOptIfaceCtl<K24dConfig, K24dProtocol> for ConfigCtl {
 }
 
 impl StandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
+    fn segment(&self) -> &K24dConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dConfigSegment {
         &mut self.0
     }
 
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate {
-        &self.0.data.standalone_rate
+    fn standalone_rate(params: &K24dConfig) -> &TcKonnektStandaloneClkRate {
+        &params.standalone_rate
     }
 
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.0.data.standalone_rate
+    fn standalone_rate_mut(params: &mut K24dConfig) -> &mut TcKonnektStandaloneClkRate {
+        &mut params.standalone_rate
     }
 }
 

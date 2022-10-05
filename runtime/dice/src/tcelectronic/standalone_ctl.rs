@@ -16,13 +16,14 @@ const RATE_NAME: &str = "standalone-clock-rate";
 
 pub trait StandaloneCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn standalone_rate(&self) -> &TcKonnektStandaloneClkRate;
-    fn standalone_rate_mut(&mut self) -> &mut TcKonnektStandaloneClkRate;
+
+    fn standalone_rate(params: &S) -> &TcKonnektStandaloneClkRate;
+    fn standalone_rate_mut(params: &mut S) -> &mut TcKonnektStandaloneClkRate;
 
     const RATES: [TcKonnektStandaloneClkRate; 4] = [
         TcKonnektStandaloneClkRate::R44100,
@@ -31,7 +32,7 @@ where
         TcKonnektStandaloneClkRate::R96000,
     ];
 
-    fn load_standalone_rate(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_standalone_rate(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::RATES
             .iter()
             .map(|r| standalone_rate_to_str(r))
@@ -47,39 +48,40 @@ where
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let pos = Self::RATES
-                    .iter()
-                    .position(|r| self.standalone_rate().eq(r))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+            RATE_NAME => {
+                let params = &self.segment().data;
+                let rate = Self::standalone_rate(&params);
+                let pos = Self::RATES.iter().position(|r| rate.eq(r)).unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_standalone_rate(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::RATES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of clock rate: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&r| *self.standalone_rate_mut() = r)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let pos = elem_value.enumerated()[0] as usize;
+                let rate = Self::RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of clock rate: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                let mut params = self.segment_mut().data.clone();
+                *Self::standalone_rate_mut(&mut params) = rate;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

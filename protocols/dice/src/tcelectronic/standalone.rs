@@ -7,7 +7,7 @@
 //! for Konnekt series.
 
 /// Available rate for sampling clock in standalone mode.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TcKonnektStandaloneClkRate {
     R44100,
     R48000,
