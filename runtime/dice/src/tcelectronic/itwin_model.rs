@@ -259,7 +259,7 @@ struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
 
 impl CommonCtlOperation<ItwinProtocol> for CommonCtl {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct KnobCtl(ItwinKnobSegment, Vec<ElemId>);
 
 impl ShellKnobCtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
@@ -270,16 +270,20 @@ impl ShellKnobCtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
         "Mixer-1/2",
     ];
 
+    fn segment(&self) -> &ItwinKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut ItwinKnobSegment {
         &mut self.0
     }
 
-    fn knob_target(&self) -> &ShellKnobTarget {
-        &self.0.data.target
+    fn knob_target(params: &ItwinKnob) -> &ShellKnobTarget {
+        &params.target
     }
 
-    fn knob_target_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.0.data.target
+    fn knob_target_mut(params: &mut ItwinKnob) -> &mut ShellKnobTarget {
+        &mut params.target
     }
 }
 
@@ -327,7 +331,7 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -371,20 +375,24 @@ impl KnobCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConfigCtl(ItwinConfigSegment, Vec<ElemId>);
 
 impl ShellMixerStreamSrcCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
+    fn segment(&self) -> &ItwinConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut ItwinConfigSegment {
         &mut self.0
     }
 
-    fn mixer_stream_src(&self) -> &ShellMixerStreamSrcPair {
-        &self.0.data.mixer_stream_src_pair
+    fn mixer_stream_src(params: &ItwinConfig) -> &ShellMixerStreamSrcPair {
+        &params.mixer_stream_src_pair
     }
 
-    fn mixer_stream_src_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
-        &mut self.0.data.mixer_stream_src_pair
+    fn mixer_stream_src_mut(params: &mut ItwinConfig) -> &mut ShellMixerStreamSrcPair {
+        &mut params.mixer_stream_src_pair
     }
 }
 
@@ -407,12 +415,12 @@ impl StandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
-    fn standalone_src(&self) -> &ShellStandaloneClkSrc {
-        &self.0.data.standalone_src
+    fn standalone_src(params: &ItwinConfig) -> &ShellStandaloneClkSrc {
+        &params.standalone_src
     }
 
-    fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.0.data.standalone_src
+    fn standalone_src_mut(params: &mut ItwinConfig) -> &mut ShellStandaloneClkSrc {
+        &mut params.standalone_src
     }
 }
 
@@ -521,9 +529,9 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_mixer_stream_src(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -599,12 +607,12 @@ impl ShellMixerCtlOperation<ItwinMixerState, ItwinMixerMeter, ItwinProtocol> for
         &mut self.1
     }
 
-    fn state(&self) -> &ShellMixerState {
-        &self.0.data.mixer
+    fn state(params: &ItwinMixerState) -> &ShellMixerState {
+        &params.mixer
     }
 
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.0.data.mixer
+    fn state_mut(params: &mut ItwinMixerState) -> &mut ShellMixerState {
+        &mut params.mixer
     }
 
     fn meter(&self) -> &ShellMixerMeter {
@@ -668,7 +676,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, &unit.1, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

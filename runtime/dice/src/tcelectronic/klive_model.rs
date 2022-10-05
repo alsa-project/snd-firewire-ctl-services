@@ -259,22 +259,26 @@ struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
 
 impl CommonCtlOperation<KliveProtocol> for CommonCtl {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct KnobCtl(KliveKnobSegment, Vec<ElemId>);
 
 impl ShellKnobCtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
     const TARGETS: [&'static str; 4] = ["Analog-1", "Analog-2", "Analog-3/4", "Configurable"];
 
+    fn segment(&self) -> &KliveKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveKnobSegment {
         &mut self.0
     }
 
-    fn knob_target(&self) -> &ShellKnobTarget {
-        &self.0.data.target
+    fn knob_target(params: &KliveKnob) -> &ShellKnobTarget {
+        &params.target
     }
 
-    fn knob_target_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.0.data.target
+    fn knob_target_mut(params: &mut KliveKnob) -> &mut ShellKnobTarget {
+        &mut params.target
     }
 }
 
@@ -291,16 +295,20 @@ impl ShellKnob2CtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
         "Midi-send",
     ];
 
+    fn segment(&self) -> &KliveKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveKnobSegment {
         &mut self.0
     }
 
-    fn knob2_target(&self) -> &ShellKnob2Target {
-        &self.0.data.knob2_target
+    fn knob2_target(params: &KliveKnob) -> &ShellKnob2Target {
+        &params.knob2_target
     }
 
-    fn knob2_target_mut(&mut self) -> &mut ShellKnob2Target {
-        &mut self.0.data.knob2_target
+    fn knob2_target_mut(params: &mut KliveKnob) -> &mut ShellKnob2Target {
+        &mut params.knob2_target
     }
 }
 
@@ -392,9 +400,9 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else if self.write_prog(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
@@ -450,48 +458,60 @@ impl KnobCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConfigCtl(KliveConfigSegment, Vec<ElemId>);
 
 impl ShellMixerStreamSrcCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
+    fn segment(&self) -> &KliveConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveConfigSegment {
         &mut self.0
     }
 
-    fn mixer_stream_src(&self) -> &ShellMixerStreamSrcPair {
-        &self.0.data.mixer_stream_src_pair
+    fn mixer_stream_src(params: &KliveConfig) -> &ShellMixerStreamSrcPair {
+        &params.mixer_stream_src_pair
     }
 
-    fn mixer_stream_src_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
-        &mut self.0.data.mixer_stream_src_pair
+    fn mixer_stream_src_mut(params: &mut KliveConfig) -> &mut ShellMixerStreamSrcPair {
+        &mut params.mixer_stream_src_pair
     }
 }
 
 impl ShellCoaxIfaceCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
+    fn segment(&self) -> &KliveConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveConfigSegment {
         &mut self.0
     }
 
-    fn coax_out_src(&self) -> &ShellCoaxOutPairSrc {
-        &self.0.data.coax_out_src
+    fn coax_out_src(params: &KliveConfig) -> &ShellCoaxOutPairSrc {
+        &params.coax_out_src
     }
 
-    fn coax_out_src_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
-        &mut self.0.data.coax_out_src
+    fn coax_out_src_mut(params: &mut KliveConfig) -> &mut ShellCoaxOutPairSrc {
+        &mut params.coax_out_src
     }
 }
 
 impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
+    fn segment(&self) -> &KliveConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveConfigSegment {
         &mut self.0
     }
 
-    fn opt_iface_config(&self) -> &ShellOptIfaceConfig {
-        &self.0.data.opt
+    fn opt_iface_config(params: &KliveConfig) -> &ShellOptIfaceConfig {
+        &params.opt
     }
 
-    fn opt_iface_config_mut(&mut self) -> &mut ShellOptIfaceConfig {
-        &mut self.0.data.opt
+    fn opt_iface_config_mut(params: &mut KliveConfig) -> &mut ShellOptIfaceConfig {
+        &mut params.opt
     }
 }
 
@@ -514,12 +534,12 @@ impl StandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn standalone_src(&self) -> &ShellStandaloneClkSrc {
-        &self.0.data.standalone_src
+    fn standalone_src(params: &KliveConfig) -> &ShellStandaloneClkSrc {
+        &params.standalone_src
     }
 
-    fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.0.data.standalone_src
+    fn standalone_src_mut(params: &mut KliveConfig) -> &mut ShellStandaloneClkSrc {
+        &mut params.standalone_src
     }
 }
 
@@ -598,13 +618,13 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_mixer_stream_src(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_coax_out_src(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_opt_iface_config(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_opt_iface_config(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else if self.write_midi_sender(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
@@ -697,12 +717,12 @@ impl ShellMixerCtlOperation<KliveMixerState, KliveMixerMeter, KliveProtocol> for
         &mut self.1
     }
 
-    fn state(&self) -> &ShellMixerState {
-        &self.0.data.mixer
+    fn state(params: &KliveMixerState) -> &ShellMixerState {
+        &params.mixer
     }
 
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.0.data.mixer
+    fn state_mut(params: &mut KliveMixerState) -> &mut ShellMixerState {
+        &mut params.mixer
     }
 
     fn meter(&self) -> &ShellMixerMeter {
@@ -719,16 +739,20 @@ impl ShellMixerCtlOperation<KliveMixerState, KliveMixerMeter, KliveProtocol> for
 }
 
 impl ShellReverbReturnCtlOperation<KliveMixerState, KliveProtocol> for MixerCtl {
+    fn segment(&self) -> &KliveMixerStateSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveMixerStateSegment {
         &mut self.0
     }
 
-    fn reverb_return(&self) -> &ShellReverbReturn {
-        &self.0.data.reverb_return
+    fn reverb_return(params: &KliveMixerState) -> &ShellReverbReturn {
+        &params.reverb_return
     }
 
-    fn reverb_return_mut(&mut self) -> &mut ShellReverbReturn {
-        &mut self.0.data.reverb_return
+    fn reverb_return_mut(params: &mut KliveMixerState) -> &mut ShellReverbReturn {
+        &mut params.reverb_return
     }
 }
 
@@ -874,9 +898,9 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, &unit.1, elem_id, old, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_reverb_return(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_reverb_return(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

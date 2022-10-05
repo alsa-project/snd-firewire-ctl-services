@@ -19,8 +19,7 @@ const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 pub trait ShellHwStateCtlOperation<S, T>: FirewireLedCtlOperation<S, T>
 where
     S: TcKonnektSegmentData + Clone,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S> + TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn hw_state(&self) -> &ShellHwState;
     fn hw_state_mut(&mut self) -> &mut ShellHwState;
@@ -119,11 +118,12 @@ const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
 
 pub trait ShellMixerCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData,
+    S: TcKonnektSegmentData + Clone,
     T: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    TcKonnektSegment<T>: TcKonnektSegmentSpec,
-    U: SegmentOperation<S> + SegmentOperation<T>,
+    U: TcKonnektSegmentOperation<S>
+        + TcKonnektSegmentOperation<T>
+        + TcKonnektMutableSegmentOperation<S>
+        + TcKonnektNotifiedSegmentOperation<S>,
 {
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
@@ -142,8 +142,8 @@ where
     fn state_segment(&self) -> &TcKonnektSegment<S>;
     fn state_segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
     fn meter_segment_mut(&mut self) -> &mut TcKonnektSegment<T>;
-    fn state(&self) -> &ShellMixerState;
-    fn state_mut(&mut self) -> &mut ShellMixerState;
+    fn state(params: &S) -> &ShellMixerState;
+    fn state_mut(params: &mut S) -> &mut ShellMixerState;
     fn meter(&self) -> &ShellMixerMeter;
     fn meter_mut(&mut self) -> &mut ShellMixerMeter;
     fn enabled(&self) -> bool;
@@ -181,9 +181,10 @@ where
         )?;
 
         // For physical sources of mixer.
-        let labels: Vec<String> = (0..self.state().analog.len())
+        let state = Self::state(&self.state_segment().data);
+        let labels: Vec<String> = (0..state.analog.len())
             .map(|i| format!("Analog-{}/{}", i + 1, i + 2))
-            .chain((0..self.state().digital.len()).map(|i| format!("Digital-{}/{}", i + 1, i + 2)))
+            .chain((0..state.digital.len()).map(|i| format!("Digital-{}/{}", i + 1, i + 2)))
             .collect();
         Self::state_add_elem_bool(
             card_cntr,
@@ -192,9 +193,9 @@ where
             labels.len(),
         )?;
 
-        let labels: Vec<String> = (0..(self.state().analog.len() * 2))
+        let labels: Vec<String> = (0..(state.analog.len() * 2))
             .map(|i| format!("Analog-{}", i + 1))
-            .chain((0..(self.state().digital.len() * 2)).map(|i| format!("Digital-{}", i + 1)))
+            .chain((0..(state.digital.len() * 2)).map(|i| format!("Digital-{}", i + 1)))
             .collect();
         Self::state_add_elem_level(
             card_cntr,
@@ -292,17 +293,19 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        let analog_count = self.state().analog.len();
-        let digital_count = self.state().digital.len();
+        let params = &self.state_segment().data;
+        let state = Self::state(params);
+        let analog_count = state.analog.len();
+        let digital_count = state.digital.len();
         let count = (analog_count + digital_count) * 2;
 
         ElemValueAccessor::<V>::set_vals(elem_value, count, |idx| {
             let i = idx / 2;
             let ch = idx % 2;
             let src_pair = if i < analog_count {
-                &self.state().analog[i]
+                &state.analog[i]
             } else {
-                &self.state().digital[i - analog_count]
+                &state.digital[i - analog_count]
             };
             let param = if ch == 0 {
                 &src_pair.left
@@ -316,8 +319,8 @@ where
 
     fn write_mixer(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -325,90 +328,96 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
-                self.state_write(unit, req, new, timeout_ms, |state, val| {
+                self.state_write(req, node, new, timeout_ms, |state, val| {
                     state.stream.left.gain_to_mixer = val;
                     Ok(())
                 })
             }
             MIXER_STREAM_SRC_PAIR_PAN_NAME => {
-                self.state_write(unit, req, new, timeout_ms, |state, val| {
+                self.state_write(req, node, new, timeout_ms, |state, val| {
                     state.stream.left.pan_to_mixer = val;
                     Ok(())
                 })
             }
             MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
-                self.state_write(unit, req, new, timeout_ms, |state, val| {
+                self.state_write(req, node, new, timeout_ms, |state, val| {
                     state.mutes.stream = val;
                     Ok(())
                 })
             }
             REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
-                self.state_write(unit, req, new, timeout_ms, |state, val| {
+                self.state_write(req, node, new, timeout_ms, |state, val| {
                     state.stream.left.gain_to_send = val;
                     Ok(())
                 })
             }
             MIXER_PHYS_SRC_STEREO_LINK_NAME => {
-                let analog_count = self.state().analog.len();
-                let digital_count = self.state().digital.len();
+                let mut params = self.state_segment().data.clone();
+                let state = Self::state_mut(&mut params);
+
+                let analog_count = state.analog.len();
+                let digital_count = state.digital.len();
                 let count = analog_count + digital_count;
 
                 ElemValueAccessor::<bool>::get_vals(new, old, count, |idx, val| {
                     if idx < analog_count {
-                        self.state_mut().analog[idx].stereo_link = val;
+                        state.analog[idx].stereo_link = val;
                     } else {
-                        self.state_mut().digital[idx - analog_count].stereo_link = val;
+                        state.digital[idx - analog_count].stereo_link = val;
                     }
                     Ok(())
                 })?;
 
-                U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
+                U::update_partial_segment(req, node, &params, self.state_segment_mut(), timeout_ms)
                     .map(|_| true)
             }
             MIXER_PHYS_SRC_GAIN_NAME => {
-                self.state_write_phys_src(unit, req, new, old, timeout_ms, |param, val| {
+                self.state_write_phys_src(req, node, new, old, timeout_ms, |param, val| {
                     param.gain_to_mixer = val;
                     Ok(())
                 })
             }
             MIXER_PHYS_SRC_PAN_NAME => {
-                self.state_write_phys_src(unit, req, new, old, timeout_ms, |param, val| {
+                self.state_write_phys_src(req, node, new, old, timeout_ms, |param, val| {
                     param.pan_to_mixer = val;
                     Ok(())
                 })
             }
             MIXER_PHYS_SRC_MUTE_NAME => {
-                let analog_count = self.state().mutes.analog.len();
-                let digital_count = self.state().mutes.digital.len();
+                let mut params = self.state_segment().data.clone();
+                let state = Self::state_mut(&mut params);
+
+                let analog_count = state.mutes.analog.len();
+                let digital_count = state.mutes.digital.len();
                 let count = analog_count + digital_count;
 
                 ElemValueAccessor::<bool>::get_vals(new, old, count, |idx, val| {
                     if idx < analog_count {
-                        self.state_mut().mutes.analog[idx] = val;
+                        state.mutes.analog[idx] = val;
                     } else {
-                        self.state_mut().mutes.digital[idx - analog_count] = val;
+                        state.mutes.digital[idx - analog_count] = val;
                     };
                     Ok(())
                 })?;
 
-                U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
+                U::update_partial_segment(req, node, &params, self.state_segment_mut(), timeout_ms)
                     .map(|_| true)
             }
             REVERB_PHYS_SRC_GAIN_NAME => {
-                self.state_write_phys_src(unit, req, new, old, timeout_ms, |param, val| {
+                self.state_write_phys_src(req, node, new, old, timeout_ms, |param, val| {
                     param.gain_to_send = val;
                     Ok(())
                 })
             }
-            MIXER_OUT_DIM_NAME => self.state_write(unit, req, new, timeout_ms, |state, val| {
+            MIXER_OUT_DIM_NAME => self.state_write(req, node, new, timeout_ms, |state, val| {
                 state.output_dim_enable = val;
                 Ok(())
             }),
-            MIXER_OUT_VOL_NAME => self.state_write(unit, req, new, timeout_ms, |state, val| {
+            MIXER_OUT_VOL_NAME => self.state_write(req, node, new, timeout_ms, |state, val| {
                 state.output_volume = val;
                 Ok(())
             }),
-            MIXER_OUT_DIM_VOL_NAME => self.state_write(unit, req, new, timeout_ms, |state, val| {
+            MIXER_OUT_DIM_VOL_NAME => self.state_write(req, node, new, timeout_ms, |state, val| {
                 state.output_dim_volume = val;
                 Ok(())
             }),
@@ -418,8 +427,8 @@ where
 
     fn state_write<V, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         cb: F,
@@ -429,14 +438,17 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        ElemValueAccessor::<V>::get_val(elem_value, |val| cb(self.state_mut(), val))?;
-        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
+        let mut params = self.state_segment().data.clone();
+        let state = Self::state_mut(&mut params);
+        ElemValueAccessor::<V>::get_val(elem_value, |val| cb(state, val))?;
+        U::update_partial_segment(req, node, &params, self.state_segment_mut(), timeout_ms)
+            .map(|_| true)
     }
 
     fn state_write_phys_src<V, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         new: &ElemValue,
         old: &ElemValue,
         timeout_ms: u32,
@@ -447,17 +459,20 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        let analog_count = self.state().analog.len();
-        let digital_count = self.state().digital.len();
+        let mut params = self.state_segment().data.clone();
+        let state = Self::state_mut(&mut params);
+
+        let analog_count = state.analog.len();
+        let digital_count = state.digital.len();
         let count = (analog_count + digital_count) * 2;
 
         ElemValueAccessor::<V>::get_vals(new, old, count, |idx, val| {
             let i = idx / 2;
             let ch = idx % 2;
             let src_pair = if i < analog_count {
-                &mut self.state_mut().analog[i]
+                &mut state.analog[i]
             } else {
-                &mut self.state_mut().digital[i - analog_count]
+                &mut state.digital[i - analog_count]
             };
             let param = if ch == 0 {
                 &mut src_pair.left
@@ -466,7 +481,8 @@ where
             };
             cb(param, val)
         })?;
-        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
+        U::update_partial_segment(req, node, &params, self.state_segment_mut(), timeout_ms)
+            .map(|_| true)
     }
 
     fn read_mixer_notified_elem(
@@ -476,27 +492,36 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
-                elem_value.set_int(&[self.state().stream.left.gain_to_mixer]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_int(&[state.stream.left.gain_to_mixer]);
                 Ok(true)
             }
             MIXER_STREAM_SRC_PAIR_PAN_NAME => {
-                elem_value.set_int(&[self.state().stream.left.pan_to_mixer]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_int(&[state.stream.left.pan_to_mixer]);
                 Ok(true)
             }
             MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
-                elem_value.set_bool(&[self.state().mutes.stream]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_bool(&[state.mutes.stream]);
                 Ok(true)
             }
             REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
-                elem_value.set_int(&[self.state().stream.left.gain_to_send]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_int(&[state.stream.left.gain_to_send]);
                 Ok(true)
             }
             MIXER_PHYS_SRC_STEREO_LINK_NAME => {
-                let vals: Vec<bool> = self
-                    .state()
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                let vals: Vec<bool> = state
                     .analog
                     .iter()
-                    .chain(&self.state().digital)
+                    .chain(&state.digital)
                     .map(|src| src.stereo_link)
                     .collect();
                 elem_value.set_bool(&vals);
@@ -509,8 +534,10 @@ where
                 self.state_read_phys_src(elem_value, |param| Ok(param.pan_to_mixer))
             }
             MIXER_PHYS_SRC_MUTE_NAME => {
-                let mut vals = self.state().mutes.analog.clone();
-                vals.extend_from_slice(&self.state().mutes.digital);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                let mut vals = state.mutes.analog.clone();
+                vals.extend_from_slice(&state.mutes.digital);
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
@@ -518,15 +545,21 @@ where
                 self.state_read_phys_src(elem_value, |param| Ok(param.gain_to_send))
             }
             MIXER_OUT_DIM_NAME => {
-                elem_value.set_bool(&[self.state().output_dim_enable]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_bool(&[state.output_dim_enable]);
                 Ok(true)
             }
             MIXER_OUT_VOL_NAME => {
-                elem_value.set_int(&[self.state().output_volume]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_int(&[state.output_volume]);
                 Ok(true)
             }
             MIXER_OUT_DIM_VOL_NAME => {
-                elem_value.set_int(&[self.state().output_dim_volume]);
+                let params = &self.state_segment().data;
+                let state = Self::state(params);
+                elem_value.set_int(&[state.output_dim_volume]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -641,13 +674,14 @@ const MUTE_NAME: &str = "reverb-return-mute";
 
 pub trait ShellReverbReturnCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn reverb_return(&self) -> &ShellReverbReturn;
-    fn reverb_return_mut(&mut self) -> &mut ShellReverbReturn;
+
+    fn reverb_return(params: &S) -> &ShellReverbReturn;
+    fn reverb_return_mut(params: &mut S) -> &mut ShellReverbReturn;
 
     const GAIN_MIN: i32 = -1000;
     const GAIN_MAX: i32 = 0;
@@ -693,43 +727,45 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            USE_AS_PLUGIN_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                Ok(self.reverb_return().plugin_mode)
-            })
-            .map(|_| true),
+            USE_AS_PLUGIN_NAME => {
+                let params = &self.segment().data;
+                let state = Self::reverb_return(&params);
+                elem_value.set_bool(&[state.plugin_mode]);
+                Ok(true)
+            }
             _ => self.read_reverb_return_notified_elem(elem_id, elem_value),
         }
     }
 
     fn write_reverb_return(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             USE_AS_PLUGIN_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.reverb_return_mut().plugin_mode = val;
-                    Ok(())
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let state = Self::reverb_return_mut(&mut params);
+                state.plugin_mode = elem_value.boolean()[0];
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             GAIN_NAME => {
-                ElemValueAccessor::<i32>::get_val(elem_value, |val| {
-                    self.reverb_return_mut().return_gain = val;
-                    Ok(())
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let state = Self::reverb_return_mut(&mut params);
+                state.return_gain = elem_value.int()[0];
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             MUTE_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.reverb_return_mut().return_mute = val;
-                    Ok(())
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let state = Self::reverb_return_mut(&mut params);
+                state.return_mute = elem_value.boolean()[0];
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -741,14 +777,18 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            GAIN_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Ok(self.reverb_return().return_gain)
-            })
-            .map(|_| true),
-            MUTE_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                Ok(self.reverb_return().return_mute)
-            })
-            .map(|_| true),
+            GAIN_NAME => {
+                let params = &self.segment().data;
+                let state = Self::reverb_return(&params);
+                elem_value.set_int(&[state.return_gain]);
+                Ok(true)
+            }
+            MUTE_NAME => {
+                let params = &self.segment().data;
+                let state = Self::reverb_return(&params);
+                elem_value.set_bool(&[state.return_mute]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
@@ -770,8 +810,8 @@ where
     TcKonnektSegment<S>: TcKonnektSegmentSpec,
     T: SegmentOperation<S> + TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
-    fn standalone_src(&self) -> &ShellStandaloneClkSrc;
-    fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc;
+    fn standalone_src(params: &S) -> &ShellStandaloneClkSrc;
+    fn standalone_src_mut(params: &mut S) -> &mut ShellStandaloneClkSrc;
 
     fn load_standalone(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = S::STANDALONE_CLOCK_SOURCES
@@ -789,9 +829,11 @@ where
     fn read_standalone(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let params = &self.segment().data;
+                let src = Self::standalone_src(&params);
                 let pos = S::STANDALONE_CLOCK_SOURCES
                     .iter()
-                    .position(|s| self.standalone_src().eq(s))
+                    .position(|s| src.eq(s))
                     .unwrap();
                 Ok(pos as u32)
             })
@@ -802,27 +844,29 @@ where
 
     fn write_standalone(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    S::STANDALONE_CLOCK_SOURCES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of clock source: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| *self.standalone_src_mut() = s)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let src = Self::standalone_src_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                S::STANDALONE_CLOCK_SOURCES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock source: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| *src = s)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
-            _ => self.write_standalone_rate(req, &unit.1, elem_id, elem_value, timeout_ms),
+            _ => self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms),
         }
     }
 }
@@ -843,13 +887,14 @@ const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
 
 pub trait ShellMixerStreamSrcCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn mixer_stream_src(&self) -> &ShellMixerStreamSrcPair;
-    fn mixer_stream_src_mut(&mut self) -> &mut ShellMixerStreamSrcPair;
+
+    fn mixer_stream_src(params: &S) -> &ShellMixerStreamSrcPair;
+    fn mixer_stream_src_mut(params: &mut S) -> &mut ShellMixerStreamSrcPair;
 
     const MIXER_STREAM_SRC_PAIRS: [ShellMixerStreamSrcPair; 7] = [
         ShellMixerStreamSrcPair::Stream01,
@@ -879,41 +924,45 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            MIXER_STREAM_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            MIXER_STREAM_SRC_NAME => {
+                let params = &self.segment().data;
+                let src = Self::mixer_stream_src(&params);
                 let pos = Self::MIXER_STREAM_SRC_PAIRS
                     .iter()
                     .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
-                    .position(|s| self.mixer_stream_src().eq(s))
+                    .position(|s| src.eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_mixer_stream_src(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_STREAM_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::MIXER_STREAM_SRC_PAIRS
-                        .iter()
-                        .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of stream src pair: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| *self.mixer_stream_src_mut() = s)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let src = Self::mixer_stream_src_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::MIXER_STREAM_SRC_PAIRS
+                    .iter()
+                    .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of stream src pair: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| *src = s)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -940,13 +989,13 @@ const COAX_OUT_SRC_NAME: &str = "coaxial-output-source";
 
 pub trait ShellCoaxIfaceCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn coax_out_src(&self) -> &ShellCoaxOutPairSrc;
-    fn coax_out_src_mut(&mut self) -> &mut ShellCoaxOutPairSrc;
+    fn coax_out_src(params: &S) -> &ShellCoaxOutPairSrc;
+    fn coax_out_src_mut(params: &mut S) -> &mut ShellCoaxOutPairSrc;
 
     fn load_coax_out_src(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = PHYS_OUT_SRCS
@@ -965,39 +1014,40 @@ where
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            COAX_OUT_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let pos = PHYS_OUT_SRCS
-                    .iter()
-                    .position(|s| self.coax_out_src().0.eq(s))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+            COAX_OUT_SRC_NAME => {
+                let params = &self.segment().data;
+                let src = Self::coax_out_src(params);
+                let pos = PHYS_OUT_SRCS.iter().position(|s| src.0.eq(s)).unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_coax_out_src(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             COAX_OUT_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    PHYS_OUT_SRCS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of clock rate: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| self.coax_out_src_mut().0 = s)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let src = Self::coax_out_src_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                PHYS_OUT_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock rate: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| src.0 = s)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1025,9 +1075,8 @@ const OPT_OUT_SRC_NAME: &str = "optical-output-source";
 
 pub trait ShellOptIfaceCtl<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const IN_FMTS: [ShellOptInputIfaceFormat; 3] = [
         ShellOptInputIfaceFormat::Adat0to7,
@@ -1040,9 +1089,11 @@ where
         ShellOptOutputIfaceFormat::Spdif,
     ];
 
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn opt_iface_config(&self) -> &ShellOptIfaceConfig;
-    fn opt_iface_config_mut(&mut self) -> &mut ShellOptIfaceConfig;
+
+    fn opt_iface_config(params: &S) -> &ShellOptIfaceConfig;
+    fn opt_iface_config_mut(params: &mut S) -> &mut ShellOptIfaceConfig;
 
     fn load_opt_iface_config(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::IN_FMTS.iter().map(|s| opt_in_fmt_to_str(s)).collect();
@@ -1073,25 +1124,31 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let params = &self.segment().data;
+                let config = Self::opt_iface_config(&params);
                 let pos = Self::IN_FMTS
                     .iter()
-                    .position(|f| self.opt_iface_config().input_format.eq(f))
+                    .position(|f| config.input_format.eq(f))
                     .unwrap();
                 Ok(pos as u32)
             })
             .map(|_| true),
             OPT_OUT_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let params = &self.segment().data;
+                let config = Self::opt_iface_config(&params);
                 let pos = Self::OUT_FMTS
                     .iter()
-                    .position(|f| self.opt_iface_config().output_format.eq(f))
+                    .position(|f| config.output_format.eq(f))
                     .unwrap();
                 Ok(pos as u32)
             })
             .map(|_| true),
             OPT_OUT_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let params = &self.segment().data;
+                let config = Self::opt_iface_config(&params);
                 let pos = PHYS_OUT_SRCS
                     .iter()
-                    .position(|s| self.opt_iface_config().output_source.0.eq(s))
+                    .position(|s| config.output_source.0.eq(s))
                     .unwrap();
                 Ok(pos as u32)
             })
@@ -1102,51 +1159,57 @@ where
 
     fn write_opt_iface_config(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_FMT_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::IN_FMTS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of optical input format: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&f| self.opt_iface_config_mut().input_format = f)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let config = Self::opt_iface_config_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::IN_FMTS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of optical input format: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&f| config.input_format = f)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             OPT_OUT_FMT_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::OUT_FMTS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of optical output format: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&f| self.opt_iface_config_mut().output_format = f)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let config = Self::opt_iface_config_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::OUT_FMTS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of optical output format: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&f| config.output_format = f)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             OPT_OUT_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    PHYS_OUT_SRCS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of optical output source: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| self.opt_iface_config_mut().output_source.0 = s)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let config = Self::opt_iface_config_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                PHYS_OUT_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of optical output source: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| config.output_source.0 = s)?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1157,15 +1220,16 @@ const TARGET_NAME: &str = "knob-target";
 
 pub trait ShellKnobCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const TARGETS: [&'static str; 4];
 
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn knob_target(&self) -> &ShellKnobTarget;
-    fn knob_target_mut(&mut self) -> &mut ShellKnobTarget;
+
+    fn knob_target(params: &S) -> &ShellKnobTarget;
+    fn knob_target_mut(params: &mut S) -> &mut ShellKnobTarget;
 
     fn load_knob_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, TARGET_NAME, 0);
@@ -1178,40 +1242,40 @@ where
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let state = self.knob_target();
-                if state.0 >= Self::TARGETS.len() as u32 {
-                    let msg = format!("Unexpected index of program: {}", state.0);
-                    Err(Error::new(FileError::Io, &msg))
-                } else {
-                    Ok(state.0)
+            TARGET_NAME => {
+                let params = &self.segment().data;
+                let target = Self::knob_target(&params);
+                if target.0 >= Self::TARGETS.len() as u32 {
+                    let msg = format!("Unexpected index of program: {}", target.0);
+                    Err(Error::new(FileError::Io, &msg))?;
                 }
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[target.0]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_knob_target(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             TARGET_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    if val >= Self::TARGETS.len() as u32 {
-                        let msg = format!("Invalid index of program: {}", val);
-                        Err(Error::new(FileError::Io, &msg))
-                    } else {
-                        self.knob_target_mut().0 = val;
-                        Ok(())
-                    }
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let val = elem_value.enumerated()[0];
+                if val >= Self::TARGETS.len() as u32 {
+                    let msg = format!("Invalid index of program: {}", val);
+                    Err(Error::new(FileError::Io, &msg))?;
+                }
+                let target = Self::knob_target_mut(&mut params);
+                target.0 = val;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1222,13 +1286,16 @@ const KNOB2_NAME: &str = "configurable-knob-target";
 
 pub trait ShellKnob2CtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S>
+        + TcKonnektMutableSegmentOperation<S>
+        + TcKonnektNotifiedSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn knob2_target(&self) -> &ShellKnob2Target;
-    fn knob2_target_mut(&mut self) -> &mut ShellKnob2Target;
+
+    fn knob2_target(params: &S) -> &ShellKnob2Target;
+    fn knob2_target_mut(params: &mut S) -> &mut ShellKnob2Target;
 
     const TARGETS: &'static [&'static str];
 
@@ -1243,40 +1310,40 @@ where
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            KNOB2_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let state = self.knob2_target();
-                if state.0 >= Self::TARGETS.len() as u32 {
-                    let msg = format!("Invalid index of program: {}", state.0);
-                    Err(Error::new(FileError::Io, &msg))
-                } else {
-                    Ok(state.0)
+            KNOB2_NAME => {
+                let params = &self.segment().data;
+                let target = Self::knob2_target(&params);
+                if target.0 >= Self::TARGETS.len() as u32 {
+                    let msg = format!("Invalid index of program: {}", target.0);
+                    Err(Error::new(FileError::Io, &msg))?;
                 }
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[target.0]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_knob2_target(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             KNOB2_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    if val >= Self::TARGETS.len() as u32 {
-                        let msg = format!("Invalid value for index of program: {}", val);
-                        Err(Error::new(FileError::Io, &msg))
-                    } else {
-                        self.knob2_target_mut().0 = val;
-                        Ok(())
-                    }
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let mut params = self.segment().data.clone();
+                let target = Self::knob2_target_mut(&mut params);
+                let val = elem_value.enumerated()[0] as usize;
+                if val >= Self::TARGETS.len() {
+                    let msg = format!("Invalid value for index of program: {}", val);
+                    Err(Error::new(FileError::Io, &msg))?;
+                }
+                target.0 = val as u32;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

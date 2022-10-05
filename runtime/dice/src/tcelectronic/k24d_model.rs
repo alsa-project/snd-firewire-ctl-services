@@ -260,22 +260,26 @@ struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
 
 impl CommonCtlOperation<K24dProtocol> for CommonCtl {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct KnobCtl(K24dKnobSegment, Vec<ElemId>);
 
 impl ShellKnobCtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
     const TARGETS: [&'static str; 4] = ["Analog-1", "Analog-2", "Analog-3/4", "Configurable"];
 
+    fn segment(&self) -> &K24dKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dKnobSegment {
         &mut self.0
     }
 
-    fn knob_target(&self) -> &ShellKnobTarget {
-        &self.0.data.target
+    fn knob_target(params: &K24dKnob) -> &ShellKnobTarget {
+        &params.target
     }
 
-    fn knob_target_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.0.data.target
+    fn knob_target_mut(params: &mut K24dKnob) -> &mut ShellKnobTarget {
+        &mut params.target
     }
 }
 
@@ -291,16 +295,20 @@ impl ShellKnob2CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
         "Tune-pitch-tone",
     ];
 
+    fn segment(&self) -> &K24dKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dKnobSegment {
         &mut self.0
     }
 
-    fn knob2_target(&self) -> &ShellKnob2Target {
-        &self.0.data.knob2_target
+    fn knob2_target(params: &K24dKnob) -> &ShellKnob2Target {
+        &params.knob2_target
     }
 
-    fn knob2_target_mut(&mut self) -> &mut ShellKnob2Target {
-        &mut self.0.data.knob2_target
+    fn knob2_target_mut(params: &mut K24dKnob) -> &mut ShellKnob2Target {
+        &mut params.knob2_target
     }
 }
 
@@ -365,9 +373,9 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else if self.write_prog(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
@@ -411,30 +419,38 @@ impl KnobCtl {
 struct ConfigCtl(K24dConfigSegment, Vec<ElemId>);
 
 impl ShellCoaxIfaceCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
+    fn segment(&self) -> &K24dConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dConfigSegment {
         &mut self.0
     }
 
-    fn coax_out_src(&self) -> &ShellCoaxOutPairSrc {
-        &self.0.data.coax_out_src
+    fn coax_out_src(params: &K24dConfig) -> &ShellCoaxOutPairSrc {
+        &params.coax_out_src
     }
 
-    fn coax_out_src_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
-        &mut self.0.data.coax_out_src
+    fn coax_out_src_mut(params: &mut K24dConfig) -> &mut ShellCoaxOutPairSrc {
+        &mut params.coax_out_src
     }
 }
 
 impl ShellOptIfaceCtl<K24dConfig, K24dProtocol> for ConfigCtl {
+    fn segment(&self) -> &K24dConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dConfigSegment {
         &mut self.0
     }
 
-    fn opt_iface_config(&self) -> &ShellOptIfaceConfig {
-        &self.0.data.opt
+    fn opt_iface_config(params: &K24dConfig) -> &ShellOptIfaceConfig {
+        &params.opt
     }
 
-    fn opt_iface_config_mut(&mut self) -> &mut ShellOptIfaceConfig {
-        &mut self.0.data.opt
+    fn opt_iface_config_mut(params: &mut K24dConfig) -> &mut ShellOptIfaceConfig {
+        &mut params.opt
     }
 }
 
@@ -457,12 +473,12 @@ impl StandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn standalone_src(&self) -> &ShellStandaloneClkSrc {
-        &self.0.data.standalone_src
+    fn standalone_src(params: &K24dConfig) -> &ShellStandaloneClkSrc {
+        &params.standalone_src
     }
 
-    fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.0.data.standalone_src
+    fn standalone_src_mut(params: &mut K24dConfig) -> &mut ShellStandaloneClkSrc {
+        &mut params.standalone_src
     }
 }
 
@@ -523,11 +539,11 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_coax_out_src(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_opt_iface_config(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_opt_iface_config(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -600,12 +616,12 @@ impl ShellMixerCtlOperation<K24dMixerState, K24dMixerMeter, K24dProtocol> for Mi
         &mut self.1
     }
 
-    fn state(&self) -> &ShellMixerState {
-        &self.0.data.mixer
+    fn state(params: &K24dMixerState) -> &ShellMixerState {
+        &params.mixer
     }
 
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.0.data.mixer
+    fn state_mut(params: &mut K24dMixerState) -> &mut ShellMixerState {
+        &mut params.mixer
     }
 
     fn meter(&self) -> &ShellMixerMeter {
@@ -622,16 +638,20 @@ impl ShellMixerCtlOperation<K24dMixerState, K24dMixerMeter, K24dProtocol> for Mi
 }
 
 impl ShellReverbReturnCtlOperation<K24dMixerState, K24dProtocol> for MixerCtl {
+    fn segment(&self) -> &K24dMixerStateSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dMixerStateSegment {
         &mut self.0
     }
 
-    fn reverb_return(&self) -> &ShellReverbReturn {
-        &self.0.data.reverb_return
+    fn reverb_return(params: &K24dMixerState) -> &ShellReverbReturn {
+        &params.reverb_return
     }
 
-    fn reverb_return_mut(&mut self) -> &mut ShellReverbReturn {
-        &mut self.0.data.reverb_return
+    fn reverb_return_mut(params: &mut K24dMixerState) -> &mut ShellReverbReturn {
+        &mut params.reverb_return
     }
 }
 
@@ -707,9 +727,9 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, &unit.1, elem_id, old, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_reverb_return(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_reverb_return(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
