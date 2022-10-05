@@ -668,10 +668,8 @@ impl Default for OutputImpedance {
     }
 }
 
-const OUTPUT_IMPEDANCES: &[OutputImpedance] = &[
-    OutputImpedance::Unbalance,
-    OutputImpedance::Balance,
-];
+const OUTPUT_IMPEDANCES: &[OutputImpedance] =
+    &[OutputImpedance::Unbalance, OutputImpedance::Balance];
 
 const OUTPUT_IMPEDANCE_LABEL: &str = "output impedance";
 
