@@ -16,7 +16,7 @@ const RATE_NAME: &str = "standalone-clock-rate";
 
 pub trait StandaloneCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -80,8 +80,10 @@ where
                     .copied()?;
                 let mut params = self.segment_mut().data.clone();
                 *Self::standalone_rate_mut(&mut params) = rate;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
