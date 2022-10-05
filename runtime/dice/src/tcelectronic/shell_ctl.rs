@@ -362,13 +362,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].gain_to_mixer = elem_value.int()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -376,13 +371,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].pan_to_mixer = elem_value.int()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -390,13 +380,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.mutes.stream = elem_value.boolean()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -404,13 +389,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.stream.params[0].gain_to_send = elem_value.int()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -420,13 +400,8 @@ where
                 phys_src_pair_iter_mut(state)
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.stereo_link = val);
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -436,13 +411,8 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.gain_to_mixer = val);
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -452,13 +422,8 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.pan_to_mixer = val);
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -468,13 +433,8 @@ where
                 phys_src_pair_iter_mut(state)
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.stereo_link = val);
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -484,13 +444,8 @@ where
                 phys_src_params_iter_mut(state)
                     .zip(elem_value.int())
                     .for_each(|(p, &val)| p.gain_to_send = val);
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -498,13 +453,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_dim_enable = elem_value.boolean()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -512,13 +462,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_volume = elem_value.int()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
@@ -526,13 +471,8 @@ where
                 let mut params = self.segment().data.clone();
                 let state = Self::state_mut(&mut params);
                 state.output_dim_volume = elem_value.int()[0];
-                let res = U::update_partial_segment(
-                    req,
-                    node,
-                    &params,
-                    self.segment_mut(),
-                    timeout_ms,
-                );
+                let res =
+                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
                 debug!(params = ?self.segment().data, ?res);
                 res.map(|_| true)
             }
