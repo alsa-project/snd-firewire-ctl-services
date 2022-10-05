@@ -3,7 +3,7 @@
 
 use {super::*, protocols::tcelectronic::studio::*};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Studiok48Model {
     req: FwReq,
     sections: GeneralSections,
@@ -32,19 +32,21 @@ impl Studiok48Model {
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.lineout_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.remote_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.phys_out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.reverb_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections).map(
             |(measured_elem_id_list, notified_elem_id_list)| {
                 self.common_ctl.0 = measured_elem_id_list;
@@ -52,16 +54,11 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             },
         )?;
 
-        self.lineout_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.remote_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.config_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.mixer_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.phys_out_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.lineout_ctl.load(card_cntr)?;
+        self.remote_ctl.load(card_cntr)?;
+        self.config_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
+        self.phys_out_ctl.load(card_cntr)?;
 
         self.reverb_ctl
             .load(card_cntr)
@@ -76,8 +73,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             },
         )?;
 
-        self.hw_state_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.hw_state_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -130,27 +126,27 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             Ok(true)
         } else if self
             .lineout_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .remote_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .config_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -200,21 +196,21 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
             TIMEOUT_MS,
         )?;
         self.lineout_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.remote_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.mixer_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.phys_out_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.reverb_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -261,7 +257,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         self.reverb_ctl
             .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_ctl
@@ -301,7 +297,7 @@ fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct LineoutCtl(Studiok48LineOutLevelSegment, Vec<ElemId>);
 
 const LINE_OUT_45_LEVEL_NAME: &str = "line-out-5/6-level";
@@ -315,15 +311,11 @@ impl LineoutCtl {
         NominalSignalLevel::Consumer,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::NOMINAL_SIGNAL_LEVELS
             .iter()
             .map(|m| nominal_signal_level_to_str(m))
@@ -352,7 +344,7 @@ impl LineoutCtl {
         Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_OUT_45_LEVEL_NAME => Self::read_as_index(elem_value, self.0.data.line_45),
             LINE_OUT_67_LEVEL_NAME => Self::read_as_index(elem_value, self.0.data.line_67),
@@ -375,30 +367,30 @@ impl LineoutCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_OUT_45_LEVEL_NAME => {
-                self.write_as_index(unit, req, elem_value, timeout_ms, |data, level| {
+                self.write_as_index(req, node, elem_value, timeout_ms, |data, level| {
                     data.line_45 = level
                 })
             }
             LINE_OUT_67_LEVEL_NAME => {
-                self.write_as_index(unit, req, elem_value, timeout_ms, |data, level| {
+                self.write_as_index(req, node, elem_value, timeout_ms, |data, level| {
                     data.line_67 = level
                 })
             }
             LINE_OUT_89_LEVEL_NAME => {
-                self.write_as_index(unit, req, elem_value, timeout_ms, |data, level| {
+                self.write_as_index(req, node, elem_value, timeout_ms, |data, level| {
                     data.line_89 = level
                 })
             }
             LINE_OUT_1011_LEVEL_NAME => {
-                self.write_as_index(unit, req, elem_value, timeout_ms, |data, level| {
+                self.write_as_index(req, node, elem_value, timeout_ms, |data, level| {
                     data.line_1011 = level
                 })
             }
@@ -408,8 +400,8 @@ impl LineoutCtl {
 
     fn write_as_index<F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         cb: F,
@@ -417,6 +409,7 @@ impl LineoutCtl {
     where
         F: Fn(&mut StudioLineOutLevel, NominalSignalLevel),
     {
+        let mut params = self.0.data.clone();
         ElemValueAccessor::<u32>::get_val(elem_value, |val| {
             Self::NOMINAL_SIGNAL_LEVELS
                 .iter()
@@ -425,27 +418,28 @@ impl LineoutCtl {
                     let msg = format!("Invalid index of nominal level: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })
-                .map(|&l| cb(&mut self.0.data, l))
+                .map(|&l| cb(&mut params, l))
         })?;
-        Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms).map(|_| true)
+        Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
+            .map(|_| true)
     }
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct RemoteCtl(Studiok48RemoteSegment, Vec<ElemId>);
 
 impl ProgramCtlOperation<StudioRemote, Studiok48Protocol> for RemoteCtl {
@@ -496,15 +490,11 @@ impl RemoteCtl {
         KnobPushMode::GainToAux1,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_prog(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
@@ -624,100 +614,124 @@ impl RemoteCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             USER_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_REMOTE_USER_ASSIGN_COUNT,
-                    |idx, val| {
+                let mut params = self.0.data.clone();
+                params
+                    .user_assigns
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(assign, &val)| {
+                        let pos = val as usize;
                         MixerCtl::SRC_PAIR_ENTRIES
                             .iter()
-                            .nth(val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
                                 let msg =
                                     format!("Invalid index of source of user assignment: {}", val);
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&s| self.0.data.user_assigns[idx] = s)
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                            .map(|&s| *assign = s)
+                    })?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             EFFECT_BUTTON_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::EFFECT_BUTTON_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid index of source of user assignment: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&m| self.0.data.effect_button_mode = m)
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let val = elem_value.enumerated()[0] as usize;
+                Self::EFFECT_BUTTON_MODES
+                    .iter()
+                    .nth(val)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of source of user assignment: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&m| params.effect_button_mode = m)?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             FALLBACK_TO_MASTER_ENABLE_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    self.0.data.fallback_to_master_enable = val;
-                    Ok(())
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.fallback_to_master_enable = elem_value.boolean()[0];
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             FALLBACK_TO_MASTER_DURATION_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.fallback_to_master_duration = val as u32;
-                    Ok(())
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.fallback_to_master_duration = elem_value.int()[0] as u32;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             KNOB_PUSH_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::KNOB_PUSH_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid index of source of user assignment: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&m| self.0.data.knob_push_mode = m)
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::KNOB_PUSH_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of source of user assignment: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&m| params.knob_push_mode = m)?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
-            _ => self.write_prog(req, &unit.1, elem_id, new, timeout_ms),
+            _ => self.write_prog(req, node, elem_id, elem_value, timeout_ms),
         }
     }
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConfigCtl(Studiok48ConfigSegment, Vec<ElemId>);
 
 fn opt_iface_mode_to_str(mode: &OptIfaceMode) -> &'static str {
@@ -806,15 +820,11 @@ impl ConfigCtl {
         StudioStandaloneClkSrc::Internal,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_standalone_rate(card_cntr)?;
         self.load_midi_sender(card_cntr)?;
 
@@ -845,26 +855,29 @@ impl ConfigCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                OPT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                OPT_IFACE_MODE_NAME => {
+                    let params = &self.0.data;
                     let pos = Self::OPT_IFACE_MODES
                         .iter()
-                        .position(|m| self.0.data.opt_iface_mode.eq(m))
+                        .position(|m| params.opt_iface_mode.eq(m))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
-                STANDALONE_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                STANDALONE_CLK_SRC_NAME => {
+                    let params = &self.0.data;
                     let pos = Self::STANDALONE_CLK_SRCS
                         .iter()
-                        .position(|s| self.0.data.standalone_src.eq(s))
+                        .position(|s| params.standalone_src.eq(s))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
-                CLOCK_RECOVERY_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    Ok(self.0.data.clock_recovery)
-                })
-                .map(|_| true),
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                CLOCK_RECOVERY_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_bool(&[params.clock_recovery]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -872,55 +885,69 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_standalone_rate(req, &unit.1, elem_id, elem_value, timeout_ms)? {
+        if self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_midi_sender(req, &unit.1, elem_id, elem_value, timeout_ms)? {
+        } else if self.write_midi_sender(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
                 OPT_IFACE_MODE_NAME => {
-                    ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                        Self::OPT_IFACE_MODES
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid index of standalone clock source: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&m| self.0.data.opt_iface_mode = m)
-                    })?;
-                    Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                        .map(|_| true)
+                    let mut params = self.0.data.clone();
+                    let pos = elem_value.enumerated()[0] as usize;
+                    Self::OPT_IFACE_MODES
+                        .iter()
+                        .nth(pos)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of standalone clock source: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&m| params.opt_iface_mode = m)?;
+                    Studiok48Protocol::update_partial_segment(
+                        req,
+                        node,
+                        &params,
+                        &mut self.0,
+                        timeout_ms,
+                    )
+                    .map(|_| true)
                 }
                 STANDALONE_CLK_SRC_NAME => {
-                    ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                        Self::STANDALONE_CLK_SRCS
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid index of standalone clock source: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&s| self.0.data.standalone_src = s)
-                    })?;
-                    Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                        .map(|_| true)
+                    let mut params = self.0.data.clone();
+                    let pos = elem_value.enumerated()[0] as usize;
+                    Self::STANDALONE_CLK_SRCS
+                        .iter()
+                        .nth(pos)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of standalone clock source: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| params.standalone_src = s)?;
+                    Studiok48Protocol::update_partial_segment(
+                        req,
+                        node,
+                        &params,
+                        &mut self.0,
+                        timeout_ms,
+                    )
+                    .map(|_| true)
                 }
                 CLOCK_RECOVERY_NAME => {
-                    ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                        self.0.data.clock_recovery = val;
-                        Ok(())
-                    })?;
-                    Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                        .map(|_| true)
+                    let mut params = self.0.data.clone();
+                    params.clock_recovery = elem_value.boolean()[0];
+                    Studiok48Protocol::update_partial_segment(
+                        req,
+                        node,
+                        &params,
+                        &mut self.0,
+                        timeout_ms,
+                    )
+                    .map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -929,20 +956,20 @@ impl ConfigCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MixerCtl(
     Studiok48MixerStateSegment,
     Studiok48MixerMeterSegment,
@@ -1056,16 +1083,13 @@ impl MixerCtl {
     const PAN_MAX: i32 = 50;
     const PAN_STEP: i32 = 1;
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)?;
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)?;
+        Ok(())
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = (0..self.0.data.src_pairs.len())
             .map(|i| format!("Mixer-source-{}/{}", i + 1, i + 2))
             .collect();
@@ -1266,8 +1290,8 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -1275,31 +1299,43 @@ impl MixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_PAIR_MODE_NAME => {
-                let state = &mut self.0.data;
-                ElemValueAccessor::<u32>::get_vals(new, old, state.src_pairs.len(), |idx, val| {
-                    if let Some(m) = Self::SRC_PAIR_MODES.iter().nth(val as usize) {
-                        if state.src_pairs[idx].mode != MonitorSrcPairMode::Fixed {
-                            if *m != MonitorSrcPairMode::Fixed {
-                                state.src_pairs[idx].mode = *m;
-                                Ok(())
+                let mut params = self.0.data.clone();
+                ElemValueAccessor::<u32>::get_vals(
+                    new,
+                    old,
+                    params.src_pairs.len(),
+                    |idx, val| {
+                        if let Some(m) = Self::SRC_PAIR_MODES.iter().nth(val as usize) {
+                            if params.src_pairs[idx].mode != MonitorSrcPairMode::Fixed {
+                                if *m != MonitorSrcPairMode::Fixed {
+                                    params.src_pairs[idx].mode = *m;
+                                    Ok(())
+                                } else {
+                                    let msg =
+                                        format!("The fixed mode is not newly available: {}", idx);
+                                    Err(Error::new(FileError::Inval, &msg))
+                                }
                             } else {
-                                let msg = format!("The fixed mode is not newly available: {}", idx);
+                                let msg = format!("The source of mixer is immutable: {}", idx);
                                 Err(Error::new(FileError::Inval, &msg))
                             }
                         } else {
-                            let msg = format!("The source of mixer is immutable: {}", idx);
+                            let msg = format!("Invalid value for index of mixer source: {}", val);
                             Err(Error::new(FileError::Inval, &msg))
                         }
-                    } else {
-                        let msg = format!("Invalid value for index of mixer source: {}", val);
-                        Err(Error::new(FileError::Inval, &msg))
-                    }
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                    },
+                )?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             SRC_ENTRY_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val: u32| {
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val: u32| {
                     Self::SRC_PAIR_ENTRIES
                         .iter()
                         .nth(val as usize)
@@ -1307,108 +1343,140 @@ impl MixerCtl {
                             let msg = format!("Invalid value for index of mixer source: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })
-                        .map(|&s| param.src = s)
+                        .map(|&s| entry.src = s)
                 })
             }
             SRC_STEREO_LINK_NAME => {
-                let pair_count = self.0.data.src_pairs.len();
+                let mut params = self.0.data.clone();
+                let pair_count = params.src_pairs.len();
                 ElemValueAccessor::<bool>::get_vals(new, old, pair_count, |idx, val| {
-                    self.0.data.src_pairs[idx].stereo_link = val;
+                    params.src_pairs[idx].stereo_link = val;
                     Ok(())
                 })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             SRC_GAIN_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.gain_to_main = val;
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.gain_to_main = val;
                     Ok(())
                 })
             }
             SRC_PAN_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.pan_to_main = val;
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.pan_to_main = val;
                     Ok(())
                 })
             }
             REVERB_SRC_GAIN_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.gain_to_reverb = val;
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.gain_to_reverb = val;
                     Ok(())
                 })
             }
             AUX01_SRC_GAIN_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.gain_to_aux0 = val;
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.gain_to_aux0 = val;
                     Ok(())
                 })
             }
             AUX23_SRC_GAIN_NAME => {
-                self.state_write_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.gain_to_aux1 = val;
+                self.state_write_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.gain_to_aux1 = val;
                     Ok(())
                 })
             }
             SRC_MUTE_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .mutes
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_DIM_NAME => {
-                self.state_write_out_pair(unit, req, new, old, timeout_ms, |pair, val| {
+                self.state_write_out_pair(req, node, new, old, timeout_ms, |pair, val| {
                     pair.dim_enabled = val;
                     Ok(())
                 })
             }
             OUT_VOL_NAME => {
-                self.state_write_out_pair(unit, req, new, old, timeout_ms, |pair, val| {
+                self.state_write_out_pair(req, node, new, old, timeout_ms, |pair, val| {
                     pair.vol = val;
                     Ok(())
                 })
             }
             OUT_DIM_VOL_NAME => {
-                self.state_write_out_pair(unit, req, new, old, timeout_ms, |pair, val| {
+                self.state_write_out_pair(req, node, new, old, timeout_ms, |pair, val| {
                     pair.dim_vol = val;
                     Ok(())
                 })
             }
             REVERB_RETURN_MUTE_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .reverb_return_mute
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_RETURN_GAIN_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .reverb_return_gain
                     .iter_mut()
                     .zip(new.int())
                     .for_each(|(d, s)| *d = *s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             CH_STRIP_AS_PLUGIN_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .ch_strip_as_plugin
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             CH_STRIP_SRC_NAME => {
-                let count = self.0.data.ch_strip_src.len();
+                let mut params = self.0.data.clone();
+                let count = params.ch_strip_src.len();
                 ElemValueAccessor::<u32>::get_vals(new, old, count, |idx, val| {
                     Self::SRC_PAIR_ENTRIES
                         .iter()
@@ -1418,36 +1486,62 @@ impl MixerCtl {
                                 format!("Invalid value for index of ch strip source: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })
-                        .map(|&s| self.0.data.ch_strip_src[idx] = s)
+                        .map(|&s| params.ch_strip_src[idx] = s)
                 })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             CH_STRIP_23_AT_MID_RATE => {
+                let mut params = self.0.data.clone();
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    self.0.data.ch_strip_23_at_mid_rate = val;
+                    params.ch_strip_23_at_mid_rate = val;
                     Ok(())
                 })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             POST_FADER_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .post_fader
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_ENABLE_NAME => {
+                let mut params = self.0.data.clone();
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    self.0.data.enabled = val;
+                    params.enabled = val;
                     Ok(())
                 })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1455,8 +1549,8 @@ impl MixerCtl {
 
     fn state_write_src_param<T, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         new: &ElemValue,
         old: &ElemValue,
         timeout_ms: u32,
@@ -1467,24 +1561,26 @@ impl MixerCtl {
         F: Fn(&mut MonitorSrcParam, T) -> Result<(), Error>,
         ElemValue: ElemValueAccessor<T>,
     {
-        let count = self.0.data.src_pairs.len() * 2;
+        let mut params = self.0.data.clone();
+        let count = params.src_pairs.len() * 2;
         ElemValueAccessor::<T>::get_vals(new, old, count, |idx, val| {
             let i = idx / 2;
             let ch = idx % 2;
-            let param = if ch == 0 {
-                &mut self.0.data.src_pairs[i].left
+            let entry = if ch == 0 {
+                &mut params.src_pairs[i].left
             } else {
-                &mut self.0.data.src_pairs[i].right
+                &mut params.src_pairs[i].right
             };
-            cb(param, val)
+            cb(entry, val)
         })?;
-        Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms).map(|_| true)
+        Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
+            .map(|_| true)
     }
 
     fn state_write_out_pair<T, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         new: &ElemValue,
         old: &ElemValue,
         timeout_ms: u32,
@@ -1495,10 +1591,12 @@ impl MixerCtl {
         F: Fn(&mut OutPair, T) -> Result<(), Error>,
         ElemValue: ElemValueAccessor<T>,
     {
+        let mut params = self.0.data.clone();
         ElemValueAccessor::<T>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
-            cb(&mut self.0.data.mixer_out[idx], val)
+            cb(&mut params.mixer_out[idx], val)
         })?;
-        Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms).map(|_| true)
+        Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
+            .map(|_| true)
     }
 
     fn read_notified_elem(
@@ -1613,29 +1711,24 @@ impl MixerCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)
+    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct PhysOutCtl(Studiok48PhysOutSegment, Vec<ElemId>);
 
 const MASTER_OUT_DIM_NAME: &str = "master-out-dim";
@@ -1807,15 +1900,11 @@ impl PhysOutCtl {
     const DELAY_MAX: i32 = 30;
     const DELAY_STEP: i32 = 1;
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For master output.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUT_DIM_NAME, 0);
         card_cntr
@@ -2131,8 +2220,8 @@ impl PhysOutCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -2140,54 +2229,75 @@ impl PhysOutCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MASTER_OUT_DIM_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    self.0.data.master_out.dim_enabled = val;
-                    Ok(())
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.master_out.dim_enabled = new.boolean()[0];
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MASTER_OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.master_out.vol = val;
-                    Ok(())
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.master_out.vol = new.int()[0];
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MASTER_OUT_DIM_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.master_out.dim_vol = val;
-                    Ok(())
-                })?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.master_out.dim_vol = new.int()[0];
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_STEREO_LINK_NAME => {
-                ElemValueAccessor::<bool>::get_vals(
-                    new,
-                    old,
-                    STUDIO_PHYS_OUT_PAIR_COUNT,
-                    |idx, val| {
-                        self.0.data.out_pair_srcs[idx].stereo_link = val;
-                        Ok(())
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params
+                    .out_pair_srcs
+                    .iter_mut()
+                    .zip(new.boolean())
+                    .for_each(|(pair_src, val)| pair_src.stereo_link = val);
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_MUTE_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .out_mutes
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_SRC_NAME => {
-                self.write_out_src_param(unit, req, new, old, timeout_ms, |param, val: u32| {
+                self.write_out_src_param(req, node, new, old, timeout_ms, |entry, val: u32| {
                     Self::PHYS_OUT_SRCS
                         .iter()
                         .nth(val as usize)
@@ -2196,37 +2306,51 @@ impl PhysOutCtl {
                                 format!("Invalid value for index of source of output: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })
-                        .map(|&s| param.src = s)
+                        .map(|&s| entry.src = s)
                 })
             }
             OUT_GRP_SELECT_NAME => {
-                self.0.data.selected_out_grp = new.enumerated()[0] as usize;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.selected_out_grp = new.enumerated()[0] as usize;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_SRC_ENABLE_NAME => {
-                self.0
-                    .data
+                let mut params = self.0.data.clone();
+                params
                     .out_assign_to_grp
                     .iter_mut()
                     .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_SRC_TRIM_NAME => {
-                self.write_out_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.vol = val;
+                self.write_out_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.vol = val;
                     Ok(())
                 })
             }
             OUT_GRP_SRC_DELAY_NAME => {
-                self.write_out_src_param(unit, req, new, old, timeout_ms, |param, val| {
-                    param.delay = val;
+                self.write_out_src_param(req, node, new, old, timeout_ms, |entry, val| {
+                    entry.delay = val;
                     Ok(())
                 })
             }
             OUT_GRP_SRC_ASSIGN_NAME => {
+                let mut params = self.0.data.clone();
                 let vals = &new.boolean()[..(STUDIO_PHYS_OUT_PAIR_COUNT * 2)];
                 let count = vals.iter().filter(|&v| *v).count();
                 if count > STUDIO_MAX_SURROUND_CHANNELS {
@@ -2237,31 +2361,41 @@ impl PhysOutCtl {
                     Err(Error::new(FileError::Inval, &msg))?;
                 }
                 let index = elem_id.index() as usize;
-                self.0.data.out_grps[index]
+                params.out_grps[index]
                     .assigned_phys_outs
                     .copy_from_slice(&vals);
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_BASS_MANAGEMENT_NAME => {
-                ElemValueAccessor::<bool>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
-                        self.0.data.out_grps[idx].bass_management = val;
-                        Ok(())
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.boolean())
+                    .for_each(|(out_grp, val)| out_grp.bass_management = val);
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
-                ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.enumerated())
+                    .try_for_each(|(out_grp, &val)| {
                         Self::CROSS_OVER_FREQS
                             .iter()
                             .nth(val as usize)
@@ -2272,81 +2406,106 @@ impl PhysOutCtl {
                                 );
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&freq| self.0.data.out_grps[idx].main_cross_over_freq = freq)
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                            .map(|&freq| out_grp.main_cross_over_freq = freq)
+                    })?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
-                ElemValueAccessor::<i32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
-                        self.0.data.out_grps[idx].main_level_to_sub = val;
-                        Ok(())
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.int())
+                    .for_each(|(out_grp, &val)| out_grp.main_level_to_sub = val);
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
-                ElemValueAccessor::<i32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
-                        self.0.data.out_grps[idx].sub_level_to_sub = val;
-                        Ok(())
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.int())
+                    .for_each(|(out_grp, &val)| out_grp.sub_level_to_sub = val);
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
-                ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.int())
+                    .try_for_each(|(out_grp, &val)| {
+                        let pos = val as usize;
                         Self::HIGH_PASS_FREQS
                             .iter()
-                            .nth(val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
                                 let msg = format!(
                                     "Invalid value for index of high pass frequency: {}",
-                                    val
+                                    pos
                                 );
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&freq| self.0.data.out_grps[idx].main_filter_for_main = freq)
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                            .map(|&freq| out_grp.main_filter_for_main = freq)
+                    })?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
-                ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    STUDIO_OUTPUT_GROUP_COUNT,
-                    |idx, val| {
+                let mut params = self.0.data.clone();
+                params
+                    .out_grps
+                    .iter_mut()
+                    .zip(new.int())
+                    .try_for_each(|(out_grp, &val)| {
+                        let pos = val as usize;
                         Self::LOW_PASS_FREQS
                             .iter()
-                            .nth(val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
                                 let msg = format!(
                                     "Invalid value for index of low pass frequency: {}",
-                                    val
+                                    pos
                                 );
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&freq| self.0.data.out_grps[idx].main_filter_for_sub = freq)
-                    },
-                )?;
-                Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                            .map(|&freq| out_grp.main_filter_for_sub = freq)
+                    })?;
+                Studiok48Protocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -2354,8 +2513,8 @@ impl PhysOutCtl {
 
     fn write_out_src_param<T, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         new: &ElemValue,
         old: &ElemValue,
         timeout_ms: u32,
@@ -2366,35 +2525,37 @@ impl PhysOutCtl {
         T: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<T>,
     {
+        let mut params = self.0.data.clone();
         ElemValueAccessor::<T>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT * 2, |idx, val| {
             let i = idx / 2;
             let ch = idx % 2;
-            let param = if ch == 0 {
-                &mut self.0.data.out_pair_srcs[i].left
+            let entry = if ch == 0 {
+                &mut params.out_pair_srcs[i].left
             } else {
-                &mut self.0.data.out_pair_srcs[i].right
+                &mut params.out_pair_srcs[i].right
             };
-            cb(param, val)
+            cb(entry, val)
         })?;
-        Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms).map(|_| true)
+        Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
+            .map(|_| true)
     }
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ChStripCtl(
     Studiok48ChStripStatesSegment,
     Studiok48ChStripMetersSegment,
@@ -2477,7 +2638,7 @@ fn analog_jack_state_to_str(state: &StudioAnalogJackState) -> &'static str {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct HwStateCtl(Studiok48HwStateSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<StudioHwState, Studiok48Protocol> for HwStateCtl {
@@ -2511,15 +2672,11 @@ impl HwStateCtl {
         StudioAnalogJackState::RearInserted,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_firewire_led(card_cntr)?;
 
         let labels = Self::ANALOG_JACK_STATES
@@ -2604,13 +2761,13 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Studiok48Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Studiok48Protocol::is_notified_segment(&self.0, msg) {
+            Studiok48Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
