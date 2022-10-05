@@ -7,7 +7,7 @@ const LOADED_NAME: &str = "loaded-program";
 
 pub trait ProgramCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const PROG_LABELS: [&'static str; 3] = ["P1", "P2", "P3"];

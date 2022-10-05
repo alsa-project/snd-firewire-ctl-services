@@ -16,7 +16,7 @@ const RATE_NAME: &str = "standalone-clock-rate";
 
 pub trait StandaloneCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;

@@ -16,7 +16,7 @@ pub fn firewire_led_state_to_str(state: &FireWireLedState) -> &'static str {
 
 pub trait FirewireLedCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;

@@ -676,7 +676,7 @@ impl From<u32> for ShellStandaloneClkSrc {
     }
 }
 
-pub trait ShellStandaloneClkSpec: TcKonnektSegmentData {
+pub trait ShellStandaloneClkSpec {
     const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
 }
 
