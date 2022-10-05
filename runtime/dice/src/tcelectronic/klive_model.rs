@@ -211,9 +211,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.config_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.config_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -378,14 +378,23 @@ impl KnobCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                OUTPUT_IMPEDANCE_NAME => ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let pos = Self::OUTPUT_IMPEDANCES
+                OUTPUT_IMPEDANCE_NAME => {
+                    let vals: Vec<u32> = self
+                        .0
+                        .data
+                        .out_impedance
                         .iter()
-                        .position(|&i| i == self.0.data.out_impedance[idx])
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
+                        .map(|impedance| {
+                            let pos = Self::OUTPUT_IMPEDANCES
+                                .iter()
+                                .position(|i| impedance.eq(i))
+                                .unwrap();
+                            pos as u32
+                        })
+                        .collect();
+                    elem_value.set_enum(&vals);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -449,22 +458,6 @@ impl KnobCtl {
             KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
-        }
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_prog(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
         }
     }
 }
@@ -612,7 +605,27 @@ impl ConfigCtl {
         } else if self.read_midi_sender(elem_id, elem_value)? {
             Ok(true)
         } else {
-            Ok(false)
+            match elem_id.name().as_str() {
+                OUT_01_SRC_NAME => {
+                    let params = &self.0.data;
+                    let pos = PHYS_OUT_SRCS
+                        .iter()
+                        .position(|s| params.out_01_src.eq(s))
+                        .unwrap();
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                OUT_23_SRC_NAME => {
+                    let params = &self.0.data;
+                    let pos = PHYS_OUT_SRCS
+                        .iter()
+                        .position(|s| params.out_23_src.eq(s))
+                        .unwrap();
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
         }
     }
 
@@ -692,24 +705,6 @@ impl ConfigCtl {
             KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
-        }
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_mixer_stream_src(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_coax_out_src(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_opt_iface_config(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_midi_sender(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
         }
     }
 }
@@ -850,35 +845,33 @@ impl MixerStateCtl {
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
-                        .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.enabled]);
+                    Ok(true)
                 }
                 USE_CH_STRIP_AS_PLUGIN_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || {
-                        Ok(self.0.data.use_ch_strip_as_plugin)
-                    })
-                    .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.use_ch_strip_as_plugin]);
+                    Ok(true)
                 }
-                CH_STRIP_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                CH_STRIP_SRC_NAME => {
                     let pos = Self::CH_STRIP_SRCS
                         .iter()
                         .position(|s| self.0.data.ch_strip_src.eq(s))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
-                CH_STRIP_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                CH_STRIP_MODE_NAME => {
                     let pos = Self::CH_STRIP_MODES
                         .iter()
                         .position(|s| self.0.data.ch_strip_mode.eq(s))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
-                USE_REVERB_AT_MID_RATE => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    Ok(self.0.data.use_reverb_at_mid_rate)
-                })
-                .map(|_| true),
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
+                USE_REVERB_AT_MID_RATE => {
+                    elem_value.set_bool(&[self.0.data.use_reverb_at_mid_rate]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -1055,11 +1048,7 @@ impl HwStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_hw_state(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self.read_hw_state(elem_id, elem_value)
     }
 
     fn write(
@@ -1070,11 +1059,7 @@ impl HwStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)
     }
 
     fn parse_notification(
