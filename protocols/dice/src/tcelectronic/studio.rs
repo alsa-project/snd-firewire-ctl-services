@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{ch_strip::*, midi_send::*, prog::*, reverb::*, *};
+use super::{ch_strip::*, prog::*, reverb::*, *};
 
 /// Protocol implementation of Studio Konnekt 48.
 #[derive(Default, Debug)]
@@ -377,7 +377,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
         params.standalone_src.build_quadlet(&mut raw[4..8]);
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[8..12])?;
         params.clock_recovery.build_quadlet(&mut raw[16..20]);
-        params.midi_send.build(&mut raw[52..88]);
+        serialize_midi_sender(&params.midi_send, &mut raw[52..88])?;
         Ok(())
     }
 
@@ -386,7 +386,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
         params.standalone_src.parse_quadlet(&raw[4..8]);
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[8..12])?;
         params.clock_recovery.parse_quadlet(&raw[16..20]);
-        params.midi_send.parse(&raw[52..88]);
+        deserialize_midi_sender(&mut params.midi_send, &raw[52..88])?;
         Ok(())
     }
 }

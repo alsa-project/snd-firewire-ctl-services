@@ -190,7 +190,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
             &mut raw[28..32],
         )?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
-        params.midi_sender.build(&mut raw[84..120]);
+        serialize_midi_sender(&params.midi_sender, &mut raw[84..120])?;
         Ok(())
     }
 
@@ -208,7 +208,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
             &raw[28..32],
         )?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
-        params.midi_sender.parse(&raw[84..120]);
+        deserialize_midi_sender(&mut params.midi_sender, &raw[84..120])?;
         Ok(())
     }
 }
