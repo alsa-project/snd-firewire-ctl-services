@@ -29,6 +29,7 @@ impl K24dModel {
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.ch_strip_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.reverb_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -56,7 +57,7 @@ impl CtlModel<(SndDice, FwNode)> for K24dModel {
         self.hw_state_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
@@ -135,7 +136,7 @@ impl CtlModel<(SndDice, FwNode)> for K24dModel {
             Ok(true)
         } else if self
             .reverb_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -182,7 +183,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         Ok(())
@@ -228,7 +229,7 @@ impl MeasureModel<(SndDice, FwNode)> for K24dModel {
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_ctl
             .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
@@ -865,7 +866,7 @@ impl HwStateCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ReverbCtl(
     K24dReverbStateSegment,
     K24dReverbMeterSegment,
@@ -882,20 +883,24 @@ impl ReverbCtlOperation<K24dReverbState, K24dReverbMeter, K24dProtocol> for Reve
         &mut self.0
     }
 
+    fn meter_segment(&self) -> &K24dReverbMeterSegment {
+        &self.1
+    }
+
     fn meter_segment_mut(&mut self) -> &mut K24dReverbMeterSegment {
         &mut self.1
     }
 
-    fn state(&self) -> &ReverbState {
-        &self.0.data.0
+    fn state(params: &K24dReverbState) -> &ReverbState {
+        &params.0
     }
 
-    fn state_mut(&mut self) -> &mut ReverbState {
-        &mut self.0.data.0
+    fn state_mut(params: &mut K24dReverbState) -> &mut ReverbState {
+        &mut params.0
     }
 
-    fn meter(&self) -> &ReverbMeter {
-        &self.1.data.0
+    fn meter(params: &K24dReverbMeter) -> &ReverbMeter {
+        &params.0
     }
 }
 

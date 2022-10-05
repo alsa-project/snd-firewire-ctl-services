@@ -9,7 +9,7 @@
 use super::*;
 
 /// Algorithm of reverb effect.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ReverbAlgorithm {
     Live1,
     Hall,
@@ -96,7 +96,7 @@ impl From<ReverbAlgorithm> for u32 {
 }
 
 /// State of reverb effect.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ReverbState {
     /// The level of input. -24..0 (-24.0..0.0 dB).
     pub input_level: i32,
@@ -185,7 +185,7 @@ impl ReverbState {
 }
 
 /// Meter of reverb effect.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ReverbMeter {
     /// The meter of left and right outputs. -1000..500 (-24.0..12.0 dB)
     pub outputs: [i32; 2],

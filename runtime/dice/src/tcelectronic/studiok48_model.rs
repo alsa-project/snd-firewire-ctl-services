@@ -33,6 +33,7 @@ impl Studiok48Model {
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.ch_strip_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.reverb_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -63,7 +64,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
 
         self.reverb_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
@@ -154,7 +155,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             Ok(true)
         } else if self
             .reverb_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -209,7 +210,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         self.phys_out_ctl
             .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
@@ -262,7 +263,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_ctl
             .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
@@ -2417,7 +2418,7 @@ impl ChStripCtlOperation<StudioChStripStates, StudioChStripMeters, Studiok48Prot
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ReverbCtl(
     Studiok48ReverbStateSegment,
     Studiok48ReverbMeterSegment,
@@ -2434,20 +2435,24 @@ impl ReverbCtlOperation<StudioReverbState, StudioReverbMeter, Studiok48Protocol>
         &mut self.0
     }
 
+    fn meter_segment(&self) -> &Studiok48ReverbMeterSegment {
+        &self.1
+    }
+
     fn meter_segment_mut(&mut self) -> &mut Studiok48ReverbMeterSegment {
         &mut self.1
     }
 
-    fn state(&self) -> &ReverbState {
-        &self.0.data.0
+    fn state(params: &StudioReverbState) -> &ReverbState {
+        &params.0
     }
 
-    fn state_mut(&mut self) -> &mut ReverbState {
-        &mut self.0.data.0
+    fn state_mut(params: &mut StudioReverbState) -> &mut ReverbState {
+        &mut params.0
     }
 
-    fn meter(&self) -> &ReverbMeter {
-        &self.1.data.0
+    fn meter(params: &StudioReverbMeter) -> &ReverbMeter {
+        &params.0
     }
 }
 
