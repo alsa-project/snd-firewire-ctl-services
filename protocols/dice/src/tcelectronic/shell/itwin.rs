@@ -179,7 +179,7 @@ impl From<u32> for ItwinOutputPairSrc {
 pub struct ItwinConfig {
     pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
     pub standalone_src: ShellStandaloneClkSrc,
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
     pub output_pair_src: [ItwinOutputPairSrc; ITWIN_PHYS_OUT_PAIR_COUNT],
 }
 
@@ -203,7 +203,7 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
     fn serialize(params: &ItwinConfig, raw: &mut [u8]) -> Result<(), String> {
         params.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
         params.standalone_src.build_quadlet(&mut raw[28..32]);
-        params.standalone_rate.build_quadlet(&mut raw[32..36]);
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params
             .output_pair_src
             .build_quadlet_block(&mut raw[120..148]);
@@ -213,7 +213,7 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
     fn deserialize(params: &mut ItwinConfig, raw: &[u8]) -> Result<(), String> {
         params.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
         params.standalone_src.parse_quadlet(&raw[28..32]);
-        params.standalone_rate.parse_quadlet(&raw[32..36]);
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.output_pair_src.parse_quadlet_block(&raw[120..148]);
         Ok(())
     }

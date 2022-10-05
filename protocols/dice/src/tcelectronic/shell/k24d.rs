@@ -117,7 +117,7 @@ pub struct K24dConfig {
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub out_23_src: ShellPhysOutSrc,
     pub standalone_src: ShellStandaloneClkSrc,
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
 impl ShellStandaloneClkSpec for K24dConfig {
@@ -138,7 +138,7 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
         params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
         params.out_23_src.build_quadlet(&mut raw[16..20]);
         params.standalone_src.build_quadlet(&mut raw[20..24]);
-        params.standalone_rate.build_quadlet(&mut raw[24..28]);
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[24..28])?;
         Ok(())
     }
 
@@ -147,7 +147,7 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
         params.coax_out_src.0.parse_quadlet(&raw[12..16]);
         params.out_23_src.parse_quadlet(&raw[16..20]);
         params.standalone_src.parse_quadlet(&raw[20..24]);
-        params.standalone_rate.parse_quadlet(&raw[24..28]);
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[24..28])?;
         Ok(())
     }
 }

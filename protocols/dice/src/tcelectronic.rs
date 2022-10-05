@@ -16,7 +16,6 @@ pub mod ch_strip;
 pub mod midi_send;
 pub mod prog;
 pub mod reverb;
-pub mod standalone;
 
 use super::{tcat::*, *};
 
@@ -222,4 +221,63 @@ fn serialize_fw_led_state(state: &FireWireLedState, raw: &mut [u8]) -> Result<()
 
 fn deserialize_fw_led_state(state: &mut FireWireLedState, raw: &[u8]) -> Result<(), String> {
     deserialize_position(FW_LED_STATES, state, raw, FW_LED_STATE_LABEL)
+}
+
+/// Available rate for sampling clock in standalone mode.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TcKonnektStandaloneClockRate {
+    /// At 44.1 kHz.
+    R44100,
+    /// At 48.0 kHz.
+    R48000,
+    /// At 88.2 kHz.
+    R88200,
+    /// At 96.0 kHz.
+    R96000,
+}
+
+impl Default for TcKonnektStandaloneClockRate {
+    fn default() -> Self {
+        Self::R44100
+    }
+}
+
+fn serialize_standalone_clock_rate(
+    rate: &TcKonnektStandaloneClockRate,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    match rate {
+        TcKonnektStandaloneClockRate::R96000 => 4,
+        TcKonnektStandaloneClockRate::R88200 => 3,
+        TcKonnektStandaloneClockRate::R48000 => 2,
+        TcKonnektStandaloneClockRate::R44100 => 1,
+    }
+    .build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_standalone_clock_rate(
+    rate: &mut TcKonnektStandaloneClockRate,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    *rate = match val {
+        4 => TcKonnektStandaloneClockRate::R96000,
+        3 => TcKonnektStandaloneClockRate::R88200,
+        2 => TcKonnektStandaloneClockRate::R48000,
+        1 => TcKonnektStandaloneClockRate::R44100,
+        _ => Err(format!(
+            "Unexpected value for standalone clock rate: {}",
+            val
+        ))?,
+    };
+
+    Ok(())
 }

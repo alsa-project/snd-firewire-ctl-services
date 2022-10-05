@@ -454,11 +454,11 @@ impl StandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &K24dConfig) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &K24dConfig) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut K24dConfig) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut K24dConfig) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }

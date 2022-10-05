@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{ch_strip::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
+use super::{ch_strip::*, midi_send::*, prog::*, reverb::*, *};
 
 /// Protocol implementation of Studio Konnekt 48.
 #[derive(Default, Debug)]
@@ -362,7 +362,7 @@ impl From<StudioStandaloneClkSrc> for u32 {
 pub struct StudioConfig {
     pub opt_iface_mode: OptIfaceMode,
     pub standalone_src: StudioStandaloneClkSrc,
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
     pub clock_recovery: bool,
     pub midi_send: TcKonnektMidiSender,
 }
@@ -375,7 +375,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
     fn serialize(params: &StudioConfig, raw: &mut [u8]) -> Result<(), String> {
         params.opt_iface_mode.build_quadlet(&mut raw[..4]);
         params.standalone_src.build_quadlet(&mut raw[4..8]);
-        params.standalone_rate.build_quadlet(&mut raw[8..12]);
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[8..12])?;
         params.clock_recovery.build_quadlet(&mut raw[16..20]);
         params.midi_send.build(&mut raw[52..88]);
         Ok(())
@@ -384,7 +384,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
     fn deserialize(params: &mut StudioConfig, raw: &[u8]) -> Result<(), String> {
         params.opt_iface_mode.parse_quadlet(&raw[..4]);
         params.standalone_src.parse_quadlet(&raw[4..8]);
-        params.standalone_rate.parse_quadlet(&raw[8..12]);
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[8..12])?;
         params.clock_recovery.parse_quadlet(&raw[16..20]);
         params.midi_send.parse(&raw[52..88]);
         Ok(())

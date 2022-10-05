@@ -95,7 +95,7 @@ impl TcKonnektNotifiedSegmentOperation<K8Knob> for K8Protocol {
 pub struct K8Config {
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub standalone_src: ShellStandaloneClkSrc,
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
 impl ShellStandaloneClkSpec for K8Config {
@@ -113,14 +113,14 @@ impl TcKonnektSegmentSerdes<K8Config> for K8Protocol {
     fn serialize(params: &K8Config, raw: &mut [u8]) -> Result<(), String> {
         params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
         params.standalone_src.build_quadlet(&mut raw[20..24]);
-        params.standalone_rate.build_quadlet(&mut raw[24..28]);
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[24..28])?;
         Ok(())
     }
 
     fn deserialize(params: &mut K8Config, raw: &[u8]) -> Result<(), String> {
         params.coax_out_src.0.parse_quadlet(&raw[12..16]);
         params.standalone_src.parse_quadlet(&raw[20..24]);
-        params.standalone_rate.parse_quadlet(&raw[24..28]);
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[24..28])?;
         Ok(())
     }
 }

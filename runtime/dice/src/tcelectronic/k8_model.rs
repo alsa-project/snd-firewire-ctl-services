@@ -348,11 +348,11 @@ impl StandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &K8Config) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &K8Config) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut K8Config) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut K8Config) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }
