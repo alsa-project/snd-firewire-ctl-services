@@ -31,7 +31,7 @@ use {
     model::*,
     nix::sys::signal,
     protocols::tcat::{global_section::*, *},
-    std::sync::mpsc,
+    std::{fmt::Debug, sync::mpsc},
     tracing::{debug, debug_span, Level},
 };
 
