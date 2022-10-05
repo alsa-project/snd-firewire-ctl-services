@@ -543,34 +543,25 @@ fn deserialize_phys_out_src(src: &mut ShellPhysOutSrc, raw: &[u8]) -> Result<(),
 /// Format of optical input interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellOptInputIfaceFormat {
+    /// ADAT 1/2/3/4/5/6/7/8.
     Adat0to7,
+    /// ADAT 1/2/3/4/5/6 and S/PDIF 1/2.
     Adat0to5Spdif01,
+    /// S/PDIF 1/2 in both coaxial and optical interfaces.
     Toslink01Spdif01,
 }
+
+const OPT_INPUT_IFACE_FMT_LABELS: &str = "optical input format";
+
+const OPT_INPUT_IFACE_FMTS: &[ShellOptInputIfaceFormat] = &[
+    ShellOptInputIfaceFormat::Adat0to7,
+    ShellOptInputIfaceFormat::Adat0to5Spdif01,
+    ShellOptInputIfaceFormat::Toslink01Spdif01,
+];
 
 impl Default for ShellOptInputIfaceFormat {
     fn default() -> Self {
         ShellOptInputIfaceFormat::Adat0to7
-    }
-}
-
-impl From<u32> for ShellOptInputIfaceFormat {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => Self::Toslink01Spdif01,
-            1 => Self::Adat0to5Spdif01,
-            _ => Self::Adat0to7,
-        }
-    }
-}
-
-impl From<ShellOptInputIfaceFormat> for u32 {
-    fn from(fmt: ShellOptInputIfaceFormat) -> Self {
-        match fmt {
-            ShellOptInputIfaceFormat::Toslink01Spdif01 => 2,
-            ShellOptInputIfaceFormat::Adat0to5Spdif01 => 1,
-            ShellOptInputIfaceFormat::Adat0to7 => 0,
-        }
     }
 }
 
@@ -587,23 +578,12 @@ impl Default for ShellOptOutputIfaceFormat {
     }
 }
 
-impl From<u32> for ShellOptOutputIfaceFormat {
-    fn from(val: u32) -> Self {
-        match val {
-            1 => Self::Spdif,
-            _ => Self::Adat,
-        }
-    }
-}
+const OPT_OUTPUT_IFACE_FMT_LABELS: &str = "optical output format";
 
-impl From<ShellOptOutputIfaceFormat> for u32 {
-    fn from(fmt: ShellOptOutputIfaceFormat) -> Self {
-        match fmt {
-            ShellOptOutputIfaceFormat::Spdif => 1,
-            ShellOptOutputIfaceFormat::Adat => 0,
-        }
-    }
-}
+const OPT_OUTPUT_IFACE_FMTS: &[ShellOptOutputIfaceFormat] = &[
+    ShellOptOutputIfaceFormat::Adat,
+    ShellOptOutputIfaceFormat::Spdif,
+];
 
 /// Source for optical output interface.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -621,32 +601,57 @@ pub struct ShellOptIfaceConfig {
 
 impl ShellOptIfaceConfig {
     const SIZE: usize = 12;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_opt_iface_config(config: &ShellOptIfaceConfig, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellOptIfaceConfig::SIZE);
 
-        self.input_format.build_quadlet(&mut raw[..4]);
-        self.output_format.build_quadlet(&mut raw[4..8]);
-        let _ = serialize_position(
-            PHYS_OUT_SRCS,
-            &self.output_source.0,
-            &mut raw[8..],
-            OPT_OUT_SRC_LABEL,
-        );
-    }
+    serialize_position(
+        OPT_INPUT_IFACE_FMTS,
+        &config.input_format,
+        &mut raw[..4],
+        OPT_INPUT_IFACE_FMT_LABELS,
+    )?;
+    serialize_position(
+        OPT_OUTPUT_IFACE_FMTS,
+        &config.output_format,
+        &mut raw[4..8],
+        OPT_OUTPUT_IFACE_FMT_LABELS,
+    )?;
+    serialize_position(
+        PHYS_OUT_SRCS,
+        &config.output_source.0,
+        &mut raw[8..],
+        OPT_OUT_SRC_LABEL,
+    )?;
+    Ok(())
+}
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn deserialize_opt_iface_config(
+    config: &mut ShellOptIfaceConfig,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ShellOptIfaceConfig::SIZE);
 
-        self.input_format.parse_quadlet(&raw[..4]);
-        self.output_format.parse_quadlet(&raw[4..8]);
-        let _ = deserialize_position(
-            PHYS_OUT_SRCS,
-            &mut self.output_source.0,
-            &raw[8..],
-            OPT_OUT_SRC_LABEL,
-        );
-    }
+    deserialize_position(
+        OPT_INPUT_IFACE_FMTS,
+        &mut config.input_format,
+        &raw[..4],
+        OPT_INPUT_IFACE_FMT_LABELS,
+    )?;
+    deserialize_position(
+        OPT_OUTPUT_IFACE_FMTS,
+        &mut config.output_format,
+        &raw[4..8],
+        OPT_OUTPUT_IFACE_FMT_LABELS,
+    )?;
+    deserialize_position(
+        PHYS_OUT_SRCS,
+        &mut config.output_source.0,
+        &raw[8..],
+        OPT_OUT_SRC_LABEL,
+    )?;
+    Ok(())
 }
 
 /// Source of coaxial output interface.

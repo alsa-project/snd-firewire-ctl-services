@@ -177,7 +177,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
     const SIZE: usize = 132;
 
     fn serialize(params: &KliveConfig, raw: &mut [u8]) -> Result<(), String> {
-        params.opt.build(&mut raw[..12]);
+        serialize_opt_iface_config(&params.opt, &mut raw[..12])?;
         serialize_coax_out_pair_source(&params.coax_out_src, &mut raw[12..16])?;
         serialize_phys_out_src(&params.out_01_src, &mut raw[16..20])?;
         serialize_phys_out_src(&params.out_23_src, &mut raw[20..24])?;
@@ -195,7 +195,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
     }
 
     fn deserialize(params: &mut KliveConfig, raw: &[u8]) -> Result<(), String> {
-        params.opt.parse(&raw[..12]);
+        deserialize_opt_iface_config(&mut params.opt, &raw[..12])?;
         deserialize_coax_out_pair_source(&mut params.coax_out_src, &raw[12..16])?;
         deserialize_phys_out_src(&mut params.out_01_src, &raw[16..20])?;
         deserialize_phys_out_src(&mut params.out_23_src, &raw[20..24])?;
