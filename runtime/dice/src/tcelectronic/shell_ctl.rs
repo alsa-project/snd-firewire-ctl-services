@@ -66,18 +66,22 @@ where
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                ANALOG_JACK_STATE_NAME => ElemValueAccessor::<u32>::set_vals(
-                    elem_value,
-                    SHELL_ANALOG_JACK_STATE_COUNT,
-                    |idx| {
-                        let pos = Self::ANALOG_JACK_STATE_LABELS
-                            .iter()
-                            .position(|s| self.hw_state().analog_jack_states[idx].eq(s))
-                            .unwrap();
-                        Ok(pos as u32)
-                    },
-                )
-                .map(|_| true),
+                ANALOG_JACK_STATE_NAME => {
+                    let vals: Vec<u32> = self
+                        .hw_state()
+                        .analog_jack_states
+                        .iter()
+                        .map(|state| {
+                            let pos = Self::ANALOG_JACK_STATE_LABELS
+                                .iter()
+                                .position(|s| state.eq(s))
+                                .unwrap();
+                            pos as u32
+                        })
+                        .collect();
+                    elem_value.set_enum(&vals);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -772,20 +776,16 @@ where
 
     fn read_standalone(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            SRC_NAME => {
                 let params = &self.segment().data;
                 let src = Self::standalone_src(&params);
                 let pos = T::STANDALONE_CLOCK_SOURCES
                     .iter()
                     .position(|s| src.eq(s))
-                    .ok_or_else(|| {
-                        let msg =
-                            format!("Unexpected value for standalone clock source: {:?}", src);
-                        Error::new(FileError::Io, &msg)
-                    })?;
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => self.read_standalone_rate(elem_id, elem_value),
         }
     }
@@ -1068,36 +1068,36 @@ where
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OPT_IN_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            OPT_IN_FMT_NAME => {
                 let params = &self.segment().data;
                 let config = Self::opt_iface_config(&params);
                 let pos = Self::IN_FMTS
                     .iter()
                     .position(|f| config.input_format.eq(f))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            OPT_OUT_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            OPT_OUT_FMT_NAME => {
                 let params = &self.segment().data;
                 let config = Self::opt_iface_config(&params);
                 let pos = Self::OUT_FMTS
                     .iter()
                     .position(|f| config.output_format.eq(f))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            OPT_OUT_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            OPT_OUT_SRC_NAME => {
                 let params = &self.segment().data;
                 let config = Self::opt_iface_config(&params);
                 let pos = PHYS_OUT_SRCS
                     .iter()
                     .position(|s| config.output_source.0.eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
