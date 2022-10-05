@@ -300,13 +300,11 @@ impl TcKonnektSegmentSerdes<K24dChStripStates> for K24dProtocol {
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &K24dChStripStates, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_states(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dChStripStates, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_states(&mut params.0, raw)
     }
 }
 
@@ -398,12 +396,10 @@ impl TcKonnektSegmentSerdes<K24dChStripMeters> for K24dProtocol {
     const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &K24dChStripMeters, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_meters(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dChStripMeters, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }

@@ -53,7 +53,6 @@ fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
         ChStripSrcType::HipHop => "Hip-hop",
         ChStripSrcType::DrumAndBass => "Drum'n'bass",
         ChStripSrcType::ElectroTechno => "Electro-techno",
-        ChStripSrcType::Reserved(_) => "reserved",
     }
 }
 
@@ -667,11 +666,7 @@ where
             LIMIT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.limit),
             OUTPUT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.output),
             GAIN_METER_NAME => {
-                let idx = match elem_id.index() {
-                    2 => 2,
-                    1 => 1,
-                    _ => 0,
-                };
+                let idx = elem_id.index() as usize;
                 self.meter_read_elem(elem_value, |meter| meter.gains[idx])
             }
             _ => Ok(false),

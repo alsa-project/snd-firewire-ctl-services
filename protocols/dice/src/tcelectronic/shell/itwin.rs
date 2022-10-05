@@ -358,13 +358,11 @@ impl TcKonnektSegmentSerdes<ItwinChStripStates> for ItwinProtocol {
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &ItwinChStripStates, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_states(&params.0, raw)
     }
 
     fn deserialize(params: &mut ItwinChStripStates, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_states(&mut params.0, raw)
     }
 }
 
@@ -500,12 +498,10 @@ impl TcKonnektSegmentSerdes<ItwinChStripMeters> for ItwinProtocol {
     const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &ItwinChStripMeters, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_meters(&params.0, raw)
     }
 
     fn deserialize(params: &mut ItwinChStripMeters, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }

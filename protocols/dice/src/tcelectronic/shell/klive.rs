@@ -428,13 +428,11 @@ impl TcKonnektSegmentSerdes<KliveChStripStates> for KliveProtocol {
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &KliveChStripStates, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_states(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveChStripStates, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_states(&mut params.0, raw)
     }
 }
 
@@ -526,13 +524,11 @@ impl TcKonnektSegmentSerdes<KliveChStripMeters> for KliveProtocol {
     const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &KliveChStripMeters, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_meters(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveChStripMeters, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }
 
