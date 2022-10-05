@@ -32,6 +32,8 @@ impl Studiok48Model {
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.ch_strip_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+
         Ok(())
     }
 }
@@ -66,12 +68,12 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
             })?;
-        self.ch_strip_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|(notified_elem_id_list, measured_elem_id_list)| {
+        self.ch_strip_ctl.load(card_cntr).map(
+            |(notified_elem_id_list, measured_elem_id_list)| {
                 self.ch_strip_ctl.2 = notified_elem_id_list;
                 self.ch_strip_ctl.3 = measured_elem_id_list;
-            })?;
+            },
+        )?;
 
         self.hw_state_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
@@ -157,7 +159,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             Ok(true)
         } else if self
             .ch_strip_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -209,7 +211,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         self.reverb_ctl
             .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
 
@@ -262,7 +264,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         self.reverb_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -2402,12 +2404,12 @@ impl ChStripCtlOperation<StudioChStripStates, StudioChStripMeters, Studiok48Prot
         &mut self.1
     }
 
-    fn states(&self) -> &[ChStripState] {
-        &self.0.data.0
+    fn states(params: &StudioChStripStates) -> &[ChStripState] {
+        &params.0
     }
 
-    fn states_mut(&mut self) -> &mut [ChStripState] {
-        &mut self.0.data.0
+    fn states_mut(params: &mut StudioChStripStates) -> &mut [ChStripState] {
+        &mut params.0
     }
 
     fn meters(&self) -> &[ChStripMeter] {
