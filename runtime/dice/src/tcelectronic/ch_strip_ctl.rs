@@ -56,23 +56,18 @@ fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
     }
 }
 
-pub trait ChStripCtlOperation<S, T, U>
+pub trait ChStripStateCtlOperation<S, T>
 where
     S: Clone,
-    U: TcKonnektSegmentOperation<S>
+    T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
-        + TcKonnektNotifiedSegmentOperation<S>
-        + TcKonnektSegmentOperation<T>,
+        + TcKonnektNotifiedSegmentOperation<S>,
 {
-    fn states_segment(&self) -> &TcKonnektSegment<S>;
-    fn states_segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn meters_segment_mut(&mut self) -> &mut TcKonnektSegment<T>;
+    fn segment(&self) -> &TcKonnektSegment<S>;
+    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
     fn states(params: &S) -> &[ChStripState];
     fn states_mut(params: &mut S) -> &mut [ChStripState];
-
-    fn meters(&self) -> &[ChStripMeter];
 
     const COMP_GAIN_MIN: i32 = 0;
     const COMP_GAIN_MAX: i32 = 36;
@@ -191,14 +186,19 @@ where
         ChStripSrcType::ElectroTechno,
     ];
 
-    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        U::cache_whole_segment(req, node, self.states_segment_mut(), timeout_ms)?;
-        U::cache_whole_segment(req, node, self.meters_segment_mut(), timeout_ms)?;
-        Ok(())
+    fn are_bypassed(&self) -> bool {
+        Self::states(&self.segment().data)
+            .iter()
+            .find(|s| s.bypass)
+            .is_some()
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        let channels = Self::states(&self.states_segment().data).len();
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+    }
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let channels = Self::states(&self.segment().data).len();
         let mut notified_elem_id_list = Vec::new();
 
         // Overall controls.
@@ -377,271 +377,13 @@ where
             true,
         )?;
 
-        // Controls for meter segment.
-        let channels = self.meters().len();
-        let mut measured_elem_id_list = Vec::new();
-        meter_add_int_elem(
-            card_cntr,
-            &mut measured_elem_id_list,
-            channels,
-            INPUT_METER_NAME,
-            1,
-            Self::INOUT_METER_MIN,
-            Self::INOUT_METER_MAX,
-            Self::INOUT_METER_STEP,
-            Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)),
-            false,
-        )?;
-
-        meter_add_int_elem(
-            card_cntr,
-            &mut measured_elem_id_list,
-            channels,
-            LIMIT_METER_NAME,
-            1,
-            Self::LIMIT_METER_MIN,
-            Self::LIMIT_METER_MAX,
-            Self::LIMIT_METER_STEP,
-            Some(&Into::<Vec<u32>>::into(Self::LIMIT_METER_TLV)),
-            false,
-        )?;
-
-        meter_add_int_elem(
-            card_cntr,
-            &mut measured_elem_id_list,
-            channels,
-            OUTPUT_METER_NAME,
-            1,
-            Self::INOUT_METER_MIN,
-            Self::INOUT_METER_MAX,
-            Self::INOUT_METER_STEP,
-            Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)),
-            false,
-        )?;
-
-        meter_add_int_elem(
-            card_cntr,
-            &mut measured_elem_id_list,
-            channels,
-            GAIN_METER_NAME,
-            1,
-            Self::GAIN_METER_MIN,
-            Self::GAIN_METER_MAX,
-            Self::GAIN_METER_STEP,
-            Some(&Into::<Vec<u32>>::into(Self::GAIN_METER_TLV)),
-            false,
-        )?;
-
-        Ok((notified_elem_id_list, measured_elem_id_list))
+        Ok(notified_elem_id_list)
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_notified_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_measured_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_TYPE_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.enumerated())
-                    .try_for_each(|(state, &val)| {
-                        let pos = val as usize;
-                        Self::SRC_TYPES
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg = format!("Source type not found for position {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&t| state.src_type = t)
-                    })?;
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            DEESSER_BYPASS_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.deesser.bypass = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            EQ_BYPASS_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.eq_bypass = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            LIMITTER_BYPASS_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.limitter_bypass = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            BYPASS_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.bypass = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            COMP_INPUT_GAIN_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.comp.input_gain = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            COMP_MAKE_UP_GAIN_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.comp.make_up_gain = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            COMP_FULL_BAND_ENABLE_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.comp.full_band_enabled = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            COMP_CTL_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.comp.ctl[idx] = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            COMP_LEVEL_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.comp.level[idx] = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            DEESSER_RATIO_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.deesser.ratio = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            EQ_ENABLE_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.boolean())
-                    .for_each(|(state, val)| state.eq[idx].enabled = val);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            EQ_BANDWIDTH_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.eq[idx].bandwidth = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            EQ_GAIN_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.eq[idx].gain = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            EQ_FREQ_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                let idx = elem_id.index() as usize;
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.eq[idx].freq = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            LIMITTER_THRESHOLD_NAME => {
-                let mut params = self.states_segment().data.clone();
-                let states = Self::states_mut(&mut params);
-                states
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(state, &val)| state.limitter.threshold = val as u32);
-                U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn read_notified_elem(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            SRC_TYPE_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<u32> = states
                     .iter()
@@ -657,35 +399,35 @@ where
                 Ok(true)
             }
             DEESSER_BYPASS_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<bool> = states.iter().map(|state| state.deesser.bypass).collect();
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             EQ_BYPASS_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<bool> = states.iter().map(|state| state.eq_bypass).collect();
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             LIMITTER_BYPASS_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<bool> = states.iter().map(|state| state.limitter_bypass).collect();
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             BYPASS_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<bool> = states.iter().map(|state| state.bypass).collect();
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             COMP_INPUT_GAIN_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<i32> = states
                     .iter()
@@ -695,7 +437,7 @@ where
                 Ok(true)
             }
             COMP_MAKE_UP_GAIN_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<i32> = states
                     .iter()
@@ -705,7 +447,7 @@ where
                 Ok(true)
             }
             COMP_FULL_BAND_ENABLE_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<bool> = states
                     .iter()
@@ -715,7 +457,7 @@ where
                 Ok(true)
             }
             COMP_CTL_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = states
@@ -726,7 +468,7 @@ where
                 Ok(true)
             }
             COMP_LEVEL_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = states
@@ -737,7 +479,7 @@ where
                 Ok(true)
             }
             DEESSER_RATIO_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<i32> = states
                     .iter()
@@ -747,7 +489,7 @@ where
                 Ok(true)
             }
             EQ_ENABLE_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<bool> = states.iter().map(|state| state.eq[idx].enabled).collect();
@@ -755,7 +497,7 @@ where
                 Ok(true)
             }
             EQ_BANDWIDTH_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = states
@@ -766,7 +508,7 @@ where
                 Ok(true)
             }
             EQ_GAIN_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = states
@@ -777,7 +519,7 @@ where
                 Ok(true)
             }
             EQ_FREQ_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = states
@@ -788,7 +530,7 @@ where
                 Ok(true)
             }
             LIMITTER_THRESHOLD_NAME => {
-                let params = &self.states_segment().data;
+                let params = &self.segment().data;
                 let states = Self::states(&params);
                 let vals: Vec<i32> = states
                     .iter()
@@ -801,50 +543,192 @@ where
         }
     }
 
-    fn read_measured_elem(
-        &self,
+    fn write(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            INPUT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.input).collect();
-                elem_value.set_int(&vals);
-                Ok(true)
+            SRC_TYPE_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(state, &val)| {
+                        let pos = val as usize;
+                        Self::SRC_TYPES
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Source type not found for position {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&t| state.src_type = t)
+                    })?;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
-            LIMIT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.limit).collect();
-                elem_value.set_int(&vals);
-                Ok(true)
+            DEESSER_BYPASS_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.deesser.bypass = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
-            OUTPUT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.output).collect();
-                elem_value.set_int(&vals);
-                Ok(true)
+            EQ_BYPASS_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.eq_bypass = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
-            GAIN_METER_NAME => {
-                let meters = self.meters();
+            LIMITTER_BYPASS_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.limitter_bypass = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            BYPASS_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.bypass = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            COMP_INPUT_GAIN_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.comp.input_gain = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            COMP_MAKE_UP_GAIN_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.comp.make_up_gain = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            COMP_FULL_BAND_ENABLE_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.comp.full_band_enabled = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            COMP_CTL_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
                 let idx = elem_id.index() as usize;
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.gains[idx]).collect();
-                elem_value.set_int(&vals);
-                Ok(true)
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.comp.ctl[idx] = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            COMP_LEVEL_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                let idx = elem_id.index() as usize;
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.comp.level[idx] = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            DEESSER_RATIO_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.deesser.ratio = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            EQ_ENABLE_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                let idx = elem_id.index() as usize;
+                states
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(state, val)| state.eq[idx].enabled = val);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            EQ_BANDWIDTH_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                let idx = elem_id.index() as usize;
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.eq[idx].bandwidth = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            EQ_GAIN_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                let idx = elem_id.index() as usize;
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.eq[idx].gain = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            EQ_FREQ_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                let idx = elem_id.index() as usize;
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.eq[idx].freq = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            LIMITTER_THRESHOLD_NAME => {
+                let mut params = self.segment().data.clone();
+                let states = Self::states_mut(&mut params);
+                states
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(state, &val)| state.limitter.threshold = val as u32);
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
-        }
-    }
-
-    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        if Self::states(&self.states_segment().data)
-            .iter()
-            .find(|s| s.bypass)
-            .is_none()
-        {
-            U::cache_whole_segment(req, node, self.meters_segment_mut(), timeout_ms)
-        } else {
-            Ok(())
         }
     }
 
@@ -855,8 +739,8 @@ where
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if U::is_notified_segment(self.states_segment(), msg) {
-            U::cache_whole_segment(req, node, self.states_segment_mut(), timeout_ms)
+        if T::is_notified_segment(self.segment(), msg) {
+            T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
@@ -910,20 +794,131 @@ fn state_add_bool_elem(
         .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
 }
 
-fn meter_add_int_elem(
-    card_cntr: &mut CardCntr,
-    measured_elem_id_list: &mut Vec<ElemId>,
-    channels: usize,
-    name: &str,
-    count: usize,
-    min: i32,
-    max: i32,
-    step: i32,
-    tlv: Option<&[u32]>,
-    unlock: bool,
-) -> Result<(), Error> {
-    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-    card_cntr
-        .add_int_elems(&elem_id, count, min, max, step, channels, tlv, unlock)
-        .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+const LIMIT_METER_MIN: i32 = -12;
+const LIMIT_METER_MAX: i32 = 0;
+const LIMIT_METER_STEP: i32 = 1;
+const LIMIT_METER_TLV: DbInterval = DbInterval {
+    min: -1200,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+const INOUT_METER_MIN: i32 = -72;
+const INOUT_METER_MAX: i32 = 0;
+const INOUT_METER_STEP: i32 = 1;
+const INOUT_METER_TLV: DbInterval = DbInterval {
+    min: -7200,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+const GAIN_METER_MIN: i32 = -24;
+const GAIN_METER_MAX: i32 = 18;
+const GAIN_METER_STEP: i32 = 1;
+const GAIN_METER_TLV: DbInterval = DbInterval {
+    min: -2400,
+    max: 1800,
+    linear: false,
+    mute_avail: false,
+};
+
+pub trait ChStripMeterCtlOperation<S, T>
+where
+    T: TcKonnektSegmentOperation<S>,
+{
+    fn meters(&self) -> &[ChStripMeter];
+
+    fn segment(&self) -> &TcKonnektSegment<S>;
+    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let mut measured_elem_id_list = Vec::new();
+
+        let count = self.meters().len();
+
+        [
+            (
+                INPUT_METER_NAME,
+                INOUT_METER_MIN,
+                INOUT_METER_MAX,
+                INOUT_METER_STEP,
+                INOUT_METER_TLV,
+            ),
+            (
+                LIMIT_METER_NAME,
+                LIMIT_METER_MIN,
+                LIMIT_METER_MAX,
+                LIMIT_METER_STEP,
+                LIMIT_METER_TLV,
+            ),
+            (
+                OUTPUT_METER_NAME,
+                INOUT_METER_MIN,
+                INOUT_METER_MAX,
+                INOUT_METER_STEP,
+                INOUT_METER_TLV,
+            ),
+            (
+                GAIN_METER_NAME,
+                GAIN_METER_MIN,
+                GAIN_METER_MAX,
+                GAIN_METER_STEP,
+                GAIN_METER_TLV,
+            ),
+        ]
+        .iter()
+        .try_for_each(|&(name, min, max, step, tlv)| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    min,
+                    max,
+                    step,
+                    count,
+                    Some(&Into::<Vec<u32>>::into(tlv)),
+                    false,
+                )
+                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+        })
+        .map(|_| measured_elem_id_list)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            INPUT_METER_NAME => {
+                let meters = self.meters();
+                let vals: Vec<i32> = meters.iter().map(|meter| meter.input).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            LIMIT_METER_NAME => {
+                let meters = self.meters();
+                let vals: Vec<i32> = meters.iter().map(|meter| meter.limit).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            OUTPUT_METER_NAME => {
+                let meters = self.meters();
+                let vals: Vec<i32> = meters.iter().map(|meter| meter.output).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            GAIN_METER_NAME => {
+                let meters = self.meters();
+                let idx = elem_id.index() as usize;
+                let vals: Vec<i32> = meters.iter().map(|meter| meter.gains[idx]).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
 }
