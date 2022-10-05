@@ -139,15 +139,15 @@ pub struct K24dConfig {
     pub opt: ShellOptIfaceConfig,
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub out_23_src: ShellPhysOutSrc,
-    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_src: ShellStandaloneClockSource,
     pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
-impl ShellStandaloneClkSpec for K24dConfig {
-    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
-        ShellStandaloneClkSrc::Optical,
-        ShellStandaloneClkSrc::Coaxial,
-        ShellStandaloneClkSrc::Internal,
+impl ShellStandaloneClockSpecification for K24dProtocol {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClockSource] = &[
+        ShellStandaloneClockSource::Optical,
+        ShellStandaloneClockSource::Coaxial,
+        ShellStandaloneClockSource::Internal,
     ];
 }
 
@@ -160,7 +160,10 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
         params.opt.build(&mut raw[..12]);
         params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
         params.out_23_src.build_quadlet(&mut raw[16..20]);
-        params.standalone_src.build_quadlet(&mut raw[20..24]);
+        serialize_standalone_clock_source::<K24dProtocol>(
+            &params.standalone_src,
+            &mut raw[20..24],
+        )?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[24..28])?;
         Ok(())
     }
@@ -169,7 +172,10 @@ impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
         params.opt.parse(&raw[..12]);
         params.coax_out_src.0.parse_quadlet(&raw[12..16]);
         params.out_23_src.parse_quadlet(&raw[16..20]);
-        params.standalone_src.parse_quadlet(&raw[20..24]);
+        deserialize_standalone_clock_source::<K24dProtocol>(
+            &mut params.standalone_src,
+            &raw[20..24],
+        )?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[24..28])?;
         Ok(())
     }

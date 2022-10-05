@@ -451,11 +451,11 @@ impl StandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn standalone_src(params: &K24dConfig) -> &ShellStandaloneClkSrc {
+    fn standalone_src(params: &K24dConfig) -> &ShellStandaloneClockSource {
         &params.standalone_src
     }
 
-    fn standalone_src_mut(params: &mut K24dConfig) -> &mut ShellStandaloneClkSrc {
+    fn standalone_src_mut(params: &mut K24dConfig) -> &mut ShellStandaloneClockSource {
         &mut params.standalone_src
     }
 }

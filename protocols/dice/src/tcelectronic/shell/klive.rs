@@ -147,7 +147,7 @@ pub struct KliveConfig {
     pub out_01_src: ShellPhysOutSrc,
     pub out_23_src: ShellPhysOutSrc,
     pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
-    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_src: ShellStandaloneClockSource,
     pub standalone_rate: TcKonnektStandaloneClockRate,
     pub midi_sender: TcKonnektMidiSender,
 }
@@ -163,11 +163,11 @@ impl ShellMixerStreamSourcePairSpecification for KliveProtocol {
     ];
 }
 
-impl ShellStandaloneClkSpec for KliveConfig {
-    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
-        ShellStandaloneClkSrc::Optical,
-        ShellStandaloneClkSrc::Coaxial,
-        ShellStandaloneClkSrc::Internal,
+impl ShellStandaloneClockSpecification for KliveProtocol {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClockSource] = &[
+        ShellStandaloneClockSource::Optical,
+        ShellStandaloneClockSource::Coaxial,
+        ShellStandaloneClockSource::Internal,
     ];
 }
 
@@ -185,7 +185,10 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
             &params.mixer_stream_src_pair,
             &mut raw[24..28],
         )?;
-        params.standalone_src.build_quadlet(&mut raw[28..32]);
+        serialize_standalone_clock_source::<KliveProtocol>(
+            &params.standalone_src,
+            &mut raw[28..32],
+        )?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params.midi_sender.build(&mut raw[84..120]);
         Ok(())
@@ -200,7 +203,10 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
             &mut params.mixer_stream_src_pair,
             &raw[24..28],
         )?;
-        params.standalone_src.parse_quadlet(&raw[28..32]);
+        deserialize_standalone_clock_source::<KliveProtocol>(
+            &mut params.standalone_src,
+            &raw[28..32],
+        )?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.midi_sender.parse(&raw[84..120]);
         Ok(())

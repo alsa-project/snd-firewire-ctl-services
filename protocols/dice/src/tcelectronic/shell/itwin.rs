@@ -196,7 +196,7 @@ impl From<u32> for ItwinOutputPairSrc {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinConfig {
     pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
-    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_src: ShellStandaloneClockSource,
     pub standalone_rate: TcKonnektStandaloneClockRate,
     pub output_pair_src: [ItwinOutputPairSrc; ITWIN_PHYS_OUT_PAIR_COUNT],
 }
@@ -213,11 +213,11 @@ impl ShellMixerStreamSourcePairSpecification for ItwinProtocol {
     ];
 }
 
-impl ShellStandaloneClkSpec for ItwinConfig {
-    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
-        ShellStandaloneClkSrc::Optical,
-        ShellStandaloneClkSrc::Coaxial,
-        ShellStandaloneClkSrc::Internal,
+impl ShellStandaloneClockSpecification for ItwinProtocol {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClockSource] = &[
+        ShellStandaloneClockSource::Optical,
+        ShellStandaloneClockSource::Coaxial,
+        ShellStandaloneClockSource::Internal,
     ];
 }
 
@@ -231,7 +231,10 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
             &params.mixer_stream_src_pair,
             &mut raw[24..28],
         )?;
-        params.standalone_src.build_quadlet(&mut raw[28..32]);
+        serialize_standalone_clock_source::<ItwinProtocol>(
+            &params.standalone_src,
+            &mut raw[28..32],
+        )?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params
             .output_pair_src
@@ -244,7 +247,10 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
             &mut params.mixer_stream_src_pair,
             &raw[24..28],
         )?;
-        params.standalone_src.parse_quadlet(&raw[28..32]);
+        deserialize_standalone_clock_source::<ItwinProtocol>(
+            &mut params.standalone_src,
+            &raw[28..32],
+        )?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.output_pair_src.parse_quadlet_block(&raw[120..148]);
         Ok(())

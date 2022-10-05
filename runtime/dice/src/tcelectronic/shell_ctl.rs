@@ -793,11 +793,11 @@ where
     }
 }
 
-fn standalone_src_to_str(src: &ShellStandaloneClkSrc) -> &'static str {
+fn standalone_src_to_str(src: &ShellStandaloneClockSource) -> &'static str {
     match src {
-        ShellStandaloneClkSrc::Optical => "Optical",
-        ShellStandaloneClkSrc::Coaxial => "Coaxial",
-        ShellStandaloneClkSrc::Internal => "Internal",
+        ShellStandaloneClockSource::Optical => "Optical",
+        ShellStandaloneClockSource::Coaxial => "Coaxial",
+        ShellStandaloneClockSource::Internal => "Internal",
     }
 }
 
@@ -805,14 +805,16 @@ const SRC_NAME: &str = "standalone-clock-source";
 
 pub trait ShellStandaloneCtlOperation<S, T>: StandaloneCtlOperation<S, T>
 where
-    S: ShellStandaloneClkSpec + Clone,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    S: Clone,
+    T: TcKonnektSegmentOperation<S>
+        + TcKonnektMutableSegmentOperation<S>
+        + ShellStandaloneClockSpecification,
 {
-    fn standalone_src(params: &S) -> &ShellStandaloneClkSrc;
-    fn standalone_src_mut(params: &mut S) -> &mut ShellStandaloneClkSrc;
+    fn standalone_src(params: &S) -> &ShellStandaloneClockSource;
+    fn standalone_src_mut(params: &mut S) -> &mut ShellStandaloneClockSource;
 
     fn load_standalone(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = S::STANDALONE_CLOCK_SOURCES
+        let labels: Vec<&str> = T::STANDALONE_CLOCK_SOURCES
             .iter()
             .map(|r| standalone_src_to_str(r))
             .collect();
@@ -829,10 +831,14 @@ where
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let params = &self.segment().data;
                 let src = Self::standalone_src(&params);
-                let pos = S::STANDALONE_CLOCK_SOURCES
+                let pos = T::STANDALONE_CLOCK_SOURCES
                     .iter()
                     .position(|s| src.eq(s))
-                    .unwrap();
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Unexpected value for standalone clock source: {:?}", src);
+                        Error::new(FileError::Io, &msg)
+                    })?;
                 Ok(pos as u32)
             })
             .map(|_| true),
@@ -853,7 +859,7 @@ where
                 let mut params = self.segment().data.clone();
                 let src = Self::standalone_src_mut(&mut params);
                 let pos = elem_value.enumerated()[0] as usize;
-                S::STANDALONE_CLOCK_SOURCES
+                T::STANDALONE_CLOCK_SOURCES
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
