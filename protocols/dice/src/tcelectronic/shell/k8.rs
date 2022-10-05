@@ -160,13 +160,13 @@ pub struct K8MixerState {
 impl Default for K8MixerState {
     fn default() -> Self {
         K8MixerState {
-            mixer: Self::create_mixer_state(),
+            mixer: K8Protocol::create_mixer_state(),
             enabled: Default::default(),
         }
     }
 }
 
-impl ShellMixerStateConvert for K8MixerState {
+impl ShellMixerStateSpecification for K8Protocol {
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
@@ -179,14 +179,6 @@ impl ShellMixerStateConvert for K8MixerState {
         None,
         Some(ShellMixerMonitorSrcType::Spdif),
     ];
-
-    fn state(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
 }
 
 impl TcKonnektSegmentSerdes<K8MixerState> for K8Protocol {
@@ -195,13 +187,13 @@ impl TcKonnektSegmentSerdes<K8MixerState> for K8Protocol {
     const SIZE: usize = ShellMixerState::SIZE + 32;
 
     fn serialize(params: &K8MixerState, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerStateConvert::build(params, raw);
+        serialize_mixer_state::<K8Protocol>(&params.mixer, raw)?;
         params.enabled.build_quadlet(&mut raw[340..344]);
         Ok(())
     }
 
     fn deserialize(params: &mut K8MixerState, raw: &[u8]) -> Result<(), String> {
-        ShellMixerStateConvert::parse(params, raw);
+        deserialize_mixer_state::<K8Protocol>(&mut params.mixer, raw)?;
         params.enabled.parse_quadlet(&raw[340..344]);
         Ok(())
     }

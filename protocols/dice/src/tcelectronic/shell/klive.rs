@@ -328,7 +328,7 @@ pub struct KliveMixerState {
 impl Default for KliveMixerState {
     fn default() -> Self {
         KliveMixerState {
-            mixer: Self::create_mixer_state(),
+            mixer: KliveProtocol::create_mixer_state(),
             reverb_return: Default::default(),
             use_ch_strip_as_plugin: Default::default(),
             ch_strip_src: Default::default(),
@@ -339,7 +339,7 @@ impl Default for KliveMixerState {
     }
 }
 
-impl ShellMixerStateConvert for KliveMixerState {
+impl ShellMixerStateSpecification for KliveProtocol {
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
@@ -352,14 +352,6 @@ impl ShellMixerStateConvert for KliveMixerState {
         Some(ShellMixerMonitorSrcType::Adat),
         Some(ShellMixerMonitorSrcType::Adat),
     ];
-
-    fn state(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
 }
 
 impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
@@ -368,7 +360,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
     const SIZE: usize = ShellMixerState::SIZE + 48;
 
     fn serialize(params: &KliveMixerState, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerStateConvert::build(params, raw);
+        serialize_mixer_state::<KliveProtocol>(&params.mixer, raw)?;
 
         params.reverb_return.build(&mut raw[316..328]);
         params
@@ -384,7 +376,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
     }
 
     fn deserialize(params: &mut KliveMixerState, raw: &[u8]) -> Result<(), String> {
-        ShellMixerStateConvert::parse(params, raw);
+        deserialize_mixer_state::<KliveProtocol>(&mut params.mixer, raw)?;
 
         params.reverb_return.parse(&raw[316..328]);
         params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
