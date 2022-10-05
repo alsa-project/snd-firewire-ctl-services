@@ -362,7 +362,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
     fn serialize(params: &KliveMixerState, raw: &mut [u8]) -> Result<(), String> {
         serialize_mixer_state::<KliveProtocol>(&params.mixer, raw)?;
 
-        params.reverb_return.build(&mut raw[316..328]);
+        serialize_reverb_return(&params.reverb_return, &mut raw[316..328])?;
         params
             .use_ch_strip_as_plugin
             .build_quadlet(&mut raw[328..332]);
@@ -378,7 +378,7 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
     fn deserialize(params: &mut KliveMixerState, raw: &[u8]) -> Result<(), String> {
         deserialize_mixer_state::<KliveProtocol>(&mut params.mixer, raw)?;
 
-        params.reverb_return.parse(&raw[316..328]);
+        deserialize_reverb_return(&mut params.reverb_return, &raw[316..328])?;
         params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
         params.ch_strip_src.parse_quadlet(&raw[332..336]);
         params.ch_strip_mode.parse_quadlet(&raw[336..340]);
