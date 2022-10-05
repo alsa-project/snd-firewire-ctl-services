@@ -13,7 +13,8 @@ pub struct KliveModel {
     common_ctl: CommonCtl,
     knob_ctl: KnobCtl,
     config_ctl: ConfigCtl,
-    mixer_ctl: MixerCtl,
+    mixer_state_ctl: MixerStateCtl,
+    mixer_meter_ctl: MixerMeterCtl,
     hw_state_ctl: HwStateCtl,
     reverb_state_ctl: ReverbStateCtl,
     reverb_meter_ctl: ReverbMeterCtl,
@@ -32,7 +33,8 @@ impl KliveModel {
 
         self.knob_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.reverb_state_ctl
             .cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -58,7 +60,8 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
 
         self.knob_ctl.load(card_cntr)?;
         self.config_ctl.load(card_cntr)?;
-        self.mixer_ctl.load(card_cntr)?;
+        self.mixer_state_ctl.load(card_cntr)?;
+        self.mixer_meter_ctl.load(card_cntr)?;
         self.hw_state_ctl.load(card_cntr)?;
         self.reverb_state_ctl
             .load(card_cntr)
@@ -90,7 +93,9 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
             Ok(true)
         } else if self.config_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read(elem_id, elem_value)? {
+        } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.hw_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -135,7 +140,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         {
             Ok(true)
         } else if self
-            .mixer_ctl
+            .mixer_state_ctl
             .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -165,7 +170,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
         elem_id_list.extend_from_slice(&self.config_ctl.1);
-        elem_id_list.extend_from_slice(&self.mixer_ctl.2);
+        elem_id_list.extend_from_slice(&self.mixer_state_ctl.1);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_state_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.1);
@@ -187,7 +192,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.config_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
-        self.mixer_ctl
+        self.mixer_state_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
@@ -210,7 +215,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
             Ok(true)
         } else if self.config_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.hw_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -227,7 +232,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
 impl MeasureModel<(SndDice, FwNode)> for KliveModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
-        elem_id_list.extend_from_slice(&self.mixer_ctl.3);
+        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);
     }
@@ -235,8 +240,7 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.mixer_ctl
-            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         if !self.reverb_state_ctl.is_bypassed() {
             self.reverb_meter_ctl
                 .cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -256,7 +260,7 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.mixer_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.reverb_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -711,24 +715,17 @@ impl ConfigCtl {
 }
 
 #[derive(Default, Debug)]
-struct MixerCtl(
-    KliveMixerStateSegment,
-    KliveMixerMeterSegment,
-    Vec<ElemId>,
-    Vec<ElemId>,
-);
+struct MixerStateCtl(KliveMixerStateSegment, Vec<ElemId>);
 
-impl ShellMixerCtlOperation<KliveMixerState, KliveMixerMeter, KliveProtocol> for MixerCtl {
-    fn state_segment(&self) -> &KliveMixerStateSegment {
+impl ShellMixerStateCtlOperation<KliveMixerState, KliveMixerMeter, KliveProtocol>
+    for MixerStateCtl
+{
+    fn segment(&self) -> &KliveMixerStateSegment {
         &self.0
     }
 
-    fn state_segment_mut(&mut self) -> &mut KliveMixerStateSegment {
+    fn segment_mut(&mut self) -> &mut KliveMixerStateSegment {
         &mut self.0
-    }
-
-    fn meter_segment_mut(&mut self) -> &mut KliveMixerMeterSegment {
-        &mut self.1
     }
 
     fn state(params: &KliveMixerState) -> &ShellMixerState {
@@ -739,20 +736,12 @@ impl ShellMixerCtlOperation<KliveMixerState, KliveMixerMeter, KliveProtocol> for
         &mut params.mixer
     }
 
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.1.data.0
-    }
-
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.1.data.0
-    }
-
     fn enabled(&self) -> bool {
         self.0.data.enabled
     }
 }
 
-impl ShellReverbReturnCtlOperation<KliveMixerState, KliveProtocol> for MixerCtl {
+impl ShellReverbReturnCtlOperation<KliveMixerState, KliveProtocol> for MixerStateCtl {
     fn segment(&self) -> &KliveMixerStateSegment {
         &self.0
     }
@@ -797,7 +786,7 @@ fn ch_strip_mode_to_str(mode: &ChStripMode) -> &'static str {
         ChStripMode::RIAA1987 => "RIAA1987",
     }
 }
-impl MixerCtl {
+impl MixerStateCtl {
     const CH_STRIP_SRCS: [ChStripSrc; 9] = [
         ChStripSrc::Stream01,
         ChStripSrc::Analog01,
@@ -816,20 +805,15 @@ impl MixerCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)?;
-        KliveProtocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)?;
-        Ok(())
+        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_mixer(card_cntr)
-            .map(|(notified_elem_id_list, measured_elem_id_list)| {
-                self.2 = notified_elem_id_list;
-                self.3 = measured_elem_id_list;
-            })?;
+            .map(|(notified_elem_id_list, _)| self.1 = notified_elem_id_list)?;
 
         self.load_reverb_return(card_cntr)
-            .map(|mut notified_elem_id_list| self.2.append(&mut notified_elem_id_list))?;
+            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -1008,35 +992,22 @@ impl MixerCtl {
             Ok(())
         }
     }
+}
 
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_mixer_notified_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+#[derive(Default, Debug)]
+struct MixerMeterCtl(KliveMixerMeterSegment, Vec<ElemId>);
+
+impl ShellMixerMeterCtlOperation<KliveMixerMeter, KliveProtocol> for MixerMeterCtl {
+    fn meter(&self) -> &ShellMixerMeter {
+        &self.0.data.0
     }
 
-    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)
+    fn segment(&self) -> &TcKonnektSegment<KliveMixerMeter> {
+        &self.0
     }
 
-    fn read_measured_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_mixer_measured_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_reverb_return_notified_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+    fn segment_mut(&mut self) -> &mut TcKonnektSegment<KliveMixerMeter> {
+        &mut self.0
     }
 }
 
