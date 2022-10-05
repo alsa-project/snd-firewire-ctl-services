@@ -5,6 +5,207 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! XLR input 1 ----------------or----+--------------------------> analog-input-1/2
+//! Phone input 1 --------------+     |
+//!                                   |
+//! XLR input 2 ----------------or----+
+//! Phone input 2 --------------+
+//!
+//! XLR input 3 ----------------or----+--------------------------> analog-input-3/4
+//! Phone input 3 --------------+     |
+//!                                   |
+//! XLR input 4 ----------------or----+
+//! Phone input 4 --------------+
+//!
+//! Phone input 5/6 ---------------------------------------------> analog-input-5/6
+//! Phone input 7/8 ---------------------------------------------> analog-input-7/8
+//! Phone input 9/10 --------------------------------------------> analog-input-9/10
+//!
+//! Phone input 11/12 ----------+--------------------------------> analog-input-11/12
+//! Mic in remote controller ---+
+//!
+//! Coaxial input 1/2 -------------------------------------------> coaxial-input-1/2
+//!
+//! Optical input 1 ------------+--------------------------------> optical-input-1..8
+//! Optical input 2 ------------+
+//!
+//!
+//! analog-input-1/2 --------------------------------------------> stream-output-A-1/2
+//! analog-input-3/4 --------------------------------------------> stream-output-A-3/4
+//! analog-input-5/6 --------------------------------------------> stream-output-A-5/6
+//! analog-input-7/8 --------------------------------------------> stream-output-A-7/8
+//! analog-input-9/10 -------------------------------------------> stream-output-A-9/10
+//! analog-input-11/12 ------------------------------------------> stream-output-A-11/12
+//! (blank) -----------------------------------------------------> stream-output-A-13/14
+//! coaxial-input-1/2 -------------------------------------------> stream-output-A-15/16
+//! optical-input-1..8 ------------------------------------------> stream-output-B-1..8
+//! channel-strip-effect-output-1/2 -----------------------------> stream-output-B-9/10
+//! channel-strip-effect-output-3/4 -----------------------------> stream-output-B-11/12
+//! reverb-effect-output-1/2 ------------------------------------> stream-output-B-13/14
+//! aux-output-1/2 ----------------------------------------------> stream-output-B-15/16
+//!
+//!
+//!                                            ++============++
+//! analog-input-1/2 ----+                     ||            ||
+//! analog-input-3/4 ----+                     ||            ||
+//! analog-input-5/6 ----+                     ||            ||
+//! analog-input-7/8 ----+                     ||            ||
+//! analog-input-9/10 ---+                     ||  channel   ||
+//! analog-input-11/12 --+-- (one of them) --> ||   strip    || --> channel-strip-effect-output-1/2
+//! coaxial-input-1/2 ---+  (internal mode)    ||  effects   ||     (can replace original signal)
+//! optical-input-1/2 ---+                     ||    1/2     ||
+//! optical-input-3/4 ---+                     ||            ||
+//! optical-input-5/6 ---+                     ||            ||
+//! optical-input-7/8 ---+                     ||            ||
+//! stream-input-B-9/10 ---- (plugin mode) --> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! analog-input-1/2 ----+                     ||            ||
+//! analog-input-3/4 ----+                     ||            ||
+//! analog-input-5/6 ----+                     ||            ||
+//! analog-input-7/8 ----+                     ||            ||
+//! analog-input-9/10 ---+                     ||  channel   ||
+//! analog-input-11/12 --+-- (one of them) --> ||   strip    || --> channel-strip-effect-output-3/4
+//! coaxial-input-1/2 ---+  (internal mode)    ||  effects   ||     (can replace original signal)
+//! optical-input-1/2 ---+                     ||    3/4     ||
+//! optical-input-3/4 ---+                     ||            ||
+//! optical-input-5/6 ---+                     ||            ||
+//! optical-input-7/8 ---+                     ||            ||
+//! stream-input-B-11/12 --- (plugin mode) --> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! analog-input-1/2 ------------------------> ||            ||
+//! analog-input-3/4 ------------------------> ||            ||
+//! analog-input-5/6 ------------------------> ||            ||
+//! analog-input-7/8 ------------------------> ||            ||
+//! analog-input-9/10 -----------------------> ||            ||
+//! analog-input-11/12 ----------------------> ||            ||
+//! coaxial-input-1/2 -----------------------> ||            || --> mixer-source-1/2
+//! optical-input-1/2 -----------------------> ||            || --> mixer-source-3/4
+//! optical-input-3/4 -----------------------> ||            || --> mixer-source-5/6
+//! optical-input-5/6 -----------------------> ||            || --> mixer-source-7/8
+//! optical-input-7/8 -----------------------> ||  44 x 24   || --> mixer-source-9/10
+//!                                            ||            || --> mixer-source-11/12
+//! stream-input-A-1/2 ----------------------> ||            || --> mixer-source-13/14
+//! stream-input-A-3/4 ----------------------> ||   router   || --> mixer-source-15/16
+//! stream-input-A-5/6 ----------------------> ||            || --> mixer-source-17/18
+//! stream-input-A-7/8 ----------------------> ||            || --> mixer-source-19/20
+//! stream-input-A-9/10 ---------------------> ||            || --> mixer-source-21/22
+//! stream-input-A-11/12 --------------------> ||            || --> mixer-source-23/24
+//! stream-input-A-13/14 (unused)              ||            ||
+//! stream-input-A-15/16 --------------------> ||            ||
+//!                                            ||            ||
+//! stream-input-B-1/2 ----------------------> ||            ||
+//! stream-input-B-3/4 ----------------------> ||            ||
+//! stream-input-B-5/6 ----------------------> ||            ||
+//! stream-input-B-7/8 ----------------------> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! mixer-source-1/2 ----- (internal mode) --> ||            ||
+//! mixer-source-3/4 ----- (internal mode) --> ||            ||
+//! mixer-source-5/6 ----- (internal mode) --> ||            ||
+//! mixer-source-7/8 ----- (internal mode) --> ||            ||
+//! mixer-source-9/10 ---- (internal mode) --> ||   24 x 2   ||
+//! mixer-source-11/12 --- (internal mode) --> ||            ||
+//! mixer-source-13/14 --- (internal mode) --> ||   reverb   || --> reverb-effect-output-1/2
+//! mixer-source-15/16 --- (internal mode) --> ||            ||
+//! mixer-source-17/18 --- (internal mode) --> ||   effect   ||
+//! mixer-source-19/20 --- (internal mode) --> ||            ||
+//! mixer-source-21/22 --- (internal mode) --> ||            ||
+//! mixer-source-23/24 --- (internal mode) --> ||            ||
+//! stream-input-B-13/14 --(plugin mode) ----> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! mixer-source-1/2 ------------------------> ||            ||
+//! mixer-source-3/4 ------------------------> ||            ||
+//! mixer-source-5/6 ------------------------> ||            ||
+//! mixer-source-7/8 ------------------------> ||   24 x 2   ||
+//! mixer-source-9/10 -----------------------> ||            ||
+//! mixer-source-11/12 ----------------------> ||   main     ||
+//! mixer-source-13/14 ----------------------> ||            || --> aux-output-3/4
+//! mixer-source-15/16 ----------------------> ||   mixer    ||
+//! mixer-source-17/18 ----------------------> ||            ||
+//! mixer-source-19/20 ----------------------> ||    3/4     ||
+//! mixer-source-21/22 ----------------------> ||            ||
+//! mixer-source-23/24 ----------------------> ||            ||
+//! reverb-effect-output-1/2 ----------------> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! mixer-source-1/2 ------------------------> ||            ||
+//! mixer-source-3/4 ------------------------> ||            ||
+//! mixer-source-5/6 ------------------------> ||            ||
+//! mixer-source-7/8 ------------------------> ||   24 x 2   ||
+//! mixer-source-9/10 -----------------------> ||            ||
+//! mixer-source-11/12 ----------------------> || auxiliary  ||
+//! mixer-source-13/14 ----------------------> ||            || --> aux-output-1/2
+//! mixer-source-15/16 ----------------------> ||   mixer    ||
+//! mixer-source-17/18 ----------------------> ||            ||
+//! mixer-source-19/20 ----------------------> ||    1/2     ||
+//! mixer-source-21/22 ----------------------> ||            ||
+//! mixer-source-23/24 ----------------------> ||            ||
+//! reverb-effect-output-1/2 ----------------> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++============++
+//! mixer-source-1/2 ------------------------> ||            ||
+//! mixer-source-3/4 ------------------------> ||            ||
+//! mixer-source-5/6 ------------------------> ||            ||
+//! mixer-source-7/8 ------------------------> ||   24 x 2   ||
+//! mixer-source-9/10 -----------------------> ||            ||
+//! mixer-source-11/12 ----------------------> || auxiliary  ||
+//! mixer-source-13/14 ----------------------> ||            || --> aux-output-3/4
+//! mixer-source-15/16 ----------------------> ||   mixer    ||
+//! mixer-source-17/18 ----------------------> ||            ||
+//! mixer-source-19/20 ----------------------> ||    3/4     ||
+//! mixer-source-21/22 ----------------------> ||            ||
+//! mixer-source-23/24 ----------------------> ||            ||
+//! reverb-effect-output-1/2 ----------------> ||            ||
+//!                                            ++============++
+//!
+//!                                            ++==========++
+//! analog-input-1/2 ------------------------> ||          ||
+//! analog-input-3/4 ------------------------> ||          ||
+//! analog-input-5/6 ------------------------> ||          ||
+//! analog-input-7/8 ------------------------> ||          ||
+//! analog-input-9/10 -----------------------> ||          ||
+//! analog-input-11/12 ----------------------> ||          ||
+//! coaxial-input-1/2 -----------------------> ||          ||
+//! optical-input-1/2 -----------------------> ||          ||
+//! optical-input-3/4 -----------------------> ||          || --> analog-output-1/2
+//! optical-input-5/6 -----------------------> ||          || --> headphone-output-1/2
+//! optical-input-7/8 -----------------------> || 54 x 24  || --> analog-output-5/6
+//!                                            ||          || --> analog-output-7/8
+//! stream-input-A-1/2 ----------------------> ||          || --> analog-output-9/10
+//! stream-input-A-3/4 ----------------------> ||  router  || --> analog-output-11/12
+//! stream-input-A-5/6 ----------------------> ||          || --> headphone-output-3/4
+//! stream-input-A-7/8 ----------------------> ||          || --> coaxial-output-1/2
+//! stream-input-A-9/10 ---------------------> ||          || --> coaxial-output-1/2
+//! stream-input-A-11/12 --------------------> ||          || --> optical-output-1..8
+//! stream-input-A-13/14 (unused)              ||          ||
+//! stream-input-A-15/16 --------------------> ||          ||
+//!                                            ||          ||
+//! stream-input-B-1/2 ----------------------> ||          ||
+//! stream-input-B-3/4 ----------------------> ||          ||
+//! stream-input-B-5/6 ----------------------> ||          ||
+//! stream-input-B-7/8 ----------------------> ||          ||
+//!                                            ||          ||
+//! mixer-output-1/2 ------------------------> ||          ||
+//! aux-output-1/2 --------------------------> ||          ||
+//! aux-output-3/4 --------------------------> ||          ||
+//! reverb-output-1/2 -----------------------> ||          ||
+//!                                            ++==========++
+//!
+//! ```
 
 use super::{ch_strip::*, reverb::*, *};
 
@@ -108,23 +309,19 @@ impl Default for NominalSignalLevel {
     }
 }
 
-impl From<u32> for NominalSignalLevel {
-    fn from(val: u32) -> Self {
-        if val > 0 {
-            Self::Professional
-        } else {
-            Self::Consumer
-        }
-    }
+const NOMINAL_LEVELS: &[NominalSignalLevel] = &[
+    NominalSignalLevel::Professional,
+    NominalSignalLevel::Consumer,
+];
+
+const NOMINAL_LEVEL_LABEL: &str = "nominal level";
+
+fn serialize_nominal_level(level: &NominalSignalLevel, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(NOMINAL_LEVELS, level, raw, NOMINAL_LEVEL_LABEL)
 }
 
-impl From<NominalSignalLevel> for u32 {
-    fn from(level: NominalSignalLevel) -> Self {
-        match level {
-            NominalSignalLevel::Consumer => 0,
-            NominalSignalLevel::Professional => 1,
-        }
-    }
+fn deserialize_nominal_level(level: &mut NominalSignalLevel, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(NOMINAL_LEVELS, level, raw, NOMINAL_LEVEL_LABEL)
 }
 
 /// Line output levels.
@@ -142,18 +339,18 @@ impl TcKonnektSegmentSerdes<StudioLineOutLevel> for Studiok48Protocol {
     const SIZE: usize = 20;
 
     fn serialize(params: &StudioLineOutLevel, raw: &mut [u8]) -> Result<(), String> {
-        params.line_45.build_quadlet(&mut raw[4..8]);
-        params.line_67.build_quadlet(&mut raw[8..12]);
-        params.line_89.build_quadlet(&mut raw[12..16]);
-        params.line_1011.build_quadlet(&mut raw[16..20]);
+        serialize_nominal_level(&params.line_45, &mut raw[4..8])?;
+        serialize_nominal_level(&params.line_67, &mut raw[8..12])?;
+        serialize_nominal_level(&params.line_89, &mut raw[12..16])?;
+        serialize_nominal_level(&params.line_1011, &mut raw[16..20])?;
         Ok(())
     }
 
     fn deserialize(params: &mut StudioLineOutLevel, raw: &[u8]) -> Result<(), String> {
-        params.line_45.parse_quadlet(&raw[4..8]);
-        params.line_67.parse_quadlet(&raw[8..12]);
-        params.line_89.parse_quadlet(&raw[12..16]);
-        params.line_1011.parse_quadlet(&raw[16..20]);
+        deserialize_nominal_level(&mut params.line_45, &raw[4..8])?;
+        deserialize_nominal_level(&mut params.line_67, &raw[8..12])?;
+        deserialize_nominal_level(&mut params.line_89, &raw[12..16])?;
+        deserialize_nominal_level(&mut params.line_1011, &raw[16..20])?;
         Ok(())
     }
 }
@@ -167,7 +364,9 @@ impl TcKonnektNotifiedSegmentOperation<StudioLineOutLevel> for Studiok48Protocol
 /// Mode of remote effect button.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RemoteEffectButtonMode {
+    /// For reverb effect.
     Reverb,
+    /// For MIDI message generator.
     Midi,
 }
 
@@ -177,31 +376,45 @@ impl Default for RemoteEffectButtonMode {
     }
 }
 
-impl From<u32> for RemoteEffectButtonMode {
-    fn from(val: u32) -> Self {
-        if val > 0 {
-            Self::Midi
-        } else {
-            Self::Reverb
-        }
-    }
+const REMOTE_EFFECT_BUTTON_MODES: &[RemoteEffectButtonMode] =
+    &[RemoteEffectButtonMode::Reverb, RemoteEffectButtonMode::Midi];
+
+const REMOTE_EFFECT_BUTTON_MODE_LABEL: &str = "remote effect button mode";
+
+fn serialize_remote_effect_button_mode(
+    mode: &RemoteEffectButtonMode,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(
+        REMOTE_EFFECT_BUTTON_MODES,
+        mode,
+        raw,
+        REMOTE_EFFECT_BUTTON_MODE_LABEL,
+    )
 }
 
-impl From<RemoteEffectButtonMode> for u32 {
-    fn from(mode: RemoteEffectButtonMode) -> Self {
-        match mode {
-            RemoteEffectButtonMode::Reverb => 0,
-            RemoteEffectButtonMode::Midi => 1,
-        }
-    }
+fn deserialize_remote_effect_button_mode(
+    mode: &mut RemoteEffectButtonMode,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(
+        REMOTE_EFFECT_BUTTON_MODES,
+        mode,
+        raw,
+        REMOTE_EFFECT_BUTTON_MODE_LABEL,
+    )
 }
 
 /// Mode of knob target at pushed state.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum KnobPushMode {
+    /// Left/Right balance.
     Pan,
+    /// Gain to reverb effect.
     GainToReverb,
+    /// Gain to 1st auxiliary mixer.
     GainToAux0,
+    /// Gain to 2nd auxiliary mixer.
     GainToAux1,
 }
 
@@ -211,26 +424,21 @@ impl Default for KnobPushMode {
     }
 }
 
-impl From<u32> for KnobPushMode {
-    fn from(val: u32) -> Self {
-        match val {
-            3 => Self::GainToAux1,
-            2 => Self::GainToAux0,
-            1 => Self::GainToReverb,
-            _ => Self::Pan,
-        }
-    }
+const KNOB_PUSH_MODES: &[KnobPushMode] = &[
+    KnobPushMode::Pan,
+    KnobPushMode::GainToReverb,
+    KnobPushMode::GainToAux0,
+    KnobPushMode::GainToAux1,
+];
+
+const KNOB_PUSH_MODE_LABEL: &str = "knob push mode";
+
+fn serialize_knob_push_mode(mode: &KnobPushMode, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(KNOB_PUSH_MODES, mode, raw, KNOB_PUSH_MODE_LABEL)
 }
 
-impl From<KnobPushMode> for u32 {
-    fn from(mode: KnobPushMode) -> Self {
-        match mode {
-            KnobPushMode::Pan => 0,
-            KnobPushMode::GainToReverb => 1,
-            KnobPushMode::GainToAux0 => 2,
-            KnobPushMode::GainToAux1 => 3,
-        }
-    }
+fn deserialize_knob_push_mode(mode: &mut KnobPushMode, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(KNOB_PUSH_MODES, mode, raw, KNOB_PUSH_MODE_LABEL)
 }
 
 /// The number of entries for user-assigned button.
@@ -239,11 +447,17 @@ pub const STUDIO_REMOTE_USER_ASSIGN_COUNT: usize = 6;
 /// State of remote controller.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioRemote {
+    /// Loaded program number.
     pub prog: TcKonnektLoadedProgram,
+    /// Assignment of each user button to control one of source.
     pub user_assigns: [SrcEntry; STUDIO_REMOTE_USER_ASSIGN_COUNT],
+    /// The mode of effect button.
     pub effect_button_mode: RemoteEffectButtonMode,
+    /// Enable mode of fallback to master.
     pub fallback_to_master_enable: bool,
+    /// The duration for the fallback mode.
     pub fallback_to_master_duration: u32,
+    /// The mode at pushing knob.
     pub knob_push_mode: KnobPushMode,
 }
 
@@ -254,27 +468,41 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
 
     fn serialize(params: &StudioRemote, raw: &mut [u8]) -> Result<(), String> {
         serialize_loaded_program(&params.prog, &mut raw[..4])?;
-        params.user_assigns.build_quadlet_block(&mut raw[4..28]);
-        params.effect_button_mode.build_quadlet(&mut raw[28..32]);
+        params
+            .user_assigns
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, assign)| {
+                let pos = 4 + i * 4;
+                serialize_src_entry(assign, &mut raw[pos..(pos + 4)])
+            })?;
+        serialize_remote_effect_button_mode(&params.effect_button_mode, &mut raw[28..32])?;
         params
             .fallback_to_master_enable
             .build_quadlet(&mut raw[32..36]);
         params
             .fallback_to_master_duration
             .build_quadlet(&mut raw[36..40]);
-        params.knob_push_mode.build_quadlet(&mut raw[40..44]);
+        serialize_knob_push_mode(&params.knob_push_mode, &mut raw[40..44])?;
         Ok(())
     }
 
     fn deserialize(params: &mut StudioRemote, raw: &[u8]) -> Result<(), String> {
         deserialize_loaded_program(&mut params.prog, &raw[..4])?;
-        params.user_assigns.parse_quadlet_block(&raw[4..28]);
-        params.effect_button_mode.parse_quadlet(&raw[28..32]);
+        params
+            .user_assigns
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, assign)| {
+                let pos = 4 + i * 4;
+                deserialize_src_entry(assign, &raw[pos..(pos + 4)])
+            })?;
+        deserialize_remote_effect_button_mode(&mut params.effect_button_mode, &raw[28..32])?;
         params.fallback_to_master_enable.parse_quadlet(&raw[32..36]);
         params
             .fallback_to_master_duration
             .parse_quadlet(&raw[36..40]);
-        params.knob_push_mode.parse_quadlet(&raw[40..44]);
+        deserialize_knob_push_mode(&mut params.knob_push_mode, &raw[40..44])?;
         Ok(())
     }
 }
@@ -288,7 +516,9 @@ impl TcKonnektNotifiedSegmentOperation<StudioRemote> for Studiok48Protocol {
 /// Mode of optical interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OptIfaceMode {
+    /// For ADAT signal.
     Adat,
+    /// For S/PDIF signal.
     Spdif,
 }
 
@@ -298,30 +528,32 @@ impl Default for OptIfaceMode {
     }
 }
 
-impl From<u32> for OptIfaceMode {
-    fn from(val: u32) -> Self {
-        if val > 0 {
-            Self::Spdif
-        } else {
-            Self::Adat
-        }
-    }
+const OPT_IFACE_MODES: &[OptIfaceMode] = &[OptIfaceMode::Adat, OptIfaceMode::Spdif];
+
+const OPT_IFACE_MODE_LABEL: &str = "optical interface mode";
+
+fn serialize_opt_iface_mode(mode: &OptIfaceMode, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(OPT_IFACE_MODES, mode, raw, OPT_IFACE_MODE_LABEL)
 }
 
-impl From<OptIfaceMode> for u32 {
-    fn from(mode: OptIfaceMode) -> Self {
-        (mode == OptIfaceMode::Spdif) as u32
-    }
+fn deserialize_opt_iface_mode(mode: &mut OptIfaceMode, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(OPT_IFACE_MODES, mode, raw, OPT_IFACE_MODE_LABEL)
 }
 
 /// Source of standalone clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum StudioStandaloneClkSrc {
+    /// From ADAT in optical input interface.
     Adat,
+    /// From S/PDIF in 1st optical input interface.
     SpdifOnOpt01,
+    /// From S/PDIF in 2nd optical input interface.
     SpdifOnOpt23,
+    /// From S/PDIF in coaxial input interface.
     SpdifOnCoax,
+    /// Word clock in BNC input interface.
     WordClock,
+    /// Internal oscillator.
     Internal,
 }
 
@@ -331,39 +563,53 @@ impl Default for StudioStandaloneClkSrc {
     }
 }
 
-impl From<u32> for StudioStandaloneClkSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::Adat,
-            1 => Self::SpdifOnOpt01,
-            2 => Self::SpdifOnOpt23,
-            3 => Self::SpdifOnCoax,
-            4 => Self::WordClock,
-            _ => Self::Internal,
-        }
-    }
+const STANDALONE_CLOCK_SOURCES: &[StudioStandaloneClkSrc] = &[
+    StudioStandaloneClkSrc::Adat,
+    StudioStandaloneClkSrc::SpdifOnOpt01,
+    StudioStandaloneClkSrc::SpdifOnOpt23,
+    StudioStandaloneClkSrc::SpdifOnCoax,
+    StudioStandaloneClkSrc::WordClock,
+    StudioStandaloneClkSrc::Internal,
+];
+
+const STANDALONE_CLOCK_SOURCE_LABEL: &str = "standalone clock source";
+
+fn serialize_standalone_clock_source(
+    src: &StudioStandaloneClkSrc,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(
+        STANDALONE_CLOCK_SOURCES,
+        src,
+        raw,
+        STANDALONE_CLOCK_SOURCE_LABEL,
+    )
 }
 
-impl From<StudioStandaloneClkSrc> for u32 {
-    fn from(src: StudioStandaloneClkSrc) -> Self {
-        match src {
-            StudioStandaloneClkSrc::Adat => 0,
-            StudioStandaloneClkSrc::SpdifOnOpt01 => 1,
-            StudioStandaloneClkSrc::SpdifOnOpt23 => 2,
-            StudioStandaloneClkSrc::SpdifOnCoax => 3,
-            StudioStandaloneClkSrc::WordClock => 4,
-            StudioStandaloneClkSrc::Internal => 5,
-        }
-    }
+fn deserialize_standalone_clock_source(
+    src: &mut StudioStandaloneClkSrc,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(
+        STANDALONE_CLOCK_SOURCES,
+        src,
+        raw,
+        STANDALONE_CLOCK_SOURCE_LABEL,
+    )
 }
 
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioConfig {
+    /// The mode of optical input/output interfaces.
     pub opt_iface_mode: OptIfaceMode,
+    /// Source of sampling clock at standalone mode.
     pub standalone_src: StudioStandaloneClkSrc,
+    /// Rate of sampling clock at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
+    /// Whether to recover sampling clock from any source jitter.
     pub clock_recovery: bool,
+    /// Configuration for midi event generator.
     pub midi_send: TcKonnektMidiSender,
 }
 
@@ -373,8 +619,8 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
     const SIZE: usize = 100;
 
     fn serialize(params: &StudioConfig, raw: &mut [u8]) -> Result<(), String> {
-        params.opt_iface_mode.build_quadlet(&mut raw[..4]);
-        params.standalone_src.build_quadlet(&mut raw[4..8]);
+        serialize_opt_iface_mode(&params.opt_iface_mode, &mut raw[..4])?;
+        serialize_standalone_clock_source(&params.standalone_src, &mut raw[4..8])?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[8..12])?;
         params.clock_recovery.build_quadlet(&mut raw[16..20]);
         serialize_midi_sender(&params.midi_send, &mut raw[52..88])?;
@@ -382,8 +628,8 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
     }
 
     fn deserialize(params: &mut StudioConfig, raw: &[u8]) -> Result<(), String> {
-        params.opt_iface_mode.parse_quadlet(&raw[..4]);
-        params.standalone_src.parse_quadlet(&raw[4..8]);
+        deserialize_opt_iface_mode(&mut params.opt_iface_mode, &raw[..4])?;
+        deserialize_standalone_clock_source(&mut params.standalone_src, &raw[4..8])?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[8..12])?;
         params.clock_recovery.parse_quadlet(&raw[16..20]);
         deserialize_midi_sender(&mut params.midi_send, &raw[52..88])?;
@@ -432,74 +678,93 @@ impl Default for SrcEntry {
     }
 }
 
-impl From<u32> for SrcEntry {
-    fn from(val: u32) -> Self {
-        let v = val as usize;
-        if v >= SrcEntry::ANALOG_OFFSET && v < SrcEntry::SPDIF_OFFSET {
-            SrcEntry::Analog(v - SrcEntry::ANALOG_OFFSET)
-        } else if v >= SrcEntry::SPDIF_OFFSET && v < SrcEntry::ADAT_OFFSET {
-            SrcEntry::Spdif(v - SrcEntry::SPDIF_OFFSET)
-        } else if v >= SrcEntry::ADAT_OFFSET && v < 0x17 {
-            SrcEntry::Adat(v - SrcEntry::ADAT_OFFSET)
-        } else if v >= SrcEntry::STREAM_A_OFFSET && v < SrcEntry::STREAM_B_OFFSET {
-            SrcEntry::StreamA(v - SrcEntry::STREAM_A_OFFSET)
-        } else if v >= SrcEntry::STREAM_B_OFFSET && v < SrcEntry::MIXER_OFFSET {
-            SrcEntry::StreamB(v - SrcEntry::STREAM_B_OFFSET)
-        } else if v >= SrcEntry::MIXER_OFFSET && v < 0x5d {
-            SrcEntry::Mixer(v - SrcEntry::MIXER_OFFSET)
-        } else {
-            SrcEntry::Unused
-        }
-    }
+fn serialize_src_entry(entry: &SrcEntry, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = (match entry {
+        SrcEntry::Unused => SrcEntry::UNUSED,
+        SrcEntry::Analog(ch) => SrcEntry::ANALOG_OFFSET + ch,
+        SrcEntry::Spdif(ch) => SrcEntry::SPDIF_OFFSET + ch,
+        SrcEntry::Adat(ch) => SrcEntry::ADAT_OFFSET + ch,
+        SrcEntry::StreamA(ch) => SrcEntry::STREAM_A_OFFSET + ch,
+        SrcEntry::StreamB(ch) => SrcEntry::STREAM_B_OFFSET + ch,
+        SrcEntry::Mixer(ch) => SrcEntry::MIXER_OFFSET + ch,
+    }) as u32;
+
+    val.build_quadlet(raw);
+
+    Ok(())
 }
 
-impl From<SrcEntry> for u32 {
-    fn from(src: SrcEntry) -> Self {
-        (match src {
-            SrcEntry::Unused => SrcEntry::UNUSED,
-            SrcEntry::Analog(ch) => SrcEntry::ANALOG_OFFSET + ch,
-            SrcEntry::Spdif(ch) => SrcEntry::SPDIF_OFFSET + ch,
-            SrcEntry::Adat(ch) => SrcEntry::ADAT_OFFSET + ch,
-            SrcEntry::StreamA(ch) => SrcEntry::STREAM_A_OFFSET + ch,
-            SrcEntry::StreamB(ch) => SrcEntry::STREAM_B_OFFSET + ch,
-            SrcEntry::Mixer(ch) => SrcEntry::MIXER_OFFSET + ch,
-        }) as u32
-    }
+fn deserialize_src_entry(entry: &mut SrcEntry, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    let v = val as usize;
+    *entry = if v >= SrcEntry::ANALOG_OFFSET && v < SrcEntry::SPDIF_OFFSET {
+        SrcEntry::Analog(v - SrcEntry::ANALOG_OFFSET)
+    } else if v >= SrcEntry::SPDIF_OFFSET && v < SrcEntry::ADAT_OFFSET {
+        SrcEntry::Spdif(v - SrcEntry::SPDIF_OFFSET)
+    } else if v >= SrcEntry::ADAT_OFFSET && v < 0x17 {
+        SrcEntry::Adat(v - SrcEntry::ADAT_OFFSET)
+    } else if v >= SrcEntry::STREAM_A_OFFSET && v < SrcEntry::STREAM_B_OFFSET {
+        SrcEntry::StreamA(v - SrcEntry::STREAM_A_OFFSET)
+    } else if v >= SrcEntry::STREAM_B_OFFSET && v < SrcEntry::MIXER_OFFSET {
+        SrcEntry::StreamB(v - SrcEntry::STREAM_B_OFFSET)
+    } else if v >= SrcEntry::MIXER_OFFSET && v < 0x5d {
+        SrcEntry::Mixer(v - SrcEntry::MIXER_OFFSET)
+    } else {
+        SrcEntry::Unused
+    };
+
+    Ok(())
 }
 
 /// State of output pair.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OutPair {
+    /// Whether to enable dim or not.
     pub dim_enabled: bool,
+    /// Volume of the pair.
     pub vol: i32,
+    /// Dimmed volume of the pair.
     pub dim_vol: i32,
 }
 
 impl OutPair {
     const SIZE: usize = 12;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_out_pair(pair: &OutPair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= OutPair::SIZE);
 
-        self.dim_enabled.build_quadlet(&mut raw[..4]);
-        self.vol.build_quadlet(&mut raw[4..8]);
-        self.dim_vol.build_quadlet(&mut raw[8..12]);
-    }
+    pair.dim_enabled.build_quadlet(&mut raw[..4]);
+    pair.vol.build_quadlet(&mut raw[4..8]);
+    pair.dim_vol.build_quadlet(&mut raw[8..12]);
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+    Ok(())
+}
 
-        self.dim_enabled.parse_quadlet(&raw[..4]);
-        self.vol.parse_quadlet(&raw[4..8]);
-        self.dim_vol.parse_quadlet(&raw[8..12]);
-    }
+fn deserialize_out_pair(pair: &mut OutPair, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= OutPair::SIZE);
+
+    pair.dim_enabled.parse_quadlet(&raw[..4]);
+    pair.vol.parse_quadlet(&raw[4..8]);
+    pair.dim_vol.parse_quadlet(&raw[8..12]);
+
+    Ok(())
 }
 
 /// The mode of entry for pair of source of monitor.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MonitorSrcPairMode {
+    /// Inactive.
     Inactive,
+    /// Active.
     Active,
+    /// Always available.
     Fixed,
 }
 
@@ -509,92 +774,120 @@ impl Default for MonitorSrcPairMode {
     }
 }
 
-impl From<u32> for MonitorSrcPairMode {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => Self::Fixed,
-            1 => Self::Active,
-            _ => Self::Inactive,
-        }
-    }
+const MONITOR_SRC_PAIR_MODES: &[MonitorSrcPairMode] = &[
+    MonitorSrcPairMode::Inactive,
+    MonitorSrcPairMode::Active,
+    MonitorSrcPairMode::Fixed,
+];
+
+const MONITOR_SRC_PAIR_MODE_LABEL: &str = "monitor source pair mode";
+
+fn serialize_monitor_src_pair_mode(
+    mode: &MonitorSrcPairMode,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(
+        MONITOR_SRC_PAIR_MODES,
+        mode,
+        raw,
+        MONITOR_SRC_PAIR_MODE_LABEL,
+    )
 }
 
-impl From<MonitorSrcPairMode> for u32 {
-    fn from(mode: MonitorSrcPairMode) -> Self {
-        match mode {
-            MonitorSrcPairMode::Inactive => 0,
-            MonitorSrcPairMode::Active => 1,
-            MonitorSrcPairMode::Fixed => 2,
-        }
-    }
+fn deserialize_monitor_src_pair_mode(
+    mode: &mut MonitorSrcPairMode,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(
+        MONITOR_SRC_PAIR_MODES,
+        mode,
+        raw,
+        MONITOR_SRC_PAIR_MODE_LABEL,
+    )
 }
 
 /// Parameters of source of monitor.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcParam {
+    /// Assigned mixer source.
     pub src: SrcEntry,
+    /// Gain to main mixer, between -1000 and 0 (-72.00 and 0.00 dB).
     pub gain_to_main: i32,
+    /// Left/Right balance to main mixer, between -50 and 50.
     pub pan_to_main: i32,
+    /// Gain to reverb effect, between -1000 and 0 (-72.00 and 0.00 dB).
     pub gain_to_reverb: i32,
+    /// Gain to 1st auxiliary mixer, between -1000 and 0 (-72.00 and 0.00 dB).
     pub gain_to_aux0: i32,
+    /// Gain to 2nd auxiliary mixer, between -1000 and 0 (-72.00 and 0.00 dB).
     pub gain_to_aux1: i32,
 }
 
 impl MonitorSrcParam {
     const SIZE: usize = 24;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+fn serialize_monitor_src_params(params: &MonitorSrcParam, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-        self.src.build_quadlet(&mut raw[..4]);
-        self.gain_to_main.build_quadlet(&mut raw[4..8]);
-        self.pan_to_main.build_quadlet(&mut raw[8..12]);
-        self.gain_to_reverb.build_quadlet(&mut raw[12..16]);
-        self.gain_to_aux0.build_quadlet(&mut raw[16..20]);
-        self.gain_to_aux1.build_quadlet(&mut raw[20..24]);
-    }
+    serialize_src_entry(&params.src, &mut raw[..4])?;
+    params.gain_to_main.build_quadlet(&mut raw[4..8]);
+    params.pan_to_main.build_quadlet(&mut raw[8..12]);
+    params.gain_to_reverb.build_quadlet(&mut raw[12..16]);
+    params.gain_to_aux0.build_quadlet(&mut raw[16..20]);
+    params.gain_to_aux1.build_quadlet(&mut raw[20..24]);
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+    Ok(())
+}
 
-        self.src.parse_quadlet(&raw[..4]);
-        self.gain_to_main.parse_quadlet(&raw[4..8]);
-        self.pan_to_main.parse_quadlet(&raw[8..12]);
-        self.gain_to_reverb.parse_quadlet(&raw[12..16]);
-        self.gain_to_aux0.parse_quadlet(&raw[16..20]);
-        self.gain_to_aux1.parse_quadlet(&raw[20..24]);
-    }
+fn deserialize_monitor_src_params(params: &mut MonitorSrcParam, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcParam::SIZE);
+
+    deserialize_src_entry(&mut params.src, &raw[..4])?;
+    params.gain_to_main.parse_quadlet(&raw[4..8]);
+    params.pan_to_main.parse_quadlet(&raw[8..12]);
+    params.gain_to_reverb.parse_quadlet(&raw[12..16]);
+    params.gain_to_aux0.parse_quadlet(&raw[16..20]);
+    params.gain_to_aux1.parse_quadlet(&raw[20..24]);
+
+    Ok(())
 }
 
 /// Source of monitor.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcPair {
+    /// Mode of source pair of monitor.
     pub mode: MonitorSrcPairMode,
+    ///  Stereo channel link for the pair.
     pub stereo_link: bool,
-    pub left: MonitorSrcParam,
-    pub right: MonitorSrcParam,
+    /// Parameters of monitor source for left and right channels in its order.
+    pub params: [MonitorSrcParam; 2],
 }
 
 impl MonitorSrcPair {
     const SIZE: usize = 56;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_monitor_src_pair(pair: &MonitorSrcPair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcPair::SIZE);
 
-        self.mode.build_quadlet(&mut raw[..4]);
-        self.stereo_link.build_quadlet(&mut raw[4..8]);
-        self.left.build(&mut raw[8..32]);
-        self.right.build(&mut raw[32..56]);
-    }
+    serialize_monitor_src_pair_mode(&pair.mode, &mut raw[..4])?;
+    pair.stereo_link.build_quadlet(&mut raw[4..8]);
+    serialize_monitor_src_params(&pair.params[0], &mut raw[8..32])?;
+    serialize_monitor_src_params(&pair.params[1], &mut raw[32..56])?;
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+    Ok(())
+}
 
-        self.mode.parse_quadlet(&raw[..4]);
-        self.stereo_link.parse_quadlet(&raw[4..8]);
-        self.left.parse(&raw[8..32]);
-        self.right.parse(&raw[32..56]);
-    }
+fn deserialize_monitor_src_pair(pair: &mut MonitorSrcPair, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcPair::SIZE);
+
+    deserialize_monitor_src_pair_mode(&mut pair.mode, &raw[..4])?;
+    pair.stereo_link.parse_quadlet(&raw[4..8]);
+    deserialize_monitor_src_params(&mut pair.params[0], &raw[8..32])?;
+    deserialize_monitor_src_params(&mut pair.params[1], &raw[32..56])?;
+
+    Ok(())
 }
 
 /// The number of pairs for source of monitor.
@@ -603,15 +896,25 @@ pub const STUDIO_MIXER_SRC_PAIR_COUNT: usize = 12;
 /// State of mixer.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioMixerState {
+    /// For mixer sources.
     pub src_pairs: [MonitorSrcPair; STUDIO_MIXER_SRC_PAIR_COUNT],
+    /// Whethe to mute mixer sources.
     pub mutes: [bool; STUDIO_MIXER_SRC_PAIR_COUNT],
+    /// Whether to mute reverb effect return.
     pub reverb_return_mute: [bool; 3],
+    /// Gain of reverb effect return.
     pub reverb_return_gain: [i32; 3],
+    /// Whether to use channel strip effects as plugin.
     pub ch_strip_as_plugin: [bool; 2],
+    /// The source of channel strip effects.
     pub ch_strip_src: [SrcEntry; 4],
+    /// Use 3rd and 4th channel strip effects at 88.2/96.0 kHz.
     pub ch_strip_23_at_mid_rate: bool,
+    /// Settings for mixer outputs.
     pub mixer_out: [OutPair; 3],
+    /// Control volume before/after mixing.
     pub post_fader: [bool; 3],
+    /// Whether to enable mixer function or not.
     pub enabled: bool,
 }
 
@@ -621,10 +924,10 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
     const SIZE: usize = 820;
 
     fn serialize(params: &StudioMixerState, raw: &mut [u8]) -> Result<(), String> {
-        params.src_pairs.iter().enumerate().for_each(|(i, p)| {
+        params.src_pairs.iter().enumerate().try_for_each(|(i, p)| {
             let pos = i * MonitorSrcPair::SIZE;
-            p.build(&mut raw[pos..(pos + MonitorSrcPair::SIZE)]);
-        });
+            serialize_monitor_src_pair(p, &mut raw[pos..(pos + MonitorSrcPair::SIZE)])
+        })?;
         let mut val = 0u32;
         params
             .mutes
@@ -644,23 +947,34 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
         params
             .ch_strip_as_plugin
             .build_quadlet_block(&mut raw[736..744]);
-        params.ch_strip_src.build_quadlet_block(&mut raw[744..760]);
+        params
+            .ch_strip_src
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, entry)| {
+                let pos = 744 + i * 4;
+                serialize_src_entry(entry, &mut raw[pos..(pos + 4)])
+            })?;
         params
             .ch_strip_23_at_mid_rate
             .build_quadlet(&mut raw[760..764]);
-        params.mixer_out[0].build(&mut raw[764..776]);
-        params.mixer_out[1].build(&mut raw[776..788]);
-        params.mixer_out[2].build(&mut raw[788..800]);
+        serialize_out_pair(&params.mixer_out[0], &mut raw[764..776])?;
+        serialize_out_pair(&params.mixer_out[1], &mut raw[776..788])?;
+        serialize_out_pair(&params.mixer_out[2], &mut raw[788..800])?;
         params.post_fader.build_quadlet_block(&mut raw[800..812]);
         params.enabled.build_quadlet(&mut raw[812..816]);
         Ok(())
     }
 
     fn deserialize(params: &mut StudioMixerState, raw: &[u8]) -> Result<(), String> {
-        params.src_pairs.iter_mut().enumerate().for_each(|(i, p)| {
-            let pos = i * MonitorSrcPair::SIZE;
-            p.parse(&raw[pos..(pos + MonitorSrcPair::SIZE)]);
-        });
+        params
+            .src_pairs
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, p)| {
+                let pos = i * MonitorSrcPair::SIZE;
+                deserialize_monitor_src_pair(p, &raw[pos..(pos + MonitorSrcPair::SIZE)])
+            })?;
         let mut val = 0u32;
         val.parse_quadlet(&raw[672..676]);
         params.mutes.iter_mut().enumerate().for_each(|(i, m)| {
@@ -675,11 +989,18 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
         params
             .ch_strip_as_plugin
             .parse_quadlet_block(&raw[736..744]);
-        params.ch_strip_src.parse_quadlet_block(&raw[744..760]);
+        params
+            .ch_strip_src
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, entry)| {
+                let pos = 744 + i * 4;
+                deserialize_src_entry(entry, &raw[pos..(pos + 4)])
+            })?;
         params.ch_strip_23_at_mid_rate.parse_quadlet(&raw[760..764]);
-        params.mixer_out[0].parse(&raw[764..776]);
-        params.mixer_out[1].parse(&raw[776..788]);
-        params.mixer_out[2].parse(&raw[788..800]);
+        deserialize_out_pair(&mut params.mixer_out[0], &raw[764..776])?;
+        deserialize_out_pair(&mut params.mixer_out[1], &raw[776..788])?;
+        deserialize_out_pair(&mut params.mixer_out[2], &raw[788..800])?;
         params.post_fader.parse_quadlet_block(&raw[800..812]);
         params.enabled.parse_quadlet(&raw[812..816]);
         Ok(())
@@ -695,174 +1016,186 @@ impl TcKonnektNotifiedSegmentOperation<StudioMixerState> for Studiok48Protocol {
 /// Parameter of each channel for source of physical output.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysOutSrcParam {
+    /// Source.
     pub src: SrcEntry,
+    /// Volume.
     pub vol: i32,
+    /// Delay.
     pub delay: i32,
 }
 
 impl PhysOutSrcParam {
     const SIZE: usize = 12;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_phys_out_src_params(params: &PhysOutSrcParam, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= PhysOutSrcParam::SIZE);
 
-        self.src.build_quadlet(&mut raw[..4]);
-        self.vol.build_quadlet(&mut raw[4..8]);
-        self.delay.build_quadlet(&mut raw[8..12]);
-    }
+    serialize_src_entry(&params.src, &mut raw[..4])?;
+    params.vol.build_quadlet(&mut raw[4..8]);
+    params.delay.build_quadlet(&mut raw[8..12]);
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+    Ok(())
+}
 
-        self.src.parse_quadlet(&raw[..4]);
-        self.vol.parse_quadlet(&raw[4..8]);
-        self.delay.parse_quadlet(&raw[8..12]);
-    }
+fn deserialize_phys_out_src_params(params: &mut PhysOutSrcParam, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= PhysOutSrcParam::SIZE);
+
+    deserialize_src_entry(&mut params.src, &raw[..4])?;
+    params.vol.parse_quadlet(&raw[4..8]);
+    params.delay.parse_quadlet(&raw[8..12]);
+
+    Ok(())
 }
 
 /// Source of physical output.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysOutPairSrc {
+    /// Stereo channel link for the pair.
     pub stereo_link: bool,
-    pub left: PhysOutSrcParam,
-    pub right: PhysOutSrcParam,
+    /// Parameters of sources for left and right channels.
+    pub params: [PhysOutSrcParam; 2],
 }
 
 impl PhysOutPairSrc {
     const SIZE: usize = 28;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_phys_out_pair_src(src: &PhysOutPairSrc, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= PhysOutPairSrc::SIZE);
 
-        self.stereo_link.build_quadlet(&mut raw[..4]);
-        self.left.build(&mut raw[4..16]);
-        self.right.build(&mut raw[16..28]);
-    }
+    src.stereo_link.build_quadlet(&mut raw[..4]);
+    serialize_phys_out_src_params(&src.params[0], &mut raw[4..16])?;
+    serialize_phys_out_src_params(&src.params[1], &mut raw[16..28])?;
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+    Ok(())
+}
 
-        self.stereo_link.parse_quadlet(&raw[..4]);
-        self.left.parse(&raw[4..16]);
-        self.right.parse(&raw[16..28]);
-    }
+fn deserialize_phys_out_pair_src(src: &mut PhysOutPairSrc, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= PhysOutPairSrc::SIZE);
+
+    src.stereo_link.parse_quadlet(&raw[..4]);
+    deserialize_phys_out_src_params(&mut src.params[0], &raw[4..16])?;
+    deserialize_phys_out_src_params(&mut src.params[1], &raw[16..28])?;
+
+    Ok(())
 }
 
 /// The highest frequency to cross over into LFE channel.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CrossOverFreq {
+    /// 50 Hz.
     F50,
+    /// 80 Hz.
     F80,
+    /// 95 Hz.
     F95,
+    /// 110 Hz.
     F110,
+    /// 115 Hz.
     F115,
+    /// 120 Hz.
     F120,
-    Reserved(u32),
 }
 
 impl Default for CrossOverFreq {
     fn default() -> Self {
-        Self::Reserved(0xff)
+        Self::F50
     }
 }
 
-impl From<u32> for CrossOverFreq {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::F50,
-            1 => Self::F80,
-            2 => Self::F95,
-            3 => Self::F110,
-            4 => Self::F115,
-            5 => Self::F120,
-            _ => Self::Reserved(val),
-        }
-    }
+const CROSS_OVER_FREQS: &[CrossOverFreq] = &[
+    CrossOverFreq::F50,
+    CrossOverFreq::F80,
+    CrossOverFreq::F95,
+    CrossOverFreq::F110,
+    CrossOverFreq::F115,
+    CrossOverFreq::F120,
+];
+
+const CROSS_OVER_FREQ_LABEL: &str = "cross over frequency";
+
+fn serialize_cross_over_freq(freq: &CrossOverFreq, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(CROSS_OVER_FREQS, freq, raw, CROSS_OVER_FREQ_LABEL)
 }
 
-impl From<CrossOverFreq> for u32 {
-    fn from(freq: CrossOverFreq) -> u32 {
-        match freq {
-            CrossOverFreq::F50 => 0,
-            CrossOverFreq::F80 => 1,
-            CrossOverFreq::F95 => 2,
-            CrossOverFreq::F110 => 3,
-            CrossOverFreq::F115 => 4,
-            CrossOverFreq::F120 => 5,
-            CrossOverFreq::Reserved(val) => val,
-        }
-    }
+fn deserialize_cross_over_freq(freq: &mut CrossOverFreq, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(CROSS_OVER_FREQS, freq, raw, CROSS_OVER_FREQ_LABEL)
 }
 
 /// The frequency above cross over frequency into main channel.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HighPassFreq {
+    /// Off.
     Off,
+    /// Above 12 Hz per octave.
     Above12,
+    /// Above 24 Hz per octave.
     Above24,
-    Reserved(u32),
 }
 
 impl Default for HighPassFreq {
     fn default() -> Self {
-        HighPassFreq::Reserved(0xff)
+        HighPassFreq::Off
     }
 }
 
-impl From<u32> for HighPassFreq {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::Off,
-            1 => Self::Above12,
-            2 => Self::Above24,
-            _ => Self::Reserved(val),
-        }
-    }
+const HIGH_PASS_FREQS: &[HighPassFreq] = &[
+    HighPassFreq::Off,
+    HighPassFreq::Above12,
+    HighPassFreq::Above24,
+];
+
+const HIGH_PASS_FREQ_LABEL: &str = "high pass frequency";
+
+fn serialize_high_pass_freq(freq: &HighPassFreq, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(HIGH_PASS_FREQS, freq, raw, HIGH_PASS_FREQ_LABEL)
 }
 
-impl From<HighPassFreq> for u32 {
-    fn from(freq: HighPassFreq) -> Self {
-        match freq {
-            HighPassFreq::Off => 0,
-            HighPassFreq::Above12 => 1,
-            HighPassFreq::Above24 => 2,
-            HighPassFreq::Reserved(val) => val,
-        }
-    }
+fn deserialize_high_pass_freq(freq: &mut HighPassFreq, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(HIGH_PASS_FREQS, freq, raw, HIGH_PASS_FREQ_LABEL)
 }
 
 /// The frequency below cross over frequency into LFE channel.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LowPassFreq {
+    /// Below 12 Hz per octave.
     Below12,
+    /// Below 24 Hz per octave.
     Below24,
-    Reserved(u32),
 }
 
 impl Default for LowPassFreq {
     fn default() -> Self {
-        LowPassFreq::Reserved(0xff)
+        LowPassFreq::Below12
     }
 }
 
-impl From<u32> for LowPassFreq {
-    fn from(val: u32) -> Self {
-        match val {
-            1 => Self::Below12,
-            2 => Self::Below24,
-            _ => Self::Reserved(val),
-        }
+fn serialize_low_pass_freq(freq: &LowPassFreq, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    match freq {
+        LowPassFreq::Below12 => 1u32,
+        LowPassFreq::Below24 => 2,
     }
+    .build_quadlet(raw);
+
+    Ok(())
 }
 
-impl From<LowPassFreq> for u32 {
-    fn from(freq: LowPassFreq) -> Self {
-        match freq {
-            LowPassFreq::Below12 => 1,
-            LowPassFreq::Below24 => 2,
-            LowPassFreq::Reserved(val) => val,
-        }
-    }
+fn deserialize_low_pass_freq(freq: &mut LowPassFreq, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[..4]);
+
+    *freq = match val {
+        1 => LowPassFreq::Below12,
+        2 => LowPassFreq::Below24,
+        _ => Err(format!("low pass frequency not found for value {}", val))?,
+    };
+
+    Ok(())
 }
 
 /// The maximum number of surround channel of which a output group consists.
@@ -871,66 +1204,83 @@ pub const STUDIO_MAX_SURROUND_CHANNELS: usize = 8;
 /// The group to aggregate several outputs for surround channels.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OutGroup {
+    /// Assignment of physical outputs to the group.
     pub assigned_phys_outs: [bool; STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+    /// Whether to enable bass management.
     pub bass_management: bool,
+    /// The sub channel to Low Frequency Effect (LFE).
     pub sub_channel: Option<usize>,
+    /// The frequency above which signal is to main , below which signal is to Low Frequency Effect
+    /// (LFE).
     pub main_cross_over_freq: CrossOverFreq,
+    /// Gain for signal from main to Low Frequency Effect (LFE).
     pub main_level_to_sub: i32,
+    /// Gain for signal from sub channel to Low Frequency Effect (LFE).
     pub sub_level_to_sub: i32,
+    /// Frequency of high pass filter for the signal of main channel.
     pub main_filter_for_main: HighPassFreq,
+    /// Frequency of low pass filter for the signal from main channel to sub channel.
     pub main_filter_for_sub: LowPassFreq,
 }
 
 impl OutGroup {
     const SIZE: usize = 36;
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        // NOTE: when the value has bit flags more than 8, the ASIC to read the value is going to
-        // freeze. The corruption can be recovered to recall the other program state (P1/P2/P3) by
-        // the controller at standalone mode, then connect and factory reset by software.
-        let mut val = 0u32;
-        self.assigned_phys_outs
-            .iter()
-            .enumerate()
-            .filter(|(_, &a)| a)
-            .take(STUDIO_MAX_SURROUND_CHANNELS)
-            .for_each(|(i, _)| {
-                val |= 1 << i;
-            });
-        val.build_quadlet(&mut raw[..4]);
-        self.bass_management.build_quadlet(&mut raw[4..8]);
-        val = match self.sub_channel {
-            Some(pos) => 1 << pos,
-            None => 0,
-        };
-        val.build_quadlet(&mut raw[12..16]);
-        self.main_cross_over_freq.build_quadlet(&mut raw[16..20]);
-        self.main_level_to_sub.build_quadlet(&mut raw[20..24]);
-        self.sub_level_to_sub.build_quadlet(&mut raw[24..28]);
-        self.main_filter_for_main.build_quadlet(&mut raw[28..32]);
-        self.main_filter_for_sub.build_quadlet(&mut raw[32..]);
-    }
+fn serialize_out_group(group: &OutGroup, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= OutGroup::SIZE);
 
-    fn parse(&mut self, raw: &[u8]) {
-        let mut val = 0u32;
-        val.parse_quadlet(&raw[..4]);
-        self.assigned_phys_outs
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, a)| {
-                *a = val & (1 << i) > 0;
-            });
-        self.bass_management.parse_quadlet(&raw[4..8]);
-        val.parse_quadlet(&raw[12..16]);
-        self.sub_channel = (0..self.assigned_phys_outs.len())
-            .position(|i| val & (1 << i) > 0)
-            .map(|pos| pos as usize);
-        self.main_cross_over_freq.parse_quadlet(&raw[16..20]);
-        self.main_level_to_sub.parse_quadlet(&raw[20..24]);
-        self.sub_level_to_sub.parse_quadlet(&raw[24..28]);
-        self.main_filter_for_main.parse_quadlet(&raw[28..32]);
-        self.main_filter_for_sub.parse_quadlet(&raw[32..]);
-    }
+    // NOTE: when the value has bit flags more than 8, the ASIC to read the value is going to
+    // freeze. The corruption can be recovered to recall the other program state (P1/P2/P3) by
+    // the controller at standalone mode, then connect and factory reset by software.
+    let mut val = 0u32;
+    group
+        .assigned_phys_outs
+        .iter()
+        .enumerate()
+        .filter(|(_, &a)| a)
+        .take(STUDIO_MAX_SURROUND_CHANNELS)
+        .for_each(|(i, _)| {
+            val |= 1 << i;
+        });
+    val.build_quadlet(&mut raw[..4]);
+    group.bass_management.build_quadlet(&mut raw[4..8]);
+    val = match group.sub_channel {
+        Some(pos) => 1 << pos,
+        None => 0,
+    };
+    val.build_quadlet(&mut raw[12..16]);
+    let _ = serialize_cross_over_freq(&group.main_cross_over_freq, &mut raw[16..20]);
+    group.main_level_to_sub.build_quadlet(&mut raw[20..24]);
+    group.sub_level_to_sub.build_quadlet(&mut raw[24..28]);
+    serialize_high_pass_freq(&group.main_filter_for_main, &mut raw[28..32])?;
+    serialize_low_pass_freq(&group.main_filter_for_sub, &mut raw[32..])?;
+
+    Ok(())
+}
+
+fn deserialize_out_group(group: &mut OutGroup, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= OutGroup::SIZE);
+
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[..4]);
+    group
+        .assigned_phys_outs
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, a)| *a = val & (1 << i) > 0);
+    group.bass_management.parse_quadlet(&raw[4..8]);
+    val.parse_quadlet(&raw[12..16]);
+    group.sub_channel = (0..group.assigned_phys_outs.len())
+        .position(|i| val & (1 << i) > 0)
+        .map(|pos| pos as usize);
+    deserialize_cross_over_freq(&mut group.main_cross_over_freq, &raw[16..20])?;
+    group.main_level_to_sub.parse_quadlet(&raw[20..24]);
+    group.sub_level_to_sub.parse_quadlet(&raw[24..28]);
+    deserialize_high_pass_freq(&mut group.main_filter_for_main, &raw[28..32])?;
+    deserialize_low_pass_freq(&mut group.main_filter_for_sub, &raw[32..])?;
+
+    Ok(())
 }
 
 /// The number of pairs of physical output.
@@ -968,11 +1318,15 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
     const SIZE: usize = 440;
 
     fn serialize(params: &StudioPhysOut, raw: &mut [u8]) -> Result<(), String> {
-        params.master_out.build(&mut raw[..12]);
-        params.out_pair_srcs.iter().enumerate().for_each(|(i, p)| {
-            let pos = 16 + i * PhysOutPairSrc::SIZE;
-            p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
-        });
+        serialize_out_pair(&params.master_out, &mut raw[..12])?;
+        params
+            .out_pair_srcs
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, p)| {
+                let pos = 16 + i * PhysOutPairSrc::SIZE;
+                serialize_phys_out_pair_src(p, &mut raw[pos..(pos + PhysOutPairSrc::SIZE)])
+            })?;
         (params.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
         let mut val = 0u32;
         params
@@ -994,23 +1348,23 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[328..332]);
-        params.out_grps.iter().enumerate().for_each(|(i, s)| {
+        params.out_grps.iter().enumerate().try_for_each(|(i, s)| {
             let pos = 332 + OutGroup::SIZE * i;
-            s.build(&mut raw[pos..(pos + OutGroup::SIZE)]);
-        });
+            serialize_out_group(s, &mut raw[pos..(pos + OutGroup::SIZE)])
+        })?;
         Ok(())
     }
 
     fn deserialize(params: &mut StudioPhysOut, raw: &[u8]) -> Result<(), String> {
-        params.master_out.parse(&raw[..12]);
+        deserialize_out_pair(&mut params.master_out, &raw[..12])?;
         params
             .out_pair_srcs
             .iter_mut()
             .enumerate()
-            .for_each(|(i, p)| {
+            .try_for_each(|(i, p)| {
                 let pos = 16 + i * PhysOutPairSrc::SIZE;
-                p.parse(&raw[pos..(pos + PhysOutPairSrc::SIZE)]);
-            });
+                deserialize_phys_out_pair_src(p, &raw[pos..(pos + PhysOutPairSrc::SIZE)])
+            })?;
         let mut val = 0u32;
         val.parse_quadlet(&raw[12..16]);
         params.selected_out_grp = val as usize;
@@ -1027,10 +1381,14 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
         params.out_mutes.iter_mut().enumerate().for_each(|(i, d)| {
             *d = val & (1 << i) > 0;
         });
-        params.out_grps.iter_mut().enumerate().for_each(|(i, s)| {
-            let pos = 332 + OutGroup::SIZE * i;
-            s.parse(&raw[pos..(pos + OutGroup::SIZE)]);
-        });
+        params
+            .out_grps
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, s)| {
+                let pos = 332 + OutGroup::SIZE * i;
+                deserialize_out_group(s, &raw[pos..(pos + OutGroup::SIZE)])
+            })?;
         Ok(())
     }
 }
@@ -1043,6 +1401,7 @@ impl TcKonnektNotifiedSegmentOperation<StudioPhysOut> for Studiok48Protocol {
 
 const STUDIO_CH_STRIP_COUNT: usize = 4;
 
+/// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioReverbState(pub ReverbState);
 
@@ -1066,6 +1425,7 @@ impl TcKonnektNotifiedSegmentOperation<StudioReverbState> for Studiok48Protocol 
     const NOTIFY_FLAG: u32 = STUDIO_REVERB_NOTIFY_CHANGE;
 }
 
+/// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
 
@@ -1092,9 +1452,13 @@ impl TcKonnektNotifiedSegmentOperation<StudioChStripStates> for Studiok48Protoco
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 /// State of jack sense for analog input.
 pub enum StudioAnalogJackState {
+    /// Select front jack instead of rear.
     FrontSelected,
+    /// Detect plug insertion in front jack.
     FrontInserted,
+    /// Select rear jack instead of front.
     RearSelected,
+    /// Detect plug insertion in rear jack.
     RearInserted,
 }
 
@@ -1129,12 +1493,17 @@ impl From<StudioAnalogJackState> for u32 {
 /// The number of analog inputs which has jack sense.
 pub const STUDIO_ANALOG_JACK_STATE_COUNT: usize = 12;
 
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 /// Hardware state.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioHwState {
+    /// The state of analog jack with sense.
     pub analog_jack_states: [StudioAnalogJackState; STUDIO_ANALOG_JACK_STATE_COUNT],
+    /// State of headphone.
     pub hp_state: [bool; 2],
+    /// State of FireWire LED.
     pub firewire_led: FireWireLedState,
+    /// Whether knob of master level is actually effective for volume of master output. This is
+    /// needed since the volume is controlled by remote controller as well.
     pub valid_master_level: bool,
 }
 
@@ -1168,11 +1537,14 @@ impl TcKonnektNotifiedSegmentOperation<StudioHwState> for Studiok48Protocol {
     const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
 }
 
-/// Meter for input/output of mixer.
+/// Hardware metering for mixer function.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioMixerMeter {
+    /// Detected signal level of main mixer sources.
     pub src_inputs: [i32; 24],
+    /// Detected signal level of main mixer outputs.
     pub mixer_outputs: [i32; 2],
+    /// Detected signal level of aux mixer outputs.
     pub aux_outputs: [i32; 4],
 }
 
@@ -1196,6 +1568,7 @@ impl TcKonnektSegmentSerdes<StudioMixerMeter> for Studiok48Protocol {
     }
 }
 
+/// Hardware metering for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioReverbMeter(pub ReverbMeter);
 
@@ -1213,6 +1586,7 @@ impl TcKonnektSegmentSerdes<StudioReverbMeter> for Studiok48Protocol {
     }
 }
 
+/// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripMeters(pub [ChStripMeter; STUDIO_CH_STRIP_COUNT]);
 
