@@ -12,7 +12,7 @@ const EVENT_TO_STREAM_NAME: &str = "midi-event-to-stream";
 
 pub trait MidiSendCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -102,43 +102,55 @@ where
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.normal.ch = elem_value.bytes()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             NORMAL_EVENT_CC_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.normal.cc = elem_value.bytes()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             PUSHED_EVENT_CH_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.pushed.ch = elem_value.bytes()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             PUSHED_EVENT_CC_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.pushed.cc = elem_value.bytes()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EVENT_TO_PORT_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.send_to_port = elem_value.boolean()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EVENT_TO_STREAM_NAME => {
                 let mut params = self.segment().data.clone();
                 let mut sender = Self::midi_sender_mut(&mut params);
                 sender.send_to_stream = elem_value.boolean()[0];
-                T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, &node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
