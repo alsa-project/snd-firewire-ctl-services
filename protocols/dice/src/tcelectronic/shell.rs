@@ -426,129 +426,137 @@ fn deserialize_reverb_return(state: &mut ShellReverbReturn, raw: &[u8]) -> Resul
 /// Meter information. -1000..0 (-94.0..0 dB).
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct ShellMixerMeter {
-    pub stream_inputs: [i32; Self::STREAM_INPUT_COUNT],
+    /// Detected signal level of stream inputs.
+    pub stream_inputs: Vec<i32>,
+    /// Detected signal level of analog inputs.
     pub analog_inputs: Vec<i32>,
+    /// Detected signal level of digital inputs.
     pub digital_inputs: Vec<i32>,
-    pub main_outputs: [i32; Self::MAIN_OUTPUT_COUNT],
+    /// Detected signal level of main outputs.
+    pub main_outputs: Vec<i32>,
 }
 
 impl ShellMixerMeter {
-    pub const SIZE: usize = 0x5c;
+    pub(crate) const SIZE: usize = 0x5c;
+}
+
+/// Specification for meter function of mixer.
+pub trait ShellMixerMeterSpecification {
+    const ANALOG_INPUT_COUNT: usize;
+    const DIGITAL_INPUT_COUNT: usize;
 
     const STREAM_INPUT_COUNT: usize = 2;
     const MAIN_OUTPUT_COUNT: usize = 2;
     const MAX_STREAM_INPUT_COUNT: usize = 8;
     const MAX_ANALOG_INPUT_COUNT: usize = 4;
     const MAX_DIGITAL_INPUT_COUNT: usize = 8;
-}
-
-pub trait ShellMixerMeterConvert {
-    const ANALOG_INPUT_COUNT: usize;
-    const DIGITAL_INPUT_COUNT: usize;
-
-    fn meter(&self) -> &ShellMixerMeter;
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter;
 
     fn create_meter_state() -> ShellMixerMeter {
         ShellMixerMeter {
-            stream_inputs: [Default::default(); ShellMixerMeter::STREAM_INPUT_COUNT],
+            stream_inputs: vec![Default::default(); Self::STREAM_INPUT_COUNT],
             analog_inputs: vec![Default::default(); Self::ANALOG_INPUT_COUNT],
             digital_inputs: vec![Default::default(); Self::DIGITAL_INPUT_COUNT],
-            main_outputs: [Default::default(); ShellMixerMeter::MAIN_OUTPUT_COUNT],
+            main_outputs: vec![Default::default(); Self::MAIN_OUTPUT_COUNT],
         }
     }
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), ShellMixerMeter::SIZE, "Programming error...");
+fn serialize_mixer_meter<T: ShellMixerMeterSpecification>(
+    state: &ShellMixerMeter,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ShellMixerMeter::SIZE);
 
-        let state = self.meter();
+    let mut offset = 0;
+    state.stream_inputs.iter().enumerate().for_each(|(i, m)| {
+        let pos = offset + i * 4;
+        m.build_quadlet(&mut raw[pos..(pos + 4)]);
+    });
 
-        let mut offset = 0;
-        state.stream_inputs.iter().enumerate().for_each(|(i, m)| {
+    offset += T::MAX_STREAM_INPUT_COUNT * 4;
+    state
+        .analog_inputs
+        .iter()
+        .take(T::ANALOG_INPUT_COUNT)
+        .take(T::MAX_ANALOG_INPUT_COUNT)
+        .enumerate()
+        .for_each(|(i, m)| {
             let pos = offset + i * 4;
             m.build_quadlet(&mut raw[pos..(pos + 4)]);
         });
 
-        offset += ShellMixerMeter::MAX_STREAM_INPUT_COUNT * 4;
-        state
-            .analog_inputs
-            .iter()
-            .take(Self::ANALOG_INPUT_COUNT)
-            .take(ShellMixerMeter::MAX_ANALOG_INPUT_COUNT)
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.build_quadlet(&mut raw[pos..(pos + 4)]);
-            });
-
-        offset += ShellMixerMeter::MAX_ANALOG_INPUT_COUNT * 4;
-        state
-            .digital_inputs
-            .iter()
-            .take(Self::DIGITAL_INPUT_COUNT)
-            .take(ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT)
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.build_quadlet(&mut raw[pos..(pos + 4)]);
-            });
-
-        offset += ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT * 4;
-        state.main_outputs.iter().enumerate().for_each(|(i, m)| {
+    offset += T::MAX_ANALOG_INPUT_COUNT * 4;
+    state
+        .digital_inputs
+        .iter()
+        .take(T::DIGITAL_INPUT_COUNT)
+        .take(T::MAX_DIGITAL_INPUT_COUNT)
+        .enumerate()
+        .for_each(|(i, m)| {
             let pos = offset + i * 4;
             m.build_quadlet(&mut raw[pos..(pos + 4)]);
         });
-    }
 
-    fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), ShellMixerMeter::SIZE, "Programming error...");
+    offset += T::MAX_DIGITAL_INPUT_COUNT * 4;
+    state.main_outputs.iter().enumerate().for_each(|(i, m)| {
+        let pos = offset + i * 4;
+        m.build_quadlet(&mut raw[pos..(pos + 4)]);
+    });
 
-        let state = self.meter_mut();
+    Ok(())
+}
 
-        let mut offset = 0;
-        state
-            .stream_inputs
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.parse_quadlet(&raw[pos..(pos + 4)]);
-            });
+fn deserialize_mixer_meter<T: ShellMixerMeterSpecification>(
+    state: &mut ShellMixerMeter,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ShellMixerMeter::SIZE);
 
-        offset += ShellMixerMeter::MAX_STREAM_INPUT_COUNT * 4;
-        state
-            .analog_inputs
-            .iter_mut()
-            .take(Self::ANALOG_INPUT_COUNT)
-            .take(ShellMixerMeter::MAX_ANALOG_INPUT_COUNT)
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.parse_quadlet(&raw[pos..(pos + 4)]);
-            });
+    let mut offset = 0;
+    state
+        .stream_inputs
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.parse_quadlet(&raw[pos..(pos + 4)]);
+        });
 
-        offset += ShellMixerMeter::MAX_ANALOG_INPUT_COUNT * 4;
-        state
-            .digital_inputs
-            .iter_mut()
-            .take(Self::DIGITAL_INPUT_COUNT)
-            .take(ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT)
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.parse_quadlet(&raw[pos..(pos + 4)]);
-            });
+    offset += T::MAX_STREAM_INPUT_COUNT * 4;
+    state
+        .analog_inputs
+        .iter_mut()
+        .take(T::ANALOG_INPUT_COUNT)
+        .take(T::MAX_ANALOG_INPUT_COUNT)
+        .enumerate()
+        .for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.parse_quadlet(&raw[pos..(pos + 4)]);
+        });
 
-        offset += ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT * 4;
-        state
-            .main_outputs
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.parse_quadlet(&raw[pos..(pos + 4)]);
-            });
-    }
+    offset += T::MAX_ANALOG_INPUT_COUNT * 4;
+    state
+        .digital_inputs
+        .iter_mut()
+        .take(T::DIGITAL_INPUT_COUNT)
+        .take(T::MAX_DIGITAL_INPUT_COUNT)
+        .enumerate()
+        .for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.parse_quadlet(&raw[pos..(pos + 4)]);
+        });
+
+    offset += T::MAX_DIGITAL_INPUT_COUNT * 4;
+    state
+        .main_outputs
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.parse_quadlet(&raw[pos..(pos + 4)]);
+        });
+
+    Ok(())
 }
 
 /// Available source for physical output.

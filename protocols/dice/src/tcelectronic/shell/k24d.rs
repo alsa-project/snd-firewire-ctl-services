@@ -347,21 +347,13 @@ pub struct K24dMixerMeter(pub ShellMixerMeter);
 
 impl Default for K24dMixerMeter {
     fn default() -> Self {
-        K24dMixerMeter(Self::create_meter_state())
+        K24dMixerMeter(K24dProtocol::create_meter_state())
     }
 }
 
-impl ShellMixerMeterConvert for K24dMixerMeter {
+impl ShellMixerMeterSpecification for K24dProtocol {
     const ANALOG_INPUT_COUNT: usize = K24D_METER_ANALOG_INPUT_COUNT;
     const DIGITAL_INPUT_COUNT: usize = K24D_METER_DIGITAL_INPUT_COUNT;
-
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
 }
 
 impl TcKonnektSegmentSerdes<K24dMixerMeter> for K24dProtocol {
@@ -370,13 +362,11 @@ impl TcKonnektSegmentSerdes<K24dMixerMeter> for K24dProtocol {
     const SIZE: usize = ShellMixerMeter::SIZE;
 
     fn serialize(params: &K24dMixerMeter, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::build(params, raw);
-        Ok(())
+        serialize_mixer_meter::<K24dProtocol>(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dMixerMeter, raw: &[u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::parse(params, raw);
-        Ok(())
+        deserialize_mixer_meter::<K24dProtocol>(&mut params.0, raw)
     }
 }
 
