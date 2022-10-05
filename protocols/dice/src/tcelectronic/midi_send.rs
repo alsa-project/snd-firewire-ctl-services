@@ -9,7 +9,7 @@
 use super::*;
 
 /// Channel and control code of MIDI event.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TcKonnektMidiMsgParams {
     /// The channel for MIDI message.
     pub ch: u8,
@@ -18,7 +18,7 @@ pub struct TcKonnektMidiMsgParams {
 }
 
 /// MIDI sender.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TcKonnektMidiSender {
     /// The parameter of MIDI message generated normally.
     pub normal: TcKonnektMidiMsgParams,
