@@ -680,55 +680,63 @@ pub trait ShellStandaloneClkSpec {
     const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
 }
 
-/// Source pair of stream to mixer.
+/// Stereo pair of audio data channels in isochronous packet stream available as single source of
+/// mixer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ShellMixerStreamSrcPair {
-    Stream01,
-    Stream23,
-    Stream45,
-    Stream67,
-    Stream89,
-    Stream1011,
-    Stream1213,
+pub enum ShellMixerStreamSourcePair {
+    /// 1st pair of audio data channels.
+    Stream0_1,
+    /// 2nd pair of audio data channels.
+    Stream2_3,
+    /// 3rd pair of audio data channels.
+    Stream4_5,
+    /// 4th pair of audio data channels.
+    Stream6_7,
+    /// 5th pair of audio data channels.
+    Stream8_9,
+    /// 6th pair of audio data channels.
+    Stream10_11,
+    /// 7th pair of audio data channels.
+    Stream12_13,
 }
 
-impl Default for ShellMixerStreamSrcPair {
+impl Default for ShellMixerStreamSourcePair {
     fn default() -> Self {
-        ShellMixerStreamSrcPair::Stream01
+        ShellMixerStreamSourcePair::Stream0_1
     }
 }
 
-impl From<u32> for ShellMixerStreamSrcPair {
-    fn from(val: u32) -> Self {
-        match val {
-            6 => Self::Stream1213,
-            5 => Self::Stream1011,
-            4 => Self::Stream89,
-            3 => Self::Stream67,
-            2 => Self::Stream45,
-            1 => Self::Stream23,
-            _ => Self::Stream01,
-        }
-    }
-}
-
-impl From<ShellMixerStreamSrcPair> for u32 {
-    fn from(pair: ShellMixerStreamSrcPair) -> Self {
-        match pair {
-            ShellMixerStreamSrcPair::Stream01 => 0,
-            ShellMixerStreamSrcPair::Stream23 => 1,
-            ShellMixerStreamSrcPair::Stream45 => 2,
-            ShellMixerStreamSrcPair::Stream67 => 3,
-            ShellMixerStreamSrcPair::Stream89 => 4,
-            ShellMixerStreamSrcPair::Stream1011 => 5,
-            ShellMixerStreamSrcPair::Stream1213 => 6,
-        }
-    }
-}
+const MIXER_STREAM_SOURCE_PAIR_LABEL: &str = "Mixer stream source pair";
 
 /// Specification for source pair of stream to mixer.
-pub trait ShellMixerStreamSrcPairSpec {
-    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize;
+pub trait ShellMixerStreamSourcePairSpecification {
+    const MIXER_STREAM_SOURCE_PAIRS: &'static [ShellMixerStreamSourcePair];
+}
+
+/// Serialize for source pair.
+fn serialize_mixer_stream_source_pair<T: ShellMixerStreamSourcePairSpecification>(
+    pair: &ShellMixerStreamSourcePair,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(
+        T::MIXER_STREAM_SOURCE_PAIRS,
+        pair,
+        raw,
+        MIXER_STREAM_SOURCE_PAIR_LABEL,
+    )
+}
+
+/// Deserialize for source pair.
+fn deserialize_mixer_stream_source_pair<T: ShellMixerStreamSourcePairSpecification>(
+    pair: &mut ShellMixerStreamSourcePair,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(
+        T::MIXER_STREAM_SOURCE_PAIRS,
+        pair,
+        raw,
+        MIXER_STREAM_SOURCE_PAIR_LABEL,
+    )
 }
 
 /// Target of 1st knob.

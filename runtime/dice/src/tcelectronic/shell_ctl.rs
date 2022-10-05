@@ -869,15 +869,15 @@ where
     }
 }
 
-fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSrcPair) -> &'static str {
+fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSourcePair) -> &'static str {
     match src {
-        ShellMixerStreamSrcPair::Stream01 => "Stream-1/2",
-        ShellMixerStreamSrcPair::Stream23 => "Stream-3/4",
-        ShellMixerStreamSrcPair::Stream45 => "Stream-5/6",
-        ShellMixerStreamSrcPair::Stream67 => "Stream-7/8",
-        ShellMixerStreamSrcPair::Stream89 => "Stream-9/10",
-        ShellMixerStreamSrcPair::Stream1011 => "Stream-11/12",
-        ShellMixerStreamSrcPair::Stream1213 => "Stream-13/14",
+        ShellMixerStreamSourcePair::Stream0_1 => "Stream-1/2",
+        ShellMixerStreamSourcePair::Stream2_3 => "Stream-3/4",
+        ShellMixerStreamSourcePair::Stream4_5 => "Stream-5/6",
+        ShellMixerStreamSourcePair::Stream6_7 => "Stream-7/8",
+        ShellMixerStreamSourcePair::Stream8_9 => "Stream-9/10",
+        ShellMixerStreamSourcePair::Stream10_11 => "Stream-11/12",
+        ShellMixerStreamSourcePair::Stream12_13 => "Stream-13/14",
     }
 }
 
@@ -885,29 +885,20 @@ const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
 
 pub trait ShellMixerStreamSrcCtlOperation<S, T>
 where
-    S: ShellMixerStreamSrcPairSpec + Clone,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    S: Clone,
+    T: TcKonnektSegmentOperation<S>
+        + TcKonnektMutableSegmentOperation<S>
+        + ShellMixerStreamSourcePairSpecification,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
-    fn mixer_stream_src(params: &S) -> &ShellMixerStreamSrcPair;
-    fn mixer_stream_src_mut(params: &mut S) -> &mut ShellMixerStreamSrcPair;
-
-    const MIXER_STREAM_SRC_PAIRS: [ShellMixerStreamSrcPair; 7] = [
-        ShellMixerStreamSrcPair::Stream01,
-        ShellMixerStreamSrcPair::Stream23,
-        ShellMixerStreamSrcPair::Stream45,
-        ShellMixerStreamSrcPair::Stream67,
-        ShellMixerStreamSrcPair::Stream89,
-        ShellMixerStreamSrcPair::Stream1011,
-        ShellMixerStreamSrcPair::Stream1213,
-    ];
+    fn mixer_stream_src(params: &S) -> &ShellMixerStreamSourcePair;
+    fn mixer_stream_src_mut(params: &mut S) -> &mut ShellMixerStreamSourcePair;
 
     fn load_mixer_stream_src(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::MIXER_STREAM_SRC_PAIRS
+        let labels: Vec<&str> = T::MIXER_STREAM_SOURCE_PAIRS
             .iter()
-            .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
             .map(|s| mixer_stream_src_pair_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_NAME, 0);
@@ -924,12 +915,15 @@ where
         match elem_id.name().as_str() {
             MIXER_STREAM_SRC_NAME => {
                 let params = &self.segment().data;
-                let src = Self::mixer_stream_src(&params);
-                let pos = Self::MIXER_STREAM_SRC_PAIRS
+                let pair = Self::mixer_stream_src(&params);
+                let pos = T::MIXER_STREAM_SOURCE_PAIRS
                     .iter()
-                    .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
-                    .position(|s| src.eq(s))
-                    .unwrap();
+                    .position(|p| pair.eq(p))
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Unexpected value for mixer stream source pair: {:?}", pair);
+                        Error::new(FileError::Io, &msg)
+                    })?;
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
@@ -948,17 +942,20 @@ where
         match elem_id.name().as_str() {
             MIXER_STREAM_SRC_NAME => {
                 let mut params = self.segment().data.clone();
-                let src = Self::mixer_stream_src_mut(&mut params);
+                let pair = Self::mixer_stream_src_mut(&mut params);
                 let pos = elem_value.enumerated()[0] as usize;
-                Self::MIXER_STREAM_SRC_PAIRS
+                T::MIXER_STREAM_SOURCE_PAIRS
                     .iter()
-                    .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
                     .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of stream src pair: {}", pos);
+                        let msg = format!(
+                            "Invalid index {} of knob0, should be less than {}",
+                            pos,
+                            T::MIXER_STREAM_SOURCE_PAIRS.len()
+                        );
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&s| *src = s)?;
+                    .map(|&p| *pair = p)?;
                 T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
                     .map(|_| true)
             }

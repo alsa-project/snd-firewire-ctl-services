@@ -195,14 +195,22 @@ impl From<u32> for ItwinOutputPairSrc {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinConfig {
-    pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
+    pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
     pub standalone_src: ShellStandaloneClkSrc,
     pub standalone_rate: TcKonnektStandaloneClockRate,
     pub output_pair_src: [ItwinOutputPairSrc; ITWIN_PHYS_OUT_PAIR_COUNT],
 }
 
-impl ShellMixerStreamSrcPairSpec for ItwinConfig {
-    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 7;
+impl ShellMixerStreamSourcePairSpecification for ItwinProtocol {
+    const MIXER_STREAM_SOURCE_PAIRS: &'static [ShellMixerStreamSourcePair] = &[
+        ShellMixerStreamSourcePair::Stream0_1,
+        ShellMixerStreamSourcePair::Stream2_3,
+        ShellMixerStreamSourcePair::Stream4_5,
+        ShellMixerStreamSourcePair::Stream6_7,
+        ShellMixerStreamSourcePair::Stream8_9,
+        ShellMixerStreamSourcePair::Stream10_11,
+        ShellMixerStreamSourcePair::Stream12_13,
+    ];
 }
 
 impl ShellStandaloneClkSpec for ItwinConfig {
@@ -219,7 +227,10 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
     const SIZE: usize = 168;
 
     fn serialize(params: &ItwinConfig, raw: &mut [u8]) -> Result<(), String> {
-        params.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
+        serialize_mixer_stream_source_pair::<ItwinProtocol>(
+            &params.mixer_stream_src_pair,
+            &mut raw[24..28],
+        )?;
         params.standalone_src.build_quadlet(&mut raw[28..32]);
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params
@@ -229,7 +240,10 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
     }
 
     fn deserialize(params: &mut ItwinConfig, raw: &[u8]) -> Result<(), String> {
-        params.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
+        deserialize_mixer_stream_source_pair::<ItwinProtocol>(
+            &mut params.mixer_stream_src_pair,
+            &raw[24..28],
+        )?;
         params.standalone_src.parse_quadlet(&raw[28..32]);
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.output_pair_src.parse_quadlet_block(&raw[120..148]);

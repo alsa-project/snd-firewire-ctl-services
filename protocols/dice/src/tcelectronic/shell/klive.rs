@@ -146,14 +146,21 @@ pub struct KliveConfig {
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub out_01_src: ShellPhysOutSrc,
     pub out_23_src: ShellPhysOutSrc,
-    pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
+    pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
     pub standalone_src: ShellStandaloneClkSrc,
     pub standalone_rate: TcKonnektStandaloneClockRate,
     pub midi_sender: TcKonnektMidiSender,
 }
 
-impl ShellMixerStreamSrcPairSpec for KliveConfig {
-    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 6;
+impl ShellMixerStreamSourcePairSpecification for KliveProtocol {
+    const MIXER_STREAM_SOURCE_PAIRS: &'static [ShellMixerStreamSourcePair] = &[
+        ShellMixerStreamSourcePair::Stream0_1,
+        ShellMixerStreamSourcePair::Stream2_3,
+        ShellMixerStreamSourcePair::Stream4_5,
+        ShellMixerStreamSourcePair::Stream6_7,
+        ShellMixerStreamSourcePair::Stream8_9,
+        ShellMixerStreamSourcePair::Stream10_11,
+    ];
 }
 
 impl ShellStandaloneClkSpec for KliveConfig {
@@ -174,7 +181,10 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
         params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
         params.out_01_src.build_quadlet(&mut raw[16..20]);
         params.out_23_src.build_quadlet(&mut raw[20..24]);
-        params.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
+        serialize_mixer_stream_source_pair::<KliveProtocol>(
+            &params.mixer_stream_src_pair,
+            &mut raw[24..28],
+        )?;
         params.standalone_src.build_quadlet(&mut raw[28..32]);
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params.midi_sender.build(&mut raw[84..120]);
@@ -186,7 +196,10 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
         params.coax_out_src.0.parse_quadlet(&raw[12..16]);
         params.out_01_src.parse_quadlet(&raw[16..20]);
         params.out_23_src.parse_quadlet(&raw[20..24]);
-        params.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
+        deserialize_mixer_stream_source_pair::<KliveProtocol>(
+            &mut params.mixer_stream_src_pair,
+            &raw[24..28],
+        )?;
         params.standalone_src.parse_quadlet(&raw[28..32]);
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.midi_sender.parse(&raw[84..120]);

@@ -375,11 +375,11 @@ impl ShellMixerStreamSrcCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn mixer_stream_src(params: &ItwinConfig) -> &ShellMixerStreamSrcPair {
+    fn mixer_stream_src(params: &ItwinConfig) -> &ShellMixerStreamSourcePair {
         &params.mixer_stream_src_pair
     }
 
-    fn mixer_stream_src_mut(params: &mut ItwinConfig) -> &mut ShellMixerStreamSrcPair {
+    fn mixer_stream_src_mut(params: &mut ItwinConfig) -> &mut ShellMixerStreamSourcePair {
         &mut params.mixer_stream_src_pair
     }
 }
