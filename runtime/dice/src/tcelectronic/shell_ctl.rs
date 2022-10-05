@@ -741,7 +741,7 @@ const SRC_NAME: &str = "standalone-clock-source";
 
 pub trait ShellStandaloneCtlOperation<S, T>: StandaloneCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + ShellStandaloneClockSpecification,
