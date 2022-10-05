@@ -5,6 +5,33 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Konnekt 8.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! XLR input 1 ----or---+
+//! Phone input 1 --+    |
+//!                      +--> analog-input-1/2----------------> stream-output-1/2
+//!                      |     |                       +------> stream-output-3/4
+//! XLR input 2 ----or---+     |                       |
+//! Phone input 2 --+          |                       |
+//!                            |                       |
+//! Phone input 3/4  ------------> analog-input-3/4 ------+
+//!                            |                       |  |
+//! Coaxial input 1/2 ---------|-> digital-input-1/2 --+  |
+//!                            |         |                |
+//!                            v         v                |
+//!                        ++===============++            |
+//!                        ||     6 x 2     ||            |
+//! stream-input-1/2 ----> ||               ||            |
+//!                        ||     mixer     ||            |
+//!                        ++===============++            |
+//!                                 |                     |
+//!                          mixer-output-1/2 ------------+---> analog-output-1/2
+//!
+//! stream-input-3/4 -----------------------------------------> digital-output-1/2
+//! ```
 
 use super::*;
 
@@ -53,7 +80,9 @@ segment_default!(K8Protocol, K8HwState);
 /// State of knob.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Knob {
+    /// Target of 1st knob.
     pub knob0_target: ShellKnob0Target,
+    /// Target of 2nd knob.
     pub knob1_target: ShellKnob1Target,
 }
 
@@ -107,8 +136,11 @@ impl TcKonnektNotifiedSegmentOperation<K8Knob> for K8Protocol {
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Config {
+    /// Source of coaxial output.
     pub coax_out_src: ShellCoaxOutPairSrc,
+    /// Source of sampling clock at standalone mode.
     pub standalone_src: ShellStandaloneClockSource,
+    /// Rate of sampling clock at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
@@ -205,9 +237,12 @@ impl TcKonnektNotifiedSegmentOperation<K8MixerState> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+/// General state of hardware.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8HwState {
+    /// Common state of hardware.
     pub hw_state: ShellHwState,
+    /// Whether to enable aux input or not.
     pub aux_input_enabled: bool,
 }
 
@@ -238,6 +273,7 @@ impl TcKonnektNotifiedSegmentOperation<K8HwState> for K8Protocol {
 const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K8_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
+/// Hardware metering.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K8MixerMeter(pub ShellMixerMeter);
 
