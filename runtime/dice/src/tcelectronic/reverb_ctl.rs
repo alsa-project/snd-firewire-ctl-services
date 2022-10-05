@@ -38,7 +38,6 @@ fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
         ReverbAlgorithm::Live2 => "Live2",
         ReverbAlgorithm::Live3 => "Live3",
         ReverbAlgorithm::Spring => "Spring",
-        ReverbAlgorithm::Reserved(_) => "Reserved",
     }
 }
 

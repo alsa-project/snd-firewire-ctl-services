@@ -25,74 +25,39 @@ pub enum ReverbAlgorithm {
     Live2,
     Live3,
     Spring,
-    Reserved(u32),
-}
-
-impl ReverbAlgorithm {
-    const LIVE_1: u32 = 0;
-    const HALL: u32 = 1;
-    const PLATE: u32 = 2;
-    const CLUB: u32 = 3;
-    const CONCERT_HALL: u32 = 4;
-    const CATHEDRAL: u32 = 5;
-    const CHURCH: u32 = 6;
-    const ROOM: u32 = 7;
-    const SMALL_ROOM: u32 = 8;
-    const BOX: u32 = 9;
-    const AMBIENT: u32 = 10;
-    const LIVE_2: u32 = 11;
-    const LIVE_3: u32 = 12;
-    const SPRING: u32 = 13;
 }
 
 impl Default for ReverbAlgorithm {
     fn default() -> Self {
-        ReverbAlgorithm::Reserved(u32::MAX)
+        Self::Live1
     }
 }
 
-impl From<u32> for ReverbAlgorithm {
-    fn from(val: u32) -> Self {
-        match val {
-            Self::LIVE_1 => Self::Live1,
-            Self::HALL => Self::Hall,
-            Self::PLATE => Self::Plate,
-            Self::CLUB => Self::Club,
-            Self::CONCERT_HALL => Self::ConcertHall,
-            Self::CATHEDRAL => Self::Cathedral,
-            Self::CHURCH => Self::Church,
-            Self::ROOM => Self::Room,
-            Self::SMALL_ROOM => Self::SmallRoom,
-            Self::BOX => Self::Box,
-            Self::AMBIENT => Self::Ambient,
-            Self::LIVE_2 => Self::Live2,
-            Self::LIVE_3 => Self::Live3,
-            Self::SPRING => Self::Spring,
-            _ => Self::Reserved(val),
-        }
-    }
+const REVERB_ALGORITHMS: &[ReverbAlgorithm] = &[
+    ReverbAlgorithm::Live1,
+    ReverbAlgorithm::Hall,
+    ReverbAlgorithm::Plate,
+    ReverbAlgorithm::Club,
+    ReverbAlgorithm::ConcertHall,
+    ReverbAlgorithm::Cathedral,
+    ReverbAlgorithm::Church,
+    ReverbAlgorithm::Room,
+    ReverbAlgorithm::SmallRoom,
+    ReverbAlgorithm::Box,
+    ReverbAlgorithm::Ambient,
+    ReverbAlgorithm::Live2,
+    ReverbAlgorithm::Live3,
+    ReverbAlgorithm::Spring,
+];
+
+const REVERB_ALGORITHM_LABEL: &str = "reverb algorithm";
+
+fn serialize_algorithm(algo: &ReverbAlgorithm, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(REVERB_ALGORITHMS, algo, raw, REVERB_ALGORITHM_LABEL)
 }
 
-impl From<ReverbAlgorithm> for u32 {
-    fn from(algorithm: ReverbAlgorithm) -> Self {
-        match algorithm {
-            ReverbAlgorithm::Live1 => ReverbAlgorithm::LIVE_1,
-            ReverbAlgorithm::Hall => ReverbAlgorithm::HALL,
-            ReverbAlgorithm::Plate => ReverbAlgorithm::PLATE,
-            ReverbAlgorithm::Club => ReverbAlgorithm::CLUB,
-            ReverbAlgorithm::ConcertHall => ReverbAlgorithm::CONCERT_HALL,
-            ReverbAlgorithm::Cathedral => ReverbAlgorithm::CATHEDRAL,
-            ReverbAlgorithm::Church => ReverbAlgorithm::CHURCH,
-            ReverbAlgorithm::Room => ReverbAlgorithm::ROOM,
-            ReverbAlgorithm::SmallRoom => ReverbAlgorithm::SMALL_ROOM,
-            ReverbAlgorithm::Box => ReverbAlgorithm::BOX,
-            ReverbAlgorithm::Ambient => ReverbAlgorithm::AMBIENT,
-            ReverbAlgorithm::Live2 => ReverbAlgorithm::LIVE_2,
-            ReverbAlgorithm::Live3 => ReverbAlgorithm::LIVE_3,
-            ReverbAlgorithm::Spring => ReverbAlgorithm::SPRING,
-            ReverbAlgorithm::Reserved(val) => val,
-        }
-    }
+fn deserialize_algorithm(algo: &mut ReverbAlgorithm, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(REVERB_ALGORITHMS, algo, raw, REVERB_ALGORITHM_LABEL)
 }
 
 /// State of reverb effect.
@@ -131,57 +96,53 @@ pub struct ReverbState {
 }
 
 impl ReverbState {
-    pub const SIZE: usize = 68;
+    pub(crate) const SIZE: usize = 68;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of raw data"
-        );
+pub(crate) fn serialize_reverb_state(state: &ReverbState, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ReverbState::SIZE);
 
-        self.input_level.build_quadlet(&mut raw[..4]);
-        self.bypass.build_quadlet(&mut raw[4..8]);
-        self.kill_wet.build_quadlet(&mut raw[8..12]);
-        self.kill_dry.build_quadlet(&mut raw[12..16]);
-        self.output_level.build_quadlet(&mut raw[16..20]);
-        self.time_decay.build_quadlet(&mut raw[20..24]);
-        self.time_pre_decay.build_quadlet(&mut raw[24..28]);
-        // blank
-        self.color_low.build_quadlet(&mut raw[32..36]);
-        self.color_high.build_quadlet(&mut raw[36..40]);
-        self.color_high_factor.build_quadlet(&mut raw[40..44]);
-        self.mod_rate.build_quadlet(&mut raw[44..48]);
-        self.mod_depth.build_quadlet(&mut raw[48..52]);
-        self.level_early.build_quadlet(&mut raw[52..56]);
-        self.level_dry.build_quadlet(&mut raw[60..64]);
-        self.algorithm.build_quadlet(&mut raw[64..]);
-    }
+    state.input_level.build_quadlet(&mut raw[..4]);
+    state.bypass.build_quadlet(&mut raw[4..8]);
+    state.kill_wet.build_quadlet(&mut raw[8..12]);
+    state.kill_dry.build_quadlet(&mut raw[12..16]);
+    state.output_level.build_quadlet(&mut raw[16..20]);
+    state.time_decay.build_quadlet(&mut raw[20..24]);
+    state.time_pre_decay.build_quadlet(&mut raw[24..28]);
+    // blank
+    state.color_low.build_quadlet(&mut raw[32..36]);
+    state.color_high.build_quadlet(&mut raw[36..40]);
+    state.color_high_factor.build_quadlet(&mut raw[40..44]);
+    state.mod_rate.build_quadlet(&mut raw[44..48]);
+    state.mod_depth.build_quadlet(&mut raw[48..52]);
+    state.level_early.build_quadlet(&mut raw[52..56]);
+    state.level_dry.build_quadlet(&mut raw[60..64]);
+    serialize_algorithm(&state.algorithm, &mut raw[64..])?;
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of raw data"
-        );
+    Ok(())
+}
 
-        self.input_level.parse_quadlet(&raw[..4]);
-        self.bypass.parse_quadlet(&raw[4..8]);
-        self.kill_wet.parse_quadlet(&raw[8..12]);
-        self.kill_dry.parse_quadlet(&raw[12..16]);
-        self.output_level.parse_quadlet(&raw[16..20]);
-        self.time_decay.parse_quadlet(&raw[20..24]);
-        self.time_pre_decay.parse_quadlet(&raw[24..28]);
-        // blank
-        self.color_low.parse_quadlet(&raw[32..36]);
-        self.color_high.parse_quadlet(&raw[36..40]);
-        self.color_high_factor.parse_quadlet(&raw[40..44]);
-        self.mod_rate.parse_quadlet(&raw[44..48]);
-        self.mod_depth.parse_quadlet(&raw[48..52]);
-        self.level_early.parse_quadlet(&raw[52..56]);
-        self.level_dry.parse_quadlet(&raw[60..64]);
-        self.algorithm.parse_quadlet(&raw[64..]);
-    }
+pub(crate) fn deserialize_reverb_state(state: &mut ReverbState, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ReverbState::SIZE);
+
+    state.input_level.parse_quadlet(&raw[..4]);
+    state.bypass.parse_quadlet(&raw[4..8]);
+    state.kill_wet.parse_quadlet(&raw[8..12]);
+    state.kill_dry.parse_quadlet(&raw[12..16]);
+    state.output_level.parse_quadlet(&raw[16..20]);
+    state.time_decay.parse_quadlet(&raw[20..24]);
+    state.time_pre_decay.parse_quadlet(&raw[24..28]);
+    // blank
+    state.color_low.parse_quadlet(&raw[32..36]);
+    state.color_high.parse_quadlet(&raw[36..40]);
+    state.color_high_factor.parse_quadlet(&raw[40..44]);
+    state.mod_rate.parse_quadlet(&raw[44..48]);
+    state.mod_depth.parse_quadlet(&raw[48..52]);
+    state.level_early.parse_quadlet(&raw[52..56]);
+    state.level_dry.parse_quadlet(&raw[60..64]);
+    deserialize_algorithm(&mut state.algorithm, &raw[64..])?;
+
+    Ok(())
 }
 
 /// Meter of reverb effect.
@@ -194,29 +155,23 @@ pub struct ReverbMeter {
 }
 
 impl ReverbMeter {
-    pub const SIZE: usize = 24;
+    pub(crate) const SIZE: usize = 24;
 }
 
-impl ReverbMeter {
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of raw data"
-        );
+pub(crate) fn serialize_reverb_meter(meter: &ReverbMeter, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ReverbMeter::SIZE);
 
-        self.outputs.build_quadlet_block(&mut raw[..8]);
-        self.inputs.build_quadlet_block(&mut raw[8..16]);
-    }
+    meter.outputs.build_quadlet_block(&mut raw[..8]);
+    meter.inputs.build_quadlet_block(&mut raw[8..16]);
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of raw data"
-        );
+    Ok(())
+}
 
-        self.outputs.parse_quadlet_block(&raw[..8]);
-        self.inputs.parse_quadlet_block(&raw[8..16]);
-    }
+pub(crate) fn deserialize_reverb_meter(meter: &mut ReverbMeter, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ReverbMeter::SIZE);
+
+    meter.outputs.parse_quadlet_block(&raw[..8]);
+    meter.inputs.parse_quadlet_block(&raw[8..16]);
+
+    Ok(())
 }

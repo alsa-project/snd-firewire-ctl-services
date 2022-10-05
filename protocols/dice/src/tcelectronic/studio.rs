@@ -1052,13 +1052,11 @@ impl TcKonnektSegmentSerdes<StudioReverbState> for Studiok48Protocol {
     const SIZE: usize = ReverbState::SIZE;
 
     fn serialize(params: &StudioReverbState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut StudioReverbState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_state(&mut params.0, raw)
     }
 }
 
@@ -1207,13 +1205,11 @@ impl TcKonnektSegmentSerdes<StudioReverbMeter> for Studiok48Protocol {
     const SIZE: usize = ReverbMeter::SIZE;
 
     fn serialize(params: &StudioReverbMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_meter(&params.0, raw)
     }
 
     fn deserialize(params: &mut StudioReverbMeter, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_meter(&mut params.0, raw)
     }
 }
 
