@@ -305,16 +305,20 @@ impl ShellKnob2CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
 }
 
 impl ProgramCtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
+    fn segment(&self) -> &K24dKnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dKnobSegment {
         &mut self.0
     }
 
-    fn prog(&self) -> &TcKonnektLoadedProgram {
-        &self.0.data.prog
+    fn prog(params: &K24dKnob) -> &TcKonnektLoadedProgram {
+        &params.prog
     }
 
-    fn prog_mut(&mut self) -> &mut TcKonnektLoadedProgram {
-        &mut self.0.data.prog
+    fn prog_mut(params: &mut K24dKnob) -> &mut TcKonnektLoadedProgram {
+        &mut params.prog
     }
 }
 
@@ -365,7 +369,7 @@ impl KnobCtl {
             Ok(true)
         } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_prog(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_prog(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
