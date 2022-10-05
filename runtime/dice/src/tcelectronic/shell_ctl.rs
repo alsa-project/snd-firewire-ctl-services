@@ -18,7 +18,7 @@ const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 
 pub trait ShellHwStateCtlOperation<S, T>: FirewireLedCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn hw_state(&self) -> &ShellHwState;
