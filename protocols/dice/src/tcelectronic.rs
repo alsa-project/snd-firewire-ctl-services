@@ -41,21 +41,10 @@ pub struct TcKonnektSegment<U>
 where
     U: TcKonnektSegmentData,
 {
+    /// Intermediate structured data for parameters.
     pub data: U,
+    /// Raw byte data for memory layout in hardware.
     raw: Vec<u8>,
-}
-
-impl<U> Default for TcKonnektSegment<U>
-where
-    U: TcKonnektSegmentData,
-    TcKonnektSegment<U>: TcKonnektSegmentSpec,
-{
-    fn default() -> Self {
-        TcKonnektSegment {
-            data: Default::default(),
-            raw: vec![0; Self::SIZE],
-        }
-    }
 }
 
 /// Serialize and deserialize for segment in TC Konnekt protocol.
@@ -96,6 +85,7 @@ where
         segment: &mut TcKonnektSegment<T>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        // NOTE: Something wrong to implement Default trait.
         assert_eq!(segment.raw.len(), Self::SIZE);
 
         Self::read(
@@ -130,6 +120,7 @@ where
         segment: &mut TcKonnektSegment<T>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        // NOTE: Something wrong to implement Default trait.
         assert_eq!(segment.raw.len(), Self::SIZE);
 
         let mut raw = segment.raw.clone();
@@ -160,6 +151,7 @@ where
         segment: &mut TcKonnektSegment<T>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        // NOTE: Something wrong to implement Default trait.
         assert_eq!(segment.raw.len(), Self::SIZE);
 
         let mut raw = segment.raw.clone();

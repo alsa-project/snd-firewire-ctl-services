@@ -54,6 +54,29 @@ impl SegmentOperation<ItwinReverbMeter> for ItwinProtocol {}
 pub type ItwinChStripMetersSegment = TcKonnektSegment<ItwinChStripMeters>;
 impl SegmentOperation<ItwinChStripMeters> for ItwinProtocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(ItwinProtocol, ItwinKnob);
+segment_default!(ItwinProtocol, ItwinConfig);
+segment_default!(ItwinProtocol, ItwinMixerState);
+segment_default!(ItwinProtocol, ItwinReverbState);
+segment_default!(ItwinProtocol, ItwinChStripStates);
+segment_default!(ItwinProtocol, ItwinMixerMeter);
+segment_default!(ItwinProtocol, ItwinHwState);
+segment_default!(ItwinProtocol, ItwinReverbMeter);
+segment_default!(ItwinProtocol, ItwinChStripMeters);
+
 /// State of knob.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinKnob {

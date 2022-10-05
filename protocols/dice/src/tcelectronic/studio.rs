@@ -66,6 +66,31 @@ impl SegmentOperation<StudioReverbMeter> for Studiok48Protocol {}
 pub type Studiok48ChStripMetersSegment = TcKonnektSegment<StudioChStripMeters>;
 impl SegmentOperation<StudioChStripMeters> for Studiok48Protocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(Studiok48Protocol, StudioLineOutLevel);
+segment_default!(Studiok48Protocol, StudioRemote);
+segment_default!(Studiok48Protocol, StudioConfig);
+segment_default!(Studiok48Protocol, StudioMixerState);
+segment_default!(Studiok48Protocol, StudioPhysOut);
+segment_default!(Studiok48Protocol, StudioReverbState);
+segment_default!(Studiok48Protocol, StudioChStripStates);
+segment_default!(Studiok48Protocol, StudioHwState);
+segment_default!(Studiok48Protocol, StudioMixerMeter);
+segment_default!(Studiok48Protocol, StudioReverbMeter);
+segment_default!(Studiok48Protocol, StudioChStripMeters);
+
 const STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG: u32 = 0x00010000;
 const STUDIO_REMOTE_NOTIFY_FLAG: u32 = 0x00020000;
 const STUDIO_CONFIG_NOTIFY_FLAG: u32 = 0x00040000;

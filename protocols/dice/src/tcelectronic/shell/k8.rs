@@ -36,6 +36,25 @@ impl SegmentOperation<K8MixerMeter> for K8Protocol {}
 pub type K8HwStateSegment = TcKonnektSegment<K8HwState>;
 impl SegmentOperation<K8HwState> for K8Protocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(K8Protocol, K8Knob);
+segment_default!(K8Protocol, K8Config);
+segment_default!(K8Protocol, K8MixerState);
+segment_default!(K8Protocol, K8MixerMeter);
+segment_default!(K8Protocol, K8HwState);
+
 /// State of knob.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Knob {

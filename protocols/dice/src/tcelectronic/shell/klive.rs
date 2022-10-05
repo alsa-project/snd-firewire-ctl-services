@@ -54,6 +54,29 @@ impl SegmentOperation<KliveReverbMeter> for KliveProtocol {}
 pub type KliveChStripMetersSegment = TcKonnektSegment<KliveChStripMeters>;
 impl SegmentOperation<KliveChStripMeters> for KliveProtocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(KliveProtocol, KliveKnob);
+segment_default!(KliveProtocol, KliveConfig);
+segment_default!(KliveProtocol, KliveMixerState);
+segment_default!(KliveProtocol, KliveReverbState);
+segment_default!(KliveProtocol, KliveChStripStates);
+segment_default!(KliveProtocol, KliveMixerMeter);
+segment_default!(KliveProtocol, KliveHwState);
+segment_default!(KliveProtocol, KliveReverbMeter);
+segment_default!(KliveProtocol, KliveChStripMeters);
+
 /// State of knob.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveKnob {
