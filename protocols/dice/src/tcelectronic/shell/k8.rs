@@ -37,7 +37,7 @@ pub type K8HwStateSegment = TcKonnektSegment<K8HwState>;
 impl SegmentOperation<K8HwState> for K8Protocol {}
 
 /// State of knob.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Knob {
     pub target: ShellKnobTarget,
     pub knob2_target: ShellKnob2Target,
@@ -52,29 +52,52 @@ impl ShellKnob2TargetSpec for K8Knob {
     const KNOB2_TARGET_COUNT: usize = 2;
 }
 
+impl TcKonnektSegmentSerdes<K8Knob> for K8Protocol {
+    const NAME: &'static str = "knob";
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+
+    fn serialize(params: &K8Knob, raw: &mut [u8]) -> Result<(), String> {
+        params.target.0.build_quadlet(&mut raw[..4]);
+        params.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K8Knob, raw: &[u8]) -> Result<(), String> {
+        params.target.0.parse_quadlet(&raw[..4]);
+        params.knob2_target.0.parse_quadlet(&raw[4..8]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K8Knob> for K8Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K8Knob> for K8Protocol {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K8Knob {
     fn build(&self, raw: &mut [u8]) {
-        self.target.0.build_quadlet(&mut raw[..4]);
-        self.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.target.0.parse_quadlet(&raw[..4]);
-        self.knob2_target.0.parse_quadlet(&raw[4..8]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K8Knob> {
-    const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::OFFSET;
+    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
-    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Knob>>::NOTIFY_FLAG;
 }
 
 /// Configuration.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Config {
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub standalone_src: ShellStandaloneClkSrc,
@@ -88,31 +111,54 @@ impl ShellStandaloneClkSpec for K8Config {
     ];
 }
 
+impl TcKonnektSegmentSerdes<K8Config> for K8Protocol {
+    const NAME: &'static str = "configuration";
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 76;
+
+    fn serialize(params: &K8Config, raw: &mut [u8]) -> Result<(), String> {
+        params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        params.standalone_src.build_quadlet(&mut raw[20..24]);
+        params.standalone_rate.build_quadlet(&mut raw[24..28]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K8Config, raw: &[u8]) -> Result<(), String> {
+        params.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        params.standalone_src.parse_quadlet(&raw[20..24]);
+        params.standalone_rate.parse_quadlet(&raw[24..28]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K8Config> for K8Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K8Config> for K8Protocol {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K8Config {
     fn build(&self, raw: &mut [u8]) {
-        self.coax_out_src.0.build_quadlet(&mut raw[12..16]);
-        self.standalone_src.build_quadlet(&mut raw[20..24]);
-        self.standalone_rate.build_quadlet(&mut raw[24..28]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.coax_out_src.0.parse_quadlet(&raw[12..16]);
-        self.standalone_src.parse_quadlet(&raw[20..24]);
-        self.standalone_rate.parse_quadlet(&raw[24..28]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K8Config> {
-    const OFFSET: usize = 0x0028;
-    const SIZE: usize = 76;
+    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::OFFSET;
+    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Config> {
-    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Config>>::NOTIFY_FLAG;
 }
 
 /// State of mixer.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K8MixerState {
     /// The common structure for state of mixer.
     pub mixer: ShellMixerState,
@@ -152,60 +198,104 @@ impl ShellMixerStateConvert for K8MixerState {
     }
 }
 
+impl TcKonnektSegmentSerdes<K8MixerState> for K8Protocol {
+    const NAME: &'static str = "mixer-state";
+    const OFFSET: usize = 0x0074;
+    const SIZE: usize = ShellMixerState::SIZE + 32;
+
+    fn serialize(params: &K8MixerState, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerStateConvert::build(params, raw);
+        params.enabled.build_quadlet(&mut raw[340..344]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K8MixerState, raw: &[u8]) -> Result<(), String> {
+        ShellMixerStateConvert::parse(params, raw);
+        params.enabled.parse_quadlet(&raw[340..344]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K8MixerState> for K8Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K8MixerState> for K8Protocol {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K8MixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerStateConvert::build(self, raw);
-
-        self.enabled.build_quadlet(&mut raw[340..344]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerStateConvert::parse(self, raw);
-
-        self.enabled.parse_quadlet(&raw[340..344]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerState> {
-    const OFFSET: usize = 0x0074;
-    const SIZE: usize = ShellMixerState::SIZE + 32;
+    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::OFFSET;
+    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8MixerState> {
-    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8MixerState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8HwState {
     pub hw_state: ShellHwState,
     pub aux_input_enabled: bool,
 }
 
+impl TcKonnektSegmentSerdes<K8HwState> for K8Protocol {
+    const NAME: &'static str = "hardware-state";
+    const OFFSET: usize = 0x100c;
+    const SIZE: usize = ShellHwState::SIZE;
+
+    fn serialize(params: &K8HwState, raw: &mut [u8]) -> Result<(), String> {
+        params.hw_state.build(raw);
+        params.aux_input_enabled.build_quadlet(&mut raw[8..12]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K8HwState, raw: &[u8]) -> Result<(), String> {
+        params.hw_state.parse(raw);
+        params.aux_input_enabled.parse_quadlet(&raw[8..12]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K8HwState> for K8Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K8HwState> for K8Protocol {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K8HwState {
     fn build(&self, raw: &mut [u8]) {
-        self.hw_state.build(raw);
-        self.aux_input_enabled.build_quadlet(&mut raw[8..12]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.hw_state.parse(raw);
-        self.aux_input_enabled.parse_quadlet(&raw[8..12]);
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K8HwState> {
-    const OFFSET: usize = 0x100c;
-    const SIZE: usize = ShellHwState::SIZE;
+    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::OFFSET;
+    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8HwState> {
-    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8HwState>>::NOTIFY_FLAG;
 }
 
 const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K8_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K8MixerMeter(pub ShellMixerMeter);
 
 impl Default for K8MixerMeter {
@@ -227,17 +317,33 @@ impl ShellMixerMeterConvert for K8MixerMeter {
     }
 }
 
+impl TcKonnektSegmentSerdes<K8MixerMeter> for K8Protocol {
+    const NAME: &'static str = "mixer-meter";
+    const OFFSET: usize = 0x100c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
+
+    fn serialize(params: &K8MixerMeter, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::build(params, raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K8MixerMeter, raw: &[u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::parse(params, raw);
+        Ok(())
+    }
+}
+
 impl TcKonnektSegmentData for K8MixerMeter {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerMeterConvert::build(self, raw)
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerMeterConvert::parse(self, raw)
+        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerMeter> {
-    const OFFSET: usize = 0x105c;
-    const SIZE: usize = ShellMixerMeter::SIZE;
+    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::OFFSET;
+    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::SIZE;
 }

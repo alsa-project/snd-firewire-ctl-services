@@ -78,7 +78,7 @@ impl From<ShellAnalogJackState> for u32 {
 pub const SHELL_ANALOG_JACK_STATE_COUNT: usize = 2;
 
 /// Hardware state.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellHwState {
     pub analog_jack_states: [ShellAnalogJackState; SHELL_ANALOG_JACK_STATE_COUNT],
     pub firewire_led: FireWireLedState,
@@ -169,7 +169,7 @@ impl ShellMonitorSrcPair {
 }
 
 /// Mute state for monitor sources.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellMonitorSrcMute {
     pub stream: bool,
     pub analog: Vec<bool>,
@@ -177,7 +177,7 @@ pub struct ShellMonitorSrcMute {
 }
 
 /// State of mixer.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellMixerState {
     pub stream: ShellMonitorSrcPair,
     pub analog: Vec<ShellMonitorSrcPair>,
@@ -377,7 +377,7 @@ impl ShellReverbReturn {
 }
 
 /// Meter information. -1000..0 (-94.0..0 dB).
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct ShellMixerMeter {
     pub stream_inputs: [i32; Self::STREAM_INPUT_COUNT],
     pub analog_inputs: Vec<i32>,
