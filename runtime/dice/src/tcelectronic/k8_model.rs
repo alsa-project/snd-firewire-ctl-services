@@ -6,7 +6,7 @@ use {
     protocols::tcelectronic::shell::{k8::*, *},
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct K8Model {
     req: FwReq,
     sections: GeneralSections,
@@ -26,16 +26,17 @@ impl K8Model {
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.knob_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for K8Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections).map(
             |(measured_elem_id_list, notified_elem_id_list)| {
                 self.common_ctl.0 = measured_elem_id_list;
@@ -43,14 +44,10 @@ impl CtlModel<(SndDice, FwNode)> for K8Model {
             },
         )?;
 
-        self.knob_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.config_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.mixer_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.hw_state_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.knob_ctl.load(card_cntr)?;
+        self.config_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
+        self.hw_state_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -95,22 +92,22 @@ impl CtlModel<(SndDice, FwNode)> for K8Model {
             Ok(true)
         } else if self
             .knob_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .config_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -141,13 +138,13 @@ impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
             TIMEOUT_MS,
         )?;
         self.knob_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.mixer_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
-            .parse_notification(unit, &mut self.req, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -183,7 +180,7 @@ impl MeasureModel<(SndDice, FwNode)> for K8Model {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -252,15 +249,11 @@ impl ShellKnob2CtlOperation<K8Knob, K8Protocol> for KnobCtl {
 }
 
 impl KnobCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_knob_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         self.load_knob2_target(card_cntr)
@@ -281,16 +274,15 @@ impl KnobCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(req, &unit.1, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(req, &unit.1, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -299,13 +291,13 @@ impl KnobCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if K8Protocol::is_notified_segment(&self.0, msg) {
+            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -326,7 +318,7 @@ impl KnobCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConfigCtl(K8ConfigSegment, Vec<ElemId>);
 
 impl ShellCoaxIfaceCtlOperation<K8Config, K8Protocol> for ConfigCtl {
@@ -376,15 +368,11 @@ impl ShellStandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
 }
 
 impl ConfigCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_coax_out_src(card_cntr)?;
         self.load_standalone(card_cntr)?;
 
@@ -403,16 +391,15 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(req, &unit.1, elem_id, new, timeout_ms)? {
+        if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(req, &unit.1, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -421,13 +408,13 @@ impl ConfigCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if K8Protocol::is_notified_segment(&self.0, msg) {
+            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -446,7 +433,7 @@ impl ConfigCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MixerCtl(
     K8MixerStateSegment,
     K8MixerMeterSegment,
@@ -491,16 +478,13 @@ impl ShellMixerCtlOperation<K8MixerState, K8MixerMeter, K8Protocol> for MixerCtl
 const MIXER_ENABLE_NAME: &str = "mixer-enable";
 
 impl MixerCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)?;
+        K8Protocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)?;
+        Ok(())
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_mixer(card_cntr)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.2 = notified_elem_id_list;
@@ -529,23 +513,21 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(req, &unit.1, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, node, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
-                    ElemValueAccessor::<bool>::get_val(new, |val| {
-                        self.0.data.enabled = val;
-                        Ok(())
-                    })?;
-                    K8Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+                    let mut params = self.0.data.clone();
+                    params.enabled = new.boolean()[0];
+                    K8Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 _ => Ok(false),
@@ -555,13 +537,13 @@ impl MixerCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if K8Protocol::is_notified_segment(&self.0, msg) {
+            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -579,13 +561,8 @@ impl MixerCtl {
         }
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)
+    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        K8Protocol::cache_whole_segment(req, node, &mut self.1, timeout_ms)
     }
 
     fn read_measured_elem(
@@ -601,7 +578,7 @@ impl MixerCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct HwStateCtl(K8HwStateSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<K8HwState, K8Protocol> for HwStateCtl {
@@ -635,15 +612,11 @@ impl ShellHwStateCtlOperation<K8HwState, K8Protocol> for HwStateCtl {
 const AUX_IN_ENABLED_NAME: &str = "aux-input-enable";
 
 impl HwStateCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_hw_state(card_cntr)
             .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
 
@@ -674,11 +647,10 @@ impl HwStateCtl {
         req: &FwReq,
         node: &FwNode,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(req, node, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -687,13 +659,13 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if K8Protocol::is_notified_segment(&self.0, msg) {
+            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
