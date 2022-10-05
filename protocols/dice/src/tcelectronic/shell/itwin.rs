@@ -5,6 +5,78 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Impact Twin.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//!                              ++=========++
+//!                              ||         ||
+//! XLR input 1 ----or---------> ||         ||
+//! Phone input 1 --+            || channel ||
+//!                              ||  strip  || --> analog-intput-1/2
+//!                              || effects ||
+//! XLR input 2 ----or---------> ||   1/2   ||
+//! Phone input 2 --+            ||         ||
+//!                              ++=========++
+//! Phone input 3/4 -----------------------------> analog-input-3/4
+//! S/PDIF input 1/2 ----------------------------> coaxial-input-1/2
+//! ADAT input 1..8 or S/PDIF input 1/2 ---------> optical-input-1..8
+//!
+//!
+//! stream-input-1/2 ----------- (one of them) --> stream-source-1/2
+//! stream-input-3/4 -----------------+
+//! stream-input-5/6 -----------------+
+//! stream-input-7/8 -----------------+
+//! stream-input-9/10 ----------------+
+//! stream-input-11/12 ---------------+
+//! stream-input-13/14 ---------------+
+//!
+//!                              ++=========++
+//! analog-input-1/2 ----------> ||         ||
+//! analog-input-3/4 ----------> ||         ||
+//! coaxial-input-1/2 ---------> || 18 x 2  ||
+//! optical-input-1/2 ---------> ||         || --> reverb-effect-output-1/2
+//! optical-input-3/4 ---------> || reverb  ||
+//! optical-input-5/6 ---------> || effect  ||
+//! optical-input-7/8 ---------> ||         ||
+//! reverb-effect-output-1/2 --> ||         ||
+//! stream-source-1/2 ---------> ||         ||
+//!                              ++=========++
+//!
+//!                              ++=========++
+//! analog-input-1/2 ----------> ||         ||
+//! analog-input-3/4 ----------> ||         ||
+//! coaxial-input-1/2 ---------> || 18 x 2  ||
+//! optical-input-1/2 ---------> ||         || --> mixer-output-1/2
+//! optical-input-3/4 ---------> ||         ||
+//! optical-input-5/6 ---------> ||  mixer  ||
+//! optical-input-7/8 ---------> ||         ||
+//! reverb-effect-output-1/2 --> ||         ||
+//! stream-source-1/2 ---------> ||         ||
+//!                              ++=========++
+//!
+//!                              ++=========++
+//! analog-input-1/2 ----------> ||         ||
+//! analog-input-3/4 ----------> ||         ||
+//! coaxial-input-1/2 ---------> ||         ||
+//! optical-input-1/2 ---------> ||         ||
+//! optical-input-3/4 ---------> ||         || --> analog-output-1/2
+//! optical-input-5/6 ---------> ||         || --> analog-output-3/4
+//! optical-input-7/8 ---------> || 32 x 14 || --> coaxial-output-1/2
+//! stream-input-1/2 ----------> ||         || --> optical-output-1/2
+//! stream-input-3/4 ----------> || router  || --> optical-output-3/4
+//! stream-input-5/6 ----------> ||         || --> optical-output-5/6
+//! stream-input-7/8 ----------> ||         || --> optical-output-7/8
+//! stream-input-9/10 ---------> ||         ||
+//! stream-input-11/12 --------> ||         ||
+//! stream-input-13/14 --------> ||         ||
+//! mixer-output-1/2 ----------> ||         ||
+//! reverb-effect-source-1/2 --> ||         ||
+//!                              ++=========++
+//!
+//!
+//! ```
 
 use super::*;
 
@@ -71,7 +143,9 @@ segment_default!(ItwinProtocol, ItwinChStripMeters);
 /// State of knob.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinKnob {
+    /// Target of 1st knob.
     pub target: ShellKnob0Target,
+    /// Whether to recover sampling clock from any source jitter.
     pub clock_recovery: bool,
 }
 
@@ -123,21 +197,37 @@ pub const ITWIN_PHYS_OUT_PAIR_COUNT: usize = 7;
 /// Source of stream for mixer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ItwinOutputPairSrc {
+    /// Mixer output 1/2.
     MixerOut01,
+    /// Analog input 1/2.
     Analog01,
+    /// Analog input 3/4.
     Analog23,
+    /// S/PDIF input 1/2.
     Spdif01,
+    /// ADAT input 1/2.
     Adat01,
+    /// ADAT input 3/4.
     Adat23,
+    /// ADAT input 5/6.
     Adat45,
+    /// ADAT input 7/8.
     Adat67,
+    /// Stream input 1/2.
     Stream01,
+    /// Stream input 3/4.
     Stream23,
+    /// Stream input 5/6.
     Stream45,
+    /// Stream input 7/8.
     Stream67,
+    /// Stream input 9/10.
     Stream89,
+    /// Stream input 11/12.
     Stream1011,
+    /// Stream input 13/14.
     Stream1213,
+    /// Send source 1/2.
     MixerSend01,
 }
 
@@ -147,57 +237,45 @@ impl Default for ItwinOutputPairSrc {
     }
 }
 
-impl From<ItwinOutputPairSrc> for u32 {
-    fn from(src: ItwinOutputPairSrc) -> Self {
-        match src {
-            ItwinOutputPairSrc::MixerSend01 => 15,
-            ItwinOutputPairSrc::Stream1213 => 14,
-            ItwinOutputPairSrc::Stream1011 => 13,
-            ItwinOutputPairSrc::Stream89 => 12,
-            ItwinOutputPairSrc::Stream67 => 11,
-            ItwinOutputPairSrc::Stream45 => 10,
-            ItwinOutputPairSrc::Stream23 => 9,
-            ItwinOutputPairSrc::Stream01 => 8,
-            ItwinOutputPairSrc::Adat67 => 7,
-            ItwinOutputPairSrc::Adat45 => 6,
-            ItwinOutputPairSrc::Adat23 => 5,
-            ItwinOutputPairSrc::Adat01 => 4,
-            ItwinOutputPairSrc::Spdif01 => 3,
-            ItwinOutputPairSrc::Analog23 => 2,
-            ItwinOutputPairSrc::Analog01 => 1,
-            ItwinOutputPairSrc::MixerOut01 => 0,
-        }
-    }
+const OUTPUT_PAIR_SOURCES: &[ItwinOutputPairSrc] = &[
+    ItwinOutputPairSrc::MixerOut01,
+    ItwinOutputPairSrc::Analog01,
+    ItwinOutputPairSrc::Analog23,
+    ItwinOutputPairSrc::Spdif01,
+    ItwinOutputPairSrc::Adat01,
+    ItwinOutputPairSrc::Adat23,
+    ItwinOutputPairSrc::Adat45,
+    ItwinOutputPairSrc::Adat67,
+    ItwinOutputPairSrc::Stream01,
+    ItwinOutputPairSrc::Stream23,
+    ItwinOutputPairSrc::Stream45,
+    ItwinOutputPairSrc::Stream67,
+    ItwinOutputPairSrc::Stream89,
+    ItwinOutputPairSrc::Stream1011,
+    ItwinOutputPairSrc::Stream1213,
+    ItwinOutputPairSrc::MixerSend01,
+];
+
+const OUTPUT_PAIR_SOURCE_LABEL: &str = "output pair source";
+
+fn serialize_output_pair_src(src: &ItwinOutputPairSrc, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(OUTPUT_PAIR_SOURCES, src, raw, OUTPUT_PAIR_SOURCE_LABEL)
 }
 
-impl From<u32> for ItwinOutputPairSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            15 => ItwinOutputPairSrc::MixerSend01,
-            14 => ItwinOutputPairSrc::Stream1213,
-            13 => ItwinOutputPairSrc::Stream1011,
-            12 => ItwinOutputPairSrc::Stream89,
-            11 => ItwinOutputPairSrc::Stream67,
-            10 => ItwinOutputPairSrc::Stream45,
-            9 => ItwinOutputPairSrc::Stream23,
-            8 => ItwinOutputPairSrc::Stream01,
-            7 => ItwinOutputPairSrc::Adat67,
-            6 => ItwinOutputPairSrc::Adat45,
-            5 => ItwinOutputPairSrc::Adat23,
-            4 => ItwinOutputPairSrc::Adat01,
-            3 => ItwinOutputPairSrc::Spdif01,
-            2 => ItwinOutputPairSrc::Analog23,
-            1 => ItwinOutputPairSrc::Analog01,
-            _ => ItwinOutputPairSrc::MixerOut01,
-        }
-    }
+fn deserialize_output_pair_src(src: &mut ItwinOutputPairSrc, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(OUTPUT_PAIR_SOURCES, src, raw, OUTPUT_PAIR_SOURCE_LABEL)
 }
 
+/// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinConfig {
+    /// Pair of stream source as mixer input.
     pub mixer_stream_src_pair: ShellMixerStreamSourcePair,
+    /// Source of sampling clock at standalone mode.
     pub standalone_src: ShellStandaloneClockSource,
+    /// Rate of sampling clock at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
+    /// Pair of source for any type of physical output.
     pub output_pair_src: [ItwinOutputPairSrc; ITWIN_PHYS_OUT_PAIR_COUNT],
 }
 
@@ -238,7 +316,12 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params
             .output_pair_src
-            .build_quadlet_block(&mut raw[120..148]);
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, src)| {
+                let pos = 120 + i * 4;
+                serialize_output_pair_src(src, &mut raw[pos..(pos + 4)])
+            })?;
         Ok(())
     }
 
@@ -252,7 +335,14 @@ impl TcKonnektSegmentSerdes<ItwinConfig> for ItwinProtocol {
             &raw[28..32],
         )?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
-        params.output_pair_src.parse_quadlet_block(&raw[120..148]);
+        params
+            .output_pair_src
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, src)| {
+                let pos = 120 + i * 4;
+                deserialize_output_pair_src(src, &raw[pos..(pos + 4)])
+            })?;
         Ok(())
     }
 }
@@ -263,11 +353,14 @@ impl TcKonnektNotifiedSegmentOperation<ItwinConfig> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+/// State of mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerState {
+    /// Configuration of internal mixer.
     pub mixer: ShellMixerState,
     /// The balance between analog and stream inputs to mix. 0..1000.
     pub stream_mix_balance: u32,
+    /// Whether to enable mixer or not.
     pub enabled: bool,
 }
 
@@ -324,6 +417,7 @@ impl TcKonnektNotifiedSegmentOperation<ItwinMixerState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+/// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinReverbState(pub ReverbState);
 
@@ -347,6 +441,7 @@ impl TcKonnektNotifiedSegmentOperation<ItwinReverbState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
 }
 
+/// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
@@ -373,15 +468,12 @@ impl TcKonnektNotifiedSegmentOperation<ItwinChStripStates> for ItwinProtocol {
 /// The mode to listen for analog outputs.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ListeningMode {
+    /// Monaural.
     Monaural,
+    /// Stereo.
     Stereo,
+    /// Side channels only.
     Side,
-}
-
-impl ListeningMode {
-    const MONAURAL: u32 = 0x00;
-    const STEREO: u32 = 0x01;
-    const SIDE: u32 = 0x02;
 }
 
 impl Default for ListeningMode {
@@ -390,29 +482,28 @@ impl Default for ListeningMode {
     }
 }
 
-impl From<u32> for ListeningMode {
-    fn from(val: u32) -> Self {
-        match val & 0x03 {
-            Self::STEREO => Self::Stereo,
-            Self::SIDE => Self::Side,
-            _ => Self::Monaural,
-        }
-    }
+const LISTENING_MODES: &[ListeningMode] = &[
+    ListeningMode::Monaural,
+    ListeningMode::Stereo,
+    ListeningMode::Side,
+];
+
+const LISTENING_MODE_LABEL: &str = "listening mode";
+
+fn serialize_listening_mode(mode: &ListeningMode, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(LISTENING_MODES, mode, raw, LISTENING_MODE_LABEL)
 }
 
-impl From<ListeningMode> for u32 {
-    fn from(mode: ListeningMode) -> u32 {
-        match mode {
-            ListeningMode::Monaural => ListeningMode::MONAURAL,
-            ListeningMode::Stereo => ListeningMode::STEREO,
-            ListeningMode::Side => ListeningMode::SIDE,
-        }
-    }
+fn deserialize_listening_mode(mode: &mut ListeningMode, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(LISTENING_MODES, mode, raw, LISTENING_MODE_LABEL)
 }
 
+/// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinHwState {
+    /// State of hardware.
     pub hw_state: ShellHwState,
+    /// Mode of listening.
     pub listening_mode: ListeningMode,
 }
 
@@ -423,13 +514,13 @@ impl TcKonnektSegmentSerdes<ItwinHwState> for ItwinProtocol {
 
     fn serialize(params: &ItwinHwState, raw: &mut [u8]) -> Result<(), String> {
         serialize_hw_state(&params.hw_state, raw)?;
-        params.listening_mode.build_quadlet(&mut raw[8..12]);
+        serialize_listening_mode(&params.listening_mode, &mut raw[8..12])?;
         Ok(())
     }
 
     fn deserialize(params: &mut ItwinHwState, raw: &[u8]) -> Result<(), String> {
         deserialize_hw_state(&mut params.hw_state, raw)?;
-        params.listening_mode.parse_quadlet(&raw[8..12]);
+        deserialize_listening_mode(&mut params.listening_mode, &raw[8..12])?;
         Ok(())
     }
 }
@@ -440,6 +531,7 @@ impl TcKonnektNotifiedSegmentOperation<ItwinHwState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+/// Hardware metering for mixer function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerMeter(pub ShellMixerMeter);
 
@@ -468,6 +560,7 @@ impl TcKonnektSegmentSerdes<ItwinMixerMeter> for ItwinProtocol {
     }
 }
 
+/// Hardware metering for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinReverbMeter(pub ReverbMeter);
 
@@ -485,6 +578,7 @@ impl TcKonnektSegmentSerdes<ItwinReverbMeter> for ItwinProtocol {
     }
 }
 
+/// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
