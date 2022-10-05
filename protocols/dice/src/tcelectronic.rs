@@ -13,7 +13,6 @@ pub mod shell;
 pub mod studio;
 
 pub mod ch_strip;
-pub mod midi_send;
 pub mod prog;
 pub mod reverb;
 
@@ -278,6 +277,64 @@ fn deserialize_standalone_clock_rate(
             val
         ))?,
     };
+
+    Ok(())
+}
+
+/// Channel and control code of MIDI event.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TcKonnektMidiMsgParams {
+    /// The channel for MIDI message.
+    pub ch: u8,
+    /// The control code for MIDI message.
+    pub cc: u8,
+}
+
+/// MIDI sender.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TcKonnektMidiSender {
+    /// The parameter of MIDI message generated normally.
+    pub normal: TcKonnektMidiMsgParams,
+    /// The parameter of MIDI message generated when knob is pushed.
+    pub pushed: TcKonnektMidiMsgParams,
+    /// Whether to send MIDI message to physical MIDI port.
+    pub send_to_port: bool,
+    /// Whether to deliver MIDI message by tx stream.
+    pub send_to_stream: bool,
+}
+
+impl TcKonnektMidiSender {
+    pub(crate) const SIZE: usize = 36;
+}
+
+fn serialize_midi_sender(
+    sender: &TcKonnektMidiSender,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= TcKonnektMidiSender::SIZE);
+
+    sender.normal.ch.build_quadlet(&mut raw[..4]);
+    sender.normal.cc.build_quadlet(&mut raw[4..8]);
+    sender.pushed.ch.build_quadlet(&mut raw[12..16]);
+    sender.pushed.cc.build_quadlet(&mut raw[16..20]);
+    sender.send_to_port.build_quadlet(&mut raw[24..28]);
+    sender.send_to_stream.build_quadlet(&mut raw[28..32]);
+
+    Ok(())
+}
+
+fn deserialize_midi_sender(
+    sender: &mut TcKonnektMidiSender,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= TcKonnektMidiSender::SIZE);
+
+    sender.normal.ch.parse_quadlet(&raw[..4]);
+    sender.normal.cc.parse_quadlet(&raw[4..8]);
+    sender.pushed.ch.parse_quadlet(&raw[12..16]);
+    sender.pushed.cc.parse_quadlet(&raw[16..20]);
+    sender.send_to_port.parse_quadlet(&raw[24..28]);
+    sender.send_to_stream.parse_quadlet(&raw[28..32]);
 
     Ok(())
 }
