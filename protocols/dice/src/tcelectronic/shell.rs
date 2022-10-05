@@ -400,23 +400,27 @@ pub struct ShellReverbReturn {
 }
 
 impl ShellReverbReturn {
-    pub const SIZE: usize = 12;
+    pub(crate) const SIZE: usize = 12;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+fn serialize_reverb_return(state: &ShellReverbReturn, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellReverbReturn::SIZE);
 
-        self.plugin_mode.build_quadlet(&mut raw[..4]);
-        self.return_gain.build_quadlet(&mut raw[4..8]);
-        self.return_mute.build_quadlet(&mut raw[8..12]);
-    }
+    state.plugin_mode.build_quadlet(&mut raw[..4]);
+    state.return_gain.build_quadlet(&mut raw[4..8]);
+    state.return_mute.build_quadlet(&mut raw[8..12]);
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+    Ok(())
+}
 
-        self.plugin_mode.parse_quadlet(&raw[..4]);
-        self.return_gain.parse_quadlet(&raw[4..8]);
-        self.return_mute.parse_quadlet(&raw[8..12]);
-    }
+fn deserialize_reverb_return(state: &mut ShellReverbReturn, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellReverbReturn::SIZE);
+
+    state.plugin_mode.parse_quadlet(&raw[..4]);
+    state.return_gain.parse_quadlet(&raw[4..8]);
+    state.return_mute.parse_quadlet(&raw[8..12]);
+
+    Ok(())
 }
 
 /// Meter information. -1000..0 (-94.0..0 dB).
