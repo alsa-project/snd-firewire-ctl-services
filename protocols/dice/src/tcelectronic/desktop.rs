@@ -41,6 +41,25 @@ impl SegmentOperation<DesktopPanel> for Desktopk6Protocol {}
 pub type Desktopk6MeterSegment = TcKonnektSegment<DesktopMeter>;
 impl SegmentOperation<DesktopMeter> for Desktopk6Protocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(Desktopk6Protocol, DesktopHwState);
+segment_default!(Desktopk6Protocol, DesktopConfig);
+segment_default!(Desktopk6Protocol, DesktopMixerState);
+segment_default!(Desktopk6Protocol, DesktopPanel);
+segment_default!(Desktopk6Protocol, DesktopMeter);
+
 /// Target of meter.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MeterTarget {

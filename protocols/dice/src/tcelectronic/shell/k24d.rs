@@ -54,6 +54,29 @@ impl SegmentOperation<K24dReverbMeter> for K24dProtocol {}
 pub type K24dChStripMetersSegment = TcKonnektSegment<K24dChStripMeters>;
 impl SegmentOperation<K24dChStripMeters> for K24dProtocol {}
 
+macro_rules! segment_default {
+    ($p:ty, $t:ty) => {
+        impl Default for TcKonnektSegment<$t> {
+            fn default() -> Self {
+                Self {
+                    data: <$t>::default(),
+                    raw: vec![0; <$p as TcKonnektSegmentSerdes<$t>>::SIZE],
+                }
+            }
+        }
+    };
+}
+
+segment_default!(K24dProtocol, K24dKnob);
+segment_default!(K24dProtocol, K24dConfig);
+segment_default!(K24dProtocol, K24dMixerState);
+segment_default!(K24dProtocol, K24dReverbState);
+segment_default!(K24dProtocol, K24dChStripStates);
+segment_default!(K24dProtocol, K24dMixerMeter);
+segment_default!(K24dProtocol, K24dHwState);
+segment_default!(K24dProtocol, K24dReverbMeter);
+segment_default!(K24dProtocol, K24dChStripMeters);
+
 /// State of knob.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dKnob {
