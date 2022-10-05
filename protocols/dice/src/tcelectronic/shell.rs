@@ -27,10 +27,15 @@ const SHELL_CH_STRIP_COUNT: usize = 2;
 /// State of jack sense for analog input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellAnalogJackState {
+    /// Select front jack instead of rear.
     FrontSelected,
+    /// Detect plug insertion in front jack.
     FrontInserted,
+    /// Detect plug insertion in front jack with attenuation.
     FrontInsertedAttenuated,
+    /// Select rear jack instead of front.
     RearSelected,
+    /// Detect plug insertion in rear jack.
     RearInserted,
 }
 
@@ -48,30 +53,43 @@ impl ShellAnalogJackState {
     const REAR_INSERTED: u32 = 0x08;
 }
 
-impl From<u32> for ShellAnalogJackState {
-    fn from(val: u32) -> Self {
-        match val & 0xff {
-            Self::FRONT_INSERTED => Self::FrontInserted,
-            Self::FRONT_INSERTED_ATTENUATED => Self::FrontInsertedAttenuated,
-            Self::REAR_SELECTED => Self::RearSelected,
-            Self::REAR_INSERTED => Self::RearInserted,
-            _ => Self::FrontSelected,
+fn serialize_analog_jack_state(state: &ShellAnalogJackState, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = match state {
+        ShellAnalogJackState::FrontSelected => ShellAnalogJackState::FRONT_SELECTED,
+        ShellAnalogJackState::FrontInserted => ShellAnalogJackState::FRONT_INSERTED,
+        ShellAnalogJackState::FrontInsertedAttenuated => {
+            ShellAnalogJackState::FRONT_INSERTED_ATTENUATED
         }
-    }
+        ShellAnalogJackState::RearSelected => ShellAnalogJackState::REAR_SELECTED,
+        ShellAnalogJackState::RearInserted => ShellAnalogJackState::REAR_INSERTED,
+    };
+    val.build_quadlet(raw);
+
+    Ok(())
 }
 
-impl From<ShellAnalogJackState> for u32 {
-    fn from(state: ShellAnalogJackState) -> Self {
-        match state {
-            ShellAnalogJackState::FrontSelected => ShellAnalogJackState::FRONT_SELECTED,
-            ShellAnalogJackState::FrontInserted => ShellAnalogJackState::FRONT_INSERTED,
-            ShellAnalogJackState::FrontInsertedAttenuated => {
-                ShellAnalogJackState::FRONT_INSERTED_ATTENUATED
-            }
-            ShellAnalogJackState::RearSelected => ShellAnalogJackState::REAR_SELECTED,
-            ShellAnalogJackState::RearInserted => ShellAnalogJackState::REAR_INSERTED,
+fn deserialize_analog_jack_state(
+    state: &mut ShellAnalogJackState,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    *state = match val & 0xff {
+        ShellAnalogJackState::FRONT_INSERTED => ShellAnalogJackState::FrontInserted,
+        ShellAnalogJackState::FRONT_INSERTED_ATTENUATED => {
+            ShellAnalogJackState::FrontInsertedAttenuated
         }
-    }
+        ShellAnalogJackState::REAR_SELECTED => ShellAnalogJackState::RearSelected,
+        ShellAnalogJackState::REAR_INSERTED => ShellAnalogJackState::RearInserted,
+        ShellAnalogJackState::FRONT_SELECTED => ShellAnalogJackState::FrontSelected,
+        _ => Err(format!("Invalid value of analog jack state: {}", val))?,
+    };
+    Ok(())
 }
 
 /// The number of analog inputs which has jack sense.
@@ -80,26 +98,34 @@ pub const SHELL_ANALOG_JACK_STATE_COUNT: usize = 2;
 /// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellHwState {
+    /// The state of analog jack with sense.
     pub analog_jack_states: [ShellAnalogJackState; SHELL_ANALOG_JACK_STATE_COUNT],
+    /// The state of FireWire LED.
     pub firewire_led: FireWireLedState,
 }
 
 impl ShellHwState {
-    pub const SIZE: usize = 28;
+    pub(crate) const SIZE: usize = 28;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+fn serialize_hw_state(state: &ShellHwState, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellHwState::SIZE);
 
-        self.analog_jack_states.build_quadlet_block(&mut raw[..8]);
-        let _ = serialize_fw_led_state(&self.firewire_led, &mut raw[20..24]);
-    }
+    serialize_analog_jack_state(&state.analog_jack_states[0], &mut raw[..4])?;
+    serialize_analog_jack_state(&state.analog_jack_states[1], &mut raw[4..8])?;
+    serialize_fw_led_state(&state.firewire_led, &mut raw[20..24])?;
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+    Ok(())
+}
 
-        self.analog_jack_states.parse_quadlet_block(&raw[..8]);
-        let _ = deserialize_fw_led_state(&mut self.firewire_led, &raw[20..24]);
-    }
+fn deserialize_hw_state(state: &mut ShellHwState, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellHwState::SIZE);
+
+    deserialize_analog_jack_state(&mut state.analog_jack_states[0], &raw[..4])?;
+    deserialize_analog_jack_state(&mut state.analog_jack_states[1], &raw[4..8])?;
+    deserialize_fw_led_state(&mut state.firewire_led, &raw[20..24])?;
+
+    Ok(())
 }
 
 /// Parameter of monitor source.

@@ -333,13 +333,11 @@ impl TcKonnektSegmentSerdes<K24dHwState> for K24dProtocol {
     const SIZE: usize = ShellHwState::SIZE;
 
     fn serialize(params: &K24dHwState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_hw_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dHwState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_hw_state(&mut params.0, raw)
     }
 }
 

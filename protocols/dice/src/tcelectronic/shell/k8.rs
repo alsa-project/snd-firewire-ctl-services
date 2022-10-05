@@ -225,13 +225,13 @@ impl TcKonnektSegmentSerdes<K8HwState> for K8Protocol {
     const SIZE: usize = ShellHwState::SIZE;
 
     fn serialize(params: &K8HwState, raw: &mut [u8]) -> Result<(), String> {
-        params.hw_state.build(raw);
+        serialize_hw_state(&params.hw_state, raw)?;
         params.aux_input_enabled.build_quadlet(&mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut K8HwState, raw: &[u8]) -> Result<(), String> {
-        params.hw_state.parse(raw);
+        deserialize_hw_state(&mut params.hw_state, raw)?;
         params.aux_input_enabled.parse_quadlet(&raw[8..12]);
         Ok(())
     }

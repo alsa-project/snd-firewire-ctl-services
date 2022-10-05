@@ -434,13 +434,13 @@ impl TcKonnektSegmentSerdes<ItwinHwState> for ItwinProtocol {
     const SIZE: usize = ShellHwState::SIZE;
 
     fn serialize(params: &ItwinHwState, raw: &mut [u8]) -> Result<(), String> {
-        params.hw_state.build(raw);
+        serialize_hw_state(&params.hw_state, raw)?;
         params.listening_mode.build_quadlet(&mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut ItwinHwState, raw: &[u8]) -> Result<(), String> {
-        params.hw_state.parse(raw);
+        deserialize_hw_state(&mut params.hw_state, raw)?;
         params.listening_mode.parse_quadlet(&raw[8..12]);
         Ok(())
     }

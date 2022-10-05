@@ -461,13 +461,11 @@ impl TcKonnektSegmentSerdes<KliveHwState> for KliveProtocol {
     const SIZE: usize = ShellHwState::SIZE;
 
     fn serialize(params: &KliveHwState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_hw_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveHwState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_hw_state(&mut params.0, raw)
     }
 }
 
