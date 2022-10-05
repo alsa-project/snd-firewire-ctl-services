@@ -131,7 +131,7 @@ impl CtlModel<(SndDice, FwNode)> for K24dModel {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -788,16 +788,20 @@ impl MixerCtl {
 struct HwStateCtl(K24dHwStateSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<K24dHwState, K24dProtocol> for HwStateCtl {
+    fn segment(&self) -> &K24dHwStateSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K24dHwStateSegment {
         &mut self.0
     }
 
-    fn firewire_led(&self) -> &FireWireLedState {
-        &self.0.data.0.firewire_led
+    fn firewire_led(params: &K24dHwState) -> &FireWireLedState {
+        &params.0.firewire_led
     }
 
-    fn firewire_led_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.0.data.0.firewire_led
+    fn firewire_led_mut(params: &mut K24dHwState) -> &mut FireWireLedState {
+        &mut params.0.firewire_led
     }
 }
 
@@ -837,14 +841,14 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(req, node, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)

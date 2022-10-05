@@ -16,13 +16,13 @@ pub fn firewire_led_state_to_str(state: &FireWireLedState) -> &'static str {
 
 pub trait FirewireLedCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    T: SegmentOperation<S>,
+    S: TcKonnektSegmentData + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
+    fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn firewire_led(&self) -> &FireWireLedState;
-    fn firewire_led_mut(&mut self) -> &mut FireWireLedState;
+    fn firewire_led(params: &S) -> &FireWireLedState;
+    fn firewire_led_mut(params: &mut S) -> &mut FireWireLedState;
 
     const STATES: [FireWireLedState; 4] = [
         FireWireLedState::Off,
@@ -46,39 +46,42 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            STATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            STATE_NAME => {
+                let params = &self.segment().data;
                 let pos = Self::STATES
                     .iter()
-                    .position(|s| self.firewire_led().eq(s))
+                    .position(|s| Self::firewire_led(&params).eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write_firewire_led(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             STATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::STATES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of FireWire LED: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| *self.firewire_led_mut() = s)
-                })?;
-                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
+                let pos = elem_value.enumerated()[0] as usize;
+                let s = Self::STATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of FireWire LED: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                let mut params = self.segment().data.clone();
+                *Self::firewire_led_mut(&mut params) = s;
+                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
