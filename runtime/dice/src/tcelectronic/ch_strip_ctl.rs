@@ -58,7 +58,7 @@ fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
 
 pub trait ChStripStateCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + TcKonnektNotifiedSegmentOperation<S>,
@@ -194,7 +194,9 @@ where
     }
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+        debug!(params = ?self.segment().data, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
@@ -569,8 +571,10 @@ where
                             })
                             .map(|&t| state.src_type = t)
                     })?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             DEESSER_BYPASS_NAME => {
                 let mut params = self.segment().data.clone();
@@ -579,8 +583,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.deesser.bypass = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EQ_BYPASS_NAME => {
                 let mut params = self.segment().data.clone();
@@ -589,8 +595,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.eq_bypass = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             LIMITTER_BYPASS_NAME => {
                 let mut params = self.segment().data.clone();
@@ -599,8 +607,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.limitter_bypass = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             BYPASS_NAME => {
                 let mut params = self.segment().data.clone();
@@ -609,8 +619,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.bypass = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             COMP_INPUT_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -619,8 +631,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.comp.input_gain = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             COMP_MAKE_UP_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -629,8 +643,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.comp.make_up_gain = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             COMP_FULL_BAND_ENABLE_NAME => {
                 let mut params = self.segment().data.clone();
@@ -639,8 +655,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.comp.full_band_enabled = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             COMP_CTL_NAME => {
                 let mut params = self.segment().data.clone();
@@ -650,8 +668,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.comp.ctl[idx] = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             COMP_LEVEL_NAME => {
                 let mut params = self.segment().data.clone();
@@ -661,8 +681,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.comp.level[idx] = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             DEESSER_RATIO_NAME => {
                 let mut params = self.segment().data.clone();
@@ -671,8 +693,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.deesser.ratio = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EQ_ENABLE_NAME => {
                 let mut params = self.segment().data.clone();
@@ -682,8 +706,10 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(state, val)| state.eq[idx].enabled = val);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EQ_BANDWIDTH_NAME => {
                 let mut params = self.segment().data.clone();
@@ -693,8 +719,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.eq[idx].bandwidth = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EQ_GAIN_NAME => {
                 let mut params = self.segment().data.clone();
@@ -704,8 +732,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.eq[idx].gain = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             EQ_FREQ_NAME => {
                 let mut params = self.segment().data.clone();
@@ -715,8 +745,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.eq[idx].freq = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             LIMITTER_THRESHOLD_NAME => {
                 let mut params = self.segment().data.clone();
@@ -725,8 +757,10 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(state, &val)| state.limitter.threshold = val as u32);
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -740,7 +774,9 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if T::is_notified_segment(self.segment(), msg) {
-            T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+            let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+            debug!(params = ?self.segment().data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -826,6 +862,7 @@ const GAIN_METER_TLV: DbInterval = DbInterval {
 
 pub trait ChStripMeterCtlOperation<S, T>
 where
+    S: Debug,
     T: TcKonnektSegmentOperation<S>,
 {
     fn meters(&self) -> &[ChStripMeter];
@@ -834,7 +871,9 @@ where
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms)
+        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
+        debug!(params = ?self.segment().data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
