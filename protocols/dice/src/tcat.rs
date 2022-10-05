@@ -130,6 +130,8 @@ pub enum GeneralProtocolError {
     RxStreamFormat,
     /// Error to operate for external synchronization states.
     ExtendedSync,
+    /// Any error in application implementation developed by vendors.
+    VendorDependent,
     Invalid(i32),
 }
 
@@ -140,6 +142,7 @@ impl std::fmt::Display for GeneralProtocolError {
             GeneralProtocolError::TxStreamFormat => "tx-stream-format",
             GeneralProtocolError::RxStreamFormat => "rx-stream-format",
             GeneralProtocolError::ExtendedSync => "external-sync",
+            GeneralProtocolError::VendorDependent => "vendor-dependent",
             GeneralProtocolError::Invalid(_) => "invalid",
         };
 
@@ -158,6 +161,7 @@ impl ErrorDomain for GeneralProtocolError {
             GeneralProtocolError::TxStreamFormat => 1,
             GeneralProtocolError::RxStreamFormat => 2,
             GeneralProtocolError::ExtendedSync => 3,
+            GeneralProtocolError::VendorDependent => 4,
             GeneralProtocolError::Invalid(v) => v,
         }
     }
@@ -168,6 +172,7 @@ impl ErrorDomain for GeneralProtocolError {
             1 => GeneralProtocolError::TxStreamFormat,
             2 => GeneralProtocolError::RxStreamFormat,
             3 => GeneralProtocolError::ExtendedSync,
+            4 => GeneralProtocolError::VendorDependent,
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
