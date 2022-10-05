@@ -731,23 +731,99 @@ pub trait ShellMixerStreamSrcPairSpec {
     const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize;
 }
 
-/// Target of knob.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct ShellKnobTarget(pub u32);
-
-/// Maximum value of knob.
-pub trait ShellKnobTargetSpec {
-    const HAS_SPDIF: bool;
-    const HAS_EFFECTS: bool;
+/// Target of 1st knob.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ShellKnob0Target {
+    /// Analog input 1.
+    Analog0,
+    /// Analog input 2.
+    Analog1,
+    /// Analog input 3 and 4.
+    Analog2_3,
+    /// S/PDIF input 1 and 2.
+    Spdif0_1,
+    /// Compression ratio of channel strip effect to analog input 1.
+    ChannelStrip0,
+    /// Compression ratio of channel strip effect to analog input 2.
+    ChannelStrip1,
+    /// Reverb ratio or decay time of reverb effect.
+    Reverb,
+    /// Ratio to multiplex stream inputs in mixer.
+    Mixer,
+    /// Configured by mixer settings.
+    Configurable,
 }
 
-/// Target of knob 2.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct ShellKnob2Target(pub u32);
+const KNOB0_TARGET_LABEL: &str = "Knob 0 target";
 
-/// Maximum value of knob 2.
-pub trait ShellKnob2TargetSpec {
-    const KNOB2_TARGET_COUNT: usize;
+/// Function specification of 1st knob.
+pub trait ShellKnob0TargetSpecification {
+    /// The list of targets supported for 1st knob.
+    const KNOB0_TARGETS: &'static [ShellKnob0Target];
 }
 
-pub const SHELL_KNOB_SIZE: usize = 36;
+/// Serialize for 1st knob.
+fn serialize_knob0_target<T: ShellKnob0TargetSpecification>(
+    target: &ShellKnob0Target,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(T::KNOB0_TARGETS, target, raw, KNOB0_TARGET_LABEL)
+}
+
+/// Deserialize for 1st knob.
+fn deserialize_knob0_target<T: ShellKnob0TargetSpecification>(
+    target: &mut ShellKnob0Target,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(T::KNOB0_TARGETS, target, raw, KNOB0_TARGET_LABEL)
+}
+
+/// Target of 2nd knob.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ShellKnob1Target {
+    /// ADAT input 1/2 or S/PDIF input 1/2 in optical interface.
+    Digital0_1,
+    /// ADAT input 3/4.
+    Digital2_3,
+    /// ADAT input 5/6.
+    Digital4_5,
+    /// ADAT input 7/8 or S/PDIF input 1/2 in coaxial interface.
+    Digital6_7,
+    /// Stream input to mixer.
+    Stream,
+    /// Reverb ratio or decay time of reverb return 1/2.
+    Reverb,
+    /// Normal/Dim Level of mixer output 1/2.
+    Mixer,
+    /// Pitch or tone of tuner.
+    TunerPitchTone,
+    /// Generate MIDI event.
+    MidiSend,
+}
+
+const KNOB1_TARGET_LABEL: &str = "Knob 1 target";
+
+/// Function specification of 2nd knob.
+pub trait ShellKnob1TargetSpecification {
+    /// The list of targets supported for 2nd knob.
+    const KNOB1_TARGETS: &'static [ShellKnob1Target];
+}
+
+/// Serialize for 1st knob.
+fn serialize_knob1_target<T: ShellKnob1TargetSpecification>(
+    target: &ShellKnob1Target,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(T::KNOB1_TARGETS, target, raw, KNOB1_TARGET_LABEL)
+}
+
+/// Deserialize for 1st knob.
+fn deserialize_knob1_target<T: ShellKnob1TargetSpecification>(
+    target: &mut ShellKnob1Target,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(T::KNOB1_TARGETS, target, raw, KNOB1_TARGET_LABEL)
+}
+
+/// The size of segment for knob settings.
+pub(crate) const SHELL_KNOB_SEGMENT_SIZE: usize = 36;

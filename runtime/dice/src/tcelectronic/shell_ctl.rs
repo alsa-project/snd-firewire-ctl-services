@@ -1216,25 +1216,43 @@ where
 
 const TARGET_NAME: &str = "knob-target";
 
-pub trait ShellKnobCtlOperation<S, T>
+fn knob0_target_to_str(target: &ShellKnob0Target) -> &str {
+    match target {
+        ShellKnob0Target::Analog0 => "Analog-1",
+        ShellKnob0Target::Analog1 => "Analog-2",
+        ShellKnob0Target::Analog2_3 => "Analog-3/4",
+        ShellKnob0Target::Spdif0_1 => "S/PDIF-1/2",
+        ShellKnob0Target::ChannelStrip0 => "Channel-strip-1",
+        ShellKnob0Target::ChannelStrip1 => "Channel-strip-2",
+        ShellKnob0Target::Reverb => "Reverb",
+        ShellKnob0Target::Mixer => "Mixer",
+        ShellKnob0Target::Configurable => "Configurable",
+    }
+}
+
+pub trait ShellKnob0CtlOperation<S, T>
 where
     S: Clone,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<S>
+        + TcKonnektMutableSegmentOperation<S>
+        + ShellKnob0TargetSpecification,
 {
-    const TARGETS: [&'static str; 4];
-
     fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
-    fn knob_target(params: &S) -> &ShellKnobTarget;
-    fn knob_target_mut(params: &mut S) -> &mut ShellKnobTarget;
+    fn knob0_target(params: &S) -> &ShellKnob0Target;
+    fn knob0_target_mut(params: &mut S) -> &mut ShellKnob0Target;
 
-    fn load_knob_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+    fn load_knob0_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let labels: Vec<&str> = T::KNOB0_TARGETS
+            .iter()
+            .map(|t| knob0_target_to_str(t))
+            .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, TARGET_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::TARGETS, None, true)
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn read_knob_target(
+    fn read_knob0_target(
         &mut self,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1242,19 +1260,22 @@ where
         match elem_id.name().as_str() {
             TARGET_NAME => {
                 let params = &self.segment().data;
-                let target = Self::knob_target(&params);
-                if target.0 >= Self::TARGETS.len() as u32 {
-                    let msg = format!("Unexpected index of program: {}", target.0);
-                    Err(Error::new(FileError::Io, &msg))?;
-                }
-                elem_value.set_enum(&[target.0]);
+                let target = Self::knob0_target(&params);
+                let pos = T::KNOB0_TARGETS
+                    .iter()
+                    .position(|t| target.eq(t))
+                    .ok_or_else(|| {
+                        let msg = format!("Unexpected value for knob0: {:?}", target);
+                        Error::new(FileError::Io, &msg)
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write_knob_target(
+    fn write_knob0_target(
         &mut self,
         req: &FwReq,
         node: &FwNode,
@@ -1265,13 +1286,20 @@ where
         match elem_id.name().as_str() {
             TARGET_NAME => {
                 let mut params = self.segment().data.clone();
-                let val = elem_value.enumerated()[0];
-                if val >= Self::TARGETS.len() as u32 {
-                    let msg = format!("Invalid index of program: {}", val);
-                    Err(Error::new(FileError::Io, &msg))?;
-                }
-                let target = Self::knob_target_mut(&mut params);
-                target.0 = val;
+                let target = Self::knob0_target_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                T::KNOB0_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Invalid index {} of knob0, should be less than {}",
+                            pos,
+                            T::KNOB0_TARGETS.len()
+                        );
+                        Error::new(FileError::Io, &msg)
+                    })
+                    .map(|&t| *target = t)?;
                 T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -1280,49 +1308,69 @@ where
     }
 }
 
-const KNOB2_NAME: &str = "configurable-knob-target";
+const KNOB1_NAME: &str = "configurable-knob-target";
 
-pub trait ShellKnob2CtlOperation<S, T>
+fn knob1_target_to_str(target: &ShellKnob1Target) -> &'static str {
+    match target {
+        ShellKnob1Target::Digital0_1 => "Digital-1/2",
+        ShellKnob1Target::Digital2_3 => "Digital-3/4",
+        ShellKnob1Target::Digital4_5 => "Digital-5/6",
+        ShellKnob1Target::Digital6_7 => "Digital-7/8",
+        ShellKnob1Target::Stream => "Stream",
+        ShellKnob1Target::Reverb => "Reverb",
+        ShellKnob1Target::Mixer => "Mixer",
+        ShellKnob1Target::TunerPitchTone => "Tune-pitch/tone",
+        ShellKnob1Target::MidiSend => "Midi-send",
+    }
+}
+
+pub trait ShellKnob1CtlOperation<S, T>
 where
     S: Clone,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
-        + TcKonnektNotifiedSegmentOperation<S>,
+        + TcKonnektNotifiedSegmentOperation<S>
+        + ShellKnob1TargetSpecification,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
-    fn knob2_target(params: &S) -> &ShellKnob2Target;
-    fn knob2_target_mut(params: &mut S) -> &mut ShellKnob2Target;
+    fn knob1_target(params: &S) -> &ShellKnob1Target;
+    fn knob1_target_mut(params: &mut S) -> &mut ShellKnob1Target;
 
-    const TARGETS: &'static [&'static str];
-
-    fn load_knob2_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB2_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::TARGETS, None, true)
+    fn load_knob1_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let labels: Vec<&str> = T::KNOB1_TARGETS
+            .iter()
+            .map(|target| knob1_target_to_str(target))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB1_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn read_knob2_target(
+    fn read_knob1_target(
         &mut self,
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            KNOB2_NAME => {
+            KNOB1_NAME => {
                 let params = &self.segment().data;
-                let target = Self::knob2_target(&params);
-                if target.0 >= Self::TARGETS.len() as u32 {
-                    let msg = format!("Invalid index of program: {}", target.0);
-                    Err(Error::new(FileError::Io, &msg))?;
-                }
-                elem_value.set_enum(&[target.0]);
+                let target = Self::knob1_target(&params);
+                let pos = T::KNOB1_TARGETS
+                    .iter()
+                    .position(|t| target.eq(t))
+                    .ok_or_else(|| {
+                        let msg = format!("Unexpected value for knob1: {:?}", target);
+                        Error::new(FileError::Io, &msg)
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write_knob2_target(
+    fn write_knob1_target(
         &mut self,
         req: &FwReq,
         node: &FwNode,
@@ -1331,15 +1379,22 @@ where
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            KNOB2_NAME => {
+            KNOB1_NAME => {
                 let mut params = self.segment().data.clone();
-                let target = Self::knob2_target_mut(&mut params);
-                let val = elem_value.enumerated()[0] as usize;
-                if val >= Self::TARGETS.len() {
-                    let msg = format!("Invalid value for index of program: {}", val);
-                    Err(Error::new(FileError::Io, &msg))?;
-                }
-                target.0 = val as u32;
+                let target = Self::knob1_target_mut(&mut params);
+                let pos = elem_value.enumerated()[0] as usize;
+                T::KNOB1_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Invalid index {} of knob1, should be less than {}",
+                            pos,
+                            T::KNOB1_TARGETS.len()
+                        );
+                        Error::new(FileError::Io, &msg)
+                    })
+                    .map(|&t| *target = t)?;
                 T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
                     .map(|_| true)
             }

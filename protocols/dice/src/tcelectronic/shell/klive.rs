@@ -69,30 +69,64 @@ segment_default!(KliveProtocol, KliveReverbMeter);
 segment_default!(KliveProtocol, KliveChStripMeters);
 
 /// State of knob.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveKnob {
-    pub target: ShellKnobTarget,
-    pub knob2_target: ShellKnob2Target,
+    pub knob0_target: ShellKnob0Target,
+    pub knob1_target: ShellKnob1Target,
     pub prog: TcKonnektLoadedProgram,
     pub out_impedance: [OutputImpedance; 2],
+}
+
+impl Default for KliveKnob {
+    fn default() -> Self {
+        Self {
+            knob0_target: KliveProtocol::KNOB0_TARGETS[0],
+            knob1_target: KliveProtocol::KNOB1_TARGETS[0],
+            prog: Default::default(),
+            out_impedance: Default::default(),
+        }
+    }
+}
+
+impl ShellKnob0TargetSpecification for KliveProtocol {
+    const KNOB0_TARGETS: &'static [ShellKnob0Target] = &[
+        ShellKnob0Target::Analog0,
+        ShellKnob0Target::Analog1,
+        ShellKnob0Target::Analog2_3,
+        ShellKnob0Target::Configurable,
+    ];
+}
+
+impl ShellKnob1TargetSpecification for KliveProtocol {
+    const KNOB1_TARGETS: &'static [ShellKnob1Target] = &[
+        ShellKnob1Target::Digital0_1,
+        ShellKnob1Target::Digital2_3,
+        ShellKnob1Target::Digital4_5,
+        ShellKnob1Target::Digital6_7,
+        ShellKnob1Target::Stream,
+        ShellKnob1Target::Reverb,
+        ShellKnob1Target::Mixer,
+        ShellKnob1Target::TunerPitchTone,
+        ShellKnob1Target::MidiSend,
+    ];
 }
 
 impl TcKonnektSegmentSerdes<KliveKnob> for KliveProtocol {
     const NAME: &'static str = "knob";
     const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const SIZE: usize = SHELL_KNOB_SEGMENT_SIZE;
 
     fn serialize(params: &KliveKnob, raw: &mut [u8]) -> Result<(), String> {
-        params.target.0.build_quadlet(&mut raw[..4]);
-        params.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        serialize_knob0_target::<KliveProtocol>(&params.knob0_target, &mut raw[..4])?;
+        serialize_knob1_target::<KliveProtocol>(&params.knob1_target, &mut raw[4..8])?;
         params.prog.build(&mut raw[8..12]);
         params.out_impedance.build_quadlet_block(&mut raw[12..20]);
         Ok(())
     }
 
     fn deserialize(params: &mut KliveKnob, raw: &[u8]) -> Result<(), String> {
-        params.target.0.parse_quadlet(&raw[..4]);
-        params.knob2_target.0.parse_quadlet(&raw[4..8]);
+        deserialize_knob0_target::<KliveProtocol>(&mut params.knob0_target, &raw[..4])?;
+        deserialize_knob1_target::<KliveProtocol>(&mut params.knob1_target, &raw[4..8])?;
         params.prog.parse(&raw[8..12]);
         params.out_impedance.parse_quadlet_block(&raw[12..20]);
         Ok(())

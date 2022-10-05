@@ -258,14 +258,7 @@ impl CommonCtlOperation<ItwinProtocol> for CommonCtl {}
 #[derive(Default, Debug)]
 struct KnobCtl(ItwinKnobSegment, Vec<ElemId>);
 
-impl ShellKnobCtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
-    const TARGETS: [&'static str; 4] = [
-        "Channel-strip-1",
-        "Channel-strip-2",
-        "Reverb-1/2",
-        "Mixer-1/2",
-    ];
-
+impl ShellKnob0CtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
     fn segment(&self) -> &ItwinKnobSegment {
         &self.0
     }
@@ -274,11 +267,11 @@ impl ShellKnobCtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
         &mut self.0
     }
 
-    fn knob_target(params: &ItwinKnob) -> &ShellKnobTarget {
+    fn knob0_target(params: &ItwinKnob) -> &ShellKnob0Target {
         &params.target
     }
 
-    fn knob_target_mut(params: &mut ItwinKnob) -> &mut ShellKnobTarget {
+    fn knob0_target_mut(params: &mut ItwinKnob) -> &mut ShellKnob0Target {
         &mut params.target
     }
 }
@@ -291,7 +284,7 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob_target(card_cntr)
+        self.load_knob0_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RECOVERY_NAME, 0);
@@ -301,7 +294,7 @@ impl KnobCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob_target(elem_id, elem_value)? {
+        if self.read_knob0_target(elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -322,7 +315,7 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(req, node, elem_id, elem_value, timeout_ms)? {
+        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -362,7 +355,7 @@ impl KnobCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.read_knob_target(elem_id, elem_value)? {
+        if self.read_knob0_target(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
