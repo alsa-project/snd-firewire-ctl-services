@@ -32,7 +32,7 @@ impl Desktopk6Model {
         self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.panel_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.meter_ctl.measure(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -178,7 +178,7 @@ impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl.measure(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -1252,7 +1252,7 @@ impl MeterCtl {
         mute_avail: false,
     };
 
-    fn measure(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
     }
 
