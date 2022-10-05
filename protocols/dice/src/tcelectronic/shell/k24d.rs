@@ -55,7 +55,7 @@ pub type K24dChStripMetersSegment = TcKonnektSegment<K24dChStripMeters>;
 impl SegmentOperation<K24dChStripMeters> for K24dProtocol {}
 
 /// State of knob.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dKnob {
     pub target: ShellKnobTarget,
     pub knob2_target: ShellKnob2Target,
@@ -71,30 +71,53 @@ impl ShellKnob2TargetSpec for K24dKnob {
     const KNOB2_TARGET_COUNT: usize = 8;
 }
 
+impl TcKonnektSegmentSerdes<K24dKnob> for K24dProtocol {
+    const NAME: &'static str = "knob";
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+
+    fn serialize(params: &K24dKnob, raw: &mut [u8]) -> Result<(), String> {
+        params.target.0.build_quadlet(&mut raw[..4]);
+        params.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        params.prog.build(&mut raw[8..12]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dKnob, raw: &[u8]) -> Result<(), String> {
+        params.target.0.parse_quadlet(&raw[..4]);
+        params.knob2_target.0.parse_quadlet(&raw[4..8]);
+        params.prog.parse(&raw[8..12]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dKnob> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dKnob> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K24dKnob {
     fn build(&self, raw: &mut [u8]) {
-        self.target.0.build_quadlet(&mut raw[..4]);
-        self.knob2_target.0.build_quadlet(&mut raw[4..8]);
-        self.prog.build(&mut raw[8..12]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.target.0.parse_quadlet(&raw[..4]);
-        self.knob2_target.0.parse_quadlet(&raw[4..8]);
-        self.prog.parse(&raw[8..12]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dKnob> {
-    const OFFSET: usize = 0x0004;
-    const SIZE: usize = SHELL_KNOB_SIZE;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dKnob>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dKnob>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dKnob> {
-    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dKnob>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dConfig {
     pub opt: ShellOptIfaceConfig,
     pub coax_out_src: ShellCoaxOutPairSrc,
@@ -111,35 +134,58 @@ impl ShellStandaloneClkSpec for K24dConfig {
     ];
 }
 
+impl TcKonnektSegmentSerdes<K24dConfig> for K24dProtocol {
+    const NAME: &'static str = "configuration";
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 76;
+
+    fn serialize(params: &K24dConfig, raw: &mut [u8]) -> Result<(), String> {
+        params.opt.build(&mut raw[..12]);
+        params.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        params.out_23_src.build_quadlet(&mut raw[16..20]);
+        params.standalone_src.build_quadlet(&mut raw[20..24]);
+        params.standalone_rate.build_quadlet(&mut raw[24..28]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dConfig, raw: &[u8]) -> Result<(), String> {
+        params.opt.parse(&raw[..12]);
+        params.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        params.out_23_src.parse_quadlet(&raw[16..20]);
+        params.standalone_src.parse_quadlet(&raw[20..24]);
+        params.standalone_rate.parse_quadlet(&raw[24..28]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dConfig> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dConfig> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K24dConfig {
     fn build(&self, raw: &mut [u8]) {
-        self.opt.build(&mut raw[..12]);
-        self.coax_out_src.0.build_quadlet(&mut raw[12..16]);
-        self.out_23_src.build_quadlet(&mut raw[16..20]);
-        self.standalone_src.build_quadlet(&mut raw[20..24]);
-        self.standalone_rate.build_quadlet(&mut raw[24..28]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.opt.parse(&raw[..12]);
-        self.coax_out_src.0.parse_quadlet(&raw[12..16]);
-        self.out_23_src.parse_quadlet(&raw[16..20]);
-        self.standalone_src.parse_quadlet(&raw[20..24]);
-        self.standalone_rate.parse_quadlet(&raw[24..28]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dConfig> {
-    const OFFSET: usize = 0x0028;
-    const SIZE: usize = 76;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dConfig>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dConfig>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dConfig> {
-    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dConfig>>::NOTIFY_FLAG;
 }
 
 /// State of mixer.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K24dMixerState {
     /// The common structure for state of mixer.
     pub mixer: ShellMixerState,
@@ -189,107 +235,201 @@ impl ShellMixerStateConvert for K24dMixerState {
     }
 }
 
+impl TcKonnektSegmentSerdes<K24dMixerState> for K24dProtocol {
+    const NAME: &'static str = "mixer-state";
+    const OFFSET: usize = 0x0074;
+    const SIZE: usize = ShellMixerState::SIZE + 32;
+
+    fn serialize(params: &K24dMixerState, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerStateConvert::build(params, raw);
+
+        params.reverb_return.build(&mut raw[316..328]);
+        params
+            .use_ch_strip_as_plugin
+            .build_quadlet(&mut raw[328..332]);
+        params
+            .use_reverb_at_mid_rate
+            .build_quadlet(&mut raw[332..336]);
+        params.enabled.build_quadlet(&mut raw[340..344]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dMixerState, raw: &[u8]) -> Result<(), String> {
+        ShellMixerStateConvert::parse(params, raw);
+
+        params.reverb_return.parse(&raw[316..328]);
+        params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
+        params.use_reverb_at_mid_rate.parse_quadlet(&raw[332..336]);
+        params.enabled.parse_quadlet(&raw[340..344]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dMixerState> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dMixerState> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+}
+
 impl TcKonnektSegmentData for K24dMixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerStateConvert::build(self, raw);
-
-        self.reverb_return.build(&mut raw[316..328]);
-        self.use_ch_strip_as_plugin
-            .build_quadlet(&mut raw[328..332]);
-        self.use_reverb_at_mid_rate
-            .build_quadlet(&mut raw[332..336]);
-        self.enabled.build_quadlet(&mut raw[340..344]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerStateConvert::parse(self, raw);
-
-        self.reverb_return.parse(&raw[316..328]);
-        self.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
-        self.use_reverb_at_mid_rate.parse_quadlet(&raw[332..336]);
-        self.enabled.parse_quadlet(&raw[340..344]);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dMixerState> {
-    const OFFSET: usize = 0x0074;
-    const SIZE: usize = ShellMixerState::SIZE + 32;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dMixerState>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dMixerState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dMixerState> {
-    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dMixerState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbState(pub ReverbState);
+
+impl TcKonnektSegmentSerdes<K24dReverbState> for K24dProtocol {
+    const NAME: &'static str = "reverb-state";
+    const OFFSET: usize = 0x01d0;
+    const SIZE: usize = ReverbState::SIZE;
+
+    fn serialize(params: &K24dReverbState, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dReverbState, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dReverbState> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dReverbState> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
+}
 
 impl TcKonnektSegmentData for K24dReverbState {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dReverbState> {
-    const OFFSET: usize = 0x01d0;
-    const SIZE: usize = ReverbState::SIZE;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dReverbState>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dReverbState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dReverbState> {
-    const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dReverbState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<K24dChStripStates> for K24dProtocol {
+    const NAME: &'static str = "channel-strip-state";
+    const OFFSET: usize = 0x0218;
+    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+
+    fn serialize(params: &K24dChStripStates, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dChStripStates, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dChStripStates> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dChStripStates> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+}
 
 impl TcKonnektSegmentData for K24dChStripStates {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dChStripStates> {
-    const OFFSET: usize = 0x0218;
-    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dChStripStates>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dChStripStates>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dChStripStates> {
-    const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dChStripStates>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dHwState(pub ShellHwState);
+
+impl TcKonnektSegmentSerdes<K24dHwState> for K24dProtocol {
+    const NAME: &'static str = "hardware-state";
+    const OFFSET: usize = 0x100c;
+    const SIZE: usize = ShellHwState::SIZE;
+
+    fn serialize(params: &K24dHwState, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dHwState, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<K24dHwState> for K24dProtocol {}
+
+impl TcKonnektNotifiedSegmentOperation<K24dHwState> for K24dProtocol {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
 
 impl TcKonnektSegmentData for K24dHwState {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw);
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dHwState> {
-    const OFFSET: usize = 0x100c;
-    const SIZE: usize = ShellHwState::SIZE;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dHwState>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dHwState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dHwState> {
-    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <K24dProtocol as TcKonnektNotifiedSegmentOperation<K24dHwState>>::NOTIFY_FLAG;
 }
 
 const K24D_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K24D_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K24dMixerMeter(pub ShellMixerMeter);
 
 impl Default for K24dMixerMeter {
@@ -311,53 +451,101 @@ impl ShellMixerMeterConvert for K24dMixerMeter {
     }
 }
 
+impl TcKonnektSegmentSerdes<K24dMixerMeter> for K24dProtocol {
+    const NAME: &'static str = "mixer-meter";
+    const OFFSET: usize = 0x105c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
+
+    fn serialize(params: &K24dMixerMeter, raw: &mut [u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::build(params, raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dMixerMeter, raw: &[u8]) -> Result<(), String> {
+        ShellMixerMeterConvert::parse(params, raw);
+        Ok(())
+    }
+}
+
 impl TcKonnektSegmentData for K24dMixerMeter {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerMeterConvert::build(self, raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerMeterConvert::parse(self, raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dMixerMeter> {
-    const OFFSET: usize = 0x105c;
-    const SIZE: usize = ShellMixerMeter::SIZE;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dMixerMeter>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dMixerMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbMeter(pub ReverbMeter);
+
+impl TcKonnektSegmentSerdes<K24dReverbMeter> for K24dProtocol {
+    const NAME: &'static str = "reverb-meter";
+    const OFFSET: usize = 0x10b8;
+    const SIZE: usize = ReverbMeter::SIZE;
+
+    fn serialize(params: &K24dReverbMeter, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dReverbMeter, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for K24dReverbMeter {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dReverbMeter> {
-    const OFFSET: usize = 0x10b8;
-    const SIZE: usize = ReverbMeter::SIZE;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dReverbMeter>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dReverbMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<K24dChStripMeters> for K24dProtocol {
+    const NAME: &'static str = "channel-strip-meter";
+    const OFFSET: usize = 0x10d0;
+    const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
+
+    fn serialize(params: &K24dChStripMeters, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut K24dChStripMeters, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for K24dChStripMeters {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <K24dProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<K24dChStripMeters> {
-    const OFFSET: usize = 0x10d0;
-    const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const OFFSET: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dChStripMeters>>::OFFSET;
+    const SIZE: usize = <K24dProtocol as TcKonnektSegmentSerdes<K24dChStripMeters>>::SIZE;
 }

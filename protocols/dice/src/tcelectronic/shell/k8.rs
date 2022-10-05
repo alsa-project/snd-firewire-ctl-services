@@ -92,8 +92,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<K8Knob> {
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
-    const NOTIFY_FLAG: u32 =
-        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Knob>>::NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 = <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Knob>>::NOTIFY_FLAG;
 }
 
 /// Configuration.
