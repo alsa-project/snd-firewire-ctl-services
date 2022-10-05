@@ -5,6 +5,59 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Konnekt 24d.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! XLR input 1 ----or--+
+//! Phone input 1 --+   |
+//!                     +--> analog-input-1/2 --------------------------> stream-output-1/2
+//!                     |        |
+//! XLR input 2 ----or--+        |
+//! Phone input 2 --+            |
+//!                              |
+//! Phone input 3/4  -----------------------> analog-input-3/4 ---+-----> stream-output-3/4
+//!                              |                  |             |
+//!                        (internal mode)          |             |
+//!                              v                  |             |
+//!                         ++=========++           |             |
+//!                         || channel ||           |             |
+//!                    +--> || strip   || -------+-------------+--------> stream-output-5/6
+//!                    |    || effects ||        |  |          |  |
+//!           (plugin mode) ||   1/2   ||        |  |          |  |
+//!                    |    ++=========++        |  |          |  |
+//!                    |                         |  |          |  |
+//!                    |        ++=========++    |  |          |  |
+//! Coaxial input -----|------> || digital ||    |  |          |  |
+//!                    |        || input   || ---------+-------------+--> stream-output-9..16
+//! Optical input -----|------> || select  ||    |  |  |       |  |  |
+//!                    |        ++=========++    |  |  |       |  |  |
+//!                    |                     (internal mode)   |  |  |
+//!                    |                         v  v  v       |  |  |
+//!                    |                     ++============++  |  |  |
+//!                    |                     ||   12 x 2   ||  |  |  |
+//!                    |  +--(plugin mode)-> ||            || ----------> stream-output-7/8
+//!                    |  |                  ||   reverb   ||  |  |  |
+//!                    |  |                  ++============++  |  |  |
+//!                    |  |                         v          v  v  v
+//!                    |  |                     ++=====================++
+//!                    |  |                     ||       16 x 2        ||
+//! stream-input-1/2 --|--|-------------------> ||                     ||
+//!                    |  |                     ||       mixer         ||
+//!                    |  |                     ++=====================++
+//!                    |  |                                v
+//!                    |  |                         mixer-output-1/2 ---> analog-output-1/2
+//!                    |  |
+//! stream-input-3/4 --|--|---------------------------------------------> analog-output-3/4
+//!                    |  |
+//! stream-input-5/6 --+  |
+//!                       |
+//! stream-input-7/8 -----+
+//!
+//! stream-input-9..16 -------------------------------------------------> digital-output-1..8
+//!
+//! ```
 
 use super::*;
 
@@ -71,8 +124,11 @@ segment_default!(K24dProtocol, K24dChStripMeters);
 /// State of knob.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dKnob {
+    /// Target of 1st knob.
     pub knob0_target: ShellKnob0Target,
+    /// Target of 2nd knob.
     pub knob1_target: ShellKnob1Target,
+    /// Loaded program number.
     pub prog: TcKonnektLoadedProgram,
 }
 
@@ -134,12 +190,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dKnob> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
+/// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dConfig {
+    /// Configuration for optical interface.
     pub opt: ShellOptIfaceConfig,
+    /// Source of coaxial output.
     pub coax_out_src: ShellCoaxOutPairSrc,
+    /// Source of analog output 3/4.
     pub out_23_src: ShellPhysOutSrc,
+    /// Source of sampling clock at standalone mode.
     pub standalone_src: ShellStandaloneClockSource,
+    /// Rate of sampling clock at standalone mode.
     pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
@@ -266,6 +328,7 @@ impl TcKonnektNotifiedSegmentOperation<K24dMixerState> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+/// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbState(pub ReverbState);
 
@@ -289,6 +352,7 @@ impl TcKonnektNotifiedSegmentOperation<K24dReverbState> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
 }
 
+/// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
@@ -312,6 +376,7 @@ impl TcKonnektNotifiedSegmentOperation<K24dChStripStates> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
+/// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dHwState(pub ShellHwState);
 
@@ -338,6 +403,7 @@ impl TcKonnektNotifiedSegmentOperation<K24dHwState> for K24dProtocol {
 const K24D_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K24D_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
+/// Hardware metering for mixer function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K24dMixerMeter(pub ShellMixerMeter);
 
@@ -366,6 +432,7 @@ impl TcKonnektSegmentSerdes<K24dMixerMeter> for K24dProtocol {
     }
 }
 
+/// Hardware metering for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbMeter(pub ReverbMeter);
 
@@ -383,6 +450,7 @@ impl TcKonnektSegmentSerdes<K24dReverbMeter> for K24dProtocol {
     }
 }
 
+/// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
