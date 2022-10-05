@@ -400,11 +400,11 @@ impl StandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &ItwinConfig) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &ItwinConfig) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut ItwinConfig) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut ItwinConfig) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }

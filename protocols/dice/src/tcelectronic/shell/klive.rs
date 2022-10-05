@@ -114,7 +114,7 @@ pub struct KliveConfig {
     pub out_23_src: ShellPhysOutSrc,
     pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
     pub standalone_src: ShellStandaloneClkSrc,
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
     pub midi_sender: TcKonnektMidiSender,
 }
 
@@ -142,7 +142,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
         params.out_23_src.build_quadlet(&mut raw[20..24]);
         params.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
         params.standalone_src.build_quadlet(&mut raw[28..32]);
-        params.standalone_rate.build_quadlet(&mut raw[32..36]);
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[32..36])?;
         params.midi_sender.build(&mut raw[84..120]);
         Ok(())
     }
@@ -154,7 +154,7 @@ impl TcKonnektSegmentSerdes<KliveConfig> for KliveProtocol {
         params.out_23_src.parse_quadlet(&raw[20..24]);
         params.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
         params.standalone_src.parse_quadlet(&raw[28..32]);
-        params.standalone_rate.parse_quadlet(&raw[32..36]);
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[32..36])?;
         params.midi_sender.parse(&raw[84..120]);
         Ok(())
     }

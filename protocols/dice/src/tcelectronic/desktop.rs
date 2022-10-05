@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Desktop Konnekt 6.
 
-use super::tcelectronic::{standalone::*, *};
+use super::tcelectronic::*;
 
 const DESKTOP_HW_STATE_NOTIFY_FLAG: u32 = 0x00010000;
 const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
@@ -213,7 +213,7 @@ impl TcKonnektNotifiedSegmentOperation<DesktopHwState> for Desktopk6Protocol {
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopConfig {
-    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub standalone_rate: TcKonnektStandaloneClockRate,
 }
 
 impl TcKonnektSegmentSerdes<DesktopConfig> for Desktopk6Protocol {
@@ -222,13 +222,11 @@ impl TcKonnektSegmentSerdes<DesktopConfig> for Desktopk6Protocol {
     const SIZE: usize = 32;
 
     fn serialize(params: &DesktopConfig, raw: &mut [u8]) -> Result<(), String> {
-        params.standalone_rate.build_quadlet(&mut raw[4..8]);
-        Ok(())
+        serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[4..8])
     }
 
     fn deserialize(params: &mut DesktopConfig, raw: &[u8]) -> Result<(), String> {
-        params.standalone_rate.parse_quadlet(&raw[4..8]);
-        Ok(())
+        deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[4..8])
     }
 }
 

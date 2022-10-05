@@ -777,11 +777,11 @@ impl StandaloneCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &StudioConfig) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &StudioConfig) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut StudioConfig) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut StudioConfig) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }

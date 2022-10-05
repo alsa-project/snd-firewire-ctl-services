@@ -527,11 +527,11 @@ impl StandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &KliveConfig) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &KliveConfig) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut KliveConfig) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut KliveConfig) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }

@@ -3,12 +3,12 @@
 
 use super::*;
 
-fn standalone_rate_to_str(rate: &TcKonnektStandaloneClkRate) -> &'static str {
+fn standalone_rate_to_str(rate: &TcKonnektStandaloneClockRate) -> &'static str {
     match rate {
-        TcKonnektStandaloneClkRate::R44100 => "44100",
-        TcKonnektStandaloneClkRate::R48000 => "48000",
-        TcKonnektStandaloneClkRate::R88200 => "88200",
-        TcKonnektStandaloneClkRate::R96000 => "96000",
+        TcKonnektStandaloneClockRate::R44100 => "44100",
+        TcKonnektStandaloneClockRate::R48000 => "48000",
+        TcKonnektStandaloneClockRate::R88200 => "88200",
+        TcKonnektStandaloneClockRate::R96000 => "96000",
     }
 }
 
@@ -22,14 +22,14 @@ where
     fn segment(&self) -> &TcKonnektSegment<S>;
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
-    fn standalone_rate(params: &S) -> &TcKonnektStandaloneClkRate;
-    fn standalone_rate_mut(params: &mut S) -> &mut TcKonnektStandaloneClkRate;
+    fn standalone_rate(params: &S) -> &TcKonnektStandaloneClockRate;
+    fn standalone_rate_mut(params: &mut S) -> &mut TcKonnektStandaloneClockRate;
 
-    const RATES: [TcKonnektStandaloneClkRate; 4] = [
-        TcKonnektStandaloneClkRate::R44100,
-        TcKonnektStandaloneClkRate::R48000,
-        TcKonnektStandaloneClkRate::R88200,
-        TcKonnektStandaloneClkRate::R96000,
+    const RATES: [TcKonnektStandaloneClockRate; 4] = [
+        TcKonnektStandaloneClockRate::R44100,
+        TcKonnektStandaloneClockRate::R48000,
+        TcKonnektStandaloneClockRate::R88200,
+        TcKonnektStandaloneClockRate::R96000,
     ];
 
     fn load_standalone_rate(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {

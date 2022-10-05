@@ -579,11 +579,11 @@ impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn standalone_rate(params: &DesktopConfig) -> &TcKonnektStandaloneClkRate {
+    fn standalone_rate(params: &DesktopConfig) -> &TcKonnektStandaloneClockRate {
         &params.standalone_rate
     }
 
-    fn standalone_rate_mut(params: &mut DesktopConfig) -> &mut TcKonnektStandaloneClkRate {
+    fn standalone_rate_mut(params: &mut DesktopConfig) -> &mut TcKonnektStandaloneClockRate {
         &mut params.standalone_rate
     }
 }
