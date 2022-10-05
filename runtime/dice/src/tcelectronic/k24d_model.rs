@@ -212,9 +212,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.config_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.config_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -397,22 +397,6 @@ impl KnobCtl {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_prog(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]
@@ -513,14 +497,14 @@ impl ConfigCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                OUT_23_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                OUT_23_SRC_NAME => {
                     let pos = PHYS_OUT_SRCS
                         .iter()
                         .position(|s| self.0.data.out_23_src.eq(s))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -578,20 +562,6 @@ impl ConfigCtl {
             K24dProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
-        }
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_coax_out_src(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_opt_iface_config(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
         }
     }
 }
@@ -678,19 +648,17 @@ impl MixerStateCtl {
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
-                        .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.enabled]);
+                    Ok(true)
                 }
                 USE_CH_STRIP_AS_PLUGIN_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || {
-                        Ok(self.0.data.use_ch_strip_as_plugin)
-                    })
-                    .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.use_ch_strip_as_plugin]);
+                    Ok(true)
                 }
-                USE_REVERB_AT_MID_RATE => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    Ok(self.0.data.use_reverb_at_mid_rate)
-                })
-                .map(|_| true),
+                USE_REVERB_AT_MID_RATE => {
+                    elem_value.set_bool(&[self.0.data.use_reverb_at_mid_rate]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
