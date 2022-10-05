@@ -354,11 +354,11 @@ impl StandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
-    fn standalone_src(params: &K8Config) -> &ShellStandaloneClkSrc {
+    fn standalone_src(params: &K8Config) -> &ShellStandaloneClockSource {
         &params.standalone_src
     }
 
-    fn standalone_src_mut(params: &mut K8Config) -> &mut ShellStandaloneClkSrc {
+    fn standalone_src_mut(params: &mut K8Config) -> &mut ShellStandaloneClockSource {
         &mut params.standalone_src
     }
 }

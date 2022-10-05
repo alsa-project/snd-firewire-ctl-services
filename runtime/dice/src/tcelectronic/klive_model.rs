@@ -523,11 +523,11 @@ impl StandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn standalone_src(params: &KliveConfig) -> &ShellStandaloneClkSrc {
+    fn standalone_src(params: &KliveConfig) -> &ShellStandaloneClockSource {
         &params.standalone_src
     }
 
-    fn standalone_src_mut(params: &mut KliveConfig) -> &mut ShellStandaloneClkSrc {
+    fn standalone_src_mut(params: &mut KliveConfig) -> &mut ShellStandaloneClockSource {
         &mut params.standalone_src
     }
 }

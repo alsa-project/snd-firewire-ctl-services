@@ -403,11 +403,11 @@ impl StandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
-    fn standalone_src(params: &ItwinConfig) -> &ShellStandaloneClkSrc {
+    fn standalone_src(params: &ItwinConfig) -> &ShellStandaloneClockSource {
         &params.standalone_src
     }
 
-    fn standalone_src_mut(params: &mut ItwinConfig) -> &mut ShellStandaloneClkSrc {
+    fn standalone_src_mut(params: &mut ItwinConfig) -> &mut ShellStandaloneClockSource {
         &mut params.standalone_src
     }
 }

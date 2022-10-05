@@ -644,40 +644,53 @@ pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
 
 /// Available source for sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ShellStandaloneClkSrc {
+pub enum ShellStandaloneClockSource {
+    /// Signal from optical input interface.
     Optical,
+    /// Signal from coaxial input interface.
     Coaxial,
+    /// Internal oscillator.
     Internal,
 }
 
-impl Default for ShellStandaloneClkSrc {
+impl Default for ShellStandaloneClockSource {
     fn default() -> Self {
         Self::Internal
     }
 }
 
-impl From<ShellStandaloneClkSrc> for u32 {
-    fn from(src: ShellStandaloneClkSrc) -> Self {
-        match src {
-            ShellStandaloneClkSrc::Optical => 0,
-            ShellStandaloneClkSrc::Coaxial => 1,
-            ShellStandaloneClkSrc::Internal => 2,
-        }
-    }
+const STANDALONE_CLOCK_SOURCE_LABEL: &str = "Standalone clock source";
+
+/// Function specification for standalone clock source.
+pub trait ShellStandaloneClockSpecification {
+    /// The list of available sources.
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClockSource];
 }
 
-impl From<u32> for ShellStandaloneClkSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => ShellStandaloneClkSrc::Internal,
-            1 => ShellStandaloneClkSrc::Coaxial,
-            _ => ShellStandaloneClkSrc::Optical,
-        }
-    }
+/// Serialize for segment layout.
+fn serialize_standalone_clock_source<T: ShellStandaloneClockSpecification>(
+    src: &ShellStandaloneClockSource,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_position(
+        T::STANDALONE_CLOCK_SOURCES,
+        src,
+        raw,
+        STANDALONE_CLOCK_SOURCE_LABEL,
+    )
 }
 
-pub trait ShellStandaloneClkSpec {
-    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
+/// Deserialize for segment layout.
+fn deserialize_standalone_clock_source<T: ShellStandaloneClockSpecification>(
+    src: &mut ShellStandaloneClockSource,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(
+        T::STANDALONE_CLOCK_SOURCES,
+        src,
+        raw,
+        STANDALONE_CLOCK_SOURCE_LABEL,
+    )
 }
 
 /// Stereo pair of audio data channels in isochronous packet stream available as single source of
