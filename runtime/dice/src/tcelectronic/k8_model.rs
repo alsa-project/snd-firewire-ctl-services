@@ -250,7 +250,9 @@ impl ShellKnob1CtlOperation<K8Knob, K8Protocol> for KnobCtl {
 
 impl KnobCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -297,7 +299,9 @@ impl KnobCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if K8Protocol::is_notified_segment(&self.0, msg) {
-            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -355,7 +359,9 @@ impl ShellStandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
 
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -400,7 +406,9 @@ impl ConfigCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if K8Protocol::is_notified_segment(&self.0, msg) {
-            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -436,7 +444,9 @@ const MIXER_ENABLE_NAME: &str = "mixer-enable";
 
 impl MixerStateCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -480,8 +490,15 @@ impl MixerStateCtl {
                 MIXER_ENABLE_NAME => {
                     let mut params = self.0.data.clone();
                     params.enabled = elem_value.boolean()[0];
-                    K8Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms)
-                        .map(|_| true)
+                    let res = K8Protocol::update_partial_segment(
+                        req,
+                        node,
+                        &params,
+                        &mut self.0,
+                        timeout_ms,
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -496,7 +513,9 @@ impl MixerStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if K8Protocol::is_notified_segment(&self.0, msg) {
-            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -555,7 +574,9 @@ const AUX_IN_ENABLED_NAME: &str = "aux-input-enable";
 
 impl HwStateCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -603,7 +624,9 @@ impl HwStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if K8Protocol::is_notified_segment(&self.0, msg) {
-            K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
