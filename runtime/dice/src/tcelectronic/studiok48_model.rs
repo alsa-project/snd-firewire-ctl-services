@@ -449,16 +449,20 @@ impl LineoutCtl {
 struct RemoteCtl(Studiok48RemoteSegment, Vec<ElemId>);
 
 impl ProgramCtlOperation<StudioRemote, Studiok48Protocol> for RemoteCtl {
+    fn segment(&self) -> &Studiok48RemoteSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Studiok48RemoteSegment {
         &mut self.0
     }
 
-    fn prog(&self) -> &TcKonnektLoadedProgram {
-        &self.0.data.prog
+    fn prog(params: &StudioRemote) -> &TcKonnektLoadedProgram {
+        &params.prog
     }
 
-    fn prog_mut(&mut self) -> &mut TcKonnektLoadedProgram {
-        &mut self.0.data.prog
+    fn prog_mut(params: &mut StudioRemote) -> &mut TcKonnektLoadedProgram {
+        &mut params.prog
     }
 }
 
@@ -694,7 +698,7 @@ impl RemoteCtl {
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
-            _ => self.write_prog(unit, req, elem_id, new, timeout_ms),
+            _ => self.write_prog(req, &unit.1, elem_id, new, timeout_ms),
         }
     }
 

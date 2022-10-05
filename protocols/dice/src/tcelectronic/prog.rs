@@ -7,7 +7,7 @@
 
 use super::*;
 
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct TcKonnektLoadedProgram(pub u32);
 
 impl TcKonnektLoadedProgram {
