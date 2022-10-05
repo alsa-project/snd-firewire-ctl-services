@@ -211,9 +211,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.config_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.config_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -320,10 +320,11 @@ impl KnobCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                CLK_RECOVERY_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    Ok(self.0.data.clock_recovery)
-                })
-                .map(|_| true),
+                CLK_RECOVERY_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_bool(&[params.clock_recovery]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -369,18 +370,6 @@ impl KnobCtl {
             ItwinProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
-        }
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
         }
     }
 }
@@ -509,18 +498,19 @@ impl ConfigCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                OUT_SRC_NAME => ElemValueAccessor::<u32>::set_vals(
-                    elem_value,
-                    ITWIN_PHYS_OUT_PAIR_COUNT,
-                    |idx| {
-                        let pos = Self::OUT_SRCS
-                            .iter()
-                            .position(|s| self.0.data.output_pair_src[idx].eq(s))
-                            .unwrap();
-                        Ok(pos as u32)
-                    },
-                )
-                .map(|_| true),
+                OUT_SRC_NAME => {
+                    let params = &self.0.data;
+                    let vals: Vec<u32> = params
+                        .output_pair_src
+                        .iter()
+                        .map(|src| {
+                            let pos = Self::OUT_SRCS.iter().position(|s| src.eq(s)).unwrap();
+                            pos as u32
+                        })
+                        .collect();
+                    elem_value.set_enum(&vals);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -584,18 +574,6 @@ impl ConfigCtl {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_mixer_stream_src(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]
@@ -650,8 +628,8 @@ impl MixerStateCtl {
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
-                        .map(|_| true)
+                    elem_value.set_bool(&[self.0.data.enabled]);
+                    Ok(true)
                 }
                 _ => Ok(false),
             }
@@ -792,14 +770,15 @@ impl HwStateCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                LISTENING_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                LISTENING_MODE_NAME => {
+                    let params = &self.0.data;
                     let pos = Self::LISTENING_MODES
                         .iter()
-                        .position(|m| self.0.data.listening_mode.eq(m))
+                        .position(|m| params.listening_mode.eq(m))
                         .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true),
+                    elem_value.set_enum(&[pos as u32]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
