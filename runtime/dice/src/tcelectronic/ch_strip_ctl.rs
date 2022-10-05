@@ -59,19 +59,20 @@ fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
 
 pub trait ChStripCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData,
+    S: TcKonnektSegmentData + Clone,
     T: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    TcKonnektSegment<T>: TcKonnektSegmentSpec,
-    U: SegmentOperation<S> + SegmentOperation<T>,
+    U: TcKonnektSegmentOperation<S>
+        + TcKonnektMutableSegmentOperation<S>
+        + TcKonnektNotifiedSegmentOperation<S>
+        + TcKonnektSegmentOperation<T>,
 {
     fn states_segment(&self) -> &TcKonnektSegment<S>;
     fn states_segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
     fn meters_segment_mut(&mut self) -> &mut TcKonnektSegment<T>;
 
-    fn states(&self) -> &[ChStripState];
-    fn states_mut(&mut self) -> &mut [ChStripState];
+    fn states(params: &S) -> &[ChStripState];
+    fn states_mut(params: &mut S) -> &mut [ChStripState];
 
     fn meters(&self) -> &[ChStripMeter];
 
@@ -192,17 +193,14 @@ where
         ChStripSrcType::ElectroTechno,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        U::read_segment(req, &mut unit.1, self.states_segment_mut(), timeout_ms)?;
-        U::read_segment(req, &mut unit.1, self.meters_segment_mut(), timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        U::cache_whole_segment(req, node, self.states_segment_mut(), timeout_ms)?;
+        U::cache_whole_segment(req, node, self.meters_segment_mut(), timeout_ms)?;
+        Ok(())
+    }
 
-        let channels = self.states().len();
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
+        let channels = Self::states(&self.states_segment().data).len();
         let mut notified_elem_id_list = Vec::new();
 
         // Overall controls.
@@ -451,8 +449,8 @@ where
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -460,7 +458,7 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_TYPE_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: u32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: u32| {
                     state.src_type = Self::SRC_TYPES
                         .iter()
                         .nth(val as usize)
@@ -469,83 +467,83 @@ where
                 })
             }
             DEESSER_BYPASS_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.deesser.bypass = val
                 })
             }
             EQ_BYPASS_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.eq_bypass = val
                 })
             }
             LIMITTER_BYPASS_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.limitter_bypass = val
                 })
             }
             BYPASS_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.bypass = val
                 })
             }
             COMP_INPUT_GAIN_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.comp.input_gain = val as u32
                 })
             }
             COMP_MAKE_UP_GAIN_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.comp.make_up_gain = val as u32
                 })
             }
             COMP_FULL_BAND_ENABLE_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.comp.full_band_enabled = val
                 })
             }
             COMP_CTL_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.comp.ctl[idx] = val as u32
                 })
             }
             COMP_LEVEL_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.comp.level[idx] = val as u32
                 })
             }
             DEESSER_RATIO_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.deesser.ratio = val as u32
                 })
             }
             EQ_ENABLE_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: bool| {
                     state.eq[idx].enabled = val
                 })
             }
             EQ_BANDWIDTH_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].bandwidth = val as u32
                 })
             }
             EQ_GAIN_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].gain = val as u32
                 })
             }
             EQ_FREQ_NAME => {
                 let idx = elem_id.index() as usize;
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].freq = val as u32
                 })
             }
             LIMITTER_THRESHOLD_NAME => {
-                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                self.state_write_elem(req, node, old, new, timeout_ms, |state, val: i32| {
                     state.limitter.threshold = val as u32
                 })
             }
@@ -559,7 +557,7 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        let states = self.states();
+        let states = Self::states(&self.states_segment().data);
         ElemValueAccessor::<V>::set_vals(elem_value, states.len(), |idx| Ok(cb(&states[idx])))
             .map(|_| true)
     }
@@ -577,8 +575,8 @@ where
 
     fn state_write_elem<V, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
@@ -589,12 +587,14 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        let states = self.states_mut();
+        let mut params = self.states_segment().data.clone();
+        let states = Self::states_mut(&mut params);
         ElemValueAccessor::<V>::get_vals(new, old, states.len(), |idx, val| {
             cb(&mut states[idx], val);
             Ok(())
         })?;
-        U::write_segment(req, &mut unit.1, &mut self.states_segment_mut(), timeout_ms).map(|_| true)
+        U::update_partial_segment(req, node, &params, self.states_segment_mut(), timeout_ms)
+            .map(|_| true)
     }
 
     fn read_notified_elem(
@@ -679,14 +679,13 @@ where
         }
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if self.states().iter().find(|s| s.bypass).is_none() {
-            U::read_segment(req, &mut unit.1, self.meters_segment_mut(), timeout_ms)
+    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        if Self::states(&self.states_segment().data)
+            .iter()
+            .find(|s| s.bypass)
+            .is_none()
+        {
+            U::cache_whole_segment(req, node, self.meters_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
@@ -694,13 +693,13 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.states_segment().has_segment_change(msg) {
-            U::read_segment(req, &mut unit.1, self.states_segment_mut(), timeout_ms)
+        if U::is_notified_segment(self.states_segment(), msg) {
+            U::cache_whole_segment(req, node, self.states_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
