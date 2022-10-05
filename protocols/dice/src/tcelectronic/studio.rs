@@ -1077,13 +1077,11 @@ impl TcKonnektSegmentSerdes<StudioChStripStates> for Studiok48Protocol {
     const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
 
     fn serialize(params: &StudioChStripStates, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_states(&params.0, raw)
     }
 
     fn deserialize(params: &mut StudioChStripStates, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_states(&mut params.0, raw)
     }
 }
 
@@ -1228,12 +1226,10 @@ impl TcKonnektSegmentSerdes<StudioChStripMeters> for Studiok48Protocol {
     const SIZE: usize = ChStripMeter::SIZE * STUDIO_CH_STRIP_COUNT + 8;
 
     fn serialize(params: &StudioChStripMeters, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_ch_strip_meters(&params.0, raw)
     }
 
     fn deserialize(params: &mut StudioChStripMeters, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }
