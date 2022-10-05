@@ -44,21 +44,23 @@ fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
 
 pub trait ReverbCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData,
+    S: TcKonnektSegmentData + Clone,
     T: TcKonnektSegmentData,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    TcKonnektSegment<T>: TcKonnektSegmentSpec,
-    U: SegmentOperation<S> + SegmentOperation<T>,
+    U: TcKonnektSegmentOperation<S>
+        + TcKonnektSegmentOperation<T>
+        + TcKonnektMutableSegmentOperation<S>
+        + TcKonnektNotifiedSegmentOperation<S>,
 {
     fn state_segment(&self) -> &TcKonnektSegment<S>;
     fn state_segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
 
+    fn meter_segment(&self) -> &TcKonnektSegment<T>;
     fn meter_segment_mut(&mut self) -> &mut TcKonnektSegment<T>;
 
-    fn state(&self) -> &ReverbState;
-    fn state_mut(&mut self) -> &mut ReverbState;
+    fn state(params: &S) -> &ReverbState;
+    fn state_mut(params: &mut S) -> &mut ReverbState;
 
-    fn meter(&self) -> &ReverbMeter;
+    fn meter(parms: &T) -> &ReverbMeter;
 
     const INPUT_LEVEL_MIN: i32 = -240;
     const INPUT_LEVEL_MAX: i32 = 0;
@@ -137,16 +139,13 @@ where
         ReverbAlgorithm::Spring,
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        U::read_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)?;
-        U::read_segment(req, &mut unit.1, self.meter_segment_mut(), timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        U::cache_whole_segment(req, node, self.state_segment_mut(), timeout_ms)?;
+        U::cache_whole_segment(req, node, self.meter_segment_mut(), timeout_ms)?;
+        Ok(())
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
         let mut notified_elem_id_list = Vec::new();
 
         state_add_int_elem(
@@ -367,95 +366,96 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
-        ElemValueAccessor::<V>::set_val(elem_value, || Ok(cb(self.state()))).map(|_| true)
+        let state = Self::state(&self.state_segment().data);
+        ElemValueAccessor::<V>::set_val(elem_value, || Ok(cb(state))).map(|_| true)
     }
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_INPUT_LEVEL_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.input_level = val
                 })
             }
             REVERB_BYPASS_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.bypass = val
                 })
             }
             REVERB_KILL_WET => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.kill_wet = val
                 })
             }
             REVERB_KILL_DRY => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.kill_dry = val
                 })
             }
             REVERB_OUTPUT_LEVEL_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.output_level = val
                 })
             }
             REVERB_TIME_DECAY_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.time_decay = val
                 })
             }
             REVERB_TIME_PRE_DECAY_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.time_pre_decay = val
                 })
             }
             REVERB_COLOR_LOW_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.color_low = val
                 })
             }
             REVERB_COLOR_HIGH_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.color_high = val
                 })
             }
             REVERB_COLOR_HIGH_FACTOR_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.color_high_factor = val
                 })
             }
             REVERB_MOD_RATE_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.mod_rate = val
                 })
             }
             REVERB_MOD_DEPTH_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.mod_depth = val
                 })
             }
             REVERB_LEVEL_EARLY_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.level_early = val
                 })
             }
             REVERB_LEVEL_REVERB_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.level_reverb = val
                 })
             }
             REVERB_LEVEL_DRY_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val| {
                     state.level_dry = val
                 })
             }
             REVERB_ALGORITHM_NAME => {
-                self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val: u32| {
+                self.state_write_elem(req, node, elem_value, timeout_ms, |state, val: u32| {
                     state.algorithm = Self::ALGORITHMS
                         .iter()
                         .nth(val as usize)
@@ -469,8 +469,8 @@ where
 
     fn state_write_elem<V, F>(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         cb: F,
@@ -480,11 +480,14 @@ where
         V: Default + Copy + Eq,
         ElemValue: ElemValueAccessor<V>,
     {
+        let mut params = self.state_segment_mut().data.clone();
+        let mut state = Self::state_mut(&mut params);
         ElemValueAccessor::<V>::get_val(elem_value, |val| {
-            cb(&mut self.state_mut(), val);
+            cb(&mut state, val);
             Ok(())
         })?;
-        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
+        U::update_partial_segment(req, node, &params, self.state_segment_mut(), timeout_ms)
+            .map(|_| true)
     }
 
     fn read_notified_elem(
@@ -533,25 +536,24 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_OUTPUT_METER_NAME => {
-                elem_value.set_int(&self.meter().outputs);
+                let params = &self.meter_segment().data;
+                let meter = Self::meter(&params);
+                elem_value.set_int(&meter.outputs);
                 Ok(true)
             }
             REVERB_INPUT_METER_NAME => {
-                elem_value.set_int(&self.meter().inputs);
+                let params = &self.meter_segment().data;
+                let meter = Self::meter(&params);
+                elem_value.set_int(&meter.inputs);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if !self.state().bypass {
-            U::read_segment(req, &mut unit.1, self.meter_segment_mut(), timeout_ms)
+    fn measure_states(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        if !Self::state(&self.state_segment().data).bypass {
+            U::cache_whole_segment(req, node, self.meter_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
@@ -559,13 +561,13 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.state_segment().has_segment_change(msg) {
-            U::read_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
+        if U::is_notified_segment(self.state_segment(), msg) {
+            U::cache_whole_segment(req, node, self.state_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
