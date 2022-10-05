@@ -15,7 +15,7 @@ fn loaded_program_to_str(prog: &TcKonnektLoadedProgram) -> &str {
 
 pub trait ProgramCtlOperation<S, T>
 where
-    S: Clone,
+    S: Clone + Debug,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const LOADED_PROGRAMS: &'static [TcKonnektLoadedProgram] = &[
@@ -76,8 +76,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&p| *prog = p)?;
-                T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
+                debug!(params = ?self.segment().data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
