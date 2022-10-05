@@ -255,7 +255,9 @@ impl HwStateCtl {
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -411,62 +413,67 @@ impl HwStateCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUT_MONAURAL_NAME => {
                 let mut params = self.0.data.clone();
                 params.mixer_output_monaural = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             KNOB_ASSIGN_TO_HP_NAME => {
                 let mut params = self.0.data.clone();
                 params.knob_assign_to_hp = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUTPUT_DIM_ENABLE_NAME => {
                 let mut params = self.0.data.clone();
                 params.mixer_output_dim_enabled = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIXER_OUTPUT_DIM_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
                 params.mixer_output_dim_volume = elem_value.int()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             SCENE_NAME => {
                 let mut params = self.0.data.clone();
@@ -479,74 +486,80 @@ impl HwStateCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             REVERB_TO_MAIN_NAME => {
                 let mut params = self.0.data.clone();
                 params.reverb_to_master = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             REVERB_TO_HP_NAME => {
                 let mut params = self.0.data.clone();
                 params.reverb_to_hp = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             KNOB_BACKLIGHT_NAME => {
                 let mut params = self.0.data.clone();
                 params.master_knob_backlight = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIC_0_PHANTOM_NAME => {
                 let mut params = self.0.data.clone();
                 params.mic_0_phantom = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             MIC_0_BOOST_NAME => {
                 let mut params = self.0.data.clone();
                 params.mic_0_boost = elem_value.boolean()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -560,7 +573,9 @@ impl HwStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
-            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -590,7 +605,9 @@ impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
 
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -622,7 +639,9 @@ impl ConfigCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
-            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -670,7 +689,9 @@ impl MixerCtl {
     const HP_SRCS: [DesktopHpSrc; 2] = [DesktopHpSrc::Stream23, DesktopHpSrc::Mixer01];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -892,120 +913,120 @@ impl MixerCtl {
                 let levels = &mut params.mic_inst_level;
                 let vals = &new.int()[..levels.len()];
                 levels.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_MIC_INST_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
                 let pans = &mut params.mic_inst_pan;
                 let vals = &new.int()[..pans.len()];
                 pans.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_MIC_INST_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
                 let sends = &mut params.mic_inst_send;
                 let vals = &new.int()[..sends.len()];
                 sends.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_DUAL_INST_SRC_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
                 let levels = &mut params.mic_inst_level;
                 let vals = &new.int()[..levels.len()];
                 levels.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_DUAL_INST_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
                 let pans = &mut params.mic_inst_pan;
                 let vals = &new.int()[..pans.len()];
                 pans.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_DUAL_INST_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
                 let sends = &mut params.mic_inst_send;
                 let vals = &new.int()[..sends.len()];
                 sends.copy_from_slice(&vals);
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_STEREO_IN_SRC_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
                 params.stereo_in_level = new.int()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_STEREO_IN_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
                 params.stereo_in_pan = new.int()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             MIXER_STEREO_IN_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
                 params.stereo_in_send = new.int()[0];
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             HP_SRC_NAME => {
                 let mut params = self.0.data.clone();
@@ -1018,14 +1039,14 @@ impl MixerCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Desktopk6Protocol::update_partial_segment(
+                let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1070,7 +1091,9 @@ impl PanelCtl {
     const MIX_STEP: i32 = 1;
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1205,14 +1228,15 @@ impl PanelCtl {
                 REVERB_LED_STATE_NAME => {
                     let mut params = self.0.data.clone();
                     params.reverb_led_on = elem_value.boolean()[0];
-                    Desktopk6Protocol::update_partial_segment(
+                    let res = Desktopk6Protocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -1227,7 +1251,9 @@ impl PanelCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
-            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -1253,7 +1279,9 @@ impl MeterCtl {
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
