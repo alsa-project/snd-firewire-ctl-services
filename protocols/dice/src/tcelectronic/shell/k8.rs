@@ -243,21 +243,13 @@ pub struct K8MixerMeter(pub ShellMixerMeter);
 
 impl Default for K8MixerMeter {
     fn default() -> Self {
-        K8MixerMeter(Self::create_meter_state())
+        K8MixerMeter(K8Protocol::create_meter_state())
     }
 }
 
-impl ShellMixerMeterConvert for K8MixerMeter {
+impl ShellMixerMeterSpecification for K8Protocol {
     const ANALOG_INPUT_COUNT: usize = K8_METER_ANALOG_INPUT_COUNT;
     const DIGITAL_INPUT_COUNT: usize = K8_METER_DIGITAL_INPUT_COUNT;
-
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
 }
 
 impl TcKonnektSegmentSerdes<K8MixerMeter> for K8Protocol {
@@ -266,12 +258,10 @@ impl TcKonnektSegmentSerdes<K8MixerMeter> for K8Protocol {
     const SIZE: usize = ShellMixerMeter::SIZE;
 
     fn serialize(params: &K8MixerMeter, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::build(params, raw);
-        Ok(())
+        serialize_mixer_meter::<K8Protocol>(&params.0, raw)
     }
 
     fn deserialize(params: &mut K8MixerMeter, raw: &[u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::parse(params, raw);
-        Ok(())
+        deserialize_mixer_meter::<K8Protocol>(&mut params.0, raw)
     }
 }

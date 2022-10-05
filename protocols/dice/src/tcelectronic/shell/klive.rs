@@ -475,21 +475,13 @@ pub struct KliveMixerMeter(pub ShellMixerMeter);
 
 impl Default for KliveMixerMeter {
     fn default() -> Self {
-        KliveMixerMeter(Self::create_meter_state())
+        KliveMixerMeter(KliveProtocol::create_meter_state())
     }
 }
 
-impl ShellMixerMeterConvert for KliveMixerMeter {
+impl ShellMixerMeterSpecification for KliveProtocol {
     const ANALOG_INPUT_COUNT: usize = KLIVE_METER_ANALOG_INPUT_COUNT;
     const DIGITAL_INPUT_COUNT: usize = KLIVE_METER_DIGITAL_INPUT_COUNT;
-
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
 }
 
 impl TcKonnektSegmentSerdes<KliveMixerMeter> for KliveProtocol {
@@ -498,13 +490,11 @@ impl TcKonnektSegmentSerdes<KliveMixerMeter> for KliveProtocol {
     const SIZE: usize = ShellMixerMeter::SIZE;
 
     fn serialize(params: &KliveMixerMeter, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::build(params, raw);
-        Ok(())
+        serialize_mixer_meter::<KliveProtocol>(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveMixerMeter, raw: &[u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::parse(params, raw);
-        Ok(())
+        deserialize_mixer_meter::<KliveProtocol>(&mut params.0, raw)
     }
 }
 

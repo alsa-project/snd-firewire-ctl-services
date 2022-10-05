@@ -449,21 +449,13 @@ pub struct ItwinMixerMeter(pub ShellMixerMeter);
 
 impl Default for ItwinMixerMeter {
     fn default() -> Self {
-        ItwinMixerMeter(Self::create_meter_state())
+        ItwinMixerMeter(ItwinProtocol::create_meter_state())
     }
 }
 
-impl ShellMixerMeterConvert for ItwinMixerMeter {
+impl ShellMixerMeterSpecification for ItwinProtocol {
     const ANALOG_INPUT_COUNT: usize = 4;
     const DIGITAL_INPUT_COUNT: usize = 8;
-
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
 }
 
 impl TcKonnektSegmentSerdes<ItwinMixerMeter> for ItwinProtocol {
@@ -472,13 +464,11 @@ impl TcKonnektSegmentSerdes<ItwinMixerMeter> for ItwinProtocol {
     const SIZE: usize = ShellMixerMeter::SIZE;
 
     fn serialize(params: &ItwinMixerMeter, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::build(params, raw);
-        Ok(())
+        serialize_mixer_meter::<ItwinProtocol>(&params.0, raw)
     }
 
     fn deserialize(params: &mut ItwinMixerMeter, raw: &[u8]) -> Result<(), String> {
-        ShellMixerMeterConvert::parse(params, raw);
-        Ok(())
+        deserialize_mixer_meter::<ItwinProtocol>(&mut params.0, raw)
     }
 }
 
