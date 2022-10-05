@@ -11,7 +11,7 @@ pub mod k24d;
 pub mod k8;
 pub mod klive;
 
-use super::{ch_strip::*, prog::*, reverb::*, *};
+use super::{ch_strip::*, reverb::*, *};
 
 const SHELL_KNOB_NOTIFY_FLAG: u32 = 0x00010000;
 const SHELL_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;

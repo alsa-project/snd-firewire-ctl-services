@@ -13,7 +13,6 @@ pub mod shell;
 pub mod studio;
 
 pub mod ch_strip;
-pub mod prog;
 pub mod reverb;
 
 use super::{tcat::*, *};
@@ -307,10 +306,7 @@ impl TcKonnektMidiSender {
     pub(crate) const SIZE: usize = 36;
 }
 
-fn serialize_midi_sender(
-    sender: &TcKonnektMidiSender,
-    raw: &mut [u8],
-) -> Result<(), String> {
+fn serialize_midi_sender(sender: &TcKonnektMidiSender, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= TcKonnektMidiSender::SIZE);
 
     sender.normal.ch.build_quadlet(&mut raw[..4]);
@@ -323,10 +319,7 @@ fn serialize_midi_sender(
     Ok(())
 }
 
-fn deserialize_midi_sender(
-    sender: &mut TcKonnektMidiSender,
-    raw: &[u8],
-) -> Result<(), String> {
+fn deserialize_midi_sender(sender: &mut TcKonnektMidiSender, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= TcKonnektMidiSender::SIZE);
 
     sender.normal.ch.parse_quadlet(&raw[..4]);
@@ -337,4 +330,37 @@ fn deserialize_midi_sender(
     sender.send_to_stream.parse_quadlet(&raw[28..32]);
 
     Ok(())
+}
+
+/// Loaded program.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TcKonnektLoadedProgram {
+    /// Program 1.
+    P0,
+    /// Program 2.
+    P1,
+    /// Program 3.
+    P2,
+}
+
+impl Default for TcKonnektLoadedProgram {
+    fn default() -> Self {
+        Self::P0
+    }
+}
+
+const LOADED_PROGRAMS: &[TcKonnektLoadedProgram] = &[
+    TcKonnektLoadedProgram::P0,
+    TcKonnektLoadedProgram::P1,
+    TcKonnektLoadedProgram::P2,
+];
+
+const LOADED_PROGRAM_LABEL: &str = "loaded program";
+
+fn serialize_loaded_program(prog: &TcKonnektLoadedProgram, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(LOADED_PROGRAMS, prog, raw, LOADED_PROGRAM_LABEL)
+}
+
+fn deserialize_loaded_program(prog: &mut TcKonnektLoadedProgram, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(LOADED_PROGRAMS, prog, raw, LOADED_PROGRAM_LABEL)
 }

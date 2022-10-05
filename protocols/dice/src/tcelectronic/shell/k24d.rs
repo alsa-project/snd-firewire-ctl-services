@@ -116,14 +116,14 @@ impl TcKonnektSegmentSerdes<K24dKnob> for K24dProtocol {
     fn serialize(params: &K24dKnob, raw: &mut [u8]) -> Result<(), String> {
         serialize_knob0_target::<K24dProtocol>(&params.knob0_target, &mut raw[..4])?;
         serialize_knob1_target::<K24dProtocol>(&params.knob1_target, &mut raw[4..8])?;
-        params.prog.build(&mut raw[8..12]);
+        serialize_loaded_program(&params.prog, &mut raw[8..12])?;
         Ok(())
     }
 
     fn deserialize(params: &mut K24dKnob, raw: &[u8]) -> Result<(), String> {
         deserialize_knob0_target::<K24dProtocol>(&mut params.knob0_target, &raw[..4])?;
         deserialize_knob1_target::<K24dProtocol>(&mut params.knob1_target, &raw[4..8])?;
-        params.prog.parse(&raw[8..12]);
+        deserialize_loaded_program(&mut params.prog, &raw[8..12])?;
         Ok(())
     }
 }
