@@ -15,7 +15,8 @@ pub struct ItwinModel {
     config_ctl: ConfigCtl,
     mixer_ctl: MixerCtl,
     hw_state_ctl: HwStateCtl,
-    reverb_ctl: ReverbCtl,
+    reverb_state_ctl: ReverbStateCtl,
+    reverb_meter_ctl: ReverbMeterCtl,
     ch_strip_state_ctl: ChStripStateCtl,
     ch_strip_meter_ctl: ChStripMeterCtl,
 }
@@ -33,7 +34,10 @@ impl ItwinModel {
         self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.reverb_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.reverb_state_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.reverb_meter_ctl
+            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_state_ctl
             .cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.ch_strip_meter_ctl
@@ -56,12 +60,12 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
         self.config_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
         self.hw_state_ctl.load(card_cntr)?;
-        self.reverb_ctl
+        self.reverb_state_ctl
             .load(card_cntr)
-            .map(|(notified_elem_id_list, measured_elem_id_list)| {
-                self.reverb_ctl.2 = notified_elem_id_list;
-                self.reverb_ctl.3 = measured_elem_id_list;
-            })?;
+            .map(|notified_elem_id_list| self.reverb_state_ctl.1 = notified_elem_id_list)?;
+        self.reverb_meter_ctl
+            .load(card_cntr)
+            .map(|measured_elem_id_list| self.reverb_meter_ctl.1 = measured_elem_id_list)?;
         self.ch_strip_state_ctl
             .load(card_cntr)
             .map(|notified_elem_id_list| self.ch_strip_state_ctl.1 = notified_elem_id_list)?;
@@ -90,7 +94,9 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
             Ok(true)
         } else if self.hw_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.reverb_ctl.read(elem_id, elem_value)? {
+        } else if self.reverb_state_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.reverb_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.ch_strip_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -139,7 +145,7 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
         {
             Ok(true)
         } else if self
-            .reverb_ctl
+            .reverb_state_ctl
             .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -161,7 +167,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
         elem_id_list.extend_from_slice(&self.config_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_ctl.2);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
-        elem_id_list.extend_from_slice(&self.reverb_ctl.2);
+        elem_id_list.extend_from_slice(&self.reverb_state_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.1);
     }
 
@@ -185,7 +191,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
-        self.reverb_ctl
+        self.reverb_state_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.ch_strip_state_ctl
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
@@ -208,7 +214,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
             Ok(true)
         } else if self.hw_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.reverb_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.reverb_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.ch_strip_state_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -222,7 +228,7 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.mixer_ctl.3);
-        elem_id_list.extend_from_slice(&self.reverb_ctl.3);
+        elem_id_list.extend_from_slice(&self.reverb_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);
     }
 
@@ -231,8 +237,10 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.reverb_ctl
-            .measure_states(&self.req, &unit.1, TIMEOUT_MS)?;
+        if !self.reverb_state_ctl.is_bypassed() {
+            self.reverb_meter_ctl
+                .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        }
         if !self.ch_strip_state_ctl.are_bypassed() {
             self.ch_strip_meter_ctl
                 .cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -250,7 +258,7 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
             Ok(true)
         } else if self.mixer_ctl.read_measured_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.reverb_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.reverb_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.ch_strip_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -875,28 +883,15 @@ impl HwStateCtl {
 }
 
 #[derive(Default, Debug)]
-struct ReverbCtl(
-    ItwinReverbStateSegment,
-    ItwinReverbMeterSegment,
-    Vec<ElemId>,
-    Vec<ElemId>,
-);
+struct ReverbStateCtl(ItwinReverbStateSegment, Vec<ElemId>);
 
-impl ReverbCtlOperation<ItwinReverbState, ItwinReverbMeter, ItwinProtocol> for ReverbCtl {
-    fn state_segment(&self) -> &ItwinReverbStateSegment {
+impl ReverbStateCtlOpreation<ItwinReverbState, ItwinReverbMeter, ItwinProtocol> for ReverbStateCtl {
+    fn segment(&self) -> &ItwinReverbStateSegment {
         &self.0
     }
 
-    fn state_segment_mut(&mut self) -> &mut ItwinReverbStateSegment {
+    fn segment_mut(&mut self) -> &mut ItwinReverbStateSegment {
         &mut self.0
-    }
-
-    fn meter_segment(&self) -> &ItwinReverbMeterSegment {
-        &self.1
-    }
-
-    fn meter_segment_mut(&mut self) -> &mut ItwinReverbMeterSegment {
-        &mut self.1
     }
 
     fn state(params: &ItwinReverbState) -> &ReverbState {
@@ -906,9 +901,22 @@ impl ReverbCtlOperation<ItwinReverbState, ItwinReverbMeter, ItwinProtocol> for R
     fn state_mut(params: &mut ItwinReverbState) -> &mut ReverbState {
         &mut params.0
     }
+}
 
-    fn meter(params: &ItwinReverbMeter) -> &ReverbMeter {
-        &params.0
+#[derive(Default, Debug)]
+struct ReverbMeterCtl(ItwinReverbMeterSegment, Vec<ElemId>);
+
+impl ReverbMeterCtlOperation<ItwinReverbMeter, ItwinProtocol> for ReverbMeterCtl {
+    fn meter(&self) -> &ReverbMeter {
+        &self.0.data.0
+    }
+
+    fn segment(&self) -> &TcKonnektSegment<ItwinReverbMeter> {
+        &self.0
+    }
+
+    fn segment_mut(&mut self) -> &mut TcKonnektSegment<ItwinReverbMeter> {
+        &mut self.0
     }
 }
 
