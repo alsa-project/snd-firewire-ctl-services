@@ -25,7 +25,7 @@ const SHELL_HW_STATE_NOTIFY_FLAG: u32 = 0x01000000;
 const SHELL_CH_STRIP_COUNT: usize = 2;
 
 /// State of jack sense for analog input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellAnalogJackState {
     FrontSelected,
     FrontInserted,
@@ -103,7 +103,7 @@ impl ShellHwState {
 }
 
 /// Parameter of monitor source.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcParam {
     ///  ch 1 gain to mixer ch 1/2 (0xfffffc18..0x00000000, -90.0..0.00 dB)
     pub gain_to_mixer: i32,
@@ -142,7 +142,7 @@ impl MonitorSrcParam {
 }
 
 /// Monitor source.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ShellMonitorSrcPair {
     ///  ch 1/2 stereo link (0 or 1)
     pub stereo_link: bool,
@@ -198,7 +198,7 @@ impl ShellMixerState {
 }
 
 /// The type of monitor source.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellMixerMonitorSrcType {
     Stream,
     Analog,
@@ -345,7 +345,7 @@ pub trait ShellMixerStateConvert {
 }
 
 /// Return configuration of reverb effect.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ShellReverbReturn {
     /// Whether to use reverb effect as plugin. When enabled, return of reverb effect is delivered
     /// by rx stream.
@@ -505,7 +505,7 @@ pub trait ShellMixerMeterConvert {
 }
 
 /// Available source for sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellPhysOutSrc {
     Stream,
     Analog01,
@@ -542,7 +542,7 @@ impl From<ShellPhysOutSrc> for u32 {
 }
 
 /// Format of optical input interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellOptInputIfaceFormat {
     Adat0to7,
     Adat0to5Spdif01,
@@ -576,7 +576,7 @@ impl From<ShellOptInputIfaceFormat> for u32 {
 }
 
 /// Format of optical output interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellOptOutputIfaceFormat {
     Adat,
     Spdif,
@@ -607,11 +607,11 @@ impl From<ShellOptOutputIfaceFormat> for u32 {
 }
 
 /// Source for optical output interface.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellOptOutputSrc(pub ShellPhysOutSrc);
 
 /// Configuration for optical interface.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellOptIfaceConfig {
     pub input_format: ShellOptInputIfaceFormat,
     pub output_format: ShellOptOutputIfaceFormat,
@@ -639,11 +639,11 @@ impl ShellOptIfaceConfig {
 }
 
 /// Source of coaxial output interface.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
 
 /// Available source for sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellStandaloneClkSrc {
     Optical,
     Coaxial,
@@ -681,7 +681,7 @@ pub trait ShellStandaloneClkSpec: TcKonnektSegmentData {
 }
 
 /// Source pair of stream to mixer.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellMixerStreamSrcPair {
     Stream01,
     Stream23,
@@ -732,7 +732,7 @@ pub trait ShellMixerStreamSrcPairSpec {
 }
 
 /// Target of knob.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ShellKnobTarget(pub u32);
 
 /// Maximum value of knob.
@@ -742,7 +742,7 @@ pub trait ShellKnobTargetSpec {
 }
 
 /// Target of knob 2.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ShellKnob2Target(pub u32);
 
 /// Maximum value of knob 2.

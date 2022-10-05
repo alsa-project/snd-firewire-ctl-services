@@ -208,38 +208,46 @@ struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
 
 impl CommonCtlOperation<K8Protocol> for CommonCtl {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct KnobCtl(K8KnobSegment, Vec<ElemId>);
 
 impl ShellKnobCtlOperation<K8Knob, K8Protocol> for KnobCtl {
     const TARGETS: [&'static str; 4] = ["Analog-1", "Analog-2", "S/PDIF-1/2", "Configurable"];
 
+    fn segment(&self) -> &K8KnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K8KnobSegment {
         &mut self.0
     }
 
-    fn knob_target(&self) -> &ShellKnobTarget {
-        &self.0.data.target
+    fn knob_target(params: &K8Knob) -> &ShellKnobTarget {
+        &params.target
     }
 
-    fn knob_target_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.0.data.target
+    fn knob_target_mut(params: &mut K8Knob) -> &mut ShellKnobTarget {
+        &mut params.target
     }
 }
 
 impl ShellKnob2CtlOperation<K8Knob, K8Protocol> for KnobCtl {
     const TARGETS: &'static [&'static str] = &["Stream-input-1/2", "Mixer-1/2"];
 
+    fn segment(&self) -> &K8KnobSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K8KnobSegment {
         &mut self.0
     }
 
-    fn knob2_target(&self) -> &ShellKnob2Target {
-        &self.0.data.knob2_target
+    fn knob2_target(params: &K8Knob) -> &ShellKnob2Target {
+        &params.knob2_target
     }
 
-    fn knob2_target_mut(&mut self) -> &mut ShellKnob2Target {
-        &mut self.0.data.knob2_target
+    fn knob2_target_mut(params: &mut K8Knob) -> &mut ShellKnob2Target {
+        &mut params.knob2_target
     }
 }
 
@@ -280,9 +288,9 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -322,16 +330,20 @@ impl KnobCtl {
 struct ConfigCtl(K8ConfigSegment, Vec<ElemId>);
 
 impl ShellCoaxIfaceCtlOperation<K8Config, K8Protocol> for ConfigCtl {
+    fn segment(&self) -> &K8ConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut K8ConfigSegment {
         &mut self.0
     }
 
-    fn coax_out_src(&self) -> &ShellCoaxOutPairSrc {
-        &self.0.data.coax_out_src
+    fn coax_out_src(params: &K8Config) -> &ShellCoaxOutPairSrc {
+        &params.coax_out_src
     }
 
-    fn coax_out_src_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
-        &mut self.0.data.coax_out_src
+    fn coax_out_src_mut(params: &mut K8Config) -> &mut ShellCoaxOutPairSrc {
+        &mut params.coax_out_src
     }
 }
 
@@ -354,12 +366,12 @@ impl StandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
 }
 
 impl ShellStandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
-    fn standalone_src(&self) -> &ShellStandaloneClkSrc {
-        &self.0.data.standalone_src
+    fn standalone_src(params: &K8Config) -> &ShellStandaloneClkSrc {
+        &params.standalone_src
     }
 
-    fn standalone_src_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.0.data.standalone_src
+    fn standalone_src_mut(params: &mut K8Config) -> &mut ShellStandaloneClkSrc {
+        &mut params.standalone_src
     }
 }
 
@@ -398,9 +410,9 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_coax_out_src(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -455,12 +467,12 @@ impl ShellMixerCtlOperation<K8MixerState, K8MixerMeter, K8Protocol> for MixerCtl
         &mut self.1
     }
 
-    fn state(&self) -> &ShellMixerState {
-        &self.0.data.mixer
+    fn state(params: &K8MixerState) -> &ShellMixerState {
+        &params.mixer
     }
 
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.0.data.mixer
+    fn state_mut(params: &mut K8MixerState) -> &mut ShellMixerState {
+        &mut params.mixer
     }
 
     fn meter(&self) -> &ShellMixerMeter {
@@ -524,7 +536,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, &unit.1, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
