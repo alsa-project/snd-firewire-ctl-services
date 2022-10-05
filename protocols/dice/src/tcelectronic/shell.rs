@@ -504,12 +504,16 @@ pub trait ShellMixerMeterConvert {
     }
 }
 
-/// Available source for sampling clock.
+/// Available source for physical output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShellPhysOutSrc {
+    /// Stream input.
     Stream,
+    /// Analog input 1/2.
     Analog01,
+    /// Mixer output 1/2.
     MixerOut01,
+    /// Send 1/2.
     MixerSend01,
 }
 
@@ -519,26 +523,21 @@ impl Default for ShellPhysOutSrc {
     }
 }
 
-impl From<u32> for ShellPhysOutSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            3 => Self::MixerSend01,
-            2 => Self::MixerOut01,
-            1 => Self::Analog01,
-            _ => Self::Stream,
-        }
-    }
+const PHYS_OUT_SRCS: &[ShellPhysOutSrc] = &[
+    ShellPhysOutSrc::Stream,
+    ShellPhysOutSrc::Analog01,
+    ShellPhysOutSrc::MixerOut01,
+    ShellPhysOutSrc::MixerSend01,
+];
+
+const PHYS_OUT_SRC_LABEL: &str = "physical output source";
+
+fn serialize_phys_out_src(src: &ShellPhysOutSrc, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(PHYS_OUT_SRCS, src, raw, PHYS_OUT_SRC_LABEL)
 }
 
-impl From<ShellPhysOutSrc> for u32 {
-    fn from(src: ShellPhysOutSrc) -> Self {
-        match src {
-            ShellPhysOutSrc::MixerSend01 => 3,
-            ShellPhysOutSrc::MixerOut01 => 2,
-            ShellPhysOutSrc::Analog01 => 1,
-            ShellPhysOutSrc::Stream => 0,
-        }
-    }
+fn deserialize_phys_out_src(src: &mut ShellPhysOutSrc, raw: &[u8]) -> Result<(), String> {
+    deserialize_position(PHYS_OUT_SRCS, src, raw, PHYS_OUT_SRC_LABEL)
 }
 
 /// Format of optical input interface.
@@ -610,6 +609,8 @@ impl From<ShellOptOutputIfaceFormat> for u32 {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellOptOutputSrc(pub ShellPhysOutSrc);
 
+const OPT_OUT_SRC_LABEL: &str = "optical output source";
+
 /// Configuration for optical interface.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellOptIfaceConfig {
@@ -626,7 +627,12 @@ impl ShellOptIfaceConfig {
 
         self.input_format.build_quadlet(&mut raw[..4]);
         self.output_format.build_quadlet(&mut raw[4..8]);
-        self.output_source.0.build_quadlet(&mut raw[8..]);
+        let _ = serialize_position(
+            PHYS_OUT_SRCS,
+            &self.output_source.0,
+            &mut raw[8..],
+            OPT_OUT_SRC_LABEL,
+        );
     }
 
     pub fn parse(&mut self, raw: &[u8]) {
@@ -634,13 +640,31 @@ impl ShellOptIfaceConfig {
 
         self.input_format.parse_quadlet(&raw[..4]);
         self.output_format.parse_quadlet(&raw[4..8]);
-        self.output_source.0.parse_quadlet(&raw[8..]);
+        let _ = deserialize_position(
+            PHYS_OUT_SRCS,
+            &mut self.output_source.0,
+            &raw[8..],
+            OPT_OUT_SRC_LABEL,
+        );
     }
 }
 
 /// Source of coaxial output interface.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
+
+const COAX_OUT_PAIR_SRC_LABEL: &str = "coaxial output pair source";
+
+fn serialize_coax_out_pair_source(src: &ShellCoaxOutPairSrc, raw: &mut [u8]) -> Result<(), String> {
+    serialize_position(PHYS_OUT_SRCS, &src.0, raw, COAX_OUT_PAIR_SRC_LABEL)
+}
+
+fn deserialize_coax_out_pair_source(
+    src: &mut ShellCoaxOutPairSrc,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_position(PHYS_OUT_SRCS, &mut src.0, raw, COAX_OUT_PAIR_SRC_LABEL)
+}
 
 /// Available source for sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
