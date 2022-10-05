@@ -12,7 +12,7 @@ const EVENT_TO_STREAM_NAME: &str = "midi-event-to-stream";
 
 pub trait MidiSendCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;

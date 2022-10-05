@@ -18,23 +18,18 @@ impl TcatGlobalSectionSpecification for K8Protocol {}
 
 /// Segment for knob. 0x0000..0x0027 (36 quads).
 pub type K8KnobSegment = TcKonnektSegment<K8Knob>;
-impl SegmentOperation<K8Knob> for K8Protocol {}
 
 /// Segment for configuration. 0x0028..0x0073 (19 quads).
 pub type K8ConfigSegment = TcKonnektSegment<K8Config>;
-impl SegmentOperation<K8Config> for K8Protocol {}
 
 /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
 pub type K8MixerStateSegment = TcKonnektSegment<K8MixerState>;
-impl SegmentOperation<K8MixerState> for K8Protocol {}
 
 /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
 pub type K8MixerMeterSegment = TcKonnektSegment<K8MixerMeter>;
-impl SegmentOperation<K8MixerMeter> for K8Protocol {}
 
 /// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
 pub type K8HwStateSegment = TcKonnektSegment<K8HwState>;
-impl SegmentOperation<K8HwState> for K8Protocol {}
 
 macro_rules! segment_default {
     ($p:ty, $t:ty) => {
@@ -95,25 +90,6 @@ impl TcKonnektNotifiedSegmentOperation<K8Knob> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for K8Knob {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<K8Knob> {
-    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::OFFSET;
-    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Knob>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
-    const NOTIFY_FLAG: u32 = <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Knob>>::NOTIFY_FLAG;
-}
-
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Config {
@@ -153,26 +129,6 @@ impl TcKonnektMutableSegmentOperation<K8Config> for K8Protocol {}
 
 impl TcKonnektNotifiedSegmentOperation<K8Config> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for K8Config {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<K8Config> {
-    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::OFFSET;
-    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8Config>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Config> {
-    const NOTIFY_FLAG: u32 =
-        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8Config>>::NOTIFY_FLAG;
 }
 
 /// State of mixer.
@@ -240,26 +196,6 @@ impl TcKonnektNotifiedSegmentOperation<K8MixerState> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for K8MixerState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerState> {
-    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::OFFSET;
-    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8MixerState> {
-    const NOTIFY_FLAG: u32 =
-        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8MixerState>>::NOTIFY_FLAG;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8HwState {
     pub hw_state: ShellHwState,
@@ -288,26 +224,6 @@ impl TcKonnektMutableSegmentOperation<K8HwState> for K8Protocol {}
 
 impl TcKonnektNotifiedSegmentOperation<K8HwState> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for K8HwState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<K8HwState> {
-    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::OFFSET;
-    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8HwState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8HwState> {
-    const NOTIFY_FLAG: u32 =
-        <K8Protocol as TcKonnektNotifiedSegmentOperation<K8HwState>>::NOTIFY_FLAG;
 }
 
 const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
@@ -349,19 +265,4 @@ impl TcKonnektSegmentSerdes<K8MixerMeter> for K8Protocol {
         ShellMixerMeterConvert::parse(params, raw);
         Ok(())
     }
-}
-
-impl TcKonnektSegmentData for K8MixerMeter {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerMeter> {
-    const OFFSET: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::OFFSET;
-    const SIZE: usize = <K8Protocol as TcKonnektSegmentSerdes<K8MixerMeter>>::SIZE;
 }

@@ -23,23 +23,18 @@ impl TcatGlobalSectionSpecification for Desktopk6Protocol {}
 
 /// Segment for panel. 0x0008..0x0097 (36 quads).
 pub type Desktopk6HwStateSegment = TcKonnektSegment<DesktopHwState>;
-impl SegmentOperation<DesktopHwState> for Desktopk6Protocol {}
 
 /// Segment for configuration. 0x0098..0x00b7 (8 quads).
 pub type Desktopk6ConfigSegment = TcKonnektSegment<DesktopConfig>;
-impl SegmentOperation<DesktopConfig> for Desktopk6Protocol {}
 
 /// Segment for state of mixer. 0x00b8..0x0367 (172 quads).
 pub type Desktopk6MixerStateSegment = TcKonnektSegment<DesktopMixerState>;
-impl SegmentOperation<DesktopMixerState> for Desktopk6Protocol {}
 
 /// Segment for panel. 0x2008..0x2047 (15 quads).
 pub type Desktopk6PanelSegment = TcKonnektSegment<DesktopPanel>;
-impl SegmentOperation<DesktopPanel> for Desktopk6Protocol {}
 
 /// Segment for meter. 0x20e4..0x213f (23 quads).
 pub type Desktopk6MeterSegment = TcKonnektSegment<DesktopMeter>;
-impl SegmentOperation<DesktopMeter> for Desktopk6Protocol {}
 
 macro_rules! segment_default {
     ($p:ty, $t:ty) => {
@@ -215,26 +210,6 @@ impl TcKonnektNotifiedSegmentOperation<DesktopHwState> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_HW_STATE_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for DesktopHwState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopHwState> {
-    const OFFSET: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopHwState>>::OFFSET;
-    const SIZE: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopHwState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopHwState> {
-    const NOTIFY_FLAG: u32 =
-        <Desktopk6Protocol as TcKonnektNotifiedSegmentOperation<DesktopHwState>>::NOTIFY_FLAG;
-}
-
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopConfig {
@@ -261,26 +236,6 @@ impl TcKonnektMutableSegmentOperation<DesktopConfig> for Desktopk6Protocol {}
 
 impl TcKonnektNotifiedSegmentOperation<DesktopConfig> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_CONFIG_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for DesktopConfig {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopConfig> {
-    const OFFSET: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopConfig>>::OFFSET;
-    const SIZE: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopConfig>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopConfig> {
-    const NOTIFY_FLAG: u32 =
-        <Desktopk6Protocol as TcKonnektNotifiedSegmentOperation<DesktopConfig>>::NOTIFY_FLAG;
 }
 
 /// Source of headphone.
@@ -397,26 +352,6 @@ impl TcKonnektNotifiedSegmentOperation<DesktopMixerState> for Desktopk6Protocol 
     const NOTIFY_FLAG: u32 = DESKTOP_MIXER_STATE_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for DesktopMixerState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopMixerState> {
-    const OFFSET: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopMixerState>>::OFFSET;
-    const SIZE: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopMixerState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopMixerState> {
-    const NOTIFY_FLAG: u32 =
-        <Desktopk6Protocol as TcKonnektNotifiedSegmentOperation<DesktopMixerState>>::NOTIFY_FLAG;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopPanel {
     /// The count of panel button to push.
@@ -468,26 +403,6 @@ impl TcKonnektMutableSegmentOperation<DesktopPanel> for Desktopk6Protocol {}
 impl TcKonnektNotifiedSegmentOperation<DesktopPanel> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_PANEL_NOTIFY_FLAG;
 }
-impl TcKonnektSegmentData for DesktopPanel {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopPanel> {
-    const OFFSET: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopPanel>>::OFFSET;
-    const SIZE: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopPanel>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopPanel> {
-    const NOTIFY_FLAG: u32 =
-        <Desktopk6Protocol as TcKonnektNotifiedSegmentOperation<DesktopPanel>>::NOTIFY_FLAG;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopMeter {
     pub analog_inputs: [i32; 2],
@@ -513,19 +428,4 @@ impl TcKonnektSegmentSerdes<DesktopMeter> for Desktopk6Protocol {
         params.stream_inputs.parse_quadlet_block(&raw[48..56]);
         Ok(())
     }
-}
-
-impl TcKonnektSegmentData for DesktopMeter {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <Desktopk6Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopMeter> {
-    const OFFSET: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopMeter>>::OFFSET;
-    const SIZE: usize = <Desktopk6Protocol as TcKonnektSegmentSerdes<DesktopMeter>>::SIZE;
 }

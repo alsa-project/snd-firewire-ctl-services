@@ -18,7 +18,7 @@ const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 
 pub trait ShellHwStateCtlOperation<S, T>: FirewireLedCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn hw_state(&self) -> &ShellHwState;
@@ -118,8 +118,7 @@ const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
 
 pub trait ShellMixerCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData + Clone,
-    T: TcKonnektSegmentData,
+    S: Clone,
     U: TcKonnektSegmentOperation<S>
         + TcKonnektSegmentOperation<T>
         + TcKonnektMutableSegmentOperation<S>
@@ -674,7 +673,7 @@ const MUTE_NAME: &str = "reverb-return-mute";
 
 pub trait ShellReverbReturnCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -806,9 +805,8 @@ const SRC_NAME: &str = "standalone-clock-source";
 
 pub trait ShellStandaloneCtlOperation<S, T>: StandaloneCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + ShellStandaloneClkSpec + Clone,
-    TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    T: SegmentOperation<S> + TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    S: ShellStandaloneClkSpec + Clone,
+    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn standalone_src(params: &S) -> &ShellStandaloneClkSrc;
     fn standalone_src_mut(params: &mut S) -> &mut ShellStandaloneClkSrc;
@@ -887,7 +885,7 @@ const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
 
 pub trait ShellMixerStreamSrcCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec + Clone,
+    S: ShellMixerStreamSrcPairSpec + Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -989,7 +987,7 @@ const COAX_OUT_SRC_NAME: &str = "coaxial-output-source";
 
 pub trait ShellCoaxIfaceCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn segment(&self) -> &TcKonnektSegment<S>;
@@ -1075,7 +1073,7 @@ const OPT_OUT_SRC_NAME: &str = "optical-output-source";
 
 pub trait ShellOptIfaceCtl<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const IN_FMTS: [ShellOptInputIfaceFormat; 3] = [
@@ -1220,7 +1218,7 @@ const TARGET_NAME: &str = "knob-target";
 
 pub trait ShellKnobCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     const TARGETS: [&'static str; 4];
@@ -1286,7 +1284,7 @@ const KNOB2_NAME: &str = "configurable-knob-target";
 
 pub trait ShellKnob2CtlOperation<S, T>
 where
-    S: TcKonnektSegmentData + Clone,
+    S: Clone,
     T: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + TcKonnektNotifiedSegmentOperation<S>,

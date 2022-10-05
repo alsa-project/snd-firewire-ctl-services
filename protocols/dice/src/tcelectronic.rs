@@ -23,24 +23,9 @@ use super::{tcat::*, *};
 
 const BASE_OFFSET: usize = 0x00a01000;
 
-/// Data of segment.
-pub trait TcKonnektSegmentData: Default {
-    fn build(&self, raw: &mut [u8]);
-    fn parse(&mut self, raw: &[u8]);
-}
-
-/// Specification of segment.
-pub trait TcKonnektSegmentSpec {
-    const OFFSET: usize;
-    const SIZE: usize;
-}
-
 /// The generic structure for segment.
-#[derive(Debug)]
-pub struct TcKonnektSegment<U>
-where
-    U: TcKonnektSegmentData,
-{
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TcKonnektSegment<U> {
     /// Intermediate structured data for parameters.
     pub data: U,
     /// Raw byte data for memory layout in hardware.
@@ -74,10 +59,7 @@ fn generate_error(segment_name: &str, cause: &str, raw: &[u8]) -> Error {
 }
 
 /// Operation to cache content of segment in TC Electronic Konnekt series.
-pub trait TcKonnektSegmentOperation<T>: TcatOperation + TcKonnektSegmentSerdes<T>
-where
-    T: TcKonnektSegmentData,
-{
+pub trait TcKonnektSegmentOperation<T>: TcatOperation + TcKonnektSegmentSerdes<T> {
     /// Cache whole segment and deserialize for parameters.
     fn cache_whole_segment(
         req: &FwReq,
@@ -102,16 +84,10 @@ where
     }
 }
 
-impl<O: TcatOperation + TcKonnektSegmentSerdes<T>, T: TcKonnektSegmentData>
-    TcKonnektSegmentOperation<T> for O
-{
-}
+impl<O: TcatOperation + TcKonnektSegmentSerdes<T>, T> TcKonnektSegmentOperation<T> for O {}
 
 /// Operation to update content of segment in TC Electronic Konnekt series.
-pub trait TcKonnektMutableSegmentOperation<T>: TcatOperation + TcKonnektSegmentSerdes<T>
-where
-    T: TcKonnektSegmentData,
-{
+pub trait TcKonnektMutableSegmentOperation<T>: TcatOperation + TcKonnektSegmentSerdes<T> {
     /// Update part of segment for any change at the parameters.
     fn update_partial_segment(
         req: &FwReq,
@@ -169,74 +145,11 @@ where
 }
 
 /// Operation for segment in which any change is notified in TC Electronic Konnekt series.
-pub trait TcKonnektNotifiedSegmentOperation<T: TcKonnektSegmentData> {
+pub trait TcKonnektNotifiedSegmentOperation<T> {
     const NOTIFY_FLAG: u32;
 
     /// Check message to be notified or not.
     fn is_notified_segment(_: &TcKonnektSegment<T>, msg: u32) -> bool {
-        msg & Self::NOTIFY_FLAG > 0
-    }
-}
-
-/// Operation of segment in TC Electronics Konnekt series.
-pub trait SegmentOperation<T>
-where
-    T: TcKonnektSegmentData,
-    TcKonnektSegment<T>: TcKonnektSegmentSpec,
-{
-    fn read_segment(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        segment: &mut TcKonnektSegment<T>,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(segment.raw.len(), TcKonnektSegment::<T>::SIZE);
-
-        GeneralProtocol::read(
-            req,
-            node,
-            BASE_OFFSET + TcKonnektSegment::<T>::OFFSET,
-            &mut segment.raw,
-            timeout_ms,
-        )
-        .map(|_| segment.data.parse(&segment.raw))
-    }
-
-    fn write_segment(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        segment: &mut TcKonnektSegment<T>,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(segment.raw.len(), TcKonnektSegment::<T>::SIZE);
-
-        let mut raw = segment.raw.clone();
-        segment.data.build(&mut raw);
-
-        (0..TcKonnektSegment::<T>::SIZE)
-            .step_by(4)
-            .try_for_each(|pos| {
-                if raw[pos..(pos + 4)] != segment.raw[pos..(pos + 4)] {
-                    GeneralProtocol::write(
-                        req,
-                        node,
-                        BASE_OFFSET + TcKonnektSegment::<T>::OFFSET + pos,
-                        &mut raw[pos..(pos + 4)],
-                        timeout_ms,
-                    )
-                    .map(|_| segment.raw[pos..(pos + 4)].copy_from_slice(&raw[pos..(pos + 4)]))
-                } else {
-                    Ok(())
-                }
-            })
-    }
-}
-
-/// Specification for segment in which any change is notified to controller.
-pub trait TcKonnektNotifiedSegmentSpec {
-    const NOTIFY_FLAG: u32;
-
-    fn has_segment_change(&self, msg: u32) -> bool {
         msg & Self::NOTIFY_FLAG > 0
     }
 }

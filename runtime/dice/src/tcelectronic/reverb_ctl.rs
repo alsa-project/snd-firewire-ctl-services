@@ -44,8 +44,7 @@ fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
 
 pub trait ReverbCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData + Clone,
-    T: TcKonnektSegmentData,
+    S: Clone,
     U: TcKonnektSegmentOperation<S>
         + TcKonnektSegmentOperation<T>
         + TcKonnektMutableSegmentOperation<S>

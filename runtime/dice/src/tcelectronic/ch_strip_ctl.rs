@@ -59,8 +59,7 @@ fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
 
 pub trait ChStripCtlOperation<S, T, U>
 where
-    S: TcKonnektSegmentData + Clone,
-    T: TcKonnektSegmentData,
+    S: Clone,
     U: TcKonnektSegmentOperation<S>
         + TcKonnektMutableSegmentOperation<S>
         + TcKonnektNotifiedSegmentOperation<S>

@@ -18,41 +18,32 @@ impl TcatGlobalSectionSpecification for KliveProtocol {}
 
 /// Segment for knob. 0x0000..0x0027 (36 quads).
 pub type KliveKnobSegment = TcKonnektSegment<KliveKnob>;
-impl SegmentOperation<KliveKnob> for KliveProtocol {}
 
 /// Segment for configuration. 0x0028..0x00ab (33 quads).
 pub type KliveConfigSegment = TcKonnektSegment<KliveConfig>;
-impl SegmentOperation<KliveConfig> for KliveProtocol {}
 
 /// Segment for state of mixer. 0x00ac..0x0217 (91 quads).
 pub type KliveMixerStateSegment = TcKonnektSegment<KliveMixerState>;
-impl SegmentOperation<KliveMixerState> for KliveProtocol {}
 
 /// Segment for state of reverb effect. 0x0218..0x025b. (17 quads)
 pub type KliveReverbStateSegment = TcKonnektSegment<KliveReverbState>;
-impl SegmentOperation<KliveReverbState> for KliveProtocol {}
 
 /// Segment for states of channel strip effect. 0x0260..0x037f (72 quads).
 pub type KliveChStripStatesSegment = TcKonnektSegment<KliveChStripStates>;
-impl SegmentOperation<KliveChStripStates> for KliveProtocol {}
 
 // NOTE: Segment for tuner. 0x0384..0x039c (8 quads).
 
 /// Segment for mixer meter. 0x1068..0x10c3 (23 quads).
 pub type KliveMixerMeterSegment = TcKonnektSegment<KliveMixerMeter>;
-impl SegmentOperation<KliveMixerMeter> for KliveProtocol {}
 
 /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
 pub type KliveHwStateSegment = TcKonnektSegment<KliveHwState>;
-impl SegmentOperation<KliveHwState> for KliveProtocol {}
 
 /// Segment for meter of reverb effect. 0x10c4..0x010db (6 quads).
 pub type KliveReverbMeterSegment = TcKonnektSegment<KliveReverbMeter>;
-impl SegmentOperation<KliveReverbMeter> for KliveProtocol {}
 
 /// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
 pub type KliveChStripMetersSegment = TcKonnektSegment<KliveChStripMeters>;
-impl SegmentOperation<KliveChStripMeters> for KliveProtocol {}
 
 macro_rules! segment_default {
     ($p:ty, $t:ty) => {
@@ -114,35 +105,6 @@ impl TcKonnektNotifiedSegmentOperation<KliveKnob> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for KliveKnob {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl ShellKnobTargetSpec for KliveKnob {
-    const HAS_SPDIF: bool = false;
-    const HAS_EFFECTS: bool = false;
-}
-
-impl ShellKnob2TargetSpec for KliveKnob {
-    const KNOB2_TARGET_COUNT: usize = 9;
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveKnob> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveKnob>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveKnob>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveKnob> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveKnob>>::NOTIFY_FLAG;
-}
-
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveConfig {
@@ -202,26 +164,6 @@ impl TcKonnektMutableSegmentOperation<KliveConfig> for KliveProtocol {}
 
 impl TcKonnektNotifiedSegmentOperation<KliveConfig> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for KliveConfig {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveConfig> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveConfig>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveConfig>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveConfig> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveConfig>>::NOTIFY_FLAG;
 }
 
 /// The source of channel strip effect.
@@ -407,26 +349,6 @@ impl TcKonnektNotifiedSegmentOperation<KliveMixerState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for KliveMixerState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveMixerState> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveMixerState>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveMixerState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveMixerState> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveMixerState>>::NOTIFY_FLAG;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbState(pub ReverbState);
 
@@ -450,26 +372,6 @@ impl TcKonnektMutableSegmentOperation<KliveReverbState> for KliveProtocol {}
 
 impl TcKonnektNotifiedSegmentOperation<KliveReverbState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for KliveReverbState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveReverbState> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveReverbState>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveReverbState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveReverbState> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveReverbState>>::NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -497,26 +399,6 @@ impl TcKonnektNotifiedSegmentOperation<KliveChStripStates> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
-impl TcKonnektSegmentData for KliveChStripStates {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripStates> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveChStripStates>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveChStripStates>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveChStripStates> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveChStripStates>>::NOTIFY_FLAG;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveHwState(pub ShellHwState);
 
@@ -540,26 +422,6 @@ impl TcKonnektMutableSegmentOperation<KliveHwState> for KliveProtocol {}
 
 impl TcKonnektNotifiedSegmentOperation<KliveHwState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
-}
-
-impl TcKonnektSegmentData for KliveHwState {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveHwState> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveHwState>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveHwState>>::SIZE;
-}
-
-impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveHwState> {
-    const NOTIFY_FLAG: u32 =
-        <KliveProtocol as TcKonnektNotifiedSegmentOperation<KliveHwState>>::NOTIFY_FLAG;
 }
 
 const KLIVE_METER_ANALOG_INPUT_COUNT: usize = 4;
@@ -603,21 +465,6 @@ impl TcKonnektSegmentSerdes<KliveMixerMeter> for KliveProtocol {
     }
 }
 
-impl TcKonnektSegmentData for KliveMixerMeter {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveMixerMeter> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveMixerMeter>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveMixerMeter>>::SIZE;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbMeter(pub ReverbMeter);
 
@@ -637,21 +484,6 @@ impl TcKonnektSegmentSerdes<KliveReverbMeter> for KliveProtocol {
     }
 }
 
-impl TcKonnektSegmentData for KliveReverbMeter {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveReverbMeter> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveReverbMeter>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveReverbMeter>>::SIZE;
-}
-
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
@@ -669,21 +501,6 @@ impl TcKonnektSegmentSerdes<KliveChStripMeters> for KliveProtocol {
         params.0.parse(raw);
         Ok(())
     }
-}
-
-impl TcKonnektSegmentData for KliveChStripMeters {
-    fn build(&self, raw: &mut [u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
-    }
-
-    fn parse(&mut self, raw: &[u8]) {
-        let _ = <KliveProtocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
-    }
-}
-
-impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripMeters> {
-    const OFFSET: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveChStripMeters>>::OFFSET;
-    const SIZE: usize = <KliveProtocol as TcKonnektSegmentSerdes<KliveChStripMeters>>::SIZE;
 }
 
 /// Impedance of output.
