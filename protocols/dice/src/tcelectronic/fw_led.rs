@@ -4,7 +4,7 @@
 //! Common structure for hardware state for TC Electronic Konnekt series.
 
 /// The state of FireWire LED.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FireWireLedState {
     Off,
     On,

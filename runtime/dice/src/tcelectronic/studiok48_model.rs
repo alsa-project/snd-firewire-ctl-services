@@ -165,7 +165,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -2469,16 +2469,20 @@ fn analog_jack_state_to_str(state: &StudioAnalogJackState) -> &'static str {
 struct HwStateCtl(Studiok48HwStateSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<StudioHwState, Studiok48Protocol> for HwStateCtl {
+    fn segment(&self) -> &Studiok48HwStateSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Studiok48HwStateSegment {
         &mut self.0
     }
 
-    fn firewire_led(&self) -> &FireWireLedState {
-        &self.0.data.firewire_led
+    fn firewire_led(params: &StudioHwState) -> &FireWireLedState {
+        &params.firewire_led
     }
 
-    fn firewire_led_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.0.data.firewire_led
+    fn firewire_led_mut(params: &mut StudioHwState) -> &mut FireWireLedState {
+        &mut params.firewire_led
     }
 }
 
@@ -2547,13 +2551,13 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)
+        self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)
     }
 
     fn read_notified_elem(

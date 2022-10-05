@@ -18,9 +18,9 @@ const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 
 pub trait ShellHwStateCtlOperation<S, T>: FirewireLedCtlOperation<S, T>
 where
-    S: TcKonnektSegmentData,
+    S: TcKonnektSegmentData + Clone,
     TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
-    T: SegmentOperation<S>,
+    T: SegmentOperation<S> + TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
 {
     fn hw_state(&self) -> &ShellHwState;
     fn hw_state_mut(&mut self) -> &mut ShellHwState;
@@ -86,13 +86,13 @@ where
 
     fn write_hw_state(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)
+        self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)
     }
 }
 

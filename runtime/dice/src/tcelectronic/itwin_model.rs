@@ -733,16 +733,20 @@ impl MixerCtl {
 struct HwStateCtl(ItwinHwStateSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<ItwinHwState, ItwinProtocol> for HwStateCtl {
+    fn segment(&self) -> &ItwinHwStateSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut ItwinHwStateSegment {
         &mut self.0
     }
 
-    fn firewire_led(&self) -> &FireWireLedState {
-        &self.0.data.hw_state.firewire_led
+    fn firewire_led(params: &ItwinHwState) -> &FireWireLedState {
+        &params.hw_state.firewire_led
     }
 
-    fn firewire_led_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.0.data.hw_state.firewire_led
+    fn firewire_led_mut(params: &mut ItwinHwState) -> &mut FireWireLedState {
+        &mut params.hw_state.firewire_led
     }
 }
 
@@ -824,7 +828,7 @@ impl HwStateCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

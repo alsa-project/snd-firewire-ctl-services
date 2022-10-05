@@ -939,16 +939,20 @@ impl MixerCtl {
 struct PanelCtl(Desktopk6PanelSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<DesktopPanel, Desktopk6Protocol> for PanelCtl {
+    fn segment(&self) -> &Desktopk6PanelSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Desktopk6PanelSegment {
         &mut self.0
     }
 
-    fn firewire_led(&self) -> &FireWireLedState {
-        &self.0.data.firewire_led
+    fn firewire_led(params: &DesktopPanel) -> &FireWireLedState {
+        &params.firewire_led
     }
 
-    fn firewire_led_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.0.data.firewire_led
+    fn firewire_led_mut(params: &mut DesktopPanel) -> &mut FireWireLedState {
+        &mut params.firewire_led
     }
 }
 
@@ -1091,7 +1095,7 @@ impl PanelCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)? {
+        if self.write_firewire_led(req, &unit.1, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
