@@ -459,11 +459,11 @@ impl ShellMixerStreamSrcCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
         &mut self.0
     }
 
-    fn mixer_stream_src(params: &KliveConfig) -> &ShellMixerStreamSrcPair {
+    fn mixer_stream_src(params: &KliveConfig) -> &ShellMixerStreamSourcePair {
         &params.mixer_stream_src_pair
     }
 
-    fn mixer_stream_src_mut(params: &mut KliveConfig) -> &mut ShellMixerStreamSrcPair {
+    fn mixer_stream_src_mut(params: &mut KliveConfig) -> &mut ShellMixerStreamSourcePair {
         &mut params.mixer_stream_src_pair
     }
 }
