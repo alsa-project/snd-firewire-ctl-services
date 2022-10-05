@@ -333,13 +333,11 @@ impl TcKonnektSegmentSerdes<ItwinReverbState> for ItwinProtocol {
     const SIZE: usize = ReverbState::SIZE;
 
     fn serialize(params: &ItwinReverbState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut ItwinReverbState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_state(&mut params.0, raw)
     }
 }
 
@@ -479,13 +477,11 @@ impl TcKonnektSegmentSerdes<ItwinReverbMeter> for ItwinProtocol {
     const SIZE: usize = ReverbMeter::SIZE;
 
     fn serialize(params: &ItwinReverbMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_meter(&params.0, raw)
     }
 
     fn deserialize(params: &mut ItwinReverbMeter, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_meter(&mut params.0, raw)
     }
 }
 

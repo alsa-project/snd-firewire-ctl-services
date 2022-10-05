@@ -403,13 +403,11 @@ impl TcKonnektSegmentSerdes<KliveReverbState> for KliveProtocol {
     const SIZE: usize = ReverbState::SIZE;
 
     fn serialize(params: &KliveReverbState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveReverbState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_state(&mut params.0, raw)
     }
 }
 
@@ -505,13 +503,11 @@ impl TcKonnektSegmentSerdes<KliveReverbMeter> for KliveProtocol {
     const SIZE: usize = ReverbMeter::SIZE;
 
     fn serialize(params: &KliveReverbMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_meter(&params.0, raw)
     }
 
     fn deserialize(params: &mut KliveReverbMeter, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_meter(&mut params.0, raw)
     }
 }
 

@@ -275,13 +275,11 @@ impl TcKonnektSegmentSerdes<K24dReverbState> for K24dProtocol {
     const SIZE: usize = ReverbState::SIZE;
 
     fn serialize(params: &K24dReverbState, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_state(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dReverbState, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_state(&mut params.0, raw)
     }
 }
 
@@ -377,13 +375,11 @@ impl TcKonnektSegmentSerdes<K24dReverbMeter> for K24dProtocol {
     const SIZE: usize = ReverbMeter::SIZE;
 
     fn serialize(params: &K24dReverbMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.0.build(raw);
-        Ok(())
+        serialize_reverb_meter(&params.0, raw)
     }
 
     fn deserialize(params: &mut K24dReverbMeter, raw: &[u8]) -> Result<(), String> {
-        params.0.parse(raw);
-        Ok(())
+        deserialize_reverb_meter(&mut params.0, raw)
     }
 }
 
