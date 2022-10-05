@@ -80,7 +80,7 @@ const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
 // NOTE: 0x08000000 is for remote controller.
 
 /// Line output level.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NominalSignalLevel {
     /// +4dBu.
     Professional,
@@ -114,7 +114,7 @@ impl From<NominalSignalLevel> for u32 {
 }
 
 /// Line output levels.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioLineOutLevel {
     pub line_45: NominalSignalLevel,
     pub line_67: NominalSignalLevel,
@@ -122,37 +122,56 @@ pub struct StudioLineOutLevel {
     pub line_1011: NominalSignalLevel,
 }
 
-impl StudioLineOutLevel {
-    const SIZE: usize = 16;
+impl TcKonnektSegmentSerdes<StudioLineOutLevel> for Studiok48Protocol {
+    const NAME: &'static str = "line-output-level";
+    const OFFSET: usize = 0x0000;
+    const SIZE: usize = 20;
+
+    fn serialize(params: &StudioLineOutLevel, raw: &mut [u8]) -> Result<(), String> {
+        params.line_45.build_quadlet(&mut raw[4..8]);
+        params.line_67.build_quadlet(&mut raw[8..12]);
+        params.line_89.build_quadlet(&mut raw[12..16]);
+        params.line_1011.build_quadlet(&mut raw[16..20]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioLineOutLevel, raw: &[u8]) -> Result<(), String> {
+        params.line_45.parse_quadlet(&raw[4..8]);
+        params.line_67.parse_quadlet(&raw[8..12]);
+        params.line_89.parse_quadlet(&raw[12..16]);
+        params.line_1011.parse_quadlet(&raw[16..20]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioLineOutLevel> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioLineOutLevel> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG;
 }
 
 impl TcKonnektSegmentData for StudioLineOutLevel {
     fn build(&self, raw: &mut [u8]) {
-        self.line_45.build_quadlet(&mut raw[..4]);
-        self.line_67.build_quadlet(&mut raw[4..8]);
-        self.line_89.build_quadlet(&mut raw[8..12]);
-        self.line_1011.build_quadlet(&mut raw[12..16]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.line_45.parse_quadlet(&raw[..4]);
-        self.line_67.parse_quadlet(&raw[4..8]);
-        self.line_89.parse_quadlet(&raw[8..12]);
-        self.line_1011.parse_quadlet(&raw[12..16]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioLineOutLevel> {
-    const OFFSET: usize = 0x0000;
-    const SIZE: usize = StudioLineOutLevel::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioLineOutLevel>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioLineOutLevel>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioLineOutLevel> {
-    const NOTIFY_FLAG: u32 = STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioLineOutLevel>>::NOTIFY_FLAG;
 }
 
 /// Mode of remote effect button.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RemoteEffectButtonMode {
     Reverb,
     Midi,
@@ -184,7 +203,7 @@ impl From<RemoteEffectButtonMode> for u32 {
 }
 
 /// Mode of knob target at pushed state.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum KnobPushMode {
     Pan,
     GainToReverb,
@@ -224,7 +243,7 @@ impl From<KnobPushMode> for u32 {
 pub const STUDIO_REMOTE_USER_ASSIGN_COUNT: usize = 6;
 
 /// State of remote controller.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioRemote {
     pub prog: TcKonnektLoadedProgram,
     pub user_assigns: [SrcEntry; STUDIO_REMOTE_USER_ASSIGN_COUNT],
@@ -234,43 +253,66 @@ pub struct StudioRemote {
     pub knob_push_mode: KnobPushMode,
 }
 
-impl StudioRemote {
+impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
+    const NAME: &'static str = "remote-controller";
+    const OFFSET: usize = 0x0014;
     const SIZE: usize = 48;
+
+    fn serialize(params: &StudioRemote, raw: &mut [u8]) -> Result<(), String> {
+        params.prog.build(&mut raw[..4]);
+        params.user_assigns.build_quadlet_block(&mut raw[4..28]);
+        params.effect_button_mode.build_quadlet(&mut raw[28..32]);
+        params
+            .fallback_to_master_enable
+            .build_quadlet(&mut raw[32..36]);
+        params
+            .fallback_to_master_duration
+            .build_quadlet(&mut raw[36..40]);
+        params.knob_push_mode.build_quadlet(&mut raw[40..44]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioRemote, raw: &[u8]) -> Result<(), String> {
+        params.prog.parse(&raw[..4]);
+        params.user_assigns.parse_quadlet_block(&raw[4..28]);
+        params.effect_button_mode.parse_quadlet(&raw[28..32]);
+        params.fallback_to_master_enable.parse_quadlet(&raw[32..36]);
+        params
+            .fallback_to_master_duration
+            .parse_quadlet(&raw[36..40]);
+        params.knob_push_mode.parse_quadlet(&raw[40..44]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioRemote> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioRemote> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_REMOTE_NOTIFY_FLAG;
 }
 
 impl TcKonnektSegmentData for StudioRemote {
     fn build(&self, raw: &mut [u8]) {
-        self.prog.build(&mut raw[..4]);
-        self.user_assigns.build_quadlet_block(&mut raw[4..28]);
-        self.effect_button_mode.build_quadlet(&mut raw[28..32]);
-        self.fallback_to_master_enable
-            .build_quadlet(&mut raw[32..36]);
-        self.fallback_to_master_duration
-            .build_quadlet(&mut raw[36..40]);
-        self.knob_push_mode.build_quadlet(&mut raw[40..44]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.prog.parse(&raw[..4]);
-        self.user_assigns.parse_quadlet_block(&raw[4..28]);
-        self.effect_button_mode.parse_quadlet(&raw[28..32]);
-        self.fallback_to_master_enable.parse_quadlet(&raw[32..36]);
-        self.fallback_to_master_duration.parse_quadlet(&raw[36..40]);
-        self.knob_push_mode.parse_quadlet(&raw[40..44]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioRemote> {
-    const OFFSET: usize = 0x0014;
-    const SIZE: usize = StudioRemote::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioRemote>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioRemote>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioRemote> {
-    const NOTIFY_FLAG: u32 = STUDIO_REMOTE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioRemote>>::NOTIFY_FLAG;
 }
 
 /// Mode of optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OptIfaceMode {
     Adat,
     Spdif,
@@ -299,7 +341,7 @@ impl From<OptIfaceMode> for u32 {
 }
 
 /// Source of standalone clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum StudioStandaloneClkSrc {
     Adat,
     SpdifOnOpt01,
@@ -342,7 +384,7 @@ impl From<StudioStandaloneClkSrc> for u32 {
 }
 
 /// Configuration.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioConfig {
     pub opt_iface_mode: OptIfaceMode,
     pub standalone_src: StudioStandaloneClkSrc,
@@ -351,39 +393,57 @@ pub struct StudioConfig {
     pub midi_send: TcKonnektMidiSender,
 }
 
-impl StudioConfig {
+impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
+    const NAME: &'static str = "configuration";
+    const OFFSET: usize = 0x0044;
     const SIZE: usize = 100;
+
+    fn serialize(params: &StudioConfig, raw: &mut [u8]) -> Result<(), String> {
+        params.opt_iface_mode.build_quadlet(&mut raw[..4]);
+        params.standalone_src.build_quadlet(&mut raw[4..8]);
+        params.standalone_rate.build_quadlet(&mut raw[8..12]);
+        params.clock_recovery.build_quadlet(&mut raw[16..20]);
+        params.midi_send.build(&mut raw[52..88]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioConfig, raw: &[u8]) -> Result<(), String> {
+        params.opt_iface_mode.parse_quadlet(&raw[..4]);
+        params.standalone_src.parse_quadlet(&raw[4..8]);
+        params.standalone_rate.parse_quadlet(&raw[8..12]);
+        params.clock_recovery.parse_quadlet(&raw[16..20]);
+        params.midi_send.parse(&raw[52..88]);
+        Ok(())
+    }
 }
 
+impl TcKonnektMutableSegmentOperation<StudioConfig> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioConfig> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_CONFIG_NOTIFY_FLAG;
+}
 impl TcKonnektSegmentData for StudioConfig {
     fn build(&self, raw: &mut [u8]) {
-        self.opt_iface_mode.build_quadlet(&mut raw[..4]);
-        self.standalone_src.build_quadlet(&mut raw[4..8]);
-        self.standalone_rate.build_quadlet(&mut raw[8..12]);
-        self.clock_recovery.build_quadlet(&mut raw[16..20]);
-        self.midi_send.build(&mut raw[52..84]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.opt_iface_mode.parse_quadlet(&raw[..4]);
-        self.standalone_src.parse_quadlet(&raw[4..8]);
-        self.standalone_rate.parse_quadlet(&raw[8..12]);
-        self.clock_recovery.parse_quadlet(&raw[16..20]);
-        self.midi_send.parse(&raw[52..84]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioConfig> {
-    const OFFSET: usize = 0x0044;
-    const SIZE: usize = StudioConfig::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioConfig>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioConfig>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioConfig> {
-    const NOTIFY_FLAG: u32 = STUDIO_CONFIG_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioConfig>>::NOTIFY_FLAG;
 }
 
 /// Entry of signal source.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SrcEntry {
     /// For unused.
     Unused,
@@ -453,7 +513,7 @@ impl From<SrcEntry> for u32 {
 }
 
 /// State of output pair.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OutPair {
     pub dim_enabled: bool,
     pub vol: i32,
@@ -481,7 +541,7 @@ impl OutPair {
 }
 
 /// The mode of entry for pair of source of monitor.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MonitorSrcPairMode {
     Inactive,
     Active,
@@ -515,7 +575,7 @@ impl From<MonitorSrcPairMode> for u32 {
 }
 
 /// Parameters of source of monitor.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcParam {
     pub src: SrcEntry,
     pub gain_to_main: i32,
@@ -552,7 +612,7 @@ impl MonitorSrcParam {
 }
 
 /// Source of monitor.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcPair {
     pub mode: MonitorSrcPairMode,
     pub stereo_link: bool,
@@ -586,7 +646,7 @@ impl MonitorSrcPair {
 pub const STUDIO_MIXER_SRC_PAIR_COUNT: usize = 12;
 
 /// State of mixer.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioMixerState {
     pub src_pairs: [MonitorSrcPair; STUDIO_MIXER_SRC_PAIR_COUNT],
     pub mutes: [bool; STUDIO_MIXER_SRC_PAIR_COUNT],
@@ -600,18 +660,19 @@ pub struct StudioMixerState {
     pub enabled: bool,
 }
 
-impl StudioMixerState {
+impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
+    const NAME: &'static str = "mixer-state";
+    const OFFSET: usize = 0x00a8;
     const SIZE: usize = 820;
-}
 
-impl TcKonnektSegmentData for StudioMixerState {
-    fn build(&self, raw: &mut [u8]) {
-        self.src_pairs.iter().enumerate().for_each(|(i, p)| {
+    fn serialize(params: &StudioMixerState, raw: &mut [u8]) -> Result<(), String> {
+        params.src_pairs.iter().enumerate().for_each(|(i, p)| {
             let pos = i * MonitorSrcPair::SIZE;
             p.build(&mut raw[pos..(pos + MonitorSrcPair::SIZE)]);
         });
         let mut val = 0u32;
-        self.mutes
+        params
+            .mutes
             .iter()
             .enumerate()
             .filter(|(_, &m)| m)
@@ -619,62 +680,84 @@ impl TcKonnektSegmentData for StudioMixerState {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[672..676]);
-        self.reverb_return_mute[0].build_quadlet(&mut raw[712..716]);
-        self.reverb_return_gain[0].build_quadlet(&mut raw[716..720]);
-        self.reverb_return_mute[1].build_quadlet(&mut raw[720..724]);
-        self.reverb_return_gain[1].build_quadlet(&mut raw[724..728]);
-        self.reverb_return_mute[2].build_quadlet(&mut raw[728..732]);
-        self.reverb_return_gain[2].build_quadlet(&mut raw[732..736]);
-        self.ch_strip_as_plugin
+        params.reverb_return_mute[0].build_quadlet(&mut raw[712..716]);
+        params.reverb_return_gain[0].build_quadlet(&mut raw[716..720]);
+        params.reverb_return_mute[1].build_quadlet(&mut raw[720..724]);
+        params.reverb_return_gain[1].build_quadlet(&mut raw[724..728]);
+        params.reverb_return_mute[2].build_quadlet(&mut raw[728..732]);
+        params.reverb_return_gain[2].build_quadlet(&mut raw[732..736]);
+        params
+            .ch_strip_as_plugin
             .build_quadlet_block(&mut raw[736..744]);
-        self.ch_strip_src.build_quadlet_block(&mut raw[744..760]);
-        self.ch_strip_23_at_mid_rate
+        params.ch_strip_src.build_quadlet_block(&mut raw[744..760]);
+        params
+            .ch_strip_23_at_mid_rate
             .build_quadlet(&mut raw[760..764]);
-        self.mixer_out[0].build(&mut raw[764..776]);
-        self.mixer_out[1].build(&mut raw[776..788]);
-        self.mixer_out[2].build(&mut raw[788..800]);
-        self.post_fader.build_quadlet_block(&mut raw[800..812]);
-        self.enabled.build_quadlet(&mut raw[812..816]);
+        params.mixer_out[0].build(&mut raw[764..776]);
+        params.mixer_out[1].build(&mut raw[776..788]);
+        params.mixer_out[2].build(&mut raw[788..800]);
+        params.post_fader.build_quadlet_block(&mut raw[800..812]);
+        params.enabled.build_quadlet(&mut raw[812..816]);
+        Ok(())
     }
 
-    fn parse(&mut self, raw: &[u8]) {
-        self.src_pairs.iter_mut().enumerate().for_each(|(i, p)| {
+    fn deserialize(params: &mut StudioMixerState, raw: &[u8]) -> Result<(), String> {
+        params.src_pairs.iter_mut().enumerate().for_each(|(i, p)| {
             let pos = i * MonitorSrcPair::SIZE;
             p.parse(&raw[pos..(pos + MonitorSrcPair::SIZE)]);
         });
         let mut val = 0u32;
         val.parse_quadlet(&raw[672..676]);
-        self.mutes.iter_mut().enumerate().for_each(|(i, m)| {
+        params.mutes.iter_mut().enumerate().for_each(|(i, m)| {
             *m = (val & 1 << i) > 0;
         });
-        self.reverb_return_mute[0].parse_quadlet(&raw[712..716]);
-        self.reverb_return_gain[0].parse_quadlet(&raw[716..720]);
-        self.reverb_return_mute[1].parse_quadlet(&raw[720..724]);
-        self.reverb_return_gain[1].parse_quadlet(&raw[724..728]);
-        self.reverb_return_mute[2].parse_quadlet(&raw[728..732]);
-        self.reverb_return_gain[2].parse_quadlet(&raw[732..736]);
-        self.ch_strip_as_plugin.parse_quadlet_block(&raw[736..744]);
-        self.ch_strip_src.parse_quadlet_block(&raw[744..760]);
-        self.ch_strip_23_at_mid_rate.parse_quadlet(&raw[760..764]);
-        self.mixer_out[0].parse(&raw[764..776]);
-        self.mixer_out[1].parse(&raw[776..788]);
-        self.mixer_out[2].parse(&raw[788..800]);
-        self.post_fader.parse_quadlet_block(&raw[800..812]);
-        self.enabled.parse_quadlet(&raw[812..816]);
+        params.reverb_return_mute[0].parse_quadlet(&raw[712..716]);
+        params.reverb_return_gain[0].parse_quadlet(&raw[716..720]);
+        params.reverb_return_mute[1].parse_quadlet(&raw[720..724]);
+        params.reverb_return_gain[1].parse_quadlet(&raw[724..728]);
+        params.reverb_return_mute[2].parse_quadlet(&raw[728..732]);
+        params.reverb_return_gain[2].parse_quadlet(&raw[732..736]);
+        params
+            .ch_strip_as_plugin
+            .parse_quadlet_block(&raw[736..744]);
+        params.ch_strip_src.parse_quadlet_block(&raw[744..760]);
+        params.ch_strip_23_at_mid_rate.parse_quadlet(&raw[760..764]);
+        params.mixer_out[0].parse(&raw[764..776]);
+        params.mixer_out[1].parse(&raw[776..788]);
+        params.mixer_out[2].parse(&raw[788..800]);
+        params.post_fader.parse_quadlet_block(&raw[800..812]);
+        params.enabled.parse_quadlet(&raw[812..816]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioMixerState> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioMixerState> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_MIXER_STATE_NOTIFY_FLAG;
+}
+impl TcKonnektSegmentData for StudioMixerState {
+    fn build(&self, raw: &mut [u8]) {
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioMixerState> {
-    const OFFSET: usize = 0x00a8;
-    const SIZE: usize = StudioMixerState::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioMixerState>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioMixerState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioMixerState> {
-    const NOTIFY_FLAG: u32 = STUDIO_MIXER_STATE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioMixerState>>::NOTIFY_FLAG;
 }
 
 /// Parameter of each channel for source of physical output.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysOutSrcParam {
     pub src: SrcEntry,
     pub vol: i32,
@@ -702,7 +785,7 @@ impl PhysOutSrcParam {
 }
 
 /// Source of physical output.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysOutPairSrc {
     pub stereo_link: bool,
     pub left: PhysOutSrcParam,
@@ -730,7 +813,7 @@ impl PhysOutPairSrc {
 }
 
 /// The highest frequency to cross over into LFE channel.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CrossOverFreq {
     F50,
     F80,
@@ -776,7 +859,7 @@ impl From<CrossOverFreq> for u32 {
 }
 
 /// The frequency above cross over frequency into main channel.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HighPassFreq {
     Off,
     Above12,
@@ -813,7 +896,7 @@ impl From<HighPassFreq> for u32 {
 }
 
 /// The frequency below cross over frequency into LFE channel.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LowPassFreq {
     Below12,
     Below24,
@@ -850,7 +933,7 @@ impl From<LowPassFreq> for u32 {
 pub const STUDIO_MAX_SURROUND_CHANNELS: usize = 8;
 
 /// The group to aggregate several outputs for surround channels.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OutGroup {
     pub assigned_phys_outs: [bool; STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     pub bass_management: bool,
@@ -921,7 +1004,7 @@ pub const STUDIO_PHYS_OUT_PAIR_COUNT: usize = 11;
 pub const STUDIO_OUTPUT_GROUP_COUNT: usize = 3;
 
 /// Data of physical out segment.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioPhysOut {
     /// The configuration for master output
     pub master_out: OutPair,
@@ -943,20 +1026,21 @@ pub struct StudioPhysOut {
     pub out_grps: [OutGroup; STUDIO_OUTPUT_GROUP_COUNT],
 }
 
-impl StudioPhysOut {
+impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
+    const NAME: &'static str = "physical-output";
+    const OFFSET: usize = 0x03dc;
     const SIZE: usize = 440;
-}
 
-impl TcKonnektSegmentData for StudioPhysOut {
-    fn build(&self, raw: &mut [u8]) {
-        self.master_out.build(&mut raw[..12]);
-        self.out_pair_srcs.iter().enumerate().for_each(|(i, p)| {
+    fn serialize(params: &StudioPhysOut, raw: &mut [u8]) -> Result<(), String> {
+        params.master_out.build(&mut raw[..12]);
+        params.out_pair_srcs.iter().enumerate().for_each(|(i, p)| {
             let pos = 16 + i * PhysOutPairSrc::SIZE;
             p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
         });
-        (self.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
+        (params.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
         let mut val = 0u32;
-        self.out_assign_to_grp
+        params
+            .out_assign_to_grp
             .iter()
             .enumerate()
             .filter(|(_, &m)| m)
@@ -965,7 +1049,8 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         val.build_quadlet(&mut raw[324..328]);
         let mut val = 0u32;
-        self.out_mutes
+        params
+            .out_mutes
             .iter()
             .enumerate()
             .filter(|(_, &d)| d)
@@ -973,15 +1058,17 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[328..332]);
-        self.out_grps.iter().enumerate().for_each(|(i, s)| {
+        params.out_grps.iter().enumerate().for_each(|(i, s)| {
             let pos = 332 + OutGroup::SIZE * i;
             s.build(&mut raw[pos..(pos + OutGroup::SIZE)]);
         });
+        Ok(())
     }
 
-    fn parse(&mut self, raw: &[u8]) {
-        self.master_out.parse(&raw[..12]);
-        self.out_pair_srcs
+    fn deserialize(params: &mut StudioPhysOut, raw: &[u8]) -> Result<(), String> {
+        params.master_out.parse(&raw[..12]);
+        params
+            .out_pair_srcs
             .iter_mut()
             .enumerate()
             .for_each(|(i, p)| {
@@ -990,9 +1077,10 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[12..16]);
-        self.selected_out_grp = val as usize;
+        params.selected_out_grp = val as usize;
         val.parse_quadlet(&raw[324..328]);
-        self.out_assign_to_grp
+        params
+            .out_assign_to_grp
             .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
@@ -1000,69 +1088,134 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[328..332]);
-        self.out_mutes.iter_mut().enumerate().for_each(|(i, d)| {
+        params.out_mutes.iter_mut().enumerate().for_each(|(i, d)| {
             *d = val & (1 << i) > 0;
         });
-        self.out_grps.iter_mut().enumerate().for_each(|(i, s)| {
+        params.out_grps.iter_mut().enumerate().for_each(|(i, s)| {
             let pos = 332 + OutGroup::SIZE * i;
             s.parse(&raw[pos..(pos + OutGroup::SIZE)]);
         });
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioPhysOut> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioPhysOut> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_PHYS_OUT_NOTIFY_FLAG;
+}
+
+impl TcKonnektSegmentData for StudioPhysOut {
+    fn build(&self, raw: &mut [u8]) {
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioPhysOut> {
-    const OFFSET: usize = 0x03dc;
-    const SIZE: usize = StudioPhysOut::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioPhysOut>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioPhysOut>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioPhysOut> {
-    const NOTIFY_FLAG: u32 = STUDIO_PHYS_OUT_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioPhysOut>>::NOTIFY_FLAG;
 }
 
 const STUDIO_CH_STRIP_COUNT: usize = 4;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioReverbState(pub ReverbState);
+
+impl TcKonnektSegmentSerdes<StudioReverbState> for Studiok48Protocol {
+    const NAME: &'static str = "reverb-state";
+    const OFFSET: usize = 0x0594;
+    const SIZE: usize = ReverbState::SIZE;
+
+    fn serialize(params: &StudioReverbState, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioReverbState, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioReverbState> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioReverbState> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_REVERB_NOTIFY_CHANGE;
+}
 
 impl TcKonnektSegmentData for StudioReverbState {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioReverbState> {
-    const OFFSET: usize = 0x0594;
-    const SIZE: usize = ReverbState::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioReverbState>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioReverbState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioReverbState> {
-    const NOTIFY_FLAG: u32 = STUDIO_REVERB_NOTIFY_CHANGE;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioReverbState>>::NOTIFY_FLAG;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<StudioChStripStates> for Studiok48Protocol {
+    const NAME: &'static str = "channel-strip-state";
+    const OFFSET: usize = 0x05dc;
+    const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
+
+    fn serialize(params: &StudioChStripStates, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioChStripStates, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioChStripStates> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioChStripStates> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_CH_STRIP_NOTIFY_01_CHANGE | STUDIO_CH_STRIP_NOTIFY_23_CHANGE;
+}
 
 impl TcKonnektSegmentData for StudioChStripStates {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioChStripStates> {
-    const OFFSET: usize = 0x05dc;
-    const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
+    const OFFSET: usize =
+        <Studiok48Protocol as TcKonnektSegmentSerdes<StudioChStripStates>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioChStripStates>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioChStripStates> {
-    const NOTIFY_FLAG: u32 = STUDIO_CH_STRIP_NOTIFY_01_CHANGE | STUDIO_CH_STRIP_NOTIFY_23_CHANGE;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioChStripStates>>::NOTIFY_FLAG;
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -1105,7 +1258,7 @@ impl From<StudioAnalogJackState> for u32 {
 /// The number of analog inputs which has jack sense.
 pub const STUDIO_ANALOG_JACK_STATE_COUNT: usize = 12;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 /// Hardware state.
 pub struct StudioHwState {
     pub analog_jack_states: [StudioAnalogJackState; STUDIO_ANALOG_JACK_STATE_COUNT],
@@ -1114,98 +1267,164 @@ pub struct StudioHwState {
     pub valid_master_level: bool,
 }
 
-impl StudioHwState {
+impl TcKonnektSegmentSerdes<StudioHwState> for Studiok48Protocol {
+    const NAME: &'static str = "hardware-state";
+    const OFFSET: usize = 0x2008;
     const SIZE: usize = 68;
+
+    fn serialize(params: &StudioHwState, raw: &mut [u8]) -> Result<(), String> {
+        params
+            .analog_jack_states
+            .build_quadlet_block(&mut raw[..48]);
+        params.hp_state.build_quadlet_block(&mut raw[48..56]);
+        params.firewire_led.build_quadlet(&mut raw[56..60]);
+        params.valid_master_level.build_quadlet(&mut raw[60..64]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioHwState, raw: &[u8]) -> Result<(), String> {
+        params.analog_jack_states.parse_quadlet_block(&raw[..48]);
+        params.hp_state.parse_quadlet_block(&raw[48..56]);
+        params.firewire_led.parse_quadlet(&raw[56..60]);
+        params.valid_master_level.parse_quadlet(&raw[60..64]);
+        Ok(())
+    }
+}
+
+impl TcKonnektMutableSegmentOperation<StudioHwState> for Studiok48Protocol {}
+
+impl TcKonnektNotifiedSegmentOperation<StudioHwState> for Studiok48Protocol {
+    const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
 }
 
 impl TcKonnektSegmentData for StudioHwState {
     fn build(&self, raw: &mut [u8]) {
-        self.analog_jack_states.build_quadlet_block(&mut raw[..48]);
-        self.hp_state.build_quadlet_block(&mut raw[48..56]);
-        self.firewire_led.build_quadlet(&mut raw[56..60]);
-        self.valid_master_level.build_quadlet(&mut raw[60..64]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.analog_jack_states.parse_quadlet_block(&raw[..48]);
-        self.hp_state.parse_quadlet_block(&raw[48..56]);
-        self.firewire_led.parse_quadlet(&raw[56..60]);
-        self.valid_master_level.parse_quadlet(&raw[60..64]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioHwState> {
-    const OFFSET: usize = 0x2008;
-    const SIZE: usize = StudioHwState::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioHwState>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioHwState>>::SIZE;
 }
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioHwState> {
-    const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
+    const NOTIFY_FLAG: u32 =
+        <Studiok48Protocol as TcKonnektNotifiedSegmentOperation<StudioHwState>>::NOTIFY_FLAG;
 }
 
 /// Meter for input/output of mixer.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioMixerMeter {
     pub src_inputs: [i32; 24],
     pub mixer_outputs: [i32; 2],
     pub aux_outputs: [i32; 4],
 }
 
-impl StudioMixerMeter {
+impl TcKonnektSegmentSerdes<StudioMixerMeter> for Studiok48Protocol {
+    const NAME: &'static str = "mixer-meter";
+    const OFFSET: usize = 0x20b8;
     const SIZE: usize = 128;
+
+    fn serialize(params: &StudioMixerMeter, raw: &mut [u8]) -> Result<(), String> {
+        params.src_inputs.build_quadlet_block(&mut raw[4..100]);
+        params.mixer_outputs.build_quadlet_block(&mut raw[100..108]);
+        params.aux_outputs.build_quadlet_block(&mut raw[108..124]);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioMixerMeter, raw: &[u8]) -> Result<(), String> {
+        params.src_inputs.parse_quadlet_block(&raw[4..100]);
+        params.mixer_outputs.parse_quadlet_block(&raw[100..108]);
+        params.aux_outputs.parse_quadlet_block(&raw[108..124]);
+        Ok(())
+    }
 }
 
 impl TcKonnektSegmentData for StudioMixerMeter {
     fn build(&self, raw: &mut [u8]) {
-        self.src_inputs.build_quadlet_block(&mut raw[4..100]);
-        self.mixer_outputs.build_quadlet_block(&mut raw[100..108]);
-        self.aux_outputs.build_quadlet_block(&mut raw[108..124]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.src_inputs.parse_quadlet_block(&raw[4..100]);
-        self.mixer_outputs.parse_quadlet_block(&raw[100..108]);
-        self.aux_outputs.parse_quadlet_block(&raw[108..124]);
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioMixerMeter> {
-    const OFFSET: usize = 0x20b8;
-    const SIZE: usize = StudioMixerMeter::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioMixerMeter>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioMixerMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioReverbMeter(pub ReverbMeter);
+
+impl TcKonnektSegmentSerdes<StudioReverbMeter> for Studiok48Protocol {
+    const NAME: &'static str = "reverb-meter";
+    const OFFSET: usize = 0x2164;
+    const SIZE: usize = ReverbMeter::SIZE;
+
+    fn serialize(params: &StudioReverbMeter, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioReverbMeter, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for StudioReverbMeter {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioReverbMeter> {
-    const OFFSET: usize = 0x2164;
-    const SIZE: usize = ReverbMeter::SIZE;
+    const OFFSET: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioReverbMeter>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioReverbMeter>>::SIZE;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripMeters(pub [ChStripMeter; STUDIO_CH_STRIP_COUNT]);
+
+impl TcKonnektSegmentSerdes<StudioChStripMeters> for Studiok48Protocol {
+    const NAME: &'static str = "channel-strip-meter";
+    const OFFSET: usize = 0x217c;
+    const SIZE: usize = ChStripMeter::SIZE * STUDIO_CH_STRIP_COUNT + 8;
+
+    fn serialize(params: &StudioChStripMeters, raw: &mut [u8]) -> Result<(), String> {
+        params.0.build(raw);
+        Ok(())
+    }
+
+    fn deserialize(params: &mut StudioChStripMeters, raw: &[u8]) -> Result<(), String> {
+        params.0.parse(raw);
+        Ok(())
+    }
+}
 
 impl TcKonnektSegmentData for StudioChStripMeters {
     fn build(&self, raw: &mut [u8]) {
-        self.0.build(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::serialize(self, raw);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.0.parse(raw)
+        let _ = <Studiok48Protocol as TcKonnektSegmentSerdes<Self>>::deserialize(self, raw);
     }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioChStripMeters> {
-    const OFFSET: usize = 0x217c;
-    const SIZE: usize = ChStripMeter::SIZE * STUDIO_CH_STRIP_COUNT + 8;
+    const OFFSET: usize =
+        <Studiok48Protocol as TcKonnektSegmentSerdes<StudioChStripMeters>>::OFFSET;
+    const SIZE: usize = <Studiok48Protocol as TcKonnektSegmentSerdes<StudioChStripMeters>>::SIZE;
 }

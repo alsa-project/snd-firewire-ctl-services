@@ -128,7 +128,7 @@ impl From<ChStripSrcType> for u32 {
 }
 
 /// State of compressor part.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct CompState {
     /// The gain of input. 0..360 (-18.0..18.0 dB).
     pub input_gain: u32,
@@ -164,14 +164,14 @@ pub struct EqState {
 }
 
 /// State of limitter part.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LimitterState {
     /// The threshold to limit. 0..72 (-18.0..+18.0)
     pub threshold: u32,
 }
 
 /// State entry of channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ChStripState {
     pub src_type: ChStripSrcType,
     /// Compressor for low/mid/high frequencies.
@@ -308,7 +308,7 @@ impl ChStripStatesConvert for [ChStripState] {
 }
 
 /// Meter entry of channel strip effect.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChStripMeter {
     /// Input meter. -72..0 (-72.0..0.0 dB)
     pub input: i32,
