@@ -97,7 +97,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
@@ -132,7 +132,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
             Ok(true)
         } else if self
             .ch_strip_ctl
-            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
