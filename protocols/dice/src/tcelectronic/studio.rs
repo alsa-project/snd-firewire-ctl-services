@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{ch_strip::*, prog::*, reverb::*, *};
+use super::{ch_strip::*, reverb::*, *};
 
 /// Protocol implementation of Studio Konnekt 48.
 #[derive(Default, Debug)]
@@ -253,7 +253,7 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
     const SIZE: usize = 48;
 
     fn serialize(params: &StudioRemote, raw: &mut [u8]) -> Result<(), String> {
-        params.prog.build(&mut raw[..4]);
+        serialize_loaded_program(&params.prog, &mut raw[..4])?;
         params.user_assigns.build_quadlet_block(&mut raw[4..28]);
         params.effect_button_mode.build_quadlet(&mut raw[28..32]);
         params
@@ -267,7 +267,7 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
     }
 
     fn deserialize(params: &mut StudioRemote, raw: &[u8]) -> Result<(), String> {
-        params.prog.parse(&raw[..4]);
+        deserialize_loaded_program(&mut params.prog, &raw[..4])?;
         params.user_assigns.parse_quadlet_block(&raw[4..28]);
         params.effect_button_mode.parse_quadlet(&raw[28..32]);
         params.fallback_to_master_enable.parse_quadlet(&raw[32..36]);

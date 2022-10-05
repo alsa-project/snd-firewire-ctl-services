@@ -23,5 +23,5 @@ use {
     self::reverb_ctl::*,
     self::standalone_ctl::*,
     super::*,
-    protocols::tcelectronic::{ch_strip::*, prog::*, reverb::*, *},
+    protocols::tcelectronic::{ch_strip::*, reverb::*, *},
 };

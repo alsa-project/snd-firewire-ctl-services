@@ -119,7 +119,7 @@ impl TcKonnektSegmentSerdes<KliveKnob> for KliveProtocol {
     fn serialize(params: &KliveKnob, raw: &mut [u8]) -> Result<(), String> {
         serialize_knob0_target::<KliveProtocol>(&params.knob0_target, &mut raw[..4])?;
         serialize_knob1_target::<KliveProtocol>(&params.knob1_target, &mut raw[4..8])?;
-        params.prog.build(&mut raw[8..12]);
+        serialize_loaded_program(&params.prog, &mut raw[8..12])?;
         params.out_impedance.build_quadlet_block(&mut raw[12..20]);
         Ok(())
     }
@@ -127,7 +127,7 @@ impl TcKonnektSegmentSerdes<KliveKnob> for KliveProtocol {
     fn deserialize(params: &mut KliveKnob, raw: &[u8]) -> Result<(), String> {
         deserialize_knob0_target::<KliveProtocol>(&mut params.knob0_target, &raw[..4])?;
         deserialize_knob1_target::<KliveProtocol>(&mut params.knob1_target, &raw[4..8])?;
-        params.prog.parse(&raw[8..12]);
+        deserialize_loaded_program(&mut params.prog, &raw[8..12])?;
         params.out_impedance.parse_quadlet_block(&raw[12..20]);
         Ok(())
     }
