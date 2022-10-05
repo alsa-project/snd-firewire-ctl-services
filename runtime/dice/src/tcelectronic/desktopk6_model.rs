@@ -3,7 +3,7 @@
 
 use {super::*, protocols::tcelectronic::desktop::*};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Desktopk6Model {
     req: FwReq,
     sections: GeneralSections,
@@ -28,17 +28,18 @@ impl Desktopk6Model {
 
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+        self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.panel_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.measure(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections).map(
             |(measured_elem_id_list, notified_elem_id_list)| {
                 self.common_ctl.0 = measured_elem_id_list;
@@ -46,16 +47,11 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             },
         )?;
 
-        self.hw_state_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.config_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.mixer_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.panel_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.hw_state_ctl.load(card_cntr)?;
+        self.config_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
+        self.panel_ctl.load(card_cntr)?;
+        self.meter_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -102,7 +98,7 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -112,12 +108,12 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .panel_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -146,11 +142,11 @@ impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
             TIMEOUT_MS,
         )?;
         self.hw_state_ctl
-            .parse_notification(unit, &mut self.req, TIMEOUT_MS, msg)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(unit, &mut self.req, TIMEOUT_MS, msg)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         self.panel_ctl
-            .parse_notification(unit, &mut self.req, TIMEOUT_MS, msg)?;
+            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -182,8 +178,7 @@ impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.measure(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -224,7 +219,7 @@ fn input_scene_to_str(scene: &InputScene) -> &'static str {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct HwStateCtl(Desktopk6HwStateSegment, Vec<ElemId>);
 
 const METER_TARGET_NAME: &str = "meter-target";
@@ -259,15 +254,11 @@ impl HwStateCtl {
         mute_avail: false,
     };
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::METER_TARGETS
             .iter()
             .map(|l| meter_target_to_str(l))
@@ -333,57 +324,68 @@ impl HwStateCtl {
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            METER_TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            METER_TARGET_NAME => {
+                let params = &self.0.data;
                 let pos = Self::METER_TARGETS
                     .iter()
-                    .position(|&t| t == self.0.data.meter_target)
+                    .position(|t| params.meter_target.eq(t))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            MIXER_OUT_MONAURAL_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                Ok(self.0.data.mixer_output_monaural)
-            })
-            .map(|_| true),
-            KNOB_ASSIGN_TO_HP_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.knob_assign_to_hp))
-                    .map(|_| true)
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
             }
-            MIXER_OUTPUT_DIM_ENABLE_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                Ok(self.0.data.mixer_output_dim_enabled)
-            })
-            .map(|_| true),
-            MIXER_OUTPUT_DIM_LEVEL_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Ok(self.0.data.mixer_output_dim_volume)
-            })
-            .map(|_| true),
-            SCENE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            MIXER_OUT_MONAURAL_NAME => {
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.mixer_output_monaural]);
+                Ok(true)
+            }
+            KNOB_ASSIGN_TO_HP_NAME => {
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.knob_assign_to_hp]);
+                Ok(true)
+            }
+            MIXER_OUTPUT_DIM_ENABLE_NAME => {
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.mixer_output_dim_enabled]);
+                Ok(true)
+            }
+            MIXER_OUTPUT_DIM_LEVEL_NAME => {
+                let params = &self.0.data;
+                elem_value.set_int(&[params.mixer_output_dim_volume]);
+                Ok(true)
+            }
+            SCENE_NAME => {
+                let params = &self.0.data;
                 let pos = Self::INPUT_SCENES
                     .iter()
-                    .position(|&s| s == self.0.data.input_scene)
+                    .position(|s| params.input_scene.eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             REVERB_TO_MAIN_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.reverb_to_master))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.reverb_to_master]);
+                Ok(true)
             }
             REVERB_TO_HP_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.reverb_to_hp))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.reverb_to_hp]);
+                Ok(true)
             }
-            KNOB_BACKLIGHT_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                Ok(self.0.data.master_knob_backlight)
-            })
-            .map(|_| true),
+            KNOB_BACKLIGHT_NAME => {
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.master_knob_backlight]);
+                Ok(true)
+            }
             MIC_0_PHANTOM_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.mic_0_phantom))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.mic_0_phantom]);
+                Ok(true)
             }
             MIC_0_BOOST_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.mic_0_boost))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.mic_0_boost]);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -391,112 +393,160 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             METER_TARGET_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::METER_TARGETS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of meter target: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&target| self.0.data.meter_target = target)
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let val = elem_value.enumerated()[0] as usize;
+                params.meter_target = Self::METER_TARGETS
+                    .iter()
+                    .nth(val)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of meter target: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_OUT_MONAURAL_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.mixer_output_monaural = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.mixer_output_monaural = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             KNOB_ASSIGN_TO_HP_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.knob_assign_to_hp = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.knob_assign_to_hp = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_OUTPUT_DIM_ENABLE_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.mixer_output_dim_enabled = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.mixer_output_dim_enabled = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_OUTPUT_DIM_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::get_val(elem_value, |val| {
-                    self.0.data.mixer_output_dim_volume = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.mixer_output_dim_volume = elem_value.int()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             SCENE_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::INPUT_SCENES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of input scene: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&scene| self.0.data.input_scene = scene)
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let val = elem_value.enumerated()[0] as usize;
+                params.input_scene = Self::INPUT_SCENES
+                    .iter()
+                    .nth(val)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of input scene: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_TO_MAIN_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.reverb_to_master = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.reverb_to_master = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_TO_HP_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.reverb_to_hp = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.reverb_to_hp = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             KNOB_BACKLIGHT_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.master_knob_backlight = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.master_knob_backlight = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIC_0_PHANTOM_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.mic_0_phantom = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.mic_0_phantom = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIC_0_BOOST_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    self.0.data.mic_0_boost = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.mic_0_boost = elem_value.boolean()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -504,20 +554,20 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
+            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConfigCtl(Desktopk6ConfigSegment);
 
 impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
@@ -539,15 +589,11 @@ impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
 }
 
 impl ConfigCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_standalone_rate(card_cntr)?;
 
         Ok(())
@@ -570,20 +616,20 @@ impl ConfigCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
+            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MixerCtl(Desktopk6MixerStateSegment);
 
 const MIXER_MIC_INST_SRC_LEVEL_NAME: &str = "mixer-mic-inst-source-level";
@@ -623,15 +669,11 @@ impl MixerCtl {
 
     const HP_SRCS: [DesktopHpSrc; 2] = [DesktopHpSrc::Stream23, DesktopHpSrc::Mixer01];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_INST_SRC_LEVEL_NAME, 0);
         let _ = card_cntr.add_int_elems(
@@ -778,168 +820,219 @@ impl MixerCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_MIC_INST_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.mic_inst_level[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.mic_inst_level);
+                Ok(true)
             }
             MIXER_MIC_INST_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.mic_inst_pan[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.mic_inst_pan);
+                Ok(true)
             }
             MIXER_MIC_INST_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.mic_inst_send[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.mic_inst_send);
+                Ok(true)
             }
             MIXER_DUAL_INST_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.dual_inst_level[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.dual_inst_level);
+                Ok(true)
             }
             MIXER_DUAL_INST_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.dual_inst_pan[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.dual_inst_pan);
+                Ok(true)
             }
             MIXER_DUAL_INST_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    Ok(self.0.data.dual_inst_send[idx])
-                })
-                .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&params.dual_inst_send);
+                Ok(true)
             }
             MIXER_STEREO_IN_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.0.data.stereo_in_level))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&[params.stereo_in_level]);
+                Ok(true)
             }
             MIXER_STEREO_IN_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.0.data.stereo_in_pan))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&[params.stereo_in_pan]);
+                Ok(true)
             }
             MIXER_STEREO_IN_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.0.data.stereo_in_send))
-                    .map(|_| true)
+                let params = &self.0.data;
+                elem_value.set_int(&[params.stereo_in_send]);
+                Ok(true)
             }
-            HP_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            HP_SRC_NAME => {
+                let params = &self.0.data;
                 let pos = Self::HP_SRCS
                     .iter()
-                    .position(|&s| s == self.0.data.hp_src)
+                    .position(|s| params.hp_src.eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_MIC_INST_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.mic_inst_level[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let levels = &mut params.mic_inst_level;
+                let vals = &new.int()[..levels.len()];
+                levels.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_MIC_INST_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.mic_inst_pan[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let pans = &mut params.mic_inst_pan;
+                let vals = &new.int()[..pans.len()];
+                pans.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_MIC_INST_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.mic_inst_send[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let sends = &mut params.mic_inst_send;
+                let vals = &new.int()[..sends.len()];
+                sends.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.dual_inst_level[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let levels = &mut params.mic_inst_level;
+                let vals = &new.int()[..levels.len()];
+                levels.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.dual_inst_pan[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let pans = &mut params.mic_inst_pan;
+                let vals = &new.int()[..pans.len()];
+                pans.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    self.0.data.dual_inst_send[idx] = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let sends = &mut params.mic_inst_send;
+                let vals = &new.int()[..sends.len()];
+                sends.copy_from_slice(&vals);
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_LEVEL_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.stereo_in_level = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.stereo_in_level = new.int()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_BALANCE_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.stereo_in_pan = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.stereo_in_pan = new.int()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_SEND_NAME => {
-                ElemValueAccessor::<i32>::get_val(new, |val| {
-                    self.0.data.stereo_in_send = val;
-                    Ok(())
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                params.stereo_in_send = new.int()[0];
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             HP_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::HP_SRCS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid value for index of headphone source: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| self.0.data.hp_src = s)
-                })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.data.clone();
+                let pos = new.enumerated()[0] as usize;
+                params.hp_src = Self::HP_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of headphone source: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Desktopk6Protocol::update_partial_segment(
+                    req,
+                    &node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct PanelCtl(Desktopk6PanelSegment, Vec<ElemId>);
 
 impl FirewireLedCtlOperation<DesktopPanel, Desktopk6Protocol> for PanelCtl {
@@ -976,15 +1069,11 @@ impl PanelCtl {
     const MIX_MAX: i32 = 1000;
     const MIX_STEP: i32 = 1;
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_firewire_led(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
@@ -1062,30 +1151,40 @@ impl PanelCtl {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
-                PANEL_BUTTON_COUNT_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    Ok(self.0.data.panel_button_count as i32)
-                })
+                PANEL_BUTTON_COUNT_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_int(&[params.panel_button_count as i32]);
+                    Ok(true)
+                }
                 .map(|_| true),
-                MIXER_OUT_VOL => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    Ok(self.0.data.main_knob_value)
-                })
+                MIXER_OUT_VOL => {
+                    let params = &self.0.data;
+                    elem_value.set_int(&[params.main_knob_value]);
+                    Ok(true)
+                }
                 .map(|_| true),
-                PHONE_KNOB_VALUE_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    Ok(self.0.data.phone_knob_value)
-                })
+                PHONE_KNOB_VALUE_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_int(&[params.phone_knob_value]);
+                    Ok(true)
+                }
                 .map(|_| true),
-                MIX_KNOB_VALUE_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    Ok(self.0.data.mix_knob_value as i32)
-                })
+                MIX_KNOB_VALUE_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_int(&[params.mix_knob_value as i32]);
+                    Ok(true)
+                }
                 .map(|_| true),
                 REVERB_LED_STATE_NAME => {
-                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.reverb_led_on))
-                        .map(|_| true)
+                    let params = &self.0.data;
+                    elem_value.set_bool(&[params.reverb_led_on]);
+                    Ok(true)
                 }
-                REVERB_KNOB_VALUE_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    Ok(self.0.data.reverb_knob_value)
-                })
-                .map(|_| true),
+                REVERB_KNOB_VALUE_NAME => {
+                    let params = &self.0.data;
+                    elem_value.set_int(&[params.reverb_knob_value]);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -1093,23 +1192,27 @@ impl PanelCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_firewire_led(req, &unit.1, elem_id, elem_value, timeout_ms)? {
+        if self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
                 REVERB_LED_STATE_NAME => {
-                    ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                        self.0.data.reverb_led_on = val;
-                        Ok(())
-                    })?;
-                    Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-                        .map(|_| true)
+                    let mut params = self.0.data.clone();
+                    params.reverb_led_on = elem_value.boolean()[0];
+                    Desktopk6Protocol::update_partial_segment(
+                        req,
+                        node,
+                        &params,
+                        &mut self.0,
+                        timeout_ms,
+                    )
+                    .map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -1118,20 +1221,20 @@ impl PanelCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
+        req: &FwReq,
+        node: &FwNode,
         msg: u32,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+        if Desktopk6Protocol::is_notified_segment(&self.0, msg) {
+            Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(Desktopk6MeterSegment, Vec<ElemId>);
 
 const ANALOG_IN_NAME: &str = "analog-input-meters";
@@ -1149,15 +1252,11 @@ impl MeterCtl {
         mute_avail: false,
     };
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        self.measure_states(unit, req, timeout_ms)?;
+    fn measure(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Desktopk6Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels = (0..self.0.data.analog_inputs.len())
             .map(|i| format!("Analog-input-{}", i))
             .collect::<Vec<_>>();
@@ -1197,27 +1296,21 @@ impl MeterCtl {
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
-    }
-
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             ANALOG_IN_NAME => {
-                elem_value.set_int(&self.0.data.analog_inputs);
+                let params = &self.0.data;
+                elem_value.set_int(&params.analog_inputs);
                 Ok(true)
             }
             MIXER_OUT_NAME => {
-                elem_value.set_int(&self.0.data.mixer_outputs);
+                let params = &self.0.data;
+                elem_value.set_int(&params.mixer_outputs);
                 Ok(true)
             }
             STREAM_IN_NAME => {
-                elem_value.set_int(&self.0.data.stream_inputs);
+                let params = &self.0.data;
+                elem_value.set_int(&params.stream_inputs);
                 Ok(true)
             }
             _ => Ok(false),
