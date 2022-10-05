@@ -122,7 +122,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -887,19 +887,18 @@ impl MixerCtl {
         req: &FwReq,
         node: &FwNode,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(req, node, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_reverb_return(req, node, elem_id, new, timeout_ms)? {
+        } else if self.write_reverb_return(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     let mut params = self.0.data.clone();
-                    params.enabled = new.boolean()[0];
+                    params.enabled = elem_value.boolean()[0];
                     KliveProtocol::update_partial_segment(
                         req,
                         node,
@@ -911,7 +910,7 @@ impl MixerCtl {
                 }
                 USE_CH_STRIP_AS_PLUGIN_NAME => {
                     let mut params = self.0.data.clone();
-                    params.use_ch_strip_as_plugin = new.boolean()[0];
+                    params.use_ch_strip_as_plugin = elem_value.boolean()[0];
                     KliveProtocol::update_partial_segment(
                         req,
                         node,
@@ -923,7 +922,7 @@ impl MixerCtl {
                 }
                 CH_STRIP_SRC_NAME => {
                     let mut params = self.0.data.clone();
-                    let pos = new.enumerated()[0] as usize;
+                    let pos = elem_value.enumerated()[0] as usize;
                     Self::CH_STRIP_SRCS
                         .iter()
                         .nth(pos)
@@ -943,7 +942,7 @@ impl MixerCtl {
                 }
                 CH_STRIP_MODE_NAME => {
                     let mut params = self.0.data.clone();
-                    let pos = new.enumerated()[0] as usize;
+                    let pos = elem_value.enumerated()[0] as usize;
                     Self::CH_STRIP_MODES
                         .iter()
                         .nth(pos)
@@ -963,7 +962,7 @@ impl MixerCtl {
                 }
                 USE_REVERB_AT_MID_RATE => {
                     let mut params = self.0.data.clone();
-                    params.use_reverb_at_mid_rate = new.boolean()[0];
+                    params.use_reverb_at_mid_rate = elem_value.boolean()[0];
                     KliveProtocol::update_partial_segment(
                         req,
                         node,

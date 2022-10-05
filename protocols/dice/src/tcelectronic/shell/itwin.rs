@@ -274,14 +274,14 @@ pub struct ItwinMixerState {
 impl Default for ItwinMixerState {
     fn default() -> Self {
         ItwinMixerState {
-            mixer: Self::create_mixer_state(),
+            mixer: ItwinProtocol::create_mixer_state(),
             enabled: Default::default(),
             stream_mix_balance: Default::default(),
         }
     }
 }
 
-impl ShellMixerStateConvert for ItwinMixerState {
+impl ShellMixerStateSpecification for ItwinProtocol {
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
@@ -294,14 +294,6 @@ impl ShellMixerStateConvert for ItwinMixerState {
         Some(ShellMixerMonitorSrcType::Adat),
         Some(ShellMixerMonitorSrcType::Adat),
     ];
-
-    fn state(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
 }
 
 impl TcKonnektSegmentSerdes<ItwinMixerState> for ItwinProtocol {
@@ -310,7 +302,7 @@ impl TcKonnektSegmentSerdes<ItwinMixerState> for ItwinProtocol {
     const SIZE: usize = ShellMixerState::SIZE + 56;
 
     fn serialize(params: &ItwinMixerState, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerStateConvert::build(params, raw);
+        serialize_mixer_state::<ItwinProtocol>(&params.mixer, raw)?;
 
         params.stream_mix_balance.build_quadlet(&mut raw[348..352]);
         params.enabled.build_quadlet(&mut raw[352..356]);
@@ -318,7 +310,7 @@ impl TcKonnektSegmentSerdes<ItwinMixerState> for ItwinProtocol {
     }
 
     fn deserialize(params: &mut ItwinMixerState, raw: &[u8]) -> Result<(), String> {
-        ShellMixerStateConvert::parse(params, raw);
+        deserialize_mixer_state::<ItwinProtocol>(&mut params.mixer, raw)?;
 
         params.stream_mix_balance.parse_quadlet(&raw[348..352]);
         params.enabled.parse_quadlet(&raw[352..356]);

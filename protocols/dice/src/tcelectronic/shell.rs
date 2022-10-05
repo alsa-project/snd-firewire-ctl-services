@@ -141,72 +141,81 @@ pub struct MonitorSrcParam {
 
 impl MonitorSrcParam {
     const SIZE: usize = 12;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of monitor source parameter."
-        );
+fn serialize_monitor_source_param(param: &MonitorSrcParam, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-        self.gain_to_mixer.build_quadlet(&mut raw[..4]);
-        self.pan_to_mixer.build_quadlet(&mut raw[4..8]);
-        self.gain_to_send.build_quadlet(&mut raw[8..12]);
-    }
+    param.gain_to_mixer.build_quadlet(&mut raw[..4]);
+    param.pan_to_mixer.build_quadlet(&mut raw[4..8]);
+    param.gain_to_send.build_quadlet(&mut raw[8..12]);
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(
-            raw.len(),
-            Self::SIZE,
-            "Programming error for the length of monitor source parameter."
-        );
+    Ok(())
+}
 
-        self.gain_to_mixer.parse_quadlet(&raw[..4]);
-        self.pan_to_mixer.parse_quadlet(&raw[4..8]);
-        self.gain_to_send.parse_quadlet(&raw[8..12]);
-    }
+fn deserialize_monitor_source_param(param: &mut MonitorSrcParam, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= MonitorSrcParam::SIZE);
+
+    param.gain_to_mixer.parse_quadlet(&raw[..4]);
+    param.pan_to_mixer.parse_quadlet(&raw[4..8]);
+    param.gain_to_send.parse_quadlet(&raw[8..12]);
+
+    Ok(())
 }
 
 /// Monitor source.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ShellMonitorSrcPair {
-    ///  ch 1/2 stereo link (0 or 1)
+    ///  Stereo channel link for the pair.
     pub stereo_link: bool,
-    /// Left channel.
-    pub left: MonitorSrcParam,
-    /// Right channel.
-    pub right: MonitorSrcParam,
+    /// Parameters of monitor source for left and right channels in its order.
+    pub params: [MonitorSrcParam; 2],
 }
 
 impl ShellMonitorSrcPair {
     const SIZE: usize = 28;
+}
 
-    pub fn build(&self, raw: &mut [u8]) {
-        self.stereo_link.build_quadlet(&mut raw[..4]);
-        self.left.build(&mut raw[4..16]);
-        self.right.build(&mut raw[16..28]);
-    }
+fn serialize_monitor_source_pair(pair: &ShellMonitorSrcPair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ShellMonitorSrcPair::SIZE);
 
-    pub fn parse(&mut self, raw: &[u8]) {
-        self.stereo_link.parse_quadlet(&raw[..4]);
-        self.left.parse(&raw[4..16]);
-        self.right.parse(&raw[16..28]);
-    }
+    pair.stereo_link.build_quadlet(&mut raw[..4]);
+    serialize_monitor_source_param(&pair.params[0], &mut raw[4..16])?;
+    serialize_monitor_source_param(&pair.params[1], &mut raw[16..28])?;
+    Ok(())
+}
+
+fn deserialize_monitor_source_pair(
+    pair: &mut ShellMonitorSrcPair,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ShellMonitorSrcPair::SIZE);
+
+    pair.stereo_link.parse_quadlet(&raw[..4]);
+    deserialize_monitor_source_param(&mut pair.params[0], &raw[4..16])?;
+    deserialize_monitor_source_param(&mut pair.params[1], &raw[16..28])?;
+    Ok(())
 }
 
 /// Mute state for monitor sources.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellMonitorSrcMute {
+    /// For stream inputs.
     pub stream: bool,
+    /// For analog inputs.
     pub analog: Vec<bool>,
+    /// For digital inputs.
     pub digital: Vec<bool>,
 }
 
 /// State of mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellMixerState {
+    /// For stream inputs.
     pub stream: ShellMonitorSrcPair,
+    /// For analog inputs.
     pub analog: Vec<ShellMonitorSrcPair>,
+    /// For digital inputs.
     pub digital: Vec<ShellMonitorSrcPair>,
     pub mutes: ShellMonitorSrcMute,
     /// The level of output volume.
@@ -220,24 +229,26 @@ pub struct ShellMixerState {
 const SHELL_MIXER_MONITOR_SRC_COUNT: usize = 10;
 
 impl ShellMixerState {
-    pub const SIZE: usize = ShellMonitorSrcPair::SIZE * SHELL_MIXER_MONITOR_SRC_COUNT + 36;
+    pub(crate) const SIZE: usize = ShellMonitorSrcPair::SIZE * SHELL_MIXER_MONITOR_SRC_COUNT + 36;
 }
 
 /// The type of monitor source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ShellMixerMonitorSrcType {
+enum ShellMixerMonitorSrcType {
+    /// Stream input.
     Stream,
+    /// Analog input.
     Analog,
+    /// S/PDIF input.
     Spdif,
+    /// ADAT input.
     Adat,
+    /// ADAT input and S/PDIF input.
     AdatSpdif,
 }
 
-pub trait ShellMixerStateConvert {
+trait ShellMixerStateSpecification {
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT];
-
-    fn state(&self) -> &ShellMixerState;
-    fn state_mut(&mut self) -> &mut ShellMixerState;
 
     fn create_mixer_state() -> ShellMixerState {
         let analog_input_pair_count = Self::MONITOR_SRC_MAP
@@ -267,107 +278,113 @@ pub trait ShellMixerStateConvert {
             output_dim_volume: Default::default(),
         }
     }
+}
 
-    fn build(&self, raw: &mut [u8]) {
-        let state = self.state();
+fn serialize_mixer_state<T: ShellMixerStateSpecification>(
+    state: &ShellMixerState,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    serialize_monitor_source_pair(&state.stream, &mut raw[..ShellMonitorSrcPair::SIZE])?;
 
-        state.stream.build(&mut raw[..ShellMonitorSrcPair::SIZE]);
+    // For analog inputs.
+    T::MONITOR_SRC_MAP
+        .iter()
+        .enumerate()
+        .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
+        .zip(&state.analog)
+        .try_for_each(|((i, _), src)| {
+            let pos = i * ShellMonitorSrcPair::SIZE;
+            serialize_monitor_source_pair(src, &mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)])
+        })?;
 
-        // For analog inputs.
-        Self::MONITOR_SRC_MAP
-            .iter()
-            .enumerate()
-            .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
-            .zip(&state.analog)
-            .for_each(|((i, _), src)| {
-                let pos = i * ShellMonitorSrcPair::SIZE;
-                src.build(&mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
-            });
+    // For digital inputs.
+    T::MONITOR_SRC_MAP
+        .iter()
+        .enumerate()
+        .filter(|(_, &m)| {
+            m.is_some()
+                && m != Some(ShellMixerMonitorSrcType::Analog)
+                && m != Some(ShellMixerMonitorSrcType::Stream)
+        })
+        .zip(&state.digital)
+        .try_for_each(|((i, _), src)| {
+            let pos = i * ShellMonitorSrcPair::SIZE;
+            serialize_monitor_source_pair(src, &mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)])
+        })?;
 
-        // For digital inputs.
-        Self::MONITOR_SRC_MAP
-            .iter()
-            .enumerate()
-            .filter(|(_, &m)| {
-                m.is_some()
-                    && m != Some(ShellMixerMonitorSrcType::Analog)
-                    && m != Some(ShellMixerMonitorSrcType::Stream)
-            })
-            .zip(&state.digital)
-            .for_each(|((i, _), src)| {
-                let pos = i * ShellMonitorSrcPair::SIZE;
-                src.build(&mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
-            });
+    // For mixer output.
+    state.output_dim_enable.build_quadlet(&mut raw[280..284]);
+    state.output_volume.build_quadlet(&mut raw[284..288]);
+    state.output_dim_volume.build_quadlet(&mut raw[296..300]);
 
-        // For mixer output.
-        state.output_dim_enable.build_quadlet(&mut raw[280..284]);
-        state.output_volume.build_quadlet(&mut raw[284..288]);
-        state.output_dim_volume.build_quadlet(&mut raw[296..300]);
-
-        // For mute of sources.
-        let mut mutes = 0u32;
-        if state.mutes.stream {
-            mutes |= 0x00000001;
-        }
-        state
-            .mutes
-            .analog
-            .iter()
-            .chain(&state.mutes.digital)
-            .enumerate()
-            .filter(|(_, &muted)| muted)
-            .for_each(|(i, _)| {
-                mutes |= 1 << (8 + i);
-            });
-        mutes.build_quadlet(&mut raw[308..312]);
+    // For mute of sources.
+    let mut mutes = 0u32;
+    if state.mutes.stream {
+        mutes |= 0x00000001;
     }
+    state
+        .mutes
+        .analog
+        .iter()
+        .chain(&state.mutes.digital)
+        .enumerate()
+        .filter(|(_, &muted)| muted)
+        .for_each(|(i, _)| {
+            mutes |= 1 << (8 + i);
+        });
+    mutes.build_quadlet(&mut raw[308..312]);
 
-    fn parse(&mut self, raw: &[u8]) {
-        let state = self.state_mut();
+    Ok(())
+}
 
-        state.stream.parse(&raw[..ShellMonitorSrcPair::SIZE]);
+fn deserialize_mixer_state<T: ShellMixerStateSpecification>(
+    state: &mut ShellMixerState,
+    raw: &[u8],
+) -> Result<(), String> {
+    deserialize_monitor_source_pair(&mut state.stream, &raw[..ShellMonitorSrcPair::SIZE])?;
 
-        // For analog inputs.
-        Self::MONITOR_SRC_MAP
-            .iter()
-            .enumerate()
-            .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
-            .zip(&mut state.analog)
-            .for_each(|((i, _), src)| {
-                let pos = i * ShellMonitorSrcPair::SIZE;
-                src.parse(&raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
-            });
+    // For analog inputs.
+    T::MONITOR_SRC_MAP
+        .iter()
+        .enumerate()
+        .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
+        .zip(&mut state.analog)
+        .try_for_each(|((i, _), src)| {
+            let pos = i * ShellMonitorSrcPair::SIZE;
+            deserialize_monitor_source_pair(src, &raw[pos..(pos + ShellMonitorSrcPair::SIZE)])
+        })?;
 
-        // For digital inputs.
-        Self::MONITOR_SRC_MAP
-            .iter()
-            .enumerate()
-            .filter(|(_, &m)| m.is_some() && m != Some(ShellMixerMonitorSrcType::Analog))
-            .zip(&mut state.digital)
-            .for_each(|((i, _), src)| {
-                let pos = i * ShellMonitorSrcPair::SIZE;
-                src.parse(&raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
-            });
+    // For digital inputs.
+    T::MONITOR_SRC_MAP
+        .iter()
+        .enumerate()
+        .filter(|(_, &m)| m.is_some() && m != Some(ShellMixerMonitorSrcType::Analog))
+        .zip(&mut state.digital)
+        .try_for_each(|((i, _), src)| {
+            let pos = i * ShellMonitorSrcPair::SIZE;
+            deserialize_monitor_source_pair(src, &raw[pos..(pos + ShellMonitorSrcPair::SIZE)])
+        })?;
 
-        // For mixer output.
-        state.output_dim_enable.parse_quadlet(&raw[280..284]);
-        state.output_volume.parse_quadlet(&raw[284..288]);
-        state.output_dim_volume.parse_quadlet(&raw[296..300]);
+    // For mixer output.
+    state.output_dim_enable.parse_quadlet(&raw[280..284]);
+    state.output_volume.parse_quadlet(&raw[284..288]);
+    state.output_dim_volume.parse_quadlet(&raw[296..300]);
 
-        // For mute of sources.
-        let mut mutes = 0u32;
-        mutes.parse_quadlet(&raw[308..312]);
-        state.mutes.stream = mutes & 0x00000001 > 0;
-        state
-            .mutes
-            .analog
-            .iter_mut()
-            .chain(&mut state.mutes.digital)
-            .enumerate()
-            .for_each(|(i, muted)| {
-                *muted = mutes & (1 << (8 + i)) > 0;
-            });
-    }
+    // For mute of sources.
+    let mut mutes = 0u32;
+    mutes.parse_quadlet(&raw[308..312]);
+    state.mutes.stream = mutes & 0x00000001 > 0;
+    state
+        .mutes
+        .analog
+        .iter_mut()
+        .chain(&mut state.mutes.digital)
+        .enumerate()
+        .for_each(|(i, muted)| {
+            *muted = mutes & (1 << (8 + i)) > 0;
+        });
+
+    Ok(())
 }
 
 /// Return configuration of reverb effect.

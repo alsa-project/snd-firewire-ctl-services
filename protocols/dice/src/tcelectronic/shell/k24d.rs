@@ -206,7 +206,7 @@ pub struct K24dMixerState {
 impl Default for K24dMixerState {
     fn default() -> Self {
         K24dMixerState {
-            mixer: Self::create_mixer_state(),
+            mixer: K24dProtocol::create_mixer_state(),
             reverb_return: Default::default(),
             use_ch_strip_as_plugin: Default::default(),
             use_reverb_at_mid_rate: Default::default(),
@@ -215,7 +215,7 @@ impl Default for K24dMixerState {
     }
 }
 
-impl ShellMixerStateConvert for K24dMixerState {
+impl ShellMixerStateSpecification for K24dProtocol {
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
@@ -228,14 +228,6 @@ impl ShellMixerStateConvert for K24dMixerState {
         Some(ShellMixerMonitorSrcType::Adat),
         Some(ShellMixerMonitorSrcType::AdatSpdif),
     ];
-
-    fn state(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-
-    fn state_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
 }
 
 impl TcKonnektSegmentSerdes<K24dMixerState> for K24dProtocol {
@@ -244,7 +236,7 @@ impl TcKonnektSegmentSerdes<K24dMixerState> for K24dProtocol {
     const SIZE: usize = ShellMixerState::SIZE + 32;
 
     fn serialize(params: &K24dMixerState, raw: &mut [u8]) -> Result<(), String> {
-        ShellMixerStateConvert::build(params, raw);
+        serialize_mixer_state::<K24dProtocol>(&params.mixer, raw)?;
 
         params.reverb_return.build(&mut raw[316..328]);
         params
@@ -258,7 +250,7 @@ impl TcKonnektSegmentSerdes<K24dMixerState> for K24dProtocol {
     }
 
     fn deserialize(params: &mut K24dMixerState, raw: &[u8]) -> Result<(), String> {
-        ShellMixerStateConvert::parse(params, raw);
+        deserialize_mixer_state::<K24dProtocol>(&mut params.mixer, raw)?;
 
         params.reverb_return.parse(&raw[316..328]);
         params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);

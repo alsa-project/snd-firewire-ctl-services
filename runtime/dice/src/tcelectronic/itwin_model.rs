@@ -122,7 +122,7 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -659,17 +659,16 @@ impl MixerCtl {
         req: &FwReq,
         node: &FwNode,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(req, node, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     let mut params = self.0.data.clone();
-                    params.enabled = new.boolean()[0];
+                    params.enabled = elem_value.boolean()[0];
                     ItwinProtocol::update_partial_segment(
                         req,
                         node,
