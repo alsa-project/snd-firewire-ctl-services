@@ -516,16 +516,20 @@ impl ShellStandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
 }
 
 impl MidiSendCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
+    fn segment(&self) -> &KliveConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut KliveConfigSegment {
         &mut self.0
     }
 
-    fn midi_sender(&self) -> &TcKonnektMidiSender {
-        &self.0.data.midi_sender
+    fn midi_sender(params: &KliveConfig) -> &TcKonnektMidiSender {
+        &params.midi_sender
     }
 
-    fn midi_sender_mut(&mut self) -> &mut TcKonnektMidiSender {
-        &mut self.0.data.midi_sender
+    fn midi_sender_mut(params: &mut KliveConfig) -> &mut TcKonnektMidiSender {
+        &mut params.midi_sender
     }
 }
 
@@ -594,7 +598,7 @@ impl ConfigCtl {
             Ok(true)
         } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_midi_sender(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_midi_sender(req, &unit.1, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

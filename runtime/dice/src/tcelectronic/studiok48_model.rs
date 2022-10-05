@@ -765,16 +765,20 @@ impl StandaloneCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
 }
 
 impl MidiSendCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
+    fn segment(&self) -> &Studiok48ConfigSegment {
+        &self.0
+    }
+
     fn segment_mut(&mut self) -> &mut Studiok48ConfigSegment {
         &mut self.0
     }
 
-    fn midi_sender(&self) -> &TcKonnektMidiSender {
-        &self.0.data.midi_send
+    fn midi_sender(params: &StudioConfig) -> &TcKonnektMidiSender {
+        &params.midi_send
     }
 
-    fn midi_sender_mut(&mut self) -> &mut TcKonnektMidiSender {
-        &mut self.0.data.midi_send
+    fn midi_sender_mut(params: &mut StudioConfig) -> &mut TcKonnektMidiSender {
+        &mut params.midi_send
     }
 }
 
@@ -868,7 +872,7 @@ impl ConfigCtl {
     ) -> Result<bool, Error> {
         if self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_midi_sender(unit, req, elem_id, elem_value, timeout_ms)? {
+        } else if self.write_midi_sender(req, &unit.1, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
