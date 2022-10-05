@@ -348,7 +348,9 @@ impl KnobCtl {
         [OutputImpedance::Unbalance, OutputImpedance::Balance];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -433,14 +435,15 @@ impl KnobCtl {
                                 })
                                 .map(|&i| *imp = i)
                         })?;
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -455,7 +458,9 @@ impl KnobCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if KliveProtocol::is_notified_segment(&self.0, msg) {
-            KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -570,7 +575,9 @@ const OUT_23_SRC_NAME: &str = "output-3/4-source";
 
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -660,14 +667,15 @@ impl ConfigCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&s| params.out_01_src = s)?;
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 OUT_23_SRC_NAME => {
                     let mut params = self.0.data.clone();
@@ -680,14 +688,15 @@ impl ConfigCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&s| params.out_23_src = s)?;
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -702,7 +711,9 @@ impl ConfigCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if KliveProtocol::is_notified_segment(&self.0, msg) {
-            KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -800,7 +811,9 @@ impl MixerStateCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -894,26 +907,28 @@ impl MixerStateCtl {
                 MIXER_ENABLE_NAME => {
                     let mut params = self.0.data.clone();
                     params.enabled = elem_value.boolean()[0];
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 USE_CH_STRIP_AS_PLUGIN_NAME => {
                     let mut params = self.0.data.clone();
                     params.use_ch_strip_as_plugin = elem_value.boolean()[0];
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 CH_STRIP_SRC_NAME => {
                     let mut params = self.0.data.clone();
@@ -926,14 +941,15 @@ impl MixerStateCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&s| params.ch_strip_src = s)?;
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 CH_STRIP_MODE_NAME => {
                     let mut params = self.0.data.clone();
@@ -946,26 +962,28 @@ impl MixerStateCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&m| params.ch_strip_mode = m)?;
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 USE_REVERB_AT_MID_RATE => {
                     let mut params = self.0.data.clone();
                     params.use_reverb_at_mid_rate = elem_value.boolean()[0];
-                    KliveProtocol::update_partial_segment(
+                    let res = KliveProtocol::update_partial_segment(
                         req,
                         node,
                         &params,
                         &mut self.0,
                         timeout_ms,
-                    )
-                    .map(|_| true)
+                    );
+                    debug!(params = ?self.0.data, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -980,7 +998,9 @@ impl MixerStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if KliveProtocol::is_notified_segment(&self.0, msg) {
-            KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
@@ -1037,7 +1057,9 @@ impl ShellHwStateCtlOperation<KliveHwState, KliveProtocol> for HwStateCtl {
 
 impl HwStateCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+        let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0.data, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1070,7 +1092,9 @@ impl HwStateCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if KliveProtocol::is_notified_segment(&self.0, msg) {
-            KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms)
+            let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
+            debug!(params = ?self.0.data, ?res);
+            res
         } else {
             Ok(())
         }
