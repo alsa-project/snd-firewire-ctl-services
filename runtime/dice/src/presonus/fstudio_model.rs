@@ -175,7 +175,9 @@ impl MeterCtl {
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+        let res = FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -329,7 +331,9 @@ impl OutputCtl {
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+        let res = FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -463,14 +467,15 @@ impl OutputCtl {
                     .flat_map(|pair| pair.volumes.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -480,14 +485,15 @@ impl OutputCtl {
                     .flat_map(|pair| pair.mutes.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(mute, val)| *mute = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SRC_NAME => {
                 let mut params = self.0.clone();
@@ -507,14 +513,15 @@ impl OutputCtl {
                             })
                             .map(|&s| pair.src = s)
                     })?;
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::LINK_NAME => {
                 let mut params = self.0.clone();
@@ -523,14 +530,15 @@ impl OutputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.link = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MAIN_NAME => {
                 let mut params = self.0.clone();
@@ -543,14 +551,15 @@ impl OutputCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::HP_NAME => {
                 let mut params = self.0.clone();
@@ -572,26 +581,28 @@ impl OutputCtl {
                             })
                             .map(|&t| *assign = t)
                     })?;
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::TERMINATE_BNC_NAME => {
                 let mut params = self.0.clone();
                 params.bnc_terminate = elem_value.boolean()[0];
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -657,7 +668,9 @@ impl MixerCtl {
         [ExpansionMode::StreamB0_7, ExpansionMode::AdatB0_7];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+        let res = FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -952,14 +965,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.gains.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::PHYS_SRC_PAN_NAME => {
                 let mut params = self.0.clone();
@@ -972,14 +986,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.balances.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(balances, &val)| *balances = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::PHYS_SRC_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -992,14 +1007,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.mutes.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(mute, val)| *mute = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::PHYS_SRC_LINK_NAME => {
                 let mut params = self.0.clone();
@@ -1011,14 +1027,15 @@ impl MixerCtl {
                     .chain(srcs.spdif_pairs.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.link = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
                 let mut params = self.0.clone();
@@ -1029,14 +1046,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.gains.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::STREAM_SRC_PAN_NAME => {
                 let mut params = self.0.clone();
@@ -1047,14 +1065,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.balances.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(balances, &val)| *balances = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::STREAM_SRC_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -1065,14 +1084,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.mutes.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(mute, val)| *mute = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::STREAM_SRC_LINK_NAME => {
                 let mut params = self.0.clone();
@@ -1082,14 +1102,15 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.link = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SELECTABLE_SRC_GAIN_NAME => {
                 let mut params = self.0.clone();
@@ -1100,14 +1121,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.gains.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SELECTABLE_SRC_PAN_NAME => {
                 let mut params = self.0.clone();
@@ -1118,14 +1140,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.balances.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(balances, &val)| *balances = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SELECTABLE_SRC_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -1136,14 +1159,15 @@ impl MixerCtl {
                     .flat_map(|pair| pair.mutes.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(mute, val)| *mute = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SELECTABLE_SRC_LINK_NAME => {
                 let mut params = self.0.clone();
@@ -1153,14 +1177,15 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.link = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::OUT_VOL_NAME => {
                 let mut params = self.0.clone();
@@ -1169,14 +1194,15 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(pair, &val)| pair.volume = val as u8);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::OUT_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -1185,14 +1211,15 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(pair, val)| pair.mute = val);
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::EXPANSION_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -1205,14 +1232,15 @@ impl MixerCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                FStudioProtocol::update_partial_parameters(
+                let res = FStudioProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
