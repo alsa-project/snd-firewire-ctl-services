@@ -596,7 +596,7 @@ impl AssignCtl {
 
 fn expansion_mode_to_str(mode: &ExpansionMode) -> &'static str {
     match mode {
-        ExpansionMode::Stream10_17 => "Stream-11|18",
+        ExpansionMode::StreamB0_7 => "Stream-B-0|8",
         ExpansionMode::AdatB0_7 => "ADAT-B-1|8",
     }
 }
@@ -638,7 +638,7 @@ impl MixerCtl {
     const PAN_STEP: i32 = 1;
 
     const EXPANSION_MODES: [ExpansionMode; 2] =
-        [ExpansionMode::Stream10_17, ExpansionMode::AdatB0_7];
+        [ExpansionMode::StreamB0_7, ExpansionMode::AdatB0_7];
 
     fn load(
         &mut self,

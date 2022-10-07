@@ -32,14 +32,19 @@ impl FStudioOperation for FStudioProtocol {}
 
 const OFFSET: usize = 0x00700000;
 
-const PARAMS_OFFSET: usize = 0x0f68;
-const SRC_OFFSET: usize = 0x10ac;
+const PHYS_SRC_PARAMS_OFFSET: usize = 0x0038; // For mixers.
+const STREAM_SRC_PARAMS_OFFSET: usize = 0x07d0; // For mixers.
+const PARAMS_OFFSET: usize = 0x0f68; // For outputs.
+const OUT_PARAMS_OFFSET: usize = 0x1040; // For mixers.
+const SRC_OFFSET: usize = 0x10ac; // For outputs.
 const MAIN_OFFSET: usize = 0x10f4;
 const HP01_OFFSET: usize = 0x10f8;
 const HP23_OFFSET: usize = 0x10fc;
 const HP45_OFFSET: usize = 0x1100;
 const BNC_TERMINATE_OFFSET: usize = 0x1118;
-const LINK_OFFSET: usize = 0x1150;
+const EXPANSION_MODE_OFFSET: usize = 0x1128; // For mixers.
+const SRC_LINK_OFFSET: usize = 0x112c; // For mixers.
+const LINK_OFFSET: usize = 0x1150; // For outputs.
 const METER_OFFSET: usize = 0x13e8;
 
 /// Serialize and deserialize parameters for FireStudio.
@@ -796,35 +801,356 @@ impl FStudioProtocol {
 }
 
 /// Mode of mixer expansion.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ExpansionMode {
-    Stream10_17,
+    /// Stream input B 1..8.
+    StreamB0_7,
+    /// ADAT input 9..16 in 2nd optical interface.
     AdatB0_7,
 }
 
 impl Default for ExpansionMode {
     fn default() -> Self {
-        Self::Stream10_17
+        Self::StreamB0_7
     }
 }
 
-impl From<u32> for ExpansionMode {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::Stream10_17,
-            _ => Self::AdatB0_7,
-        }
+fn serialize_expansion_mode(mode: &ExpansionMode, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = match mode {
+        ExpansionMode::StreamB0_7 => 0u32,
+        ExpansionMode::AdatB0_7 => 1,
+    };
+
+    raw.copy_from_slice(&val.to_be_bytes());
+
+    Ok(())
+}
+
+fn deserialize_expansion_mode(mode: &mut ExpansionMode, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+
+    let val = u32::from_be_bytes(quadlet);
+    *mode = match val {
+        0 => ExpansionMode::StreamB0_7,
+        1 => ExpansionMode::AdatB0_7,
+        _ => Err(format!("Expansion mode not found for value {}", val))?,
+    };
+
+    Ok(())
+}
+
+/// Parameters for channels (left and right) in a pair of source to mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct MixerSourcePair {
+    /// Gain for each channel, between 0x00 and 0xff.
+    pub gains: [u8; 2],
+    /// Left and right balance for each channel, between 0x00 and 0x7f.
+    pub balances: [u8; 2],
+    /// Whether to be muted for each channel.
+    pub mutes: [bool; 2],
+    /// Whether to link both channels.
+    pub link: bool,
+}
+
+fn serialize_mixer_source_pair(pair: &MixerSourcePair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 24);
+
+    let val = pair.gains[0] as u32;
+    raw[..4].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.balances[0] as u32;
+    raw[4..8].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.mutes[0] as u32;
+    raw[8..12].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.gains[1] as u32;
+    raw[12..16].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.balances[1] as u32;
+    raw[16..20].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.mutes[1] as u32;
+    raw[20..24].copy_from_slice(&val.to_be_bytes());
+
+    Ok(())
+}
+
+fn deserialize_mixer_source_pair(pair: &mut MixerSourcePair, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 24);
+
+    let mut quadlet = [0; 4];
+
+    quadlet.copy_from_slice(&raw[..4]);
+    pair.gains[0] = u32::from_be_bytes(quadlet) as u8;
+
+    quadlet.copy_from_slice(&raw[4..8]);
+    pair.balances[0] = u32::from_be_bytes(quadlet) as u8;
+
+    quadlet.copy_from_slice(&raw[8..12]);
+    pair.mutes[0] = u32::from_be_bytes(quadlet) > 0;
+
+    quadlet.copy_from_slice(&raw[12..16]);
+    pair.gains[1] = u32::from_be_bytes(quadlet) as u8;
+
+    quadlet.copy_from_slice(&raw[16..20]);
+    pair.balances[1] = u32::from_be_bytes(quadlet) as u8;
+
+    quadlet.copy_from_slice(&raw[20..24]);
+    pair.mutes[1] = u32::from_be_bytes(quadlet) > 0;
+
+    Ok(())
+}
+
+/// Parameters for pairs of source to single mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct MixerSources {
+    /// Pairs of analog input 1-8.
+    pub analog_pairs: [MixerSourcePair; 4],
+    /// Pairs of ADAT input 1-8 in optical input interface A.
+    pub adat_0_pairs: [MixerSourcePair; 4],
+    /// A pair of S/PDIF input 1/2 in coaxial input interface.
+    pub spdif_pairs: [MixerSourcePair; 1],
+    /// Pairs of stream input 1-8, 17/18 in IEEE 1394 bus.
+    pub stream_pairs: [MixerSourcePair; 5],
+    /// Pairs of selectable inputs either ADAT input 9-18 in optical input interface B or
+    /// stream input 9-16 in IEEE 1394 bus.
+    pub selectable_pairs: [MixerSourcePair; 4],
+}
+
+/// Parameters for a pair (left and right) of outputs from mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct MixerOutputPair {
+    /// Volume of the channels, between 0x00 and 0xff.
+    pub volume: u8,
+    /// Whether to mute the channels.
+    pub mute: bool,
+}
+
+fn serialize_mixer_output_pair(pair: &MixerOutputPair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 12);
+
+    let val = pair.volume as u32;
+    raw[..4].copy_from_slice(&val.to_be_bytes());
+
+    let val = pair.mute as u32;
+    raw[8..12].copy_from_slice(&val.to_be_bytes());
+
+    Ok(())
+}
+
+fn deserialize_mixer_output_pair(pair: &mut MixerOutputPair, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 12);
+
+    let mut quadlet = [0; 4];
+
+    quadlet.copy_from_slice(&raw[..4]);
+    pair.volume = u32::from_be_bytes(quadlet) as u8;
+
+    quadlet.copy_from_slice(&raw[8..12]);
+    pair.mute = u32::from_be_bytes(quadlet) > 0;
+
+    Ok(())
+}
+
+/// Parameters of stereo mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct MixerParameters {
+    /// For sources of 9 stereo mixers.
+    pub sources: [MixerSources; 9],
+    /// For outputs of 9 stereo mixers.
+    pub outputs: [MixerOutputPair; 9],
+    /// For selectable input pairs. When expanded, ADAT input 9-18 in optical input interface B is
+    /// available instead of stream input 9-16 in IEEE 1384 bus.
+    pub expansion_mode: ExpansionMode,
+}
+
+impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
+    const NAME: &'static str = "mixer-parameters";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[
+        // For gain, pan, mute of 8 analog inputs, 8 Adat0 inputs, and 2 S/PDIF inputs in 9 stereo
+        // mixers.
+        Range {
+            start: PHYS_SRC_PARAMS_OFFSET,
+            end: PHYS_SRC_PARAMS_OFFSET + 4 * (9 * 3 * (8 + 8 + 2)),
+        },
+        // For gain, pan, mute of 10 stream inputs in 9 stereo mixers.
+        Range {
+            start: STREAM_SRC_PARAMS_OFFSET,
+            end: STREAM_SRC_PARAMS_OFFSET + 4 * (9 * 3 * (8 + 2)),
+        },
+        // For gain, pan, mute of 8 selectable inputs in 9 stereo mixers..
+        Range {
+            start: 0x0c08,
+            end: 0x0c08 + 4 * (9 * 3 * 8),
+        },
+        // For gain, unused, mute of output pairs from 9 stereo mixers.
+        Range {
+            start: OUT_PARAMS_OFFSET,
+            end: OUT_PARAMS_OFFSET + 4 * 9 * 3,
+        },
+        // For expansion mode.
+        Range {
+            start: EXPANSION_MODE_OFFSET,
+            end: EXPANSION_MODE_OFFSET + 4,
+        },
+        // For pair link of source pairs in 9 stereo mixers.
+        Range {
+            start: SRC_LINK_OFFSET,
+            end: SRC_LINK_OFFSET + 4 * 9,
+        },
+    ];
+
+    fn serialize_params(params: &MixerParameters, raw: &mut [u8]) -> Result<(), String> {
+        params
+            .sources
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, srcs)| {
+                srcs.analog_pairs
+                    .iter()
+                    .chain(srcs.adat_0_pairs.iter())
+                    .chain(srcs.spdif_pairs.iter())
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (i * 18 + j * 2));
+                        serialize_mixer_source_pair(pair, &mut raw[pos..(pos + 24)])
+                    })?;
+
+                srcs.stream_pairs
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (9 * 18 + i * 10 + j * 2));
+                        serialize_mixer_source_pair(pair, &mut raw[pos..(pos + 24)])
+                    })?;
+
+                srcs.selectable_pairs
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (9 * 28 + i * 8 + j * 2));
+                        serialize_mixer_source_pair(pair, &mut raw[pos..(pos + 24)])
+                    })
+            })?;
+
+        params
+            .outputs
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, pair)| {
+                let pos = 4 * 3 * (9 * 36 + i);
+                serialize_mixer_output_pair(pair, &mut raw[pos..(pos + 12)])
+            })?;
+
+        let pos = 4 * (3 * 9 * 36 + 3 * 9);
+        serialize_expansion_mode(&params.expansion_mode, &mut raw[pos..(pos + 4)])?;
+
+        params.sources.iter().enumerate().for_each(|(i, srcs)| {
+            let mut val = 0u32;
+
+            srcs.analog_pairs
+                .iter()
+                .chain(srcs.adat_0_pairs.iter())
+                .chain(srcs.spdif_pairs.iter())
+                .enumerate()
+                .filter(|(_, pair)| pair.link)
+                .for_each(|(j, _)| val |= 1 << j);
+
+            srcs.stream_pairs
+                .iter()
+                .chain(srcs.selectable_pairs.iter())
+                .enumerate()
+                .filter(|(_, pair)| pair.link)
+                .for_each(|(j, _)| val |= 1 << (16 + j));
+
+            let pos = 4 * (3 * 9 * 36 + 3 * 9 + 1 + i);
+            raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        });
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut MixerParameters, raw: &[u8]) -> Result<(), String> {
+        params
+            .sources
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, srcs)| {
+                srcs.analog_pairs
+                    .iter_mut()
+                    .chain(srcs.adat_0_pairs.iter_mut())
+                    .chain(srcs.spdif_pairs.iter_mut())
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (i * 18 + j * 2));
+                        deserialize_mixer_source_pair(pair, &raw[pos..(pos + 24)])
+                    })?;
+
+                srcs.stream_pairs
+                    .iter_mut()
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (9 * 18 + i * 10 + j * 2));
+                        deserialize_mixer_source_pair(pair, &raw[pos..(pos + 24)])
+                    })?;
+
+                srcs.selectable_pairs
+                    .iter_mut()
+                    .enumerate()
+                    .try_for_each(|(j, pair)| {
+                        let pos = 4 * (3 * (9 * 28 + i * 8 + j * 2));
+                        deserialize_mixer_source_pair(pair, &raw[pos..(pos + 24)])
+                    })
+            })?;
+
+        params
+            .outputs
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, pair)| {
+                let pos = 4 * 3 * (9 * 36 + i);
+                deserialize_mixer_output_pair(pair, &raw[pos..(pos + 12)])
+            })?;
+
+        let pos = 4 * (3 * 9 * 36 + 3 * 9);
+        deserialize_expansion_mode(&mut params.expansion_mode, &raw[pos..(pos + 4)])?;
+
+        let mut quadlet = [0; 4];
+        params.sources.iter_mut().enumerate().for_each(|(i, srcs)| {
+            let pos = 4 * (3 * 9 * 36 + 3 * 9 + 1 + i);
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            let val = u32::from_be_bytes(quadlet);
+
+            srcs.analog_pairs
+                .iter_mut()
+                .chain(srcs.adat_0_pairs.iter_mut())
+                .chain(srcs.spdif_pairs.iter_mut())
+                .enumerate()
+                .for_each(|(j, pair)| pair.link = val & (1 << j) > 0);
+
+            srcs.stream_pairs
+                .iter_mut()
+                .chain(srcs.selectable_pairs.iter_mut())
+                .enumerate()
+                .for_each(|(j, pair)| pair.link = val & (1 << (16 + j)) > 0);
+        });
+
+        Ok(())
     }
 }
 
-impl From<ExpansionMode> for u32 {
-    fn from(mode: ExpansionMode) -> Self {
-        match mode {
-            ExpansionMode::Stream10_17 => 0,
-            ExpansionMode::AdatB0_7 => 1,
-        }
-    }
+impl<O: FStudioOperation + FStudioParametersSerdes<MixerParameters>>
+    FStudioMutableParametersOperation<MixerParameters> for O
+{
 }
+
 
 /// Parameters of mixer sources.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -843,12 +1169,6 @@ pub struct OutParams {
 
 /// The number of mixers.
 pub const MIXER_COUNT: usize = 9;
-
-const PHYS_SRC_PARAMS_OFFSET: usize = 0x0038;
-const STREAM_SRC_PARAMS_OFFSET: usize = 0x07d0;
-const OUT_PARAMS_OFFSET: usize = 0x1040;
-const EXPANSION_MODE_OFFSET: usize = 0x1128;
-const SRC_LINK_OFFSET: usize = 0x112c;
 
 impl FStudioProtocol {
     pub fn read_mixer_src_params(
@@ -1172,8 +1492,11 @@ impl FStudioProtocol {
         timeout_ms: u32,
     ) -> Result<ExpansionMode, Error> {
         let mut raw = [0; 4];
-        presonus_read(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
-            .map(|_| ExpansionMode::from(u32::from_be_bytes(raw)))
+        presonus_read(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let mut mode = ExpansionMode::default();
+            let _ = deserialize_expansion_mode(&mut mode, &raw);
+            mode
+        })
     }
 
     pub fn write_mixer_expansion_mode(
@@ -1183,7 +1506,7 @@ impl FStudioProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        mode.build_quadlet(&mut raw);
+        let _ = serialize_expansion_mode(&mode, &mut raw);
         presonus_write(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
     }
 
@@ -1322,5 +1645,44 @@ mod test {
         assert!(FStudioProtocol::deserialize_params(&mut params, &raw).is_ok());
 
         assert_eq!(target, params, "{:02x?}", raw);
+    }
+
+    #[test]
+    fn mixer_params_serdes() {
+        let mut target = MixerParameters::default();
+        target.sources.iter_mut().enumerate().for_each(|(i, srcs)| {
+            srcs.analog_pairs
+                .iter_mut()
+                .chain(srcs.adat_0_pairs.iter_mut())
+                .chain(srcs.spdif_pairs.iter_mut())
+                .chain(srcs.stream_pairs.iter_mut())
+                .chain(srcs.selectable_pairs.iter_mut())
+                .enumerate()
+                .for_each(|(j, pair)| {
+                    pair.gains[0] = (i * 9 + j * 3) as u8;
+                    pair.gains[1] = (i * 11 + j * 1) as u8;
+                    pair.balances[0] = (i * 7 + j * 5) as u8;
+                    pair.balances[1] = (i * 5 + j * 7) as u8;
+                    pair.mutes[0] = (i + j * 2) % 2 > 0;
+                    pair.mutes[1] = (i * 2 + j) % 2 > 0;
+                    pair.link = (i + j) % 2 > 0;
+                });
+        });
+        target.outputs.iter_mut().enumerate().for_each(|(i, pair)| {
+            pair.volume = 3 * i as u8;
+            pair.mute = i % 2 > 0;
+        });
+        target.expansion_mode = ExpansionMode::AdatB0_7;
+
+        let size = compute_params_size(
+            <FStudioProtocol as FStudioParametersSerdes<MixerParameters>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0; size];
+        assert!(FStudioProtocol::serialize_params(&target, &mut raw).is_ok());
+
+        let mut params = MixerParameters::default();
+        assert!(FStudioProtocol::deserialize_params(&mut params, &raw).is_ok());
+
+        assert_eq!(target, params);
     }
 }
