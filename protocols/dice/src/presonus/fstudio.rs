@@ -32,6 +32,8 @@ impl FStudioOperation for FStudioProtocol {}
 
 const OFFSET: usize = 0x00700000;
 
+const METER_OFFSET: usize = 0x13e8;
+
 /// Serialize and deserialize parameters for FireStudio.
 pub trait FStudioParametersSerdes<T> {
     /// The representative name of parameters.
@@ -186,15 +188,62 @@ fn presonus_write(
 }
 
 /// Hardware meter.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FStudioMeter {
+    /// Detected levels for analog inputs.
     pub analog_inputs: [u8; 8],
+    /// Detected levels for stream inputs.
     pub stream_inputs: [u8; 18],
+    /// Detected levels for mixer outputs.
     pub mixer_outputs: [u8; 18],
 }
 
-const METER_OFFSET: usize = 0x13e8;
-const METER_SIZE: usize = 0x40;
+impl FStudioMeter {
+    const SIZE: usize = 64;
+}
+
+impl FStudioParametersSerdes<FStudioMeter> for FStudioProtocol {
+    const NAME: &'static str = "meter";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[Range {
+        start: METER_OFFSET,
+        end: METER_OFFSET + FStudioMeter::SIZE,
+    }];
+
+    fn serialize_params(params: &FStudioMeter, raw: &mut [u8]) -> Result<(), String> {
+        [
+            (8, &params.analog_inputs[..]),
+            (16, &params.stream_inputs[..]),
+            (40, &params.mixer_outputs[..]),
+        ]
+        .iter()
+        .for_each(|(offset, meters)| {
+            meters.iter().enumerate().for_each(|(i, &meter)| {
+                let pos = *offset + (i / 4) * 4 + (3 - i % 4);
+                raw[pos] = meter;
+            });
+        });
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut FStudioMeter, raw: &[u8]) -> Result<(), String> {
+        [
+            (8, &mut params.analog_inputs[..]),
+            (16, &mut params.stream_inputs[..]),
+            (40, &mut params.mixer_outputs[..]),
+        ]
+        .iter_mut()
+        .for_each(|(offset, meters)| {
+            meters.iter_mut().enumerate().for_each(|(i, meter)| {
+                let pos = *offset + (i / 4) * 4 + (3 - i % 4);
+                *meter = raw[pos];
+            });
+        });
+
+        Ok(())
+    }
+}
 
 impl FStudioProtocol {
     pub fn read_meter(
@@ -203,10 +252,10 @@ impl FStudioProtocol {
         meter: &mut FStudioMeter,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut raw = vec![0; METER_SIZE];
+        let mut raw = vec![0; FStudioMeter::SIZE];
         presonus_read(req, node, METER_OFFSET, &mut raw, timeout_ms).map(|_| {
             let mut quadlet = [0; 4];
-            (0..(METER_SIZE / 4)).for_each(|i| {
+            (0..(FStudioMeter::SIZE / 4)).for_each(|i| {
                 let pos = i * 4;
                 quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                 let val = u32::from_be_bytes(quadlet);
@@ -1047,5 +1096,30 @@ impl FStudioProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_mixer_src_links(req, node, links, ch, 16, 0xffff0000, timeout_ms)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn meter_params_serdes() {
+        let target = FStudioMeter {
+            analog_inputs: [0, 1, 2, 3, 4, 5, 6, 7],
+            stream_inputs: [17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+            mixer_outputs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+        };
+
+        let size = compute_params_size(
+            <FStudioProtocol as FStudioParametersSerdes<FStudioMeter>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0; size];
+        assert!(FStudioProtocol::serialize_params(&target, &mut raw).is_ok());
+
+        let mut params = FStudioMeter::default();
+        assert!(FStudioProtocol::deserialize_params(&mut params, &raw).is_ok());
+
+        assert_eq!(target, params);
     }
 }
