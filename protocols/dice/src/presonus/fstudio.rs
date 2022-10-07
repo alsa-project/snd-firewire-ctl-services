@@ -2,6 +2,110 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 //! Protocol implementation for PreSonus FireStudio.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! analog-input-1/2 ---------------------------> stream-output-A-1/2
+//! analog-input-3/4 ---------------------------> stream-output-A-3/4
+//! analog-input-5/6 ---------------------------> stream-output-A-5/6
+//! analog-input-7/8 ---------------------------> stream-output-A-7/8
+//! adat-input-1/2 -----------------------------> stream-output-A-9/10
+//! adat-input-3/4 -----------------------------> stream-output-A-11/12
+//! adat-input-5/6 -----------------------------> stream-output-A-13/14
+//! adat-input-7/8 -----------------------------> stream-output-A-15/16
+//! adat-input-9/10 ----------------------------> stream-output-B-1/2
+//! adat-input-11/12 ---------------------------> stream-output-B-3/4
+//! adat-input-13/14 ---------------------------> stream-output-B-5/6
+//! adat-input-15/16 ---------------------------> stream-output-B-7/8
+//! spdif-input-1/2 ----------------------------> stream-output-B-9/10
+//!
+//! analog-input-1/2 ---------------------------> mixer-source-1/2
+//! analog-input-3/4 ---------------------------> mixer-source-3/4
+//! analog-input-5/6 ---------------------------> mixer-source-5/6
+//! analog-input-7/8 ---------------------------> mixer-source-7/8
+//! adat-input-1/2 -----------------------------> mixer-source-9/10
+//! adat-input-3/4 -----------------------------> mixer-source-11/12
+//! adat-input-5/6 -----------------------------> mixer-source-13/14
+//! adat-input-7/8 -----------------------------> mixer-source-15/16
+//! spdif-input-1/2 ----------------------------> mixer-source-17/18
+//! stream-input-A-1/2 -------------------------> mixer-source-19/20
+//! stream-input-A-3/4 -------------------------> mixer-source-21/22
+//! stream-input-A-5/6 -------------------------> mixer-source-23/24
+//! stream-input-A-7/8 -------------------------> mixer-source-25/26
+//! stream-input-B-9/10 ------------------------> mixer-source-27/28
+//! adat-input-9..16 --------------or-----------> mixer-source-29..36
+//! stream-input-A-9..16 ----------+
+//!
+//!                           ++===========++
+//! mixer-source-1/2 -------> ||           ||
+//! mixer-source-3/4 -------> ||           ||
+//! mixer-source-5/6 -------> ||           ||
+//! mixer-source-7/8 -------> ||           ||
+//! mixer-source-9/10 ------> ||           ||
+//! mixer-source-11/12 -----> ||           || --> mixer-output-1/2
+//! mixer-source-13/14 -----> ||           || --> mixer-output-3/4
+//! mixer-source-15/16 -----> ||           || --> mixer-output-5/6
+//! mixer-source-17/18 -----> ||  36 x 18  || --> mixer-output-7/8
+//! mixer-source-19/20 -----> ||           || --> mixer-output-9/10
+//! mixer-source-21/22 -----> ||   mixer   || --> mixer-output-11/12
+//! mixer-source-23/24 -----> ||           || --> mixer-output-13/14
+//! mixer-source-25/26 -----> ||           || --> mixer-output-15/15
+//! mixer-source-27/28 -----> ||           || --> mixer-output-17/18
+//! mixer-source-29/30 -----> ||           ||
+//! mixer-source-31/32 -----> ||           ||
+//! mixer-source-33/34 -----> ||           ||
+//! mixer-source-35/36 -----> ||           ||
+//!                           ++===========++
+//!
+//!                           ++===========++
+//! mixer-source-1/2 -------> ||           ||
+//! mixer-source-3/4 -------> ||           ||
+//! mixer-source-5/6 -------> ||           ||
+//! mixer-source-7/8 -------> ||           ||
+//! mixer-source-9/10 ------> ||           ||
+//! mixer-source-11/12 -----> ||           ||
+//! mixer-source-13/14 -----> ||           ||
+//! mixer-source-15/16 -----> ||           ||
+//! mixer-source-17/18 -----> ||           ||
+//! mixer-source-19/20 -----> ||           || --> analog-output-1/2
+//! mixer-source-21/22 -----> ||           || --> analog-output-3/4
+//! mixer-source-23/24 -----> ||           || --> analog-output-5/6
+//! mixer-source-25/27 -----> ||  54 x 18  || --> analog-output-7/8
+//! mixer-source-27/28 -----> ||           || --> adat-output-1/2
+//! mixer-source-29/30 -----> ||           || --> adat-output-3/4
+//! mixer-source-31/32 -----> ||  router   || --> adat-output-5/6
+//! mixer-source-33/34 -----> ||           || --> adat-output-7/8
+//! mixer-source-35/36 -----> ||           || --> spdif-output-1/2
+//! mixer-output-1/2 -------> ||           ||
+//! mixer-output-3/4 -------> ||           ||
+//! mixer-output-5/6 -------> ||           ||
+//! mixer-output-7/8 -------> ||           ||
+//! mixer-output-9/10 ------> ||           ||
+//! mixer-output-11/12 -----> ||           ||
+//! mixer-output-13/14 -----> ||           ||
+//! mixer-output-15/15 -----> ||           ||
+//! mixer-output-17/18 -----> ||           ||
+//!                           ++===========++
+//!
+//! stream-input-B-1/2 -------------------------> adat-output-9/10
+//! stream-input-B-3/4 -------------------------> adat-output-11/12
+//! stream-input-B-5/6 -------------------------> adat-output-13/14
+//! stream-input-B-7/8 -------------------------> adat-output-15/16
+//!
+//!                           ++===========++
+//! analog-output-1/2 ------> ||           ||
+//! analog-output-3/4 ------> ||           ||
+//! analog-output-5/6 ------> ||           || --> main-output-1/2
+//! analog-output-7/8 ------> ||  18 x 8   || --> headphone-output-1/2
+//! adat-output-1/2 --------> ||           || --> headphone-output-3/4
+//! adat-output-3/4 --------> ||  router   || --> headphone-output-5/6
+//! adat-output-5/6 --------> ||           ||
+//! adat-output-7/8 --------> ||           ||
+//! spdif-output-1/2 -------> ||           ||
+//!                           ++===========++
+//!
 
 use {
     super::{super::tcat::global_section::*, *},
