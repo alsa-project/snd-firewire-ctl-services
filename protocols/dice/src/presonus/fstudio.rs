@@ -136,20 +136,40 @@ impl FStudioOperation for FStudioProtocol {}
 
 const OFFSET: usize = 0x00700000;
 
-const PHYS_SRC_PARAMS_OFFSET: usize = 0x0038; // For mixers.
-const STREAM_SRC_PARAMS_OFFSET: usize = 0x07d0; // For mixers.
-const PARAMS_OFFSET: usize = 0x0f68; // For outputs.
-const OUT_PARAMS_OFFSET: usize = 0x1040; // For mixers.
-const SRC_OFFSET: usize = 0x10ac; // For outputs.
-const MAIN_OFFSET: usize = 0x10f4;
-const HP01_OFFSET: usize = 0x10f8;
-const HP23_OFFSET: usize = 0x10fc;
-const HP45_OFFSET: usize = 0x1100;
-const BNC_TERMINATE_OFFSET: usize = 0x1118;
-const EXPANSION_MODE_OFFSET: usize = 0x1128; // For mixers.
-const SRC_LINK_OFFSET: usize = 0x112c; // For mixers.
-const LINK_OFFSET: usize = 0x1150; // For outputs.
+const MIXER_PHYS_SRC_PARAMS_OFFSET: usize = 0x0038;
+const MIXER_STREAM_SRC_PARAMS_OFFSET: usize = 0x07d0;
+const MIXER_SELECTABLE_SRC_PARAMS_OFFSET: usize = 0x0c08;
+const OUTPUT_PARAMS_OFFSET: usize = 0x0f68;
+const MIXER_OUTPUT_PARAMS_OFFSET: usize = 0x1040;
+const OUTPUT_SRC_OFFSET: usize = 0x10ac;
+const OUTPUT_ASSIGN_OFFSET: usize = 0x10f4;
+const OUTPUT_BNC_TERMINATE_OFFSET: usize = 0x1118;
+const MIXER_EXPANSION_MODE_OFFSET: usize = 0x1128;
+const MIXER_SRC_LINK_OFFSET: usize = 0x112c;
+const OUTPUT_LINK_OFFSET: usize = 0x1150;
 const METER_OFFSET: usize = 0x13e8;
+
+// For volume, unused, mute of 8 analog outputs, 8 ADAT0 outputs, and 2 S/PDIF outputs.
+const OUTPUT_PARAMS_SIZE: usize = 4 * 3 * (8 + 8 + 2);
+// For source of 8 analog outputs, 8 ADAT0 outputs, and 2 S/PDIF outputs.
+const OUTPUT_SRC_SIZE: usize = 4 * (8 + 8 + 2);
+// Assignment to main and 3 headphone outputs.
+const OUTPUT_ASSIGN_SIZE: usize = 4 * 4;
+const OUTPUT_BNC_TERMINATE_SIZE: usize = 4;
+// Link bit flags for 8 analog outputs, 8 ADAT0 outputs, and 2 S/PDIF outputs.
+const OUTPUT_LINK_SIZE: usize = 4;
+
+// For gain, pan, mute of 8 analog inputs, 8 Adat0 inputs, and 2 S/PDIF inputs in 9 stereo mixers.
+const MIXER_PHYS_SRC_PARAMS_SIZE: usize = 4 * 9 * 3 * (8 + 8 + 2);
+// For gain, pan, mute of 10 stream inputs in 9 stereo mixers.
+const MIXER_STREAM_SRC_PARAMS_SIZE: usize = 4 * 9 * 3 * 10;
+// For gain, pan, mute of 8 selectable inputs in 9 stereo mixers.
+const MIXER_SELECTABLE_SRC_PARAMS_SIZE: usize = 4 * 9 * 3 * 8;
+// For gain, unused, mute of output pairs from 9 stereo mixers.
+const MIXER_OUTPUT_PARAMS_SIZE: usize = 4 * 9 * 3;
+const MIXER_EXPANSION_MODE_SIZE: usize = 4;
+// For pair link of source pairs in 9 stereo mixers.
+const MIXER_SRC_LINK_SIZE: usize = 4 * 9;
 
 /// Serialize and deserialize parameters for FireStudio.
 pub trait FStudioParametersSerdes<T> {
@@ -284,26 +304,6 @@ pub trait FStudioMutableParametersOperation<T>:
     }
 }
 
-fn presonus_read(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    raw: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::read(req, node, OFFSET + offset, raw, timeout_ms)
-}
-
-fn presonus_write(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    raw: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::write(req, node, OFFSET + offset, raw, timeout_ms)
-}
-
 /// Hardware meter.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FStudioMeter {
@@ -359,29 +359,6 @@ impl FStudioParametersSerdes<FStudioMeter> for FStudioProtocol {
         });
 
         Ok(())
-    }
-}
-
-impl FStudioProtocol {
-    pub fn read_meter(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        meter: &mut FStudioMeter,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; FStudioMeter::SIZE];
-        presonus_read(req, node, METER_OFFSET, &mut raw, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            (0..(FStudioMeter::SIZE / 4)).for_each(|i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                let val = u32::from_be_bytes(quadlet);
-                raw[pos..(pos + 4)].copy_from_slice(&val.to_le_bytes());
-            });
-            meter.analog_inputs.copy_from_slice(&raw[8..16]);
-            meter.stream_inputs.copy_from_slice(&raw[16..34]);
-            meter.mixer_outputs.copy_from_slice(&raw[40..58]);
-        })
     }
 }
 
@@ -475,30 +452,25 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
     const NAME: &'static str = "output-state";
 
     const OFFSET_RANGES: &'static [Range<usize>] = &[
-        // (volume, unused, mute) * 18 outputs.
         Range {
-            start: PARAMS_OFFSET,
-            end: PARAMS_OFFSET + 4 * 3 * 18,
+            start: OUTPUT_PARAMS_OFFSET,
+            end: OUTPUT_PARAMS_OFFSET + OUTPUT_PARAMS_SIZE,
         },
-        // source * 18 outputs.
         Range {
-            start: SRC_OFFSET,
-            end: SRC_OFFSET + 72,
+            start: OUTPUT_SRC_OFFSET,
+            end: OUTPUT_SRC_OFFSET + OUTPUT_SRC_SIZE,
         },
-        // Assignment to main and headphone outputs.
         Range {
-            start: MAIN_OFFSET,
-            end: MAIN_OFFSET + 16,
+            start: OUTPUT_ASSIGN_OFFSET,
+            end: OUTPUT_ASSIGN_OFFSET + OUTPUT_ASSIGN_SIZE,
         },
-        // BNC terminate.
         Range {
-            start: BNC_TERMINATE_OFFSET,
-            end: BNC_TERMINATE_OFFSET + 4,
+            start: OUTPUT_BNC_TERMINATE_OFFSET,
+            end: OUTPUT_BNC_TERMINATE_OFFSET + OUTPUT_BNC_TERMINATE_SIZE,
         },
-        // link bit flags for 18 outputs.
         Range {
-            start: LINK_OFFSET,
-            end: LINK_OFFSET + 4,
+            start: OUTPUT_LINK_OFFSET,
+            end: OUTPUT_LINK_OFFSET + OUTPUT_LINK_SIZE,
         },
     ];
 
@@ -589,175 +561,6 @@ impl<O: FStudioOperation + FStudioParametersSerdes<OutputParameters>>
 {
 }
 
-/// State of outputs for FireStudio.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct OutputState {
-    pub vols: [u8; 18],
-    pub mutes: [bool; 18],
-    pub srcs: [OutputSrc; 18],
-    pub links: [bool; 9],
-}
-
-impl FStudioProtocol {
-    pub fn read_output_states(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        states: &mut OutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; 4 * states.vols.len() * 3];
-        presonus_read(req, node, PARAMS_OFFSET, &mut raw, timeout_ms)?;
-        let mut quadlet = [0; 4];
-        let quads: Vec<u32> = (0..(states.vols.len() * 3))
-            .map(|i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                u32::from_be_bytes(quadlet)
-            })
-            .collect();
-        states.vols.iter_mut().enumerate().for_each(|(i, vol)| {
-            let pos = i * 3;
-            *vol = quads[pos] as u8;
-        });
-        states.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
-            let pos = 2 + i * 3;
-            *mute = quads[pos] > 0;
-        });
-
-        let mut raw = vec![0; 4 * states.srcs.len()];
-        presonus_read(req, node, SRC_OFFSET, &mut raw, timeout_ms)?;
-        states.srcs.iter_mut().enumerate().for_each(|(i, src)| {
-            let pos = i * 4;
-            let _ = deserialize_output_source(src, &raw[pos..(pos + 4)]);
-        });
-
-        let mut raw = [0; 4];
-        presonus_read(req, node, LINK_OFFSET, &mut raw, timeout_ms)?;
-        let val = u32::from_be_bytes(raw);
-        states
-            .links
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, link)| *link = val & (1 << i) > 0);
-
-        Ok(())
-    }
-
-    pub fn write_output_vols(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        states: &mut OutputState,
-        vols: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(vols.len(), states.vols.len());
-
-        let mut raw = [0; 4];
-        states
-            .vols
-            .iter_mut()
-            .zip(vols)
-            .enumerate()
-            .filter(|(_, (old, new))| !new.eq(old))
-            .try_for_each(|(i, (old, new))| {
-                let pos = i * 3 * 4;
-                raw.copy_from_slice(&(*new as u32).to_be_bytes());
-                presonus_write(req, node, PARAMS_OFFSET + pos, &mut raw, timeout_ms)
-                    .map(|_| *old = *new)
-            })
-    }
-
-    pub fn write_output_mute(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        states: &mut OutputState,
-        mutes: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(mutes.len(), states.mutes.len());
-
-        let mut raw = [0; 4];
-        states
-            .mutes
-            .iter_mut()
-            .zip(mutes)
-            .enumerate()
-            .filter(|(_, (old, new))| !new.eq(old))
-            .try_for_each(|(i, (old, new))| {
-                let pos = (2 + i * 3) * 4;
-                raw.copy_from_slice(&(*new as u32).to_be_bytes());
-                presonus_write(req, node, PARAMS_OFFSET + pos, &mut raw, timeout_ms)
-                    .map(|_| *old = *new)
-            })
-    }
-
-    pub fn write_output_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        states: &mut OutputState,
-        srcs: &[OutputSrc],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(srcs.len(), states.srcs.len());
-
-        let mut raw = [0; 4];
-        states
-            .srcs
-            .iter_mut()
-            .zip(srcs)
-            .enumerate()
-            .filter(|(_, (old, new))| !new.eq(old))
-            .try_for_each(|(i, (old, new))| {
-                let pos = i * 4;
-                let _ = serialize_output_source(new, &mut raw);
-                presonus_write(req, node, SRC_OFFSET + pos, &mut raw, timeout_ms)
-                    .map(|_| *old = *new)
-            })
-    }
-
-    pub fn write_output_link(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        states: &mut OutputState,
-        links: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(links.len(), states.links.len());
-
-        let val: u32 = links
-            .iter()
-            .enumerate()
-            .filter(|(_, &link)| link)
-            .fold(0u32, |val, (i, _)| val | (1 << i));
-
-        let mut raw = [0; 4];
-        val.build_quadlet(&mut raw);
-        presonus_write(req, node, LINK_OFFSET, &mut raw, timeout_ms)
-            .map(|_| states.links.copy_from_slice(links))
-    }
-
-    pub fn read_bnc_terminate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        let mut raw = [0; 4];
-        presonus_read(req, node, BNC_TERMINATE_OFFSET, &mut raw, timeout_ms)
-            .map(|_| u32::from_be_bytes(raw) > 0)
-    }
-
-    pub fn write_bnc_terminalte(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        terminate: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        terminate.build_quadlet(&mut raw);
-        presonus_write(req, node, BNC_TERMINATE_OFFSET, &mut raw, timeout_ms)
-    }
-}
-
 /// Target of output assignment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AssignTarget {
@@ -826,82 +629,6 @@ fn deserialize_assign_target(target: &mut AssignTarget, raw: &[u8]) -> Result<()
     };
 
     Ok(())
-}
-
-impl FStudioProtocol {
-    fn read_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        offset: usize,
-        timeout_ms: u32,
-    ) -> Result<AssignTarget, Error> {
-        let mut raw = [0; 4];
-        presonus_read(req, node, offset, &mut raw, timeout_ms).map(|_| {
-            let mut target = AssignTarget::default();
-            let _ = deserialize_assign_target(&mut target, &raw);
-            target
-        })
-    }
-
-    fn write_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        offset: usize,
-        target: AssignTarget,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        let _ = serialize_assign_target(&target, &mut raw);
-        presonus_write(req, node, offset, &mut raw, timeout_ms)
-    }
-
-    pub fn read_main_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<AssignTarget, Error> {
-        Self::read_assign_target(req, node, MAIN_OFFSET, timeout_ms)
-    }
-
-    pub fn read_hp_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        hp: usize,
-        timeout_ms: u32,
-    ) -> Result<AssignTarget, Error> {
-        let offset = match hp {
-            0 => HP01_OFFSET,
-            1 => HP23_OFFSET,
-            2 => HP45_OFFSET,
-            _ => unreachable!(),
-        };
-        Self::read_assign_target(req, node, offset, timeout_ms)
-    }
-
-    pub fn write_main_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: AssignTarget,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_assign_target(req, node, MAIN_OFFSET, target, timeout_ms)
-    }
-
-    pub fn write_hp_assign_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        hp: usize,
-        target: AssignTarget,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let offset = match hp {
-            0 => HP01_OFFSET,
-            1 => HP23_OFFSET,
-            2 => HP45_OFFSET,
-            _ => unreachable!(),
-        };
-        Self::write_assign_target(req, node, offset, target, timeout_ms)
-    }
 }
 
 /// Mode of mixer expansion.
@@ -1078,36 +805,29 @@ impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
     const NAME: &'static str = "mixer-parameters";
 
     const OFFSET_RANGES: &'static [Range<usize>] = &[
-        // For gain, pan, mute of 8 analog inputs, 8 Adat0 inputs, and 2 S/PDIF inputs in 9 stereo
-        // mixers.
         Range {
-            start: PHYS_SRC_PARAMS_OFFSET,
-            end: PHYS_SRC_PARAMS_OFFSET + 4 * (9 * 3 * (8 + 8 + 2)),
+            start: MIXER_PHYS_SRC_PARAMS_OFFSET,
+            end: MIXER_PHYS_SRC_PARAMS_OFFSET + MIXER_PHYS_SRC_PARAMS_SIZE
         },
-        // For gain, pan, mute of 10 stream inputs in 9 stereo mixers.
         Range {
-            start: STREAM_SRC_PARAMS_OFFSET,
-            end: STREAM_SRC_PARAMS_OFFSET + 4 * (9 * 3 * (8 + 2)),
+            start: MIXER_STREAM_SRC_PARAMS_OFFSET,
+            end: MIXER_STREAM_SRC_PARAMS_OFFSET + MIXER_STREAM_SRC_PARAMS_SIZE,
         },
-        // For gain, pan, mute of 8 selectable inputs in 9 stereo mixers..
         Range {
-            start: 0x0c08,
-            end: 0x0c08 + 4 * (9 * 3 * 8),
+            start: MIXER_SELECTABLE_SRC_PARAMS_OFFSET,
+            end: MIXER_SELECTABLE_SRC_PARAMS_OFFSET + MIXER_SELECTABLE_SRC_PARAMS_SIZE,
         },
-        // For gain, unused, mute of output pairs from 9 stereo mixers.
         Range {
-            start: OUT_PARAMS_OFFSET,
-            end: OUT_PARAMS_OFFSET + 4 * 9 * 3,
+            start: MIXER_OUTPUT_PARAMS_OFFSET,
+            end: MIXER_OUTPUT_PARAMS_OFFSET + MIXER_OUTPUT_PARAMS_SIZE
         },
-        // For expansion mode.
         Range {
-            start: EXPANSION_MODE_OFFSET,
-            end: EXPANSION_MODE_OFFSET + 4,
+            start: MIXER_EXPANSION_MODE_OFFSET,
+            end: MIXER_EXPANSION_MODE_OFFSET + MIXER_EXPANSION_MODE_SIZE,
         },
-        // For pair link of source pairs in 9 stereo mixers.
         Range {
-            start: SRC_LINK_OFFSET,
-            end: SRC_LINK_OFFSET + 4 * 9,
+            start: MIXER_SRC_LINK_OFFSET,
+            end: MIXER_SRC_LINK_OFFSET + MIXER_SRC_LINK_SIZE,
         },
     ];
 
@@ -1255,452 +975,8 @@ impl<O: FStudioOperation + FStudioParametersSerdes<MixerParameters>>
 {
 }
 
-
-/// Parameters of mixer sources.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct SrcParams {
-    pub gains: [u8; 18],
-    pub pans: [u8; 18],
-    pub mutes: [bool; 18],
-}
-
-/// Parameters of mixer outputs.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct OutParams {
-    pub vols: [u8; MIXER_COUNT],
-    pub mutes: [bool; MIXER_COUNT],
-}
-
 /// The number of mixers.
 pub const MIXER_COUNT: usize = 9;
-
-impl FStudioProtocol {
-    pub fn read_mixer_src_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        offset: usize,
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(ch < MIXER_COUNT);
-
-        let quad_count = 3 * (8 + 8 + 2);
-        let mut raw = vec![0; quad_count * 4];
-        let pos = ch * quad_count * 4;
-        presonus_read(req, node, offset + pos, &mut raw, timeout_ms).map(|_| {
-            let mut quads = vec![0u32; quad_count];
-            quads.parse_quadlet_block(&raw);
-
-            params.gains.iter_mut().enumerate().for_each(|(i, gain)| {
-                let pos = i * 3;
-                *gain = quads[pos] as u8;
-            });
-
-            params.pans.iter_mut().enumerate().for_each(|(i, pan)| {
-                let pos = 1 + i * 3;
-                *pan = quads[pos] as u8;
-            });
-
-            params.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
-                let pos = 2 + i * 3;
-                *mute = quads[pos] > 0;
-            });
-        })
-    }
-
-    pub fn read_mixer_phys_src_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::read_mixer_src_params(req, node, params, PHYS_SRC_PARAMS_OFFSET, ch, timeout_ms)
-    }
-
-    pub fn read_mixer_stream_src_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::read_mixer_src_params(req, node, params, STREAM_SRC_PARAMS_OFFSET, ch, timeout_ms)
-    }
-
-    pub fn write_mixer_src_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        offset: usize,
-        ch: usize,
-        gains: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(ch < MIXER_COUNT);
-        assert_eq!(params.gains.len(), gains.len());
-
-        let mut raw = [0; 4];
-        params
-            .gains
-            .iter_mut()
-            .zip(gains)
-            .enumerate()
-            .filter(|(_, (old, new))| !old.eq(new))
-            .try_for_each(|(i, (old, new))| {
-                new.build_quadlet(&mut raw);
-                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
-                pos += i * 3 * 4;
-                presonus_write(req, node, offset + pos, &mut raw, timeout_ms).map(|_| *old = *new)
-            })
-    }
-
-    pub fn write_mixer_src_pans(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        offset: usize,
-        ch: usize,
-        pans: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(ch < MIXER_COUNT);
-        assert_eq!(params.pans.len(), pans.len());
-
-        let mut raw = [0; 4];
-        params
-            .pans
-            .iter_mut()
-            .zip(pans)
-            .enumerate()
-            .filter(|(_, (old, new))| !old.eq(new))
-            .try_for_each(|(i, (old, new))| {
-                (*new as u32).build_quadlet(&mut raw);
-                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
-                pos += (i * 3 + 1) * 4;
-                presonus_write(req, node, offset + pos, &mut raw, timeout_ms).map(|_| *old = *new)
-            })
-    }
-
-    pub fn write_mixer_src_mutes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        offset: usize,
-        ch: usize,
-        mutes: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(ch < MIXER_COUNT);
-        assert_eq!(params.mutes.len(), mutes.len());
-
-        let mut raw = [0; 4];
-        params
-            .mutes
-            .iter_mut()
-            .zip(mutes)
-            .enumerate()
-            .filter(|(_, (old, new))| !old.eq(new))
-            .try_for_each(|(i, (old, new))| {
-                (*new as u32).build_quadlet(&mut raw);
-                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
-                pos += (i * 3 + 2) * 4;
-                presonus_write(req, node, offset + pos, &mut raw, timeout_ms).map(|_| *old = *new)
-            })
-    }
-    pub fn write_mixer_phys_src_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        gains: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(
-            req,
-            node,
-            params,
-            PHYS_SRC_PARAMS_OFFSET,
-            ch,
-            gains,
-            timeout_ms,
-        )
-    }
-
-    pub fn write_mixer_phys_src_pans(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        pans: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_pans(
-            req,
-            node,
-            params,
-            PHYS_SRC_PARAMS_OFFSET,
-            ch,
-            pans,
-            timeout_ms,
-        )
-    }
-
-    pub fn write_mixer_phys_src_mutes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        mutes: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_mutes(
-            req,
-            node,
-            params,
-            PHYS_SRC_PARAMS_OFFSET,
-            ch,
-            mutes,
-            timeout_ms,
-        )
-    }
-
-    pub fn write_mixer_stream_src_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        gains: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(
-            req,
-            node,
-            params,
-            STREAM_SRC_PARAMS_OFFSET,
-            ch,
-            gains,
-            timeout_ms,
-        )
-    }
-
-    pub fn write_mixer_stream_src_pans(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        pans: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_pans(
-            req,
-            node,
-            params,
-            STREAM_SRC_PARAMS_OFFSET,
-            ch,
-            pans,
-            timeout_ms,
-        )
-    }
-
-    pub fn write_mixer_stream_src_mutes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SrcParams,
-        ch: usize,
-        mutes: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_mutes(
-            req,
-            node,
-            params,
-            STREAM_SRC_PARAMS_OFFSET,
-            ch,
-            mutes,
-            timeout_ms,
-        )
-    }
-
-    pub fn read_mixer_out_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut OutParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; 3 * MIXER_COUNT * 4];
-        presonus_read(req, node, OUT_PARAMS_OFFSET, &mut raw, timeout_ms).map(|_| {
-            let mut quads = vec![0u32; 3 * MIXER_COUNT];
-            quads.parse_quadlet_block(&raw);
-
-            params.vols.iter_mut().enumerate().for_each(|(i, vol)| {
-                let pos = i * 3;
-                *vol = quads[pos] as u8;
-            });
-
-            params.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
-                let pos = i * 3 + 2;
-                *mute = quads[pos] > 0;
-            });
-        })
-    }
-
-    pub fn write_mixer_out_vol(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut OutParams,
-        vols: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        params
-            .vols
-            .iter_mut()
-            .zip(vols)
-            .enumerate()
-            .filter(|(_, (o, n))| !o.eq(n))
-            .try_for_each(|(i, (o, n))| {
-                (*n as u32).build_quadlet(&mut raw);
-                let offset = 3 * i * 4;
-                presonus_write(req, node, OUT_PARAMS_OFFSET + offset, &mut raw, timeout_ms)
-                    .map(|_| *o = *n)
-            })
-    }
-
-    pub fn write_mixer_out_mute(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut OutParams,
-        mutes: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        params
-            .mutes
-            .iter_mut()
-            .zip(mutes)
-            .enumerate()
-            .filter(|(_, (o, n))| !o.eq(n))
-            .try_for_each(|(i, (o, n))| {
-                (*n as u32).build_quadlet(&mut raw);
-                let offset = (3 * i + 2) * 4;
-                presonus_write(req, node, OUT_PARAMS_OFFSET + offset, &mut raw, timeout_ms)
-                    .map(|_| *o = *n)
-            })
-    }
-
-    pub fn read_mixer_expansion_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<ExpansionMode, Error> {
-        let mut raw = [0; 4];
-        presonus_read(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms).map(|_| {
-            let mut mode = ExpansionMode::default();
-            let _ = deserialize_expansion_mode(&mut mode, &raw);
-            mode
-        })
-    }
-
-    pub fn write_mixer_expansion_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        mode: ExpansionMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        let _ = serialize_expansion_mode(&mode, &mut raw);
-        presonus_write(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
-    }
-
-    pub fn read_mixer_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &mut [bool],
-        ch: usize,
-        shift: usize,
-        mask: u32,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(ch < MIXER_COUNT);
-        assert_eq!(links.len(), 9);
-
-        let mut raw = [0; 4];
-        let offset = ch * 4;
-        presonus_read(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms).map(|_| {
-            let val = u32::from_be_bytes(raw) & mask;
-            links
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, link)| *link = val & (1 << (i + shift)) > 0);
-        })
-    }
-
-    pub fn write_mixer_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &[bool],
-        ch: usize,
-        shift: usize,
-        mask: u32,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        let offset = ch * 4;
-        presonus_read(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)?;
-
-        let mut val = u32::from_be_bytes(raw) & !mask;
-        links
-            .iter()
-            .enumerate()
-            .filter(|(_, &link)| link)
-            .for_each(|(i, _)| val |= 1 << (i + shift));
-
-        val.build_quadlet(&mut raw);
-        presonus_write(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)
-    }
-
-    pub fn read_mixer_phys_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &mut [bool],
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::read_mixer_src_links(req, node, links, ch, 0, 0x0000ffff, timeout_ms)
-    }
-
-    pub fn read_mixer_stream_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &mut [bool],
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::read_mixer_src_links(req, node, links, ch, 16, 0xffff0000, timeout_ms)
-    }
-
-    pub fn write_mixer_phys_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &[bool],
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_links(req, node, links, ch, 0, 0x0000ffff, timeout_ms)
-    }
-
-    pub fn write_mixer_stream_src_links(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        links: &[bool],
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_links(req, node, links, ch, 16, 0xffff0000, timeout_ms)
-    }
-}
 
 #[cfg(test)]
 mod test {
