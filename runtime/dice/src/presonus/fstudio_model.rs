@@ -10,7 +10,6 @@ pub struct FStudioModel {
     common_ctl: CommonCtl,
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
-    assign_ctl: AssignCtl,
     mixer_ctl: MixerCtl,
 }
 
@@ -24,6 +23,7 @@ impl FStudioModel {
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -43,9 +43,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
         )?;
 
         self.meter_ctl.load(card_cntr)?;
-        self.out_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.assign_ctl.load(card_cntr)?;
+        self.out_ctl.load(card_cntr)?;
         self.mixer_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
 
@@ -62,15 +60,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .out_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .assign_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.out_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .mixer_ctl
@@ -86,7 +76,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
@@ -101,12 +91,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
             Ok(true)
         } else if self
             .out_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .assign_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -247,7 +232,7 @@ impl MeterCtl {
 }
 
 #[derive(Default, Debug)]
-struct OutputCtl(OutputState);
+struct OutputCtl(OutputParameters);
 
 fn output_src_to_string(src: &OutputSrc) -> String {
     match src {
@@ -265,6 +250,8 @@ impl OutputCtl {
     const VOL_NAME: &'static str = "output-volume";
     const MUTE_NAME: &'static str = "output-mute";
     const LINK_NAME: &'static str = "output-link";
+    const MAIN_NAME: &'static str = "main-assign";
+    const HP_NAME: &'static str = "headphone-assign";
     const TERMINATE_BNC_NAME: &'static str = "terminate-bnc";
 
     const VOL_MIN: i32 = 0;
@@ -334,15 +321,25 @@ impl OutputCtl {
         OutputSrc::MixerOut(17),
     ];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        FStudioProtocol::read_output_states(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    const HP_LABELS: [&'static str; 3] = ["HP-1/2", "HP-3/4", "HP-5/6"];
 
+    const TARGETS: [AssignTarget; 9] = [
+        AssignTarget::Analog01,
+        AssignTarget::Analog23,
+        AssignTarget::Analog56,
+        AssignTarget::Analog78,
+        AssignTarget::AdatA01,
+        AssignTarget::AdatA23,
+        AssignTarget::AdatA45,
+        AssignTarget::AdatA67,
+        AssignTarget::Spdif01,
+    ];
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VOL_NAME, 0);
         card_cntr.add_int_elems(
             &elem_id,
@@ -350,20 +347,31 @@ impl OutputCtl {
             Self::VOL_MIN,
             Self::VOL_MAX,
             Self::VOL_STEP,
-            self.0.vols.len(),
+            MIXER_COUNT * 2,
             Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)),
             true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, self.0.mutes.len(), true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, MIXER_COUNT * 2, true)?;
 
         let labels: Vec<String> = Self::SRCS.iter().map(|s| output_src_to_string(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, self.0.srcs.len(), &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, MIXER_COUNT, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::LINK_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, self.0.links.len(), true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, MIXER_COUNT, true)?;
+
+        let labels: Vec<&str> = Self::TARGETS
+            .iter()
+            .map(|s| assign_target_to_str(s))
+            .collect();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, Self::HP_LABELS.len(), &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::TERMINATE_BNC_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -371,31 +379,37 @@ impl OutputCtl {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::VOL_NAME => {
-                let vals: Vec<i32> = self.0.vols.iter().map(|&vol| vol as i32).collect();
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .pairs
+                    .iter()
+                    .flat_map(|pair| pair.volumes.iter())
+                    .map(|&vol| vol as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::MUTE_NAME => {
-                elem_value.set_bool(&self.0.mutes);
+                let params = &self.0;
+                let vals: Vec<bool> = params
+                    .pairs
+                    .iter()
+                    .flat_map(|pair| pair.mutes.iter())
+                    .copied()
+                    .collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::SRC_NAME => {
-                let vals: Vec<u32> = self
-                    .0
-                    .srcs
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .pairs
                     .iter()
-                    .map(|src| {
-                        let pos = Self::SRCS.iter().position(|s| s.eq(src)).unwrap();
+                    .map(|pair| {
+                        let pos = Self::SRCS.iter().position(|s| pair.src.eq(s)).unwrap();
                         pos as u32
                     })
                     .collect();
@@ -403,14 +417,37 @@ impl OutputCtl {
                 Ok(true)
             }
             Self::LINK_NAME => {
-                elem_value.set_bool(&self.0.links);
+                let params = &self.0;
+                let vals: Vec<bool> = params.pairs.iter().map(|pair| pair.link).collect();
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::MAIN_NAME => {
+                let params = &self.0;
+                let pos = Self::TARGETS
+                    .iter()
+                    .position(|t| params.main_assign.eq(t))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::HP_NAME => {
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .headphone_assigns
+                    .iter()
+                    .map(|assign| {
+                        let pos = Self::TARGETS.iter().position(|t| assign.eq(t)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::TERMINATE_BNC_NAME => {
-                FStudioProtocol::read_bnc_terminate(req, &mut unit.1, timeout_ms).map(|terminate| {
-                    elem_value.set_bool(&[terminate]);
-                    true
-                })
+                let params = &self.0;
+                elem_value.set_bool(&[params.bnc_terminate]);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -418,50 +455,150 @@ impl OutputCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::VOL_NAME => {
-                let vals = &elem_value.int()[..self.0.vols.len()];
-                let vols: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                FStudioProtocol::write_output_vols(req, &mut unit.1, &mut self.0, &vols, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.volumes.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(vol, &val)| *vol = val as u8);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             Self::MUTE_NAME => {
-                let vals = &elem_value.boolean()[..self.0.mutes.len()];
-                FStudioProtocol::write_output_mute(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             Self::SRC_NAME => {
-                let vals = &elem_value.enumerated()[..self.0.srcs.len()];
-
-                let mut srcs = self.0.srcs.clone();
-                vals.iter().enumerate().try_for_each(|(i, &val)| {
-                    Self::SRCS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of output source: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&src| srcs[i] = src)
-                })?;
-                FStudioProtocol::write_output_src(req, &mut unit.1, &mut self.0, &srcs, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .pairs
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(pair, &val)| {
+                        let pos = val as usize;
+                        Self::SRCS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Invalid value for index of output source: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&s| pair.src = s)
+                    })?;
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             Self::LINK_NAME => {
-                let vals = &elem_value.boolean()[..self.0.links.len()];
-                FStudioProtocol::write_output_link(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .pairs
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(pair, val)| pair.link = val);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::MAIN_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.main_assign = Self::TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of assignment target: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::HP_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .headphone_assigns
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(assign, &val)| {
+                        let pos = val as usize;
+                        Self::TARGETS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!(
+                                    "Invalid value for index of assignment target: {}",
+                                    pos
+                                );
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&t| *assign = t)
+                    })?;
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             Self::TERMINATE_BNC_NAME => {
-                let val = elem_value.boolean()[0];
-                FStudioProtocol::write_bnc_terminalte(req, &mut unit.1, val, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params.bnc_terminate = elem_value.boolean()[0];
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -479,101 +616,6 @@ fn assign_target_to_str(target: &AssignTarget) -> &'static str {
         AssignTarget::AdatA45 => "ADAT-output-5/6",
         AssignTarget::AdatA67 => "ADAT-output-7/8",
         AssignTarget::Spdif01 => "S/PDIF-output-1/2",
-    }
-}
-
-#[derive(Default, Debug)]
-struct AssignCtl;
-
-impl AssignCtl {
-    const MAIN_NAME: &'static str = "main-assign";
-    const HP_NAME: &'static str = "headphone-assign";
-
-    const HP_LABELS: [&'static str; 3] = ["HP-1/2", "HP-3/4", "HP-5/6"];
-
-    const TARGETS: [AssignTarget; 9] = [
-        AssignTarget::Analog01,
-        AssignTarget::Analog23,
-        AssignTarget::Analog56,
-        AssignTarget::Analog78,
-        AssignTarget::AdatA01,
-        AssignTarget::AdatA23,
-        AssignTarget::AdatA45,
-        AssignTarget::AdatA67,
-        AssignTarget::Spdif01,
-    ];
-
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::TARGETS
-            .iter()
-            .map(|s| assign_target_to_str(s))
-            .collect();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, Self::HP_LABELS.len(), &labels, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            Self::MAIN_NAME => {
-                let target =
-                    FStudioProtocol::read_main_assign_target(req, &mut unit.1, timeout_ms)?;
-                let pos = Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            Self::HP_NAME => ElemValueAccessor::<u32>::set_vals(elem_value, 3, |idx| {
-                let target =
-                    FStudioProtocol::read_hp_assign_target(req, &mut unit.1, idx, timeout_ms)?;
-                let pos = Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            Self::MAIN_NAME => {
-                let val = new.enumerated()[0];
-                let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid value for index of assignment target: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                FStudioProtocol::write_main_assign_target(req, &mut unit.1, *target, timeout_ms)
-                    .map(|_| true)
-            }
-            Self::HP_NAME => ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
-                let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid value for index of assignment target: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                FStudioProtocol::write_hp_assign_target(req, &mut unit.1, idx, *target, timeout_ms)
-            })
-            .map(|_| true),
-            _ => Ok(false),
-        }
     }
 }
 
