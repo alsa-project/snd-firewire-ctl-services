@@ -23,6 +23,8 @@ impl FStudioModel {
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+
         Ok(())
     }
 }
@@ -40,8 +42,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
             },
         )?;
 
-        self.meter_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr)?;
         self.out_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.assign_ctl.load(card_cntr)?;
@@ -58,6 +59,8 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .out_ctl
@@ -150,8 +153,7 @@ impl MeasureModel<(SndDice, FwNode)> for FStudioModel {
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -163,7 +165,7 @@ impl MeasureModel<(SndDice, FwNode)> for FStudioModel {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -194,15 +196,11 @@ impl MeterCtl {
         mute_avail: false,
     };
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        FStudioProtocol::read_meter(req, &mut unit.1, &mut self.0, timeout_ms)?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (Self::ANALOG_INPUT_NAME, self.0.analog_inputs.len()),
             (Self::STREAM_INPUT_NAME, self.0.stream_inputs.len()),
@@ -223,25 +221,10 @@ impl MeterCtl {
                     false,
                 )
                 .map(|mut elem_id_list| self.1.append(&mut elem_id_list))
-        })?;
-
-        Ok(())
+        })
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        FStudioProtocol::read_meter(req, &mut unit.1, &mut self.0, timeout_ms)
-    }
-
-    fn read_measured_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ANALOG_INPUT_NAME => {
                 let vals: Vec<i32> = self.0.analog_inputs.iter().map(|&l| l as i32).collect();
