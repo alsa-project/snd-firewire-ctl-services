@@ -24,17 +24,14 @@ impl FStudioModel {
 
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for FStudioModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections).map(
             |(measured_elem_id_list, notified_elem_id_list)| {
                 self.common_ctl.0 = measured_elem_id_list;
@@ -44,15 +41,14 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
 
         self.meter_ctl.load(card_cntr)?;
         self.out_ctl.load(card_cntr)?;
-        self.mixer_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.mixer_ctl.load(card_cntr)?;
 
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -62,10 +58,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
             Ok(true)
         } else if self.out_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -96,7 +89,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioModel {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -627,13 +620,7 @@ fn expansion_mode_to_str(mode: &ExpansionMode) -> &'static str {
 }
 
 #[derive(Default, Debug)]
-struct MixerCtl {
-    phys_src_params: [SrcParams; MIXER_COUNT],
-    stream_src_params: [SrcParams; MIXER_COUNT],
-    phys_src_links: [[bool; 9]; MIXER_COUNT],
-    stream_src_links: [[bool; 9]; MIXER_COUNT],
-    outs: OutParams,
-}
+struct MixerCtl(MixerParameters);
 
 impl MixerCtl {
     const PHYS_SRC_GAIN_NAME: &'static str = "mixer-phys-source-gain";
@@ -644,6 +631,10 @@ impl MixerCtl {
     const STREAM_SRC_PAN_NAME: &'static str = "mixer-stream-source-pan";
     const STREAM_SRC_MUTE_NAME: &'static str = "mixer-stream-source-mute";
     const STREAM_SRC_LINK_NAME: &'static str = "mixer-stream-source-link";
+    const SELECTABLE_SRC_GAIN_NAME: &'static str = "mixer-selectable-source-gain";
+    const SELECTABLE_SRC_PAN_NAME: &'static str = "mixer-selectable-source-pan";
+    const SELECTABLE_SRC_MUTE_NAME: &'static str = "mixer-selectable-source-mute";
+    const SELECTABLE_SRC_LINK_NAME: &'static str = "mixer-selectable-source-link";
     const OUT_VOL_NAME: &'static str = "mixer-output-volume";
     const OUT_MUTE_NAME: &'static str = "mixer-output-mute";
     const EXPANSION_MODE_NAME: &'static str = "mixer-expansion-mode";
@@ -665,146 +656,70 @@ impl MixerCtl {
     const EXPANSION_MODES: [ExpansionMode; 2] =
         [ExpansionMode::StreamB0_7, ExpansionMode::AdatB0_7];
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        self.phys_src_params
-            .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, params)| {
-                FStudioProtocol::read_mixer_phys_src_params(req, &mut unit.1, params, i, timeout_ms)
-            })?;
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        FStudioProtocol::cache_whole_parameters(req, node, &mut self.0, timeout_ms)
+    }
 
-        self.stream_src_params
-            .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, params)| {
-                FStudioProtocol::read_mixer_stream_src_params(
-                    req,
-                    &mut unit.1,
-                    params,
-                    i,
-                    timeout_ms,
-                )
-            })?;
-
-        self.phys_src_links
-            .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, links)| {
-                FStudioProtocol::read_mixer_phys_src_links(req, &mut unit.1, links, i, timeout_ms)
-            })?;
-
-        self.stream_src_links
-            .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, links)| {
-                FStudioProtocol::read_mixer_stream_src_links(req, &mut unit.1, links, i, timeout_ms)
-            })?;
-
-        FStudioProtocol::read_mixer_out_params(req, &mut unit.1, &mut self.outs, timeout_ms)?;
-
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (
                 Self::PHYS_SRC_GAIN_NAME,
-                self.phys_src_params.len(),
-                self.phys_src_params[0].gains.len(),
+                Self::PHYS_SRC_PAN_NAME,
+                Self::PHYS_SRC_MUTE_NAME,
+                Self::PHYS_SRC_LINK_NAME,
+                18,
             ),
             (
                 Self::STREAM_SRC_GAIN_NAME,
-                self.stream_src_params.len(),
-                self.stream_src_params[0].gains.len(),
+                Self::STREAM_SRC_PAN_NAME,
+                Self::STREAM_SRC_MUTE_NAME,
+                Self::STREAM_SRC_LINK_NAME,
+                10,
+            ),
+            (
+                Self::SELECTABLE_SRC_GAIN_NAME,
+                Self::SELECTABLE_SRC_PAN_NAME,
+                Self::SELECTABLE_SRC_MUTE_NAME,
+                Self::SELECTABLE_SRC_LINK_NAME,
+                8,
             ),
         ]
         .iter()
-        .try_for_each(|&(name, elem_count, value_count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_int_elems(
+        .try_for_each(
+            |&(gain_name, balance_name, mute_name, link_name, value_count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, gain_name, 0);
+                let _ = card_cntr.add_int_elems(
                     &elem_id,
-                    elem_count,
+                    MIXER_COUNT,
                     Self::LEVEL_MIN,
                     Self::LEVEL_MAX,
                     Self::LEVEL_STEP,
                     value_count,
                     Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
                     true,
-                )
-                .map(|_| ())
-        })?;
+                )?;
 
-        [
-            (
-                Self::PHYS_SRC_PAN_NAME,
-                self.phys_src_params.len(),
-                self.phys_src_params[0].pans.len(),
-            ),
-            (
-                Self::STREAM_SRC_PAN_NAME,
-                self.stream_src_params.len(),
-                self.stream_src_params[0].pans.len(),
-            ),
-        ]
-        .iter()
-        .try_for_each(|&(name, elem_count, value_count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_int_elems(
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, balance_name, 0);
+                let _ = card_cntr.add_int_elems(
                     &elem_id,
-                    elem_count,
+                    MIXER_COUNT,
                     Self::PAN_MIN,
                     Self::PAN_MAX,
                     Self::PAN_STEP,
                     value_count,
                     None,
                     true,
-                )
-                .map(|_| ())
-        })?;
+                )?;
 
-        [
-            (
-                Self::PHYS_SRC_MUTE_NAME,
-                self.phys_src_params.len(),
-                self.phys_src_params[0].mutes.len(),
-            ),
-            (
-                Self::STREAM_SRC_MUTE_NAME,
-                self.stream_src_params.len(),
-                self.stream_src_params[0].mutes.len(),
-            ),
-        ]
-        .iter()
-        .try_for_each(|&(name, elem_count, value_count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_bool_elems(&elem_id, elem_count, value_count, true)
-                .map(|_| ())
-        })?;
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, mute_name, 0);
+                let _ = card_cntr.add_bool_elems(&elem_id, MIXER_COUNT, value_count, true)?;
 
-        [
-            (
-                Self::PHYS_SRC_LINK_NAME,
-                self.phys_src_links.len(),
-                self.phys_src_links[0].len(),
-            ),
-            (
-                Self::STREAM_SRC_LINK_NAME,
-                self.stream_src_links.len(),
-                self.stream_src_links[0].len(),
-            ),
-        ]
-        .iter()
-        .try_for_each(|&(name, elem_count, value_count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_bool_elems(&elem_id, elem_count, value_count, true)
-                .map(|_| ())
-        })?;
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, link_name, 0);
+                card_cntr
+                    .add_bool_elems(&elem_id, MIXER_COUNT, value_count / 2, true)
+                    .map(|_| ())
+            },
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_VOL_NAME, 0);
         card_cntr.add_int_elems(
@@ -813,12 +728,13 @@ impl MixerCtl {
             Self::LEVEL_MIN,
             Self::LEVEL_MAX,
             Self::LEVEL_STEP,
-            self.outs.vols.len(),
+            9,
             Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
             true,
         )?;
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, self.outs.mutes.len(), true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, MIXER_COUNT, true)?;
 
         let labels: Vec<&str> = Self::EXPANSION_MODES
             .iter()
@@ -830,82 +746,184 @@ impl MixerCtl {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::PHYS_SRC_GAIN_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.phys_src_params[index];
-                let vals: Vec<i32> = params.gains.iter().map(|&gain| gain as i32).collect();
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .analog_pairs
+                    .iter()
+                    .chain(srcs.adat_0_pairs.iter())
+                    .chain(srcs.spdif_pairs.iter())
+                    .flat_map(|pair| pair.gains.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::PHYS_SRC_PAN_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.phys_src_params[index];
-                let vals: Vec<i32> = params.pans.iter().map(|&pan| pan as i32).collect();
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .analog_pairs
+                    .iter()
+                    .chain(srcs.adat_0_pairs.iter())
+                    .chain(srcs.spdif_pairs.iter())
+                    .flat_map(|pair| pair.balances.iter())
+                    .map(|&balance| balance as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::PHYS_SRC_MUTE_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.phys_src_params[index];
-                elem_value.set_bool(&params.mutes);
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs
+                    .analog_pairs
+                    .iter()
+                    .chain(srcs.adat_0_pairs.iter())
+                    .chain(srcs.spdif_pairs.iter())
+                    .flat_map(|pair| pair.mutes.iter())
+                    .copied()
+                    .collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::PHYS_SRC_LINK_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let links = &self.phys_src_links[index];
-                elem_value.set_bool(links);
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs
+                    .analog_pairs
+                    .iter()
+                    .chain(srcs.adat_0_pairs.iter())
+                    .chain(srcs.spdif_pairs.iter())
+                    .map(|pair| pair.link)
+                    .collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.stream_src_params[index];
-                let vals: Vec<i32> = params.gains.iter().map(|&gain| gain as i32).collect();
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .stream_pairs
+                    .iter()
+                    .flat_map(|pair| pair.gains.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_PAN_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.stream_src_params[index];
-                let vals: Vec<i32> = params.pans.iter().map(|&pan| pan as i32).collect();
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .stream_pairs
+                    .iter()
+                    .flat_map(|pair| pair.balances.iter())
+                    .map(|&balance| balance as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_MUTE_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let params = &self.stream_src_params[index];
-                elem_value.set_bool(&params.mutes);
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs
+                    .stream_pairs
+                    .iter()
+                    .flat_map(|pair| pair.mutes.iter())
+                    .copied()
+                    .collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_LINK_NAME => {
+                let params = &self.0;
                 let index = elem_id.index() as usize;
-                let links = &self.stream_src_links[index];
-                elem_value.set_bool(links);
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs.stream_pairs.iter().map(|pair| pair.link).collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
+
+            Self::SELECTABLE_SRC_GAIN_NAME => {
+                let params = &self.0;
+                let index = elem_id.index() as usize;
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .selectable_pairs
+                    .iter()
+                    .flat_map(|pair| pair.gains.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::SELECTABLE_SRC_PAN_NAME => {
+                let params = &self.0;
+                let index = elem_id.index() as usize;
+                let srcs = &params.sources[index];
+                let vals: Vec<i32> = srcs
+                    .selectable_pairs
+                    .iter()
+                    .flat_map(|pair| pair.balances.iter())
+                    .map(|&balance| balance as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::SELECTABLE_SRC_MUTE_NAME => {
+                let params = &self.0;
+                let index = elem_id.index() as usize;
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs
+                    .selectable_pairs
+                    .iter()
+                    .flat_map(|pair| pair.mutes.iter())
+                    .copied()
+                    .collect();
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::SELECTABLE_SRC_LINK_NAME => {
+                let params = &self.0;
+                let index = elem_id.index() as usize;
+                let srcs = &params.sources[index];
+                let vals: Vec<bool> = srcs.selectable_pairs.iter().map(|pair| pair.link).collect();
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+
             Self::OUT_VOL_NAME => {
-                let vals: Vec<i32> = self.outs.vols.iter().map(|&v| v as i32).collect();
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .outputs
+                    .iter()
+                    .map(|pair| pair.volume as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::OUT_MUTE_NAME => {
-                elem_value.set_bool(&self.outs.mutes);
+                let params = &self.0;
+                let vals: Vec<bool> = params.outputs.iter().map(|pair| pair.mute).collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::EXPANSION_MODE_NAME => {
-                let mode =
-                    FStudioProtocol::read_mixer_expansion_mode(req, &mut unit.1, timeout_ms)?;
+                let params = &self.0;
                 let pos = Self::EXPANSION_MODES
                     .iter()
-                    .position(|m| m.eq(&mode))
+                    .position(|m| params.expansion_mode.eq(m))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -916,161 +934,285 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::PHYS_SRC_GAIN_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.int()[..params.gains.len()];
-                let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
-                FStudioProtocol::write_mixer_phys_src_gains(
+                let srcs = &mut params.sources[index];
+                srcs.analog_pairs
+                    .iter_mut()
+                    .chain(srcs.adat_0_pairs.iter_mut())
+                    .chain(srcs.spdif_pairs.iter_mut())
+                    .flat_map(|pair| pair.gains.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &gains,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::PHYS_SRC_PAN_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.int()[..params.pans.len()];
-                let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
-                FStudioProtocol::write_mixer_phys_src_pans(
+                let srcs = &mut params.sources[index];
+                srcs.analog_pairs
+                    .iter_mut()
+                    .chain(srcs.adat_0_pairs.iter_mut())
+                    .chain(srcs.spdif_pairs.iter_mut())
+                    .flat_map(|pair| pair.balances.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(balances, &val)| *balances = val as u8);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &pans,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::PHYS_SRC_MUTE_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.boolean()[..params.mutes.len()];
-                FStudioProtocol::write_mixer_phys_src_mutes(
+                let srcs = &mut params.sources[index];
+                srcs.analog_pairs
+                    .iter_mut()
+                    .chain(srcs.adat_0_pairs.iter_mut())
+                    .chain(srcs.spdif_pairs.iter_mut())
+                    .flat_map(|pair| pair.mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &vals,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::PHYS_SRC_LINK_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let links = &mut self.phys_src_links[index];
-                let vals = &elem_value.boolean()[..links.len()];
-                FStudioProtocol::write_mixer_phys_src_links(
+                let srcs = &mut params.sources[index];
+                srcs.analog_pairs
+                    .iter_mut()
+                    .chain(srcs.adat_0_pairs.iter_mut())
+                    .chain(srcs.spdif_pairs.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(pair, val)| pair.link = val);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    &vals,
-                    index,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.int()[..params.gains.len()];
-                let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
-                FStudioProtocol::write_mixer_stream_src_gains(
+                let srcs = &mut params.sources[index];
+                srcs.stream_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.gains.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &gains,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::STREAM_SRC_PAN_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.int()[..params.pans.len()];
-                let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
-                FStudioProtocol::write_mixer_stream_src_pans(
+                let srcs = &mut params.sources[index];
+                srcs.stream_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.balances.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(balances, &val)| *balances = val as u8);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &pans,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::STREAM_SRC_MUTE_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.boolean()[..params.mutes.len()];
-                FStudioProtocol::write_mixer_stream_src_mutes(
+                let srcs = &mut params.sources[index];
+                srcs.stream_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    params,
-                    index,
-                    &vals,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::STREAM_SRC_LINK_NAME => {
+                let mut params = self.0.clone();
                 let index = elem_id.index() as usize;
-                let links = &mut self.stream_src_links[index];
-                let vals = &elem_value.boolean()[..links.len()];
-                FStudioProtocol::write_mixer_stream_src_links(
+                let srcs = &mut params.sources[index];
+                srcs.stream_pairs
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(pair, val)| pair.link = val);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    &vals,
-                    index,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::SELECTABLE_SRC_GAIN_NAME => {
+                let mut params = self.0.clone();
+                let index = elem_id.index() as usize;
+                let srcs = &mut params.sources[index];
+                srcs.selectable_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.gains.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::SELECTABLE_SRC_PAN_NAME => {
+                let mut params = self.0.clone();
+                let index = elem_id.index() as usize;
+                let srcs = &mut params.sources[index];
+                srcs.selectable_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.balances.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(balances, &val)| *balances = val as u8);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::SELECTABLE_SRC_MUTE_NAME => {
+                let mut params = self.0.clone();
+                let index = elem_id.index() as usize;
+                let srcs = &mut params.sources[index];
+                srcs.selectable_pairs
+                    .iter_mut()
+                    .flat_map(|pair| pair.mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            Self::SELECTABLE_SRC_LINK_NAME => {
+                let mut params = self.0.clone();
+                let index = elem_id.index() as usize;
+                let srcs = &mut params.sources[index];
+                srcs.selectable_pairs
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(pair, val)| pair.link = val);
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::OUT_VOL_NAME => {
-                let vals = &elem_value.int()[..self.outs.vols.len()];
-                let vols: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
-                FStudioProtocol::write_mixer_out_vol(
+                let mut params = self.0.clone();
+                params
+                    .outputs
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(pair, &val)| pair.volume = val as u8);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    &mut self.outs,
-                    &vols,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::OUT_MUTE_NAME => {
-                let vals = &elem_value.boolean()[..self.outs.mutes.len()];
-                FStudioProtocol::write_mixer_out_mute(
+                let mut params = self.0.clone();
+                params
+                    .outputs
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(pair, val)| pair.mute = val);
+                FStudioProtocol::update_partial_parameters(
                     req,
-                    &mut unit.1,
-                    &mut self.outs,
-                    &vals,
+                    node,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::EXPANSION_MODE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &mode = Self::EXPANSION_MODES
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.expansion_mode = Self::EXPANSION_MODES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of expansion mode: {}", val);
+                        let msg = format!("Invalid value for index of expansion mode: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                FStudioProtocol::write_mixer_expansion_mode(req, &mut unit.1, mode, timeout_ms)
-                    .map(|_| true)
+                    })
+                    .copied()?;
+                FStudioProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
