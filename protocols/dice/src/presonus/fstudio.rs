@@ -32,6 +32,14 @@ impl FStudioOperation for FStudioProtocol {}
 
 const OFFSET: usize = 0x00700000;
 
+const PARAMS_OFFSET: usize = 0x0f68;
+const SRC_OFFSET: usize = 0x10ac;
+const MAIN_OFFSET: usize = 0x10f4;
+const HP01_OFFSET: usize = 0x10f8;
+const HP23_OFFSET: usize = 0x10fc;
+const HP45_OFFSET: usize = 0x1100;
+const BNC_TERMINATE_OFFSET: usize = 0x1118;
+const LINK_OFFSET: usize = 0x1150;
 const METER_OFFSET: usize = 0x13e8;
 
 /// Serialize and deserialize parameters for FireStudio.
@@ -269,50 +277,207 @@ impl FStudioProtocol {
 }
 
 /// Source of output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OutputSrc {
+    /// Analog input 1..8.
     Analog(usize),
+    /// ADAT input 1..8 in 1st optical interface.
     Adat0(usize),
+    /// S/PDIF input 1/2 in coaxial interface.
     Spdif(usize),
+    /// Stream input A 1..8 and stream input 9/10.
     Stream(usize),
+    /// Either stream input A 9..16, or ADAT input 9..16 in 2nd optical interface.
     StreamAdat1(usize),
+    /// Outputs from stereo mixer 1..9.
     MixerOut(usize),
-    Reserved(usize),
 }
 
 impl Default for OutputSrc {
     fn default() -> Self {
-        Self::Reserved(0xff)
+        Self::Analog(0)
     }
 }
 
-impl From<u32> for OutputSrc {
-    fn from(val: u32) -> Self {
-        let v = val as usize;
-        match v {
-            0x00..=0x07 => Self::Analog(v),
-            0x08..=0x0f => Self::Adat0(v - 0x08),
-            0x10..=0x11 => Self::Spdif(v - 0x10),
-            0x12..=0x1b => Self::Stream(v - 0x12),
-            0x1c..=0x23 => Self::StreamAdat1(v - 0x1c),
-            0x24..=0x35 => Self::MixerOut(v - 0x24),
-            _ => Self::Reserved(v),
-        }
+fn serialize_output_source(src: &OutputSrc, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = (match src {
+        OutputSrc::Analog(val) => *val,
+        OutputSrc::Adat0(val) => *val + 0x08,
+        OutputSrc::Spdif(val) => *val + 0x10,
+        OutputSrc::Stream(val) => *val + 0x12,
+        OutputSrc::StreamAdat1(val) => *val + 0x1c,
+        OutputSrc::MixerOut(val) => *val + 0x24,
+    }) as u32;
+
+    val.build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_output_source(src: &mut OutputSrc, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    let val = u32::from_be_bytes(quadlet) as usize;
+
+    *src = match val {
+        0x00..=0x07 => OutputSrc::Analog(val),
+        0x08..=0x0f => OutputSrc::Adat0(val - 0x08),
+        0x10..=0x11 => OutputSrc::Spdif(val - 0x10),
+        0x12..=0x1b => OutputSrc::Stream(val - 0x12),
+        0x1c..=0x23 => OutputSrc::StreamAdat1(val - 0x1c),
+        0x24..=0x35 => OutputSrc::MixerOut(val - 0x24),
+        _ => Err(format!("Output source not found for value {}", val))?,
+    };
+
+    Ok(())
+}
+
+/// Parameters for left and right channels of output.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct OutputPair {
+    /// Volume of each channel, between 0x00 and 0xff.
+    pub volumes: [u8; 2],
+    /// Whether to be muted for each channel.
+    pub mutes: [bool; 2],
+    /// Source of both channels.
+    pub src: OutputSrc,
+    /// Whether to link both channels.
+    pub link: bool,
+}
+
+/// Parameters for outputs.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct OutputParameters {
+    /// Pair of outputs.
+    pub pairs: [OutputPair; 9],
+    /// Source of main output.
+    pub main_assign: AssignTarget,
+    /// Source of 3 headphones.
+    pub headphone_assigns: [AssignTarget; 3],
+    /// Whether to suppress generation of word clock signal in BNC output interface.
+    pub bnc_terminate: bool,
+}
+
+impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
+    const NAME: &'static str = "output-state";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[
+        // (volume, unused, mute) * 18 outputs.
+        Range {
+            start: PARAMS_OFFSET,
+            end: PARAMS_OFFSET + 4 * 3 * 18,
+        },
+        // source * 18 outputs.
+        Range {
+            start: SRC_OFFSET,
+            end: SRC_OFFSET + 72,
+        },
+        // Assignment to main and headphone outputs.
+        Range {
+            start: MAIN_OFFSET,
+            end: MAIN_OFFSET + 16,
+        },
+        // BNC terminate.
+        Range {
+            start: BNC_TERMINATE_OFFSET,
+            end: BNC_TERMINATE_OFFSET + 4,
+        },
+        // link bit flags for 18 outputs.
+        Range {
+            start: LINK_OFFSET,
+            end: LINK_OFFSET + 4,
+        },
+    ];
+
+    fn serialize_params(params: &OutputParameters, raw: &mut [u8]) -> Result<(), String> {
+        params.pairs.iter().enumerate().try_for_each(|(i, pair)| {
+            pair.volumes.iter().enumerate().for_each(|(j, &vol)| {
+                let pos = 4 * 3 * (i * 2 + j);
+                let val = vol as u32;
+                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+            });
+
+            pair.mutes.iter().enumerate().for_each(|(j, &mute)| {
+                let pos = 4 * (3 * (i * 2 + j) + 2);
+                let val = mute as u32;
+                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+            });
+
+            let pos = 216 + 4 * i;
+            serialize_output_source(&pair.src, &mut raw[pos..(pos + 4)])
+        })?;
+
+        serialize_assign_target(&params.main_assign, &mut raw[288..292])?;
+        serialize_assign_target(&params.headphone_assigns[0], &mut raw[292..296])?;
+        serialize_assign_target(&params.headphone_assigns[1], &mut raw[296..300])?;
+        serialize_assign_target(&params.headphone_assigns[2], &mut raw[300..304])?;
+
+        let val = params.bnc_terminate as u32;
+        raw[304..308].copy_from_slice(&val.to_be_bytes());
+
+        let mut val = 0u32;
+        params
+            .pairs
+            .iter()
+            .enumerate()
+            .filter(|(_, pair)| pair.link)
+            .for_each(|(i, _)| {
+                val |= 1 << i;
+            });
+        raw[308..312].copy_from_slice(&val.to_be_bytes());
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut OutputParameters, raw: &[u8]) -> Result<(), String> {
+        let mut quadlet = [0; 4];
+
+        params
+            .pairs
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, pair)| {
+                pair.volumes.iter_mut().enumerate().for_each(|(j, vol)| {
+                    let pos = 4 * 3 * (i * 2 + j);
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    *vol = u32::from_be_bytes(quadlet) as u8;
+                });
+
+                pair.mutes.iter_mut().enumerate().for_each(|(j, mute)| {
+                    let pos = 4 * (3 * (i * 2 + j) + 2);
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    *mute = u32::from_be_bytes(quadlet) > 0;
+                });
+
+                let pos = 216 + 4 * i;
+                deserialize_output_source(&mut pair.src, &raw[pos..(pos + 4)])
+            })?;
+
+        deserialize_assign_target(&mut params.main_assign, &raw[288..292])?;
+        deserialize_assign_target(&mut params.headphone_assigns[0], &raw[292..296])?;
+        deserialize_assign_target(&mut params.headphone_assigns[1], &raw[296..300])?;
+        deserialize_assign_target(&mut params.headphone_assigns[2], &raw[300..304])?;
+
+        quadlet.copy_from_slice(&raw[304..308]);
+        params.bnc_terminate = u32::from_be_bytes(quadlet) > 0;
+
+        quadlet.copy_from_slice(&raw[308..312]);
+        let val = u32::from_be_bytes(quadlet);
+        params.pairs.iter_mut().enumerate().for_each(|(i, pair)| {
+            pair.link = (val & (1 << i)) > 0;
+        });
+
+        Ok(())
     }
 }
 
-impl From<OutputSrc> for u32 {
-    fn from(src: OutputSrc) -> Self {
-        (match src {
-            OutputSrc::Analog(val) => val,
-            OutputSrc::Adat0(val) => val + 0x08,
-            OutputSrc::Spdif(val) => val + 0x10,
-            OutputSrc::Stream(val) => val + 0x12,
-            OutputSrc::StreamAdat1(val) => val + 0x1c,
-            OutputSrc::MixerOut(val) => val + 0x24,
-            OutputSrc::Reserved(val) => val,
-        }) as u32
-    }
+impl<O: FStudioOperation + FStudioParametersSerdes<OutputParameters>>
+    FStudioMutableParametersOperation<OutputParameters> for O
+{
 }
 
 /// State of outputs for FireStudio.
@@ -323,11 +488,6 @@ pub struct OutputState {
     pub srcs: [OutputSrc; 18],
     pub links: [bool; 9],
 }
-
-const PARAMS_OFFSET: usize = 0x0f68;
-const SRC_OFFSET: usize = 0x10ac;
-const LINK_OFFSET: usize = 0x1150;
-const BNC_TERMINATE_OFFSET: usize = 0x1118;
 
 impl FStudioProtocol {
     pub fn read_output_states(
@@ -356,8 +516,11 @@ impl FStudioProtocol {
         });
 
         let mut raw = vec![0; 4 * states.srcs.len()];
-        presonus_read(req, node, SRC_OFFSET, &mut raw, timeout_ms)
-            .map(|_| states.srcs.parse_quadlet_block(&raw))?;
+        presonus_read(req, node, SRC_OFFSET, &mut raw, timeout_ms)?;
+        states.srcs.iter_mut().enumerate().for_each(|(i, src)| {
+            let pos = i * 4;
+            let _ = deserialize_output_source(src, &raw[pos..(pos + 4)]);
+        });
 
         let mut raw = [0; 4];
         presonus_read(req, node, LINK_OFFSET, &mut raw, timeout_ms)?;
@@ -437,7 +600,7 @@ impl FStudioProtocol {
             .filter(|(_, (old, new))| !new.eq(old))
             .try_for_each(|(i, (old, new))| {
                 let pos = i * 4;
-                raw.copy_from_slice(&u32::from(*new).to_be_bytes());
+                let _ = serialize_output_source(new, &mut raw);
                 presonus_write(req, node, SRC_OFFSET + pos, &mut raw, timeout_ms)
                     .map(|_| *old = *new)
             })
@@ -487,18 +650,26 @@ impl FStudioProtocol {
 }
 
 /// Target of output assignment.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AssignTarget {
+    /// Audio signal to analog output 1/2.
     Analog01,
+    /// Audio signal to analog output 3/4.
     Analog23,
+    /// Audio signal to analog output 5/6.
     Analog56,
+    /// Audio signal to analog output 7/8.
     Analog78,
+    /// Audio signal to ADAT output 1/2.
     AdatA01,
+    /// Audio signal to ADAT output 3/4.
     AdatA23,
+    /// Audio signal to ADAT output 5/6.
     AdatA45,
+    /// Audio signal to ADAT output 7/8.
     AdatA67,
+    /// Audio signal to S/PDIF output 1/2.
     Spdif01,
-    Reserved(u32),
 }
 
 impl Default for AssignTarget {
@@ -507,44 +678,46 @@ impl Default for AssignTarget {
     }
 }
 
-impl From<u32> for AssignTarget {
-    fn from(val: u32) -> Self {
-        match val {
-            0x00 => Self::Analog01,
-            0x02 => Self::Analog23,
-            0x04 => Self::Analog56,
-            0x06 => Self::Analog78,
-            0x08 => Self::AdatA01,
-            0x0a => Self::AdatA23,
-            0x0c => Self::AdatA45,
-            0x0e => Self::AdatA67,
-            0x10 => Self::Spdif01,
-            _ => Self::Reserved(val),
-        }
-    }
+fn serialize_assign_target(target: &AssignTarget, raw: &mut [u8]) -> Result<(), String> {
+    let val = match target {
+        AssignTarget::Analog01 => 0x00u32,
+        AssignTarget::Analog23 => 0x02,
+        AssignTarget::Analog56 => 0x04,
+        AssignTarget::Analog78 => 0x06,
+        AssignTarget::AdatA01 => 0x08,
+        AssignTarget::AdatA23 => 0x0a,
+        AssignTarget::AdatA45 => 0x0c,
+        AssignTarget::AdatA67 => 0x0e,
+        AssignTarget::Spdif01 => 0x10,
+    };
+
+    raw[..4].copy_from_slice(&val.to_be_bytes());
+
+    Ok(())
 }
 
-impl From<AssignTarget> for u32 {
-    fn from(target: AssignTarget) -> Self {
-        match target {
-            AssignTarget::Analog01 => 0x00,
-            AssignTarget::Analog23 => 0x02,
-            AssignTarget::Analog56 => 0x04,
-            AssignTarget::Analog78 => 0x06,
-            AssignTarget::AdatA01 => 0x08,
-            AssignTarget::AdatA23 => 0x0a,
-            AssignTarget::AdatA45 => 0x0c,
-            AssignTarget::AdatA67 => 0x0e,
-            AssignTarget::Spdif01 => 0x10,
-            AssignTarget::Reserved(val) => val,
-        }
-    }
-}
+fn deserialize_assign_target(target: &mut AssignTarget, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
 
-const MAIN_OFFSET: usize = 0x10f4;
-const HP01_OFFSET: usize = 0x10f8;
-const HP23_OFFSET: usize = 0x10fc;
-const HP45_OFFSET: usize = 0x1100;
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    let val = u32::from_be_bytes(quadlet);
+
+    *target = match val {
+        0x00 => AssignTarget::Analog01,
+        0x02 => AssignTarget::Analog23,
+        0x04 => AssignTarget::Analog56,
+        0x06 => AssignTarget::Analog78,
+        0x08 => AssignTarget::AdatA01,
+        0x0a => AssignTarget::AdatA23,
+        0x0c => AssignTarget::AdatA45,
+        0x0e => AssignTarget::AdatA67,
+        0x10 => AssignTarget::Spdif01,
+        _ => Err(format!("Assign target not found for value {}", val))?,
+    };
+
+    Ok(())
+}
 
 impl FStudioProtocol {
     fn read_assign_target(
@@ -554,8 +727,11 @@ impl FStudioProtocol {
         timeout_ms: u32,
     ) -> Result<AssignTarget, Error> {
         let mut raw = [0; 4];
-        presonus_read(req, node, offset, &mut raw, timeout_ms)
-            .map(|_| AssignTarget::from(u32::from_be_bytes(raw)))
+        presonus_read(req, node, offset, &mut raw, timeout_ms).map(|_| {
+            let mut target = AssignTarget::default();
+            let _ = deserialize_assign_target(&mut target, &raw);
+            target
+        })
     }
 
     fn write_assign_target(
@@ -566,7 +742,7 @@ impl FStudioProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        target.build_quadlet(&mut raw);
+        let _ = serialize_assign_target(&target, &mut raw);
         presonus_write(req, node, offset, &mut raw, timeout_ms)
     }
 
@@ -1121,5 +1297,30 @@ mod test {
         assert!(FStudioProtocol::deserialize_params(&mut params, &raw).is_ok());
 
         assert_eq!(target, params);
+    }
+
+    #[test]
+    fn output_params_serdes() {
+        let target = OutputParameters {
+            pairs: [Default::default(); 9],
+            main_assign: AssignTarget::AdatA67,
+            headphone_assigns: [
+                AssignTarget::Analog78,
+                AssignTarget::Spdif01,
+                AssignTarget::AdatA45,
+            ],
+            bnc_terminate: true,
+        };
+
+        let size = compute_params_size(
+            <FStudioProtocol as FStudioParametersSerdes<OutputParameters>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0; size];
+        assert!(FStudioProtocol::serialize_params(&target, &mut raw).is_ok());
+
+        let mut params = OutputParameters::default();
+        assert!(FStudioProtocol::deserialize_params(&mut params, &raw).is_ok());
+
+        assert_eq!(target, params, "{:02x?}", raw);
     }
 }
