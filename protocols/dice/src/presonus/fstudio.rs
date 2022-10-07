@@ -3,7 +3,10 @@
 
 //! Protocol implementation for PreSonus FireStudio.
 
-use super::{super::tcat::global_section::*, *};
+use {
+    super::{super::tcat::global_section::*, *},
+    std::ops::Range,
+};
 
 /// Protocol implementation specific to FireStudio.
 #[derive(Default, Debug)]
@@ -25,7 +28,142 @@ impl TcatGlobalSectionSpecification for FStudioProtocol {
     ];
 }
 
+impl FStudioOperation for FStudioProtocol {}
+
 const OFFSET: usize = 0x00700000;
+
+/// Serialize and deserialize parameters for FireStudio.
+pub trait FStudioParametersSerdes<T> {
+    /// The representative name of parameters.
+    const NAME: &'static str;
+
+    /// The list of ranges for offset and size.
+    const OFFSET_RANGES: &'static [Range<usize>];
+
+    /// Serialize for raw data.
+    fn serialize_params(params: &T, raw: &mut [u8]) -> Result<(), String>;
+
+    /// Deserialize for raw data.
+    fn deserialize_params(params: &mut T, raw: &[u8]) -> Result<(), String>;
+}
+
+fn compute_params_size(ranges: &[Range<usize>]) -> usize {
+    ranges
+        .iter()
+        .fold(0usize, |size, range| size + range.end - range.start)
+}
+
+fn generate_err(name: &str, cause: &str, raw: &[u8]) -> Error {
+    let msg = format!("parms: {}, cause: {}, raw: {:02x?}", name, cause, raw);
+    Error::new(GeneralProtocolError::VendorDependent, &msg)
+}
+
+/// Operation for parameters in FireStudio.
+pub trait FStudioOperation: TcatOperation {
+    fn read_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        offset: usize,
+        raw: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::read(req, node, OFFSET + offset, raw, timeout_ms)
+    }
+
+    fn write_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        offset: usize,
+        raw: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::write(req, node, OFFSET + offset, raw, timeout_ms)
+    }
+}
+
+/// Operation for parameters to cache state of hardware.
+pub trait FStudioParametersOperation<T>: FStudioOperation + FStudioParametersSerdes<T> {
+    /// Cache state of hardware for whole parameters.
+    fn cache_whole_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let size = compute_params_size(Self::OFFSET_RANGES);
+        let mut raw = vec![0u8; size];
+
+        let mut pos = 0;
+
+        Self::OFFSET_RANGES.iter().try_for_each(|range| {
+            let size = range.end - range.start;
+            Self::read_parameters(
+                req,
+                node,
+                range.start,
+                &mut raw[pos..(pos + size)],
+                timeout_ms,
+            )
+            .map(|_| pos += size)
+        })?;
+
+        Self::deserialize_params(params, &raw)
+            .map_err(|cause| generate_err(Self::NAME, &cause, &raw))
+    }
+}
+
+impl<O: FStudioOperation + FStudioParametersSerdes<T>, T> FStudioParametersOperation<T> for O {}
+
+/// Operation for parameters to update state of hardware.
+pub trait FStudioMutableParametersOperation<T>:
+    FStudioOperation + FStudioParametersSerdes<T>
+{
+    /// Update the hardware partially for any change of parameter.
+    fn update_partial_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        prev: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let size = compute_params_size(Self::OFFSET_RANGES);
+
+        let mut new = vec![0u8; size];
+        let mut old = vec![0u8; size];
+        Self::serialize_params(params, &mut new)
+            .map_err(|cause| generate_err(Self::NAME, &cause, &new))?;
+        Self::serialize_params(prev, &mut old)
+            .map_err(|cause| generate_err(Self::NAME, &cause, &old))?;
+
+        let mut pos = 0;
+
+        Self::OFFSET_RANGES.iter().try_for_each(|range| {
+            let size = range.end - range.start;
+
+            if new[pos..(pos + size)] != old[pos..(pos + size)] {
+                (0..size).step_by(4).try_for_each(|offset| {
+                    let p = pos + offset;
+                    if new[p..(p + 4)] != old[p..(p + 4)] {
+                        Self::write_parameters(
+                            req,
+                            node,
+                            range.start + offset,
+                            &mut new[p..(p + 4)],
+                            timeout_ms,
+                        )
+                    } else {
+                        Ok(())
+                    }
+                })
+            } else {
+                Ok(())
+            }
+            .map(|_| pos += size)
+        })?;
+
+        Self::deserialize_params(prev, &new).map_err(|cause| generate_err(Self::NAME, &cause, &new))
+    }
+}
 
 fn presonus_read(
     req: &mut FwReq,

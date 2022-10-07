@@ -78,9 +78,8 @@ pub trait TcKonnektSegmentOperation<T>: TcatOperation + TcKonnektSegmentSerdes<T
             timeout_ms,
         )?;
 
-        Self::deserialize(&mut segment.data, &segment.raw).map_err(|cause| {
-            generate_error(Self::NAME, &cause, &segment.raw)
-        })
+        Self::deserialize(&mut segment.data, &segment.raw)
+            .map_err(|cause| generate_error(Self::NAME, &cause, &segment.raw))
     }
 }
 
@@ -100,9 +99,8 @@ pub trait TcKonnektMutableSegmentOperation<T>: TcatOperation + TcKonnektSegmentS
         assert_eq!(segment.raw.len(), Self::SIZE);
 
         let mut raw = segment.raw.clone();
-        Self::serialize(params, &mut raw).map_err(|cause| {
-            generate_error(Self::NAME, &cause, &segment.raw)
-        })?;
+        Self::serialize(params, &mut raw)
+            .map_err(|cause| generate_error(Self::NAME, &cause, &segment.raw))?;
 
         (0..Self::SIZE).step_by(4).try_for_each(|pos| {
             let new = &mut raw[pos..(pos + 4)];
@@ -114,9 +112,8 @@ pub trait TcKonnektMutableSegmentOperation<T>: TcatOperation + TcKonnektSegmentS
             }
         })?;
 
-        Self::deserialize(&mut segment.data, &raw).map_err(|cause| {
-            generate_error(Self::NAME, &cause, &segment.raw)
-        })
+        Self::deserialize(&mut segment.data, &raw)
+            .map_err(|cause| generate_error(Self::NAME, &cause, &segment.raw))
     }
 
     /// Update whole segment by the parameters.
@@ -131,16 +128,14 @@ pub trait TcKonnektMutableSegmentOperation<T>: TcatOperation + TcKonnektSegmentS
         assert_eq!(segment.raw.len(), Self::SIZE);
 
         let mut raw = segment.raw.clone();
-        Self::serialize(&params, &mut raw).map_err(|cause| {
-            generate_error(Self::NAME, &cause, &segment.raw)
-        })?;
+        Self::serialize(&params, &mut raw)
+            .map_err(|cause| generate_error(Self::NAME, &cause, &segment.raw))?;
 
         Self::write(req, node, BASE_OFFSET + Self::OFFSET, &mut raw, timeout_ms)?;
 
         segment.raw.copy_from_slice(&raw);
-        Self::deserialize(&mut segment.data, &segment.raw).map_err(|cause| {
-            generate_error(Self::NAME, &cause, &segment.raw)
-        })
+        Self::deserialize(&mut segment.data, &segment.raw)
+            .map_err(|cause| generate_error(Self::NAME, &cause, &segment.raw))
     }
 }
 
