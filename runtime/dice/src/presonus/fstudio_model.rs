@@ -274,7 +274,6 @@ fn output_src_to_string(src: &OutputSrc) -> String {
         OutputSrc::Stream(ch) => format!("Stream-{}", ch + 1),
         OutputSrc::StreamAdat1(ch) => format!("Stream-{}/ADAT-B-{}", ch + 11, ch + 1),
         OutputSrc::MixerOut(ch) => format!("Mixer-{}", ch + 1),
-        OutputSrc::Reserved(val) => format!("Reserved({})", val),
     }
 }
 
@@ -497,7 +496,6 @@ fn assign_target_to_str(target: &AssignTarget) -> &'static str {
         AssignTarget::AdatA45 => "ADAT-output-5/6",
         AssignTarget::AdatA67 => "ADAT-output-7/8",
         AssignTarget::Spdif01 => "S/PDIF-output-1/2",
-        AssignTarget::Reserved(_) => "Reserved",
     }
 }
 
