@@ -807,7 +807,7 @@ impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
     const OFFSET_RANGES: &'static [Range<usize>] = &[
         Range {
             start: MIXER_PHYS_SRC_PARAMS_OFFSET,
-            end: MIXER_PHYS_SRC_PARAMS_OFFSET + MIXER_PHYS_SRC_PARAMS_SIZE
+            end: MIXER_PHYS_SRC_PARAMS_OFFSET + MIXER_PHYS_SRC_PARAMS_SIZE,
         },
         Range {
             start: MIXER_STREAM_SRC_PARAMS_OFFSET,
@@ -819,7 +819,7 @@ impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
         },
         Range {
             start: MIXER_OUTPUT_PARAMS_OFFSET,
-            end: MIXER_OUTPUT_PARAMS_OFFSET + MIXER_OUTPUT_PARAMS_SIZE
+            end: MIXER_OUTPUT_PARAMS_OFFSET + MIXER_OUTPUT_PARAMS_SIZE,
         },
         Range {
             start: MIXER_EXPANSION_MODE_OFFSET,
