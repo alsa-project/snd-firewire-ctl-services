@@ -8,6 +8,12 @@
 
 use super::{global_section::*, *};
 
+// const CLK_SRC_OFFSET: usize = 0x00;
+// const AES_CFG_OFFSET: usize = 0x04;
+// const ADAT_CFG_OFFSET: usize = 0x08;
+// const WC_CFG_OFFSET: usize = 0x0c;
+// const INTERNAL_CFG_OFFSET: usize = 0x10;
+
 /// Parameter of ADAT input/output.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum AdatParam {
@@ -231,12 +237,6 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
 }
 
 impl StandaloneSectionProtocol {
-    const CLK_SRC_OFFSET: usize = 0x00;
-    const AES_CFG_OFFSET: usize = 0x04;
-    const ADAT_CFG_OFFSET: usize = 0x08;
-    const WC_CFG_OFFSET: usize = 0x0c;
-    const INTERNAL_CFG_OFFSET: usize = 0x10;
-
     pub fn cache_standalone_params(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -286,189 +286,6 @@ impl StandaloneSectionProtocol {
 
         deserialize(prev, &new)
             .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-
-    pub fn read_standalone_clock_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<ClockSource, Error> {
-        let mut quadlet = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.standalone.offset + Self::CLK_SRC_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-        .map(|_| ClockSource::from(u32::from_be_bytes(quadlet) as u8))
-    }
-
-    pub fn write_standalone_clock_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        src: ClockSource,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&(u8::from(src) as u32).to_be_bytes());
-        extension_write(
-            req,
-            node,
-            sections.standalone.offset + Self::CLK_SRC_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-
-    pub fn read_standalone_aes_high_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        let mut quadlet = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.standalone.offset + Self::AES_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-        .map(|_| u32::from_be_bytes(quadlet) > 0)
-    }
-
-    pub fn write_standalone_aes_high_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        enable: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&(enable as u32).to_be_bytes());
-        extension_write(
-            req,
-            node,
-            sections.standalone.offset + Self::AES_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-
-    pub fn read_standalone_adat_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<AdatParam, Error> {
-        let mut quadlet = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.standalone.offset + Self::ADAT_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-        .map(|_| AdatParam::from(quadlet))
-    }
-
-    pub fn write_standalone_adat_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        param: AdatParam,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        extension_write(
-            req,
-            node,
-            sections.standalone.offset + Self::ADAT_CFG_OFFSET,
-            &mut Into::<[u8; 4]>::into(param),
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-
-    pub fn read_standalone_word_clock_param(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<WordClockParam, Error> {
-        let mut quadlet = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.standalone.offset + Self::WC_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-        .map(|_| WordClockParam::from(quadlet))
-    }
-
-    pub fn write_standalone_word_clock_param(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        param: WordClockParam,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&Into::<[u8; 4]>::into(param)[..4]);
-        extension_write(
-            req,
-            node,
-            sections.standalone.offset + Self::WC_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-
-    pub fn read_standalone_internal_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<ClockRate, Error> {
-        let mut quadlet = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.standalone.offset + Self::INTERNAL_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-        .map(|_| ClockRate::from(u32::from_be_bytes(quadlet) as u8))
-    }
-
-    pub fn write_standalone_internal_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        rate: ClockRate,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&(u8::from(rate) as u32).to_be_bytes());
-        extension_write(
-            req,
-            node,
-            sections.standalone.offset + Self::INTERNAL_CFG_OFFSET,
-            &mut quadlet,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
     }
 }
 
