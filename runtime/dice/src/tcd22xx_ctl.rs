@@ -665,13 +665,41 @@ const STANDALONE_WC_RATE_NUMERATOR_NAME: &str = "standalone-word-clock-rate-nume
 const STANDALONE_WC_RATE_DENOMINATOR_NAME: &str = "standalone-word-clock-rate-denominator";
 const STANDALONE_INTERNAL_CLK_RATE_NAME: &str = "standalone-internal-clock-rate";
 
+fn adat_mode_to_str(mode: &AdatParam) -> &str {
+    match mode {
+        AdatParam::Normal => "Normal",
+        AdatParam::SMUX2 => "S/MUX2",
+        AdatParam::SMUX4 => "S/MUX4",
+        AdatParam::Auto => "Auto",
+    }
+}
+
+fn word_clock_mode_to_str(mode: &WordClockMode) -> &str {
+    match mode {
+        WordClockMode::Normal => "Normal",
+        WordClockMode::Low => "Low",
+        WordClockMode::Middle => "Middle",
+        WordClockMode::High => "High",
+    }
+}
+
 pub trait StandaloneCtlOperation<T>: Tcd22xxCtlOperation<T>
 where
     T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
 {
-    const ADAT_MODE_LABELS: [&'static str; 4] = ["Normal", "S/MUX2", "S/MUX4", "Auto"];
+    const ADAT_MODES: &'static [AdatParam] = &[
+        AdatParam::Normal,
+        AdatParam::SMUX2,
+        AdatParam::SMUX4,
+        AdatParam::Auto,
+    ];
 
-    const WC_MODE_LABELS: [&'static str; 4] = ["Normal", "Low", "Middle", "High"];
+    const WC_MODES: &'static [WordClockMode] = &[
+        WordClockMode::Normal,
+        WordClockMode::Low,
+        WordClockMode::Middle,
+        WordClockMode::High,
+    ];
 
     fn load_standalone(
         &mut self,
@@ -720,10 +748,13 @@ where
             .find(|&src| src.eq(&ClockSource::Adat))
             .is_some()
         {
+            let labels: Vec<&str> = Self::ADAT_MODES
+                .iter()
+                .map(|mode| adat_mode_to_str(mode))
+                .collect();
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_ADAT_MODE_NAME, 0);
-            let _ =
-                card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::ADAT_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
         if global_params
@@ -732,9 +763,13 @@ where
             .find(|&src| src.eq(&ClockSource::WordClock))
             .is_some()
         {
+            let labels: Vec<&str> = Self::WC_MODES
+                .iter()
+                .map(|mode| word_clock_mode_to_str(mode))
+                .collect();
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_WC_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::WC_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
             let elem_id = ElemId::new_by_name(
                 ElemIfaceType::Card,
@@ -814,30 +849,25 @@ where
                 })
                 .map(|_| true)
             }
-            STANDALONE_ADAT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                StandaloneSectionProtocol::read_standalone_adat_mode(
+            STANDALONE_ADAT_MODE_NAME => {
+                let mode = StandaloneSectionProtocol::read_standalone_adat_mode(
                     req, node, sections, timeout_ms,
-                )
-                .map(|mode| match mode {
-                    AdatParam::Normal => 0,
-                    AdatParam::SMUX2 => 1,
-                    AdatParam::SMUX4 => 2,
-                    AdatParam::Auto => 3,
-                })
-            })
-            .map(|_| true),
-            STANDALONE_WC_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                StandaloneSectionProtocol::read_standalone_word_clock_param(
+                )?;
+                let pos = Self::ADAT_MODES.iter().position(|m| mode.eq(m)).unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            STANDALONE_WC_MODE_NAME => {
+                let param = StandaloneSectionProtocol::read_standalone_word_clock_param(
                     req, node, sections, timeout_ms,
-                )
-                .map(|param| match param.mode {
-                    WordClockMode::Normal => 0,
-                    WordClockMode::Low => 1,
-                    WordClockMode::Middle => 2,
-                    WordClockMode::High => 3,
-                })
-            })
-            .map(|_| true),
+                )?;
+                let pos = Self::WC_MODES
+                    .iter()
+                    .position(|m| param.mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             STANDALONE_WC_RATE_NUMERATOR_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_word_clock_param(
@@ -913,25 +943,32 @@ where
                 )
             })
             .map(|_| true),
-            STANDALONE_ADAT_MODE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let mode = match val {
-                    1 => AdatParam::SMUX2,
-                    2 => AdatParam::SMUX4,
-                    3 => AdatParam::Auto,
-                    _ => AdatParam::Normal,
-                };
+            STANDALONE_ADAT_MODE_NAME => {
+                let pos = new.enumerated()[0] as usize;
+                let mode = Self::ADAT_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Standalone ADAT mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
                 StandaloneSectionProtocol::write_standalone_adat_mode(
                     req, node, &sections, mode, timeout_ms,
                 )
-            })
-            .map(|_| true),
-            STANDALONE_WC_MODE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let mode = match val {
-                    1 => WordClockMode::Low,
-                    2 => WordClockMode::Middle,
-                    3 => WordClockMode::High,
-                    _ => WordClockMode::Normal,
-                };
+                .map(|_| true)
+            }
+            STANDALONE_WC_MODE_NAME => {
+                let pos = new.enumerated()[0] as usize;
+                let mode = Self::WC_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Standalone Word Clock mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
                 let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
                     req, node, &sections, timeout_ms,
                 )?;
@@ -939,8 +976,8 @@ where
                 StandaloneSectionProtocol::write_standalone_word_clock_param(
                     req, node, &sections, param, timeout_ms,
                 )
-            })
-            .map(|_| true),
+                .map(|_| true)
+            }
             STANDALONE_WC_RATE_NUMERATOR_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                 let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
                     req, node, &sections, timeout_ms,
