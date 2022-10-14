@@ -653,6 +653,7 @@ where
 
 #[derive(Default, Debug)]
 struct StandaloneCtl {
+    params: StandaloneParameters,
     rates: Vec<ClockRate>,
     srcs: Vec<ClockSource>,
 }
@@ -700,6 +701,17 @@ where
         WordClockMode::Middle,
         WordClockMode::High,
     ];
+
+    fn cache_standalone(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let params = &mut self.tcd22xx_ctl_mut().standalone_ctl.params;
+        StandaloneSectionProtocol::cache_standalone_params(req, node, sections, params, timeout_ms)
+    }
 
     fn load_standalone(
         &mut self,
@@ -812,100 +824,72 @@ where
         Ok(())
     }
 
-    fn read_standalone(
-        &self,
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read_standalone(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            STANDALONE_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let src = StandaloneSectionProtocol::read_standalone_clock_source(
-                    req, node, sections, timeout_ms,
-                )?;
-                self.tcd22xx_ctl()
-                    .standalone_ctl
+            STANDALONE_CLK_SRC_NAME => {
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                let pos = ctl
                     .srcs
                     .iter()
-                    .position(|&s| s == src)
+                    .position(|src| ctl.params.clock_source.eq(src))
                     .ok_or_else(|| {
                         let msg = format!(
                             "Unexpected value for source: {}",
-                            clock_source_to_string(&src)
+                            clock_source_to_string(&ctl.params.clock_source)
                         );
                         Error::new(FileError::Nxio, &msg)
-                    })
-                    .map(|pos| pos as u32)
-            })
-            .map(|_| true),
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             STANDALONE_SPDIF_HIGH_RATE_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    StandaloneSectionProtocol::read_standalone_aes_high_rate(
-                        req, node, sections, timeout_ms,
-                    )
-                })
-                .map(|_| true)
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                elem_value.set_bool(&[ctl.params.aes_high_rate]);
+                Ok(true)
             }
             STANDALONE_ADAT_MODE_NAME => {
-                let mode = StandaloneSectionProtocol::read_standalone_adat_mode(
-                    req, node, sections, timeout_ms,
-                )?;
-                let pos = Self::ADAT_MODES.iter().position(|m| mode.eq(m)).unwrap();
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                let pos = Self::ADAT_MODES
+                    .iter()
+                    .position(|src| ctl.params.adat_mode.eq(src))
+                    .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             STANDALONE_WC_MODE_NAME => {
-                let param = StandaloneSectionProtocol::read_standalone_word_clock_param(
-                    req, node, sections, timeout_ms,
-                )?;
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
                 let pos = Self::WC_MODES
                     .iter()
-                    .position(|m| param.mode.eq(m))
+                    .position(|mode| ctl.params.word_clock_param.mode.eq(mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             STANDALONE_WC_RATE_NUMERATOR_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    StandaloneSectionProtocol::read_standalone_word_clock_param(
-                        req, node, sections, timeout_ms,
-                    )
-                    .map(|param| param.rate.numerator as i32)
-                })
-                .map(|_| true)
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                elem_value.set_int(&[ctl.params.word_clock_param.rate.numerator as i32]);
+                Ok(true)
             }
             STANDALONE_WC_RATE_DENOMINATOR_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    StandaloneSectionProtocol::read_standalone_word_clock_param(
-                        req, node, sections, timeout_ms,
-                    )
-                    .map(|param| param.rate.denominator as i32)
-                })
-                .map(|_| true)
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                elem_value.set_int(&[ctl.params.word_clock_param.rate.denominator as i32]);
+                Ok(true)
             }
             STANDALONE_INTERNAL_CLK_RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let rate = StandaloneSectionProtocol::read_standalone_internal_rate(
-                        req, node, sections, timeout_ms,
-                    )?;
-                    self.tcd22xx_ctl()
-                        .standalone_ctl
-                        .rates
-                        .iter()
-                        .position(|&r| r == rate)
-                        .ok_or_else(|| {
-                            let msg = format!(
-                                "Unexpected value for rate: {}",
-                                clock_rate_to_string(&rate)
-                            );
-                            Error::new(FileError::Nxio, &msg)
-                        })
-                        .map(|pos| pos as u32)
-                })
-                .map(|_| true)
+                let ctl = &self.tcd22xx_ctl().standalone_ctl;
+                let pos = ctl
+                    .rates
+                    .iter()
+                    .position(|rate| ctl.params.internal_rate.eq(rate))
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Unexpected value for rate: {}",
+                            clock_rate_to_string(&ctl.params.internal_rate)
+                        );
+                        Error::new(FileError::Nxio, &msg)
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -917,35 +901,52 @@ where
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            STANDALONE_CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let &src = self
-                    .tcd22xx_ctl()
-                    .standalone_ctl
+            STANDALONE_CLK_SRC_NAME => {
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.clock_source = ctl
                     .srcs
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of source: {}", val);
+                        let msg = format!("Invalid value for index of source: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                StandaloneSectionProtocol::write_standalone_clock_source(
-                    req, node, &sections, src, timeout_ms,
+                    })
+                    .copied()?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
-            })
-            .map(|_| true),
-            STANDALONE_SPDIF_HIGH_RATE_NAME => ElemValueAccessor::<bool>::get_val(new, |val| {
-                StandaloneSectionProtocol::write_standalone_aes_high_rate(
-                    req, node, &sections, val, timeout_ms,
+                .map(|_| true)
+            }
+            STANDALONE_SPDIF_HIGH_RATE_NAME => {
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                params.aes_high_rate = elem_value.boolean()[0];
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
-            })
-            .map(|_| true),
+                .map(|_| true)
+            }
             STANDALONE_ADAT_MODE_NAME => {
-                let pos = new.enumerated()[0] as usize;
-                let mode = Self::ADAT_MODES
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.adat_mode = Self::ADAT_MODES
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
@@ -953,14 +954,21 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                StandaloneSectionProtocol::write_standalone_adat_mode(
-                    req, node, &sections, mode, timeout_ms,
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
                 .map(|_| true)
             }
             STANDALONE_WC_MODE_NAME => {
-                let pos = new.enumerated()[0] as usize;
-                let mode = Self::WC_MODES
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.word_clock_param.mode = Self::WC_MODES
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
@@ -969,51 +977,67 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
-                    req, node, &sections, timeout_ms,
-                )?;
-                param.mode = mode;
-                StandaloneSectionProtocol::write_standalone_word_clock_param(
-                    req, node, &sections, param, timeout_ms,
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
                 .map(|_| true)
             }
-            STANDALONE_WC_RATE_NUMERATOR_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
-                let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
-                    req, node, &sections, timeout_ms,
-                )?;
-                param.rate.numerator = val as u16;
-                StandaloneSectionProtocol::write_standalone_word_clock_param(
-                    req, node, &sections, param, timeout_ms,
+            STANDALONE_WC_RATE_NUMERATOR_NAME => {
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                params.word_clock_param.rate.numerator = elem_value.int()[0] as u16;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
-            })
-            .map(|_| true),
-            STANDALONE_WC_RATE_DENOMINATOR_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
-                let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
-                    req, node, &sections, timeout_ms,
-                )?;
-                param.rate.denominator = val as u16;
-                StandaloneSectionProtocol::write_standalone_word_clock_param(
-                    req, node, &sections, param, timeout_ms,
+                .map(|_| true)
+            }
+            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                params.word_clock_param.rate.denominator = elem_value.int()[0] as u16;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
-            })
-            .map(|_| true),
-            STANDALONE_INTERNAL_CLK_RATE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let &rate = self
-                    .tcd22xx_ctl()
-                    .standalone_ctl
+                .map(|_| true)
+            }
+            STANDALONE_INTERNAL_CLK_RATE_NAME => {
+                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
+                let mut params = ctl.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.internal_rate = ctl
                     .rates
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate: {}", val);
+                        let msg = format!("Invalid index of rate: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                StandaloneSectionProtocol::write_standalone_internal_rate(
-                    req, node, &sections, rate, timeout_ms,
+                    })
+                    .copied()?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut ctl.params,
+                    timeout_ms,
                 )
-            })
-            .map(|_| true),
+                .map(|_| true)
+            }
             _ => Ok(false),
         }
     }
@@ -1046,6 +1070,8 @@ where
     ) -> Result<(), Error> {
         self.tcd22xx_ctl_mut().caps =
             CapsSectionProtocol::read_caps(req, &mut unit.1, sections, timeout_ms)?;
+
+        self.cache_standalone(req, &mut unit.1, sections, timeout_ms)?;
 
         self.load_meter(&mut unit.1, req, sections, timeout_ms, card_cntr)?;
         self.load_router(
@@ -1085,27 +1111,12 @@ where
         )
     }
 
-    fn read(
-        &self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.read_router(elem_id, elem_value)? {
             Ok(true)
         } else if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_standalone(
-            &mut unit.1,
-            req,
-            sections,
-            elem_id,
-            elem_value,
-            timeout_ms,
-        )? {
+        } else if self.read_standalone(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
