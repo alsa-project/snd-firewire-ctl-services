@@ -241,25 +241,30 @@ fn print_standalone_config(
     sections: &ExtensionSections,
 ) -> Result<(), Error> {
     println!("Standalone configurations:");
-    let src =
-        StandaloneSectionProtocol::read_standalone_clock_source(req, node, sections, TIMEOUT_MS)?;
-    println!("  clock source: {}", clock_source_to_string(&src));
-    let mode =
-        StandaloneSectionProtocol::read_standalone_aes_high_rate(req, node, sections, TIMEOUT_MS)?;
-    println!("  AES high rate: {}", mode);
-    let mode =
-        StandaloneSectionProtocol::read_standalone_adat_mode(req, node, sections, TIMEOUT_MS)?;
-    println!("  ADAT mode: {}", mode);
-    let params = StandaloneSectionProtocol::read_standalone_word_clock_param(
-        req, node, sections, TIMEOUT_MS,
+    let mut params = StandaloneParameters::default();
+    StandaloneSectionProtocol::cache_standalone_params(
+        req,
+        node,
+        sections,
+        &mut params,
+        TIMEOUT_MS,
     )?;
     println!(
-        "  Word clock params: {}, {} / {}",
-        params.mode, params.rate.numerator, params.rate.denominator
+        "  clock source: {}",
+        clock_source_to_string(&params.clock_source)
     );
-    let rate =
-        StandaloneSectionProtocol::read_standalone_internal_rate(req, node, sections, TIMEOUT_MS)?;
-    println!("  Internal rate: {}", clock_rate_to_string(&rate));
+    println!("  AES high rate: {}", params.aes_high_rate);
+    println!("  ADAT mode: {}", params.adat_mode);
+    println!(
+        "  Word clock params: {}, {} / {}",
+        params.word_clock_param.mode,
+        params.word_clock_param.rate.numerator,
+        params.word_clock_param.rate.denominator
+    );
+    println!(
+        "  Internal rate: {}",
+        clock_rate_to_string(&params.internal_rate)
+    );
     Ok(())
 }
 
