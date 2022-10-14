@@ -90,20 +90,13 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
