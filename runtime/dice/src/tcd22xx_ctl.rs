@@ -170,7 +170,7 @@ where
         Ok(())
     }
 
-    fn measure_elem_meter(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    fn read_meter(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_METER_NAME => {
                 elem_value.set_int(&self.tcd22xx_ctl().meter_ctl.real_meter);
@@ -1114,7 +1114,9 @@ where
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_router(elem_id, elem_value)? {
+        if self.read_meter(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.read_router(elem_id, elem_value)? {
             Ok(true)
         } else if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
@@ -1160,10 +1162,6 @@ where
         self.measure_states_meter(&mut unit.1, req, sections, timeout_ms)
     }
 
-    fn measure_elem(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        self.measure_elem_meter(elem_id, elem_value)
-    }
-
     fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.tcd22xx_ctl().router_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctl().mixer_ctl.notified_elem_list);
@@ -1188,20 +1186,6 @@ where
             RateMode::from(global_params.clock_config.rate),
             timeout_ms,
         )
-    }
-
-    fn read_notified_elem(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_router(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_mixer(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 
