@@ -28,9 +28,16 @@ impl TcatGlobalSectionSpecification for Io14fwProtocol {}
 
 impl AlesisOperation for Io14fwProtocol {}
 
-impl IofwMeterOperation for Io14fwProtocol {
+impl IofwMeterSpecification for Io14fwProtocol {
     const ANALOG_INPUT_COUNT: usize = 4;
     const DIGITAL_B_INPUT_COUNT: usize = 2;
+}
+
+impl IofwMeterOperation for Io14fwProtocol {
+    const ANALOG_INPUT_COUNT: usize =
+        <Io14fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
+    const DIGITAL_B_INPUT_COUNT: usize =
+        <Io14fwProtocol as IofwMeterSpecification>::DIGITAL_B_INPUT_COUNT;
 }
 
 impl IofwMixerOperation for Io14fwProtocol {
@@ -53,9 +60,16 @@ impl TcatGlobalSectionSpecification for Io26fwProtocol {}
 
 impl AlesisOperation for Io26fwProtocol {}
 
-impl IofwMeterOperation for Io26fwProtocol {
+impl IofwMeterSpecification for Io26fwProtocol {
     const ANALOG_INPUT_COUNT: usize = 8;
     const DIGITAL_B_INPUT_COUNT: usize = 8;
+}
+
+impl IofwMeterOperation for Io26fwProtocol {
+    const ANALOG_INPUT_COUNT: usize =
+        <Io26fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
+    const DIGITAL_B_INPUT_COUNT: usize =
+        <Io26fwProtocol as IofwMeterSpecification>::DIGITAL_B_INPUT_COUNT;
 }
 
 impl IofwMixerOperation for Io26fwProtocol {
@@ -70,6 +84,9 @@ impl IofwOutputOperation for Io26fwProtocol {
 
 const BASE_OFFSET: usize = 0x00200000;
 
+const METER_OFFSET: usize = 0x04c0;
+const METER_SIZE: usize = 160;
+
 /// Serialize and deserialize for parameters of iO FireWire series.
 pub trait AlesisParametersSerdes<T> {
     /// The name of parameters
@@ -83,6 +100,41 @@ pub trait AlesisParametersSerdes<T> {
 
     /// Deserialize parameters from raw layout of data.
     fn deserialize_params(params: &mut T, raw: &[u8]) -> Result<(), String>;
+}
+
+/// Specification for hardware meter.
+pub trait IofwMeterSpecification {
+    /// The number of analog inputs.
+    const ANALOG_INPUT_COUNT: usize;
+
+    /// The number of digital B inputs.
+    const DIGITAL_B_INPUT_COUNT: usize;
+
+    /// The number of stream inputs.
+    const STREAM_INPUT_COUNT: usize = 8;
+
+    /// The number of digital A inputs.
+    const DIGITAL_A_INPUT_COUNT: usize = 8;
+
+    /// The number of mixer outputs.
+    const MIXER_OUTPUT_COUNT: usize = 8;
+
+    /// The minimum value of detected signal level.
+    const LEVEL_MIN: i32 = 0;
+
+    /// The maximum value of detected signal level.
+    const LEVEL_MAX: i32 = i16::MAX as i32;
+
+    /// Instantiate state of meters.
+    fn create_meter_params() -> IofwMeterParams {
+        IofwMeterParams {
+            analog_inputs: vec![0; Self::ANALOG_INPUT_COUNT],
+            stream_inputs: [0; 8],
+            digital_a_inputs: [0; 8],
+            digital_b_inputs: vec![0; Self::DIGITAL_B_INPUT_COUNT],
+            mixer_outputs: [0; 8],
+        }
+    }
 }
 
 fn compute_params_size(ranges: &[Range<usize>]) -> usize {
@@ -302,4 +354,145 @@ fn alesis_write_flags(
     let mut raw = [0; 4];
     val.build_quadlet(&mut raw[..]);
     alesis_write_block(req, node, offset, &mut raw, timeout_ms)
+}
+
+/// For hardware meters, between 0..0x7fff (-90.0..0.0 dB).
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct IofwMeterParams {
+    /// Detected levels for analog inputs.
+    pub analog_inputs: Vec<i16>,
+    /// Detected levels for stream inputs.
+    pub stream_inputs: [i16; 8],
+    /// Detected levels for digital A inputs.
+    pub digital_a_inputs: [i16; 8],
+    /// Detected levels for digital B inputs.
+    pub digital_b_inputs: Vec<i16>,
+    /// Detected levels for mixer outputs.
+    pub mixer_outputs: [i16; 8],
+}
+
+impl<O: IofwMeterSpecification> AlesisParametersSerdes<IofwMeterParams> for O {
+    const NAME: &'static str = "meter";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[Range {
+        start: METER_OFFSET,
+        end: METER_OFFSET + METER_SIZE,
+    }];
+
+    fn serialize_params(params: &IofwMeterParams, raw: &mut [u8]) -> Result<(), String> {
+        [
+            (&params.analog_inputs[..], 0),
+            (&params.stream_inputs[..], 32),
+            (&params.digital_a_inputs[..], 64),
+            (&params.mixer_outputs[..], 128),
+        ]
+        .iter()
+        .for_each(|(levels, offset)| {
+            levels.iter().enumerate().for_each(|(i, &level)| {
+                let pos = *offset + i * 4;
+                let val = (level as i32) << 8;
+                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+            });
+        });
+
+        params
+            .digital_b_inputs
+            .iter()
+            .rev()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let pos = 96 + (7 - i) * 4;
+                let val = (level as i32) << 8;
+                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+            });
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut IofwMeterParams, raw: &[u8]) -> Result<(), String> {
+        [
+            (&mut params.analog_inputs[..], 0),
+            (&mut params.stream_inputs[..], 32),
+            (&mut params.digital_a_inputs[..], 64),
+            (&mut params.mixer_outputs[..], 128),
+        ]
+        .iter_mut()
+        .for_each(|(levels, offset)| {
+            levels.iter_mut().enumerate().for_each(|(i, level)| {
+                let pos = *offset + i * 4;
+                let mut val = 0i32;
+                val.parse_quadlet(&raw[pos..(pos + 4)]);
+                *level = ((val & 0x00ffff00) >> 8) as i16;
+            });
+        });
+
+        params
+            .digital_b_inputs
+            .iter_mut()
+            .rev()
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = 96 + (7 - i) * 4;
+                let mut val = 0i32;
+                val.parse_quadlet(&raw[pos..(pos + 4)]);
+                *level = ((val & 0x00ffff00) >> 8) as i16;
+            });
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn io14_meter_params_serdes() {
+        let mut params = <Io14fwProtocol as IofwMeterSpecification>::create_meter_params();
+        params
+            .analog_inputs
+            .iter_mut()
+            .chain(params.stream_inputs.iter_mut())
+            .chain(params.digital_a_inputs.iter_mut())
+            .chain(params.digital_b_inputs.iter_mut())
+            .chain(params.mixer_outputs.iter_mut())
+            .enumerate()
+            .for_each(|(i, level)| *level = i as i16);
+
+        let size = compute_params_size(
+            <Io14fwProtocol as AlesisParametersSerdes<IofwMeterParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io14fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut target = <Io14fwProtocol as IofwMeterSpecification>::create_meter_params();
+        Io14fwProtocol::deserialize_params(&mut target, &raw).unwrap();
+
+        assert_eq!(params, target);
+    }
+
+    #[test]
+    fn io26_meter_params_serdes() {
+        let mut params = <Io26fwProtocol as IofwMeterSpecification>::create_meter_params();
+        params
+            .analog_inputs
+            .iter_mut()
+            .chain(params.stream_inputs.iter_mut())
+            .chain(params.digital_a_inputs.iter_mut())
+            .chain(params.digital_b_inputs.iter_mut())
+            .chain(params.mixer_outputs.iter_mut())
+            .enumerate()
+            .for_each(|(i, level)| *level = i as i16);
+
+        let size = compute_params_size(
+            <Io14fwProtocol as AlesisParametersSerdes<IofwMeterParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io26fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut target = <Io26fwProtocol as IofwMeterSpecification>::create_meter_params();
+        Io26fwProtocol::deserialize_params(&mut target, &raw).unwrap();
+
+        assert_eq!(params, target);
+    }
 }

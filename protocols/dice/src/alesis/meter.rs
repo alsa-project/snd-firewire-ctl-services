@@ -22,9 +22,6 @@ const STREAM_INPUT_COUNT: usize = 8;
 const DIGITAL_A_INPUT_COUNT: usize = 8;
 const MIXER_OUTPUT_COUNT: usize = 8;
 
-const METER_OFFSET: usize = 0x04c0;
-const METER_SIZE: usize = 160;
-
 /// Protofol of hardware meter.
 pub trait IofwMeterOperation {
     const ANALOG_INPUT_COUNT: usize;
