@@ -217,7 +217,7 @@ where
         node: &mut FwNode,
         req: &mut FwReq,
         sections: &ExtensionSections,
-        avail_rates: &[ClockRate],
+        global_params: &GlobalParameters,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
@@ -228,7 +228,8 @@ where
         // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
         // such models that second rx or tx stream is not available at mode of low rate.
         let mut rate_modes: Vec<RateMode> = Vec::default();
-        avail_rates
+        global_params
+            .avail_rates
             .iter()
             .map(|&r| RateMode::from(r))
             .for_each(|m| {
@@ -674,15 +675,15 @@ where
 
     fn load_standalone(
         &mut self,
-        avail_rates: &[ClockRate],
-        avail_sources: &[ClockSource],
-        clock_source_labels: &[(ClockSource, String)],
+        global_params: &GlobalParameters,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let labels: Vec<&str> = avail_sources
+        let labels: Vec<&str> = global_params
+            .avail_sources
             .iter()
             .filter_map(|src| {
-                clock_source_labels
+                global_params
+                    .clock_source_labels
                     .iter()
                     .find(|(s, _)| src.eq(s))
                     .map(|(_, l)| l.as_str())
@@ -692,7 +693,8 @@ where
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        if avail_sources
+        if global_params
+            .avail_sources
             .iter()
             .find(|&src| {
                 src.eq(&ClockSource::Aes1)
@@ -712,7 +714,8 @@ where
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
-        if avail_sources
+        if global_params
+            .avail_sources
             .iter()
             .find(|&src| src.eq(&ClockSource::Adat))
             .is_some()
@@ -723,7 +726,8 @@ where
                 card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::ADAT_MODE_LABELS, None, true)?;
         }
 
-        if avail_sources
+        if global_params
+            .avail_sources
             .iter()
             .find(|&src| src.eq(&ClockSource::WordClock))
             .is_some()
@@ -752,7 +756,8 @@ where
                 card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
         }
 
-        let labels: Vec<String> = avail_rates
+        let labels: Vec<String> = global_params
+            .avail_rates
             .iter()
             .map(|r| clock_rate_to_string(r))
             .collect();
@@ -766,8 +771,8 @@ where
         );
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        self.tcd22xx_ctl_mut().standalone_ctl.rates = avail_rates.to_vec();
-        self.tcd22xx_ctl_mut().standalone_ctl.srcs = avail_sources.to_vec();
+        self.tcd22xx_ctl_mut().standalone_ctl.rates = global_params.avail_rates.to_vec();
+        self.tcd22xx_ctl_mut().standalone_ctl.srcs = global_params.avail_sources.to_vec();
 
         Ok(())
     }
@@ -998,9 +1003,7 @@ where
         unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
-        avail_rates: &[ClockRate],
-        avail_sources: &[ClockSource],
-        clock_source_labels: &[(ClockSource, String)],
+        global_params: &GlobalParameters,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
@@ -1012,12 +1015,12 @@ where
             &mut unit.1,
             req,
             sections,
-            avail_rates,
+            global_params,
             timeout_ms,
             card_cntr,
         )?;
         self.load_mixer(card_cntr)?;
-        self.load_standalone(avail_rates, avail_sources, clock_source_labels, card_cntr)?;
+        self.load_standalone(global_params, card_cntr)?;
 
         Ok(())
     }
