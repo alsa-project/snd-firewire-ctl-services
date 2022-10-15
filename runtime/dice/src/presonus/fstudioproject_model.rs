@@ -29,36 +29,27 @@ impl FStudioProjectModel {
         self.common_ctl
             .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.extension_sections =
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        self.tcd22xx_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            &self.sections.global.params,
+            TIMEOUT_MS,
+        )?;
+
         Ok(())
     }
 }
 
 impl CtlModel<(SndDice, FwNode)> for FStudioProjectModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections)?;
 
-        self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.tcd22xx_ctl.load(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            &self.sections.global.params,
-            TIMEOUT_MS,
-            card_cntr,
-        )?;
-
-        self.tcd22xx_ctl.cache(
-            unit,
-            &mut self.req,
-            &self.sections,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
+        self.tcd22xx_ctl
+            .load(card_cntr, &self.sections.global.params)?;
 
         Ok(())
     }
@@ -130,10 +121,10 @@ impl NotifyModel<(SndDice, FwNode), u32> for FStudioProjectModel {
             TIMEOUT_MS,
         )?;
         self.tcd22xx_ctl.parse_notification(
-            unit,
             &mut self.req,
-            &self.sections,
+            &mut unit.1,
             &self.extension_sections,
+            &self.sections.global.params,
             TIMEOUT_MS,
             msg,
         )?;
