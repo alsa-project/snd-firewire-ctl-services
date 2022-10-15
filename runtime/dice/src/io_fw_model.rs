@@ -850,9 +850,22 @@ pub trait OutputCtlOperation<T: IofwOutputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_LEVEL_NAME => {
-                let vals = &elem_value.enumerated()[..T::ANALOG_OUTPUT_COUNT];
-                let levels: Vec<NominalSignalLevel> =
-                    vals.iter().map(|v| NominalSignalLevel::from(*v)).collect();
+                let mut levels = vec![NominalSignalLevel::default(); T::ANALOG_OUTPUT_COUNT];
+                levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::OUT_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Nominal output level not found for position {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
                 T::write_out_levels(req, &mut unit.1, &levels, timeout_ms).map(|_| true)
             }
             DIGITAL_B_67_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
