@@ -5,6 +5,136 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Alesis for iO FireWire series.
+//!
+//! ## Diagram of internal signal flow for iO 14 FireWire.
+//!
+//! ```text
+//!
+//! analog-input-1/2 ----------------------> stream-output-A-1/2
+//! analog-input-3/4 ----------------------> stream-output-A-3/4
+//! spdif-input-1/2 -----------------------> stream-output-A-5/6
+//! adat-input-1/2 ------------------------> stream-output-B-1/2
+//! adat-input-3/4 ------------------------> stream-output-B-3/4
+//! adat-input-5/6 ------------------------> stream-output-B-5/6
+//! adat-input-7/8 ------------------------> stream-output-B-7/8
+//!
+//!                        ++=========++
+//! analog-input-1/2 ----> ||         ||
+//! analog-input-3/4 ----> || 14 x 8  || --> monitor-output-1/2
+//! adat-input-1/2 ------> ||         || --> monitor-output-3/4
+//! adat-input-3/4 ------> || monitor || --> monitor-output-5/6
+//! adat-input-5/6 ------> ||         || --> monitor-output-7/8
+//! adat-input-7/8 ------> ||  mixer  ||
+//! spdif-input-1/2 -----> ||         ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-1/2 --> ||  4 x 2  || --> mixer-output-1/2
+//! stream-input-1/2 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-3/4 --> ||  4 x 2  || --> mixer-output-3/4
+//! stream-input-3/4 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-5/6 --> ||  4 x 2  || --> mixer-output-5/6
+//! stream-input-5/6 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-7/8 --> ||  4 x 2  || --> mixer-output-7/8
+//! stream-input-7/8 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//! mixer-output-1/2 -----------+----------> analog-output-1/2
+//!                             +----------> headphone-output-1/2
+//! mixer-output-3/4 ----------------------> analog-output-3/4
+//! mixer-output-5/6 ----------------------> analog-output-5/6
+//! mixer-output-7/8 ----------------------> analog-output-7/8
+//!
+//! mixer-output-1/2 -------(one of)------> headphone-output-3/4
+//! mixer-output-3/4 -----------+
+//! mixer-output-5/6 -----------+
+//! mixer-output-7/8 -----------+
+//!
+//! mixer-output-1/2 -------(one of)-------> spdif-output-1/2
+//! mixer-output-3/4 -----------+
+//! mixer-output-5/6 -----------+
+//! mixer-output-7/8 -----------+
+//! ```
+//!
+//! ## Diagram of internal signal flow for iO 26 FireWire.
+//!
+//! ```text
+//!
+//! analog-input-1/2 ----------------------> stream-output-A-1/2
+//! analog-input-3/4 ----------------------> stream-output-A-3/4
+//! analog-input-5/6 ----------------------> stream-output-A-5/6
+//! analog-input-7/8 ----------------------> stream-output-A-7/8
+//! spdif-input-1/2 -----------------------> stream-output-A-9/10
+//! adat-input-1/2 ------------------------> stream-output-B-1/2
+//! adat-input-3/4 ------------------------> stream-output-B-3/4
+//! adat-input-5/6 ------------------------> stream-output-B-5/6
+//! adat-input-7/8 ------------------------> stream-output-B-7/8
+//! adat-input-9/10 -----------------------> stream-output-B-9/10
+//! adat-input-11/12 ----------------------> stream-output-B-11/12
+//! adat-input-13/14 ----------------------> stream-output-B-13/14
+//! adat-input-15/16 ----------------------> stream-output-B-15/16
+//!
+//!                        ++=========++
+//! analog-input-1/2 ----> ||         ||
+//! analog-input-3/4 ----> ||         ||
+//! analog-input-5/6 ----> ||         ||
+//! analog-input-7/8 ----> || 24 x 8  ||
+//! adat-input-1/2 ------> ||         || --> monitor-output-1/2
+//! adat-input-3/4 ------> || monitor || --> monitor-output-3/4
+//! adat-input-5/6 ------> ||         || --> monitor-output-5/6
+//! adat-input-7/8 ------> ||  mixer  || --> monitor-output-7/8
+//! adat-input-9/10 -----> ||         ||
+//! adat-input-11/12 ----> ||         ||
+//! adat-input-13/14 ----> ||         ||
+//! adat-input-15/16 -or-> ||         ||
+//! spdif-input-1/2 --+    ||         ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-1/2 --> ||  4 x 2  || --> mixer-output-1/2
+//! stream-input-1/2 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-3/4 --> ||  4 x 2  || --> mixer-output-3/4
+//! stream-input-3/4 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-5/6 --> ||  4 x 2  || --> mixer-output-5/6
+//! stream-input-5/6 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//!                        ++=========++
+//! monitor-output-7/8 --> ||  4 x 2  || --> mixer-output-7/8
+//! stream-input-7/8 ----> ||  mixer  ||
+//!                        ++=========++
+//!
+//! mixer-output-1/2 -----------+----------> analog-output-1/2
+//!                             +----------> headphone-output-1/2
+//! mixer-output-3/4 ----------------------> analog-output-3/4
+//! mixer-output-5/6 ----------------------> analog-output-5/6
+//! mixer-output-7/8 ----------------------> analog-output-7/8
+//!
+//! mixer-output-1/2 -------(one of)------> headphone-output-3/4
+//! mixer-output-3/4 -----------+
+//! mixer-output-5/6 -----------+
+//! mixer-output-7/8 -----------+
+//!
+//! mixer-output-1/2 -------(one of)-------> spdif-output-1/2
+//! mixer-output-3/4 -----------+
+//! mixer-output-5/6 -----------+
+//! mixer-output-7/8 -----------+
+//! ```
 
 pub mod meter;
 pub mod mixer;
