@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    protocols::alesis::{meter::*, mixer::*, output::*, *},
+    protocols::alesis::{mixer::*, output::*, *},
     std::marker::PhantomData,
 };
 
@@ -15,7 +15,8 @@ pub type Io26fwModel = IofwModel<Io26fwProtocol>;
 #[derive(Default)]
 pub struct IofwModel<T>
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -35,7 +36,8 @@ where
 
 impl<T> IofwModel<T>
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -51,13 +53,16 @@ where
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+
         Ok(())
     }
 }
 
 impl<T> CtlModel<(SndDice, FwNode)> for IofwModel<T>
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -79,9 +84,7 @@ where
             },
         )?;
 
-        self.meter_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr)?;
         self.mixer_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
@@ -147,7 +150,8 @@ where
 
 impl<T> NotifyModel<(SndDice, FwNode), u32> for IofwModel<T>
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -178,7 +182,8 @@ where
 
 impl<T> MeasureModel<(SndDice, FwNode)> for IofwModel<T>
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -190,13 +195,13 @@ where
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
 
@@ -224,7 +229,8 @@ where
 #[derive(Default, Debug)]
 pub struct CommonCtl<T>(Vec<ElemId>, Vec<ElemId>, PhantomData<T>)
 where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -235,7 +241,8 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>;
 
 impl<T> CommonCtlOperation<T> for CommonCtl<T> where
-    T: IofwMeterOperation
+    T: IofwMeterSpecification
+        + AlesisParametersOperation<IofwMeterParams>
         + IofwMixerOperation
         + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
@@ -247,21 +254,145 @@ impl<T> CommonCtlOperation<T> for CommonCtl<T> where
 {
 }
 
-#[derive(Default, Debug)]
-struct MeterCtl<T>(IofwMeterState, Vec<ElemId>, PhantomData<T>)
+#[derive(Debug)]
+struct MeterCtl<T>(IofwMeterParams, Vec<ElemId>, PhantomData<T>)
 where
-    T: IofwMeterOperation;
+    T: IofwMeterSpecification + AlesisParametersOperation<IofwMeterParams>;
 
-impl<T> MeterCtlOperation<T> for MeterCtl<T>
+impl<T> Default for MeterCtl<T>
 where
-    T: IofwMeterOperation,
+    T: IofwMeterSpecification + AlesisParametersOperation<IofwMeterParams>,
 {
-    fn meter(&self) -> &IofwMeterState {
-        &self.0
+    fn default() -> Self {
+        Self(
+            T::create_meter_params(),
+            Default::default(),
+            Default::default(),
+        )
+    }
+}
+
+const ANALOG_INPUT_METER_NAME: &str = "analog-input-meters";
+const DIGITAL_A_INPUT_METER_NAME: &str = "digital-a-input-meters";
+const DIGITAL_B_INPUT_METER_NAME: &str = "digital-b-input-meters";
+const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
+
+impl<T> MeterCtl<T>
+where
+    T: IofwMeterSpecification + AlesisParametersOperation<IofwMeterParams>,
+{
+    const LEVEL_MIN: i32 = T::LEVEL_MIN as i32;
+    const LEVEL_MAX: i32 = T::LEVEL_MAX as i32;
+    const LEVEL_STEP: i32 = 1;
+    const LEVEL_TLV: DbInterval = DbInterval {
+        min: -9000,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
     }
 
-    fn meter_mut(&mut self) -> &mut IofwMeterState {
-        &mut self.0
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                T::ANALOG_INPUT_COUNT,
+                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_A_INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                T::DIGITAL_A_INPUT_COUNT,
+                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_B_INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                T::DIGITAL_B_INPUT_COUNT,
+                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                T::MIXER_OUTPUT_COUNT,
+                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
+                false,
+            )
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ANALOG_INPUT_METER_NAME => {
+                let params = &self.0;
+                let vals: Vec<i32> = params.analog_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            DIGITAL_A_INPUT_METER_NAME => {
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .digital_a_inputs
+                    .iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            DIGITAL_B_INPUT_METER_NAME => {
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .digital_b_inputs
+                    .iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            MIXER_OUT_METER_NAME => {
+                let params = &self.0;
+                let vals: Vec<i32> = params.mixer_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
 
@@ -289,128 +420,6 @@ where
     T: IofwOutputOperation;
 
 impl<T: IofwOutputOperation> OutputCtlOperation<T> for OutputCtl<T> {}
-
-const ANALOG_INPUT_METER_NAME: &str = "analog-input-meters";
-const DIGITAL_A_INPUT_METER_NAME: &str = "digital-a-input-meters";
-const DIGITAL_B_INPUT_METER_NAME: &str = "digital-b-input-meters";
-const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
-
-pub trait MeterCtlOperation<T: IofwMeterOperation> {
-    const LEVEL_TLV: DbInterval = DbInterval {
-        min: -9000,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
-
-    fn meter(&self) -> &IofwMeterState;
-    fn meter_mut(&mut self) -> &mut IofwMeterState;
-
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        let mut state = T::create_meter_state();
-        T::read_meter(req, &mut unit.1, &mut state, timeout_ms)?;
-        *self.meter_mut() = state;
-
-        let mut measured_elem_id_list = Vec::new();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_INPUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                T::ANALOG_INPUT_COUNT,
-                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_A_INPUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                T::DIGITAL_A_INPUT_COUNT,
-                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_B_INPUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                T::DIGITAL_B_INPUT_COUNT,
-                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_METER_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::LEVEL_MIN,
-                T::LEVEL_MAX,
-                T::LEVEL_STEP,
-                T::MIXER_COUNT,
-                Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
-                false,
-            )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(measured_elem_id_list)
-    }
-
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.1, self.meter_mut(), timeout_ms)
-    }
-
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            ANALOG_INPUT_METER_NAME => {
-                elem_value.set_int(&self.meter().analog_inputs);
-                Ok(true)
-            }
-            DIGITAL_A_INPUT_METER_NAME => {
-                elem_value.set_int(&self.meter().digital_a_inputs);
-                Ok(true)
-            }
-            DIGITAL_B_INPUT_METER_NAME => {
-                elem_value.set_int(&self.meter().digital_b_inputs);
-                Ok(true)
-            }
-            MIXER_OUT_METER_NAME => {
-                elem_value.set_int(&self.meter().mixer_outputs);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
 
 const INPUT_GAIN_NAME: &str = "monitor-input-gain";
 const INPUT_MUTE_NAME: &str = "monitor-input-mute";
