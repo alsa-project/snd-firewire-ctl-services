@@ -38,6 +38,11 @@ impl IofwOutputSpecification for Io14fwProtocol {
     const HAS_OPT_IFACE_B: bool = false;
 }
 
+impl IofwMixerSpecification for Io14fwProtocol {
+    const ANALOG_INPUT_PAIR_COUNT: usize = 2;
+    const DIGITAL_B_INPUT_PAIR_COUNT: usize = 1;
+}
+
 impl IofwMeterOperation for Io14fwProtocol {
     const ANALOG_INPUT_COUNT: usize =
         <Io14fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
@@ -46,8 +51,10 @@ impl IofwMeterOperation for Io14fwProtocol {
 }
 
 impl IofwMixerOperation for Io14fwProtocol {
-    const ANALOG_INPUT_COUNT: usize = 4;
-    const DIGITAL_B_INPUT_COUNT: usize = 2;
+    const ANALOG_INPUT_COUNT: usize =
+        <Io14fwProtocol as IofwMixerSpecification>::ANALOG_INPUT_PAIR_COUNT * 2;
+    const DIGITAL_B_INPUT_COUNT: usize =
+        <Io14fwProtocol as IofwMixerSpecification>::DIGITAL_B_INPUT_PAIR_COUNT * 2;
 }
 
 impl IofwOutputOperation for Io14fwProtocol {
@@ -76,6 +83,11 @@ impl IofwOutputSpecification for Io26fwProtocol {
     const HAS_OPT_IFACE_B: bool = true;
 }
 
+impl IofwMixerSpecification for Io26fwProtocol {
+    const ANALOG_INPUT_PAIR_COUNT: usize = 4;
+    const DIGITAL_B_INPUT_PAIR_COUNT: usize = 4;
+}
+
 impl IofwMeterOperation for Io26fwProtocol {
     const ANALOG_INPUT_COUNT: usize =
         <Io26fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
@@ -84,8 +96,10 @@ impl IofwMeterOperation for Io26fwProtocol {
 }
 
 impl IofwMixerOperation for Io26fwProtocol {
-    const ANALOG_INPUT_COUNT: usize = 8;
-    const DIGITAL_B_INPUT_COUNT: usize = 8;
+    const ANALOG_INPUT_COUNT: usize =
+        <Io26fwProtocol as IofwMixerSpecification>::ANALOG_INPUT_PAIR_COUNT * 2;
+    const DIGITAL_B_INPUT_COUNT: usize =
+        <Io26fwProtocol as IofwMixerSpecification>::DIGITAL_B_INPUT_PAIR_COUNT * 2;
 }
 
 impl IofwOutputOperation for Io26fwProtocol {
@@ -96,14 +110,38 @@ impl IofwOutputOperation for Io26fwProtocol {
 
 const BASE_OFFSET: usize = 0x00200000;
 
-const METER_OFFSET: usize = 0x04c0;
+const MIXER_PARAMS_OFFSET: usize = 0x0038;
+// const MIXER_PAIR_SOURCE_GAIN_OFFSET: usize = 0x0038;
+const MIXER_OUTPUT_VOLUME_OFFSET: usize = 0x0438;
+// const MIXER_PAIR_SOURCE_MUTE_OFFSET: usize = 0x0458;
+// const MIXER_OUTPUT_MUTE_OFFSET: usize = 0x0468;
+// const MIXER_PAIR_SOURCE_SOLO_OFFSET: usize = 0x046c;
+// const MIXER_PAIR_SOURCE_LINK_OFFSET: usize = 0x047c;
 
+const METER_OFFSET: usize = 0x04c0;
+// NOTE: 0: mixer 0/1, 1: mixer 2/3, 2: mixer 4/5, 3: mixer 6/7, 4: meter.
+// const UI_SELECT_OFFSET: usize = 0x0560;
 const OUT_LEVEL_OFFSET: usize = 0x0564;
 const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
 const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
 const HP34_SRC_OFFSET: usize = 0x0570;
 
+const KNOB_PARAMS_OFFSET: usize = 0x0574;
+// const MIXER_BLEND_KNOB_OFFSET: usize = 0x0574;
+// const MIXER_MASTER_KNOB_OFFSET: usize = 0x0578;
+
 const METER_SIZE: usize = 160;
+
+const MIXER_PARAMS_SIZE: usize = 0x454;
+// const MIXER_PAIR_SOURCE_GAIN_SIZE: usize = 4 * 4 * (8 + 8 + 8 + 8);
+// const MIXER_OUTPUT_VOLUME_SIZE: usize = 4 * 8;
+// const MIXER_PAIR_SOURCE_MUTE_SIZE: usize = 4 * 4;
+// const MIXER_OUTPUT_MUTE_SIZE: usize = 4;
+// const MIXER_PAIR_SOURCE_SOLO_SIZE: usize = 4 * 4;
+// const MIXER_PAIR_SOURCE_LINK_SIZE: usize = 4 * 4;
+const KNOB_PARAMS_SIZE: usize = 8;
+// const MIXER_BLEND_KNOB_SIZE: usize = 4;
+// const MIXER_MASTER_KNOB_SIZE: usize = 4;
 
 /// Serialize and deserialize for parameters of iO FireWire series.
 pub trait AlesisParametersSerdes<T> {
@@ -176,6 +214,107 @@ pub trait IofwOutputSpecification {
 
 impl<O> AlesisMutableParametersOperation<IofwOutputParams> for O where
     O: AlesisOperation + IofwOutputSpecification + AlesisParametersSerdes<IofwOutputParams>
+{
+}
+
+/// Specification of mixers.
+pub trait IofwMixerSpecification {
+    /// The number of analog input pairs.
+    const ANALOG_INPUT_PAIR_COUNT: usize;
+
+    /// The number of digital input B pairs.
+    const DIGITAL_B_INPUT_PAIR_COUNT: usize;
+
+    /// The number of stream input pairs.
+    const STREAM_INPUT_PAIR_COUNT: usize = 4;
+
+    /// The number of digital input A pairs.
+    const DIGITAL_A_INPUT_PAIR_COUNT: usize = 4;
+
+    /// The number of mixer output pairs.
+    const MIXER_OUTPUT_PAIR_COUNT: usize = 4;
+
+    /// The minimum value of gain.
+    const GAIN_MIN: i32 = 0;
+
+    /// The maximum value of gain.
+    const GAIN_MAX: i32 = 0x007fffff;
+
+    /// The minimum value of volume, as well as minimum value of knob.
+    const VOLUME_MIN: u32 = 0;
+
+    /// The maximum value of volume, as well as maximum value of knob.
+    const VOLUME_MAX: u32 = 0x100;
+
+    /// Instantiate mixer parameters.
+    fn create_mixer_params() -> IofwMixerParams {
+        IofwMixerParams {
+            mixer_pairs: [
+                IofwMixerPair {
+                    monitor_pair: IofwMonitorPair {
+                        analog_input_pairs: vec![Default::default(); Self::ANALOG_INPUT_PAIR_COUNT],
+                        digital_a_input_pairs: [Default::default(); 4],
+                        digital_b_input_pairs: vec![
+                            Default::default();
+                            Self::DIGITAL_B_INPUT_PAIR_COUNT
+                        ],
+                        output_volumes: [Default::default(); 2],
+                        output_mutes: [Default::default(); 2],
+                    },
+                    stream_inputs_to_left: [Default::default(); 8],
+                    stream_inputs_to_right: [Default::default(); 8],
+                },
+                IofwMixerPair {
+                    monitor_pair: IofwMonitorPair {
+                        analog_input_pairs: vec![Default::default(); Self::ANALOG_INPUT_PAIR_COUNT],
+                        digital_a_input_pairs: [Default::default(); 4],
+                        digital_b_input_pairs: vec![
+                            Default::default();
+                            Self::DIGITAL_B_INPUT_PAIR_COUNT
+                        ],
+                        output_volumes: [Default::default(); 2],
+                        output_mutes: [Default::default(); 2],
+                    },
+                    stream_inputs_to_left: [Default::default(); 8],
+                    stream_inputs_to_right: [Default::default(); 8],
+                },
+                IofwMixerPair {
+                    monitor_pair: IofwMonitorPair {
+                        analog_input_pairs: vec![Default::default(); Self::ANALOG_INPUT_PAIR_COUNT],
+                        digital_a_input_pairs: [Default::default(); 4],
+                        digital_b_input_pairs: vec![
+                            Default::default();
+                            Self::DIGITAL_B_INPUT_PAIR_COUNT
+                        ],
+                        output_volumes: [Default::default(); 2],
+                        output_mutes: [Default::default(); 2],
+                    },
+                    stream_inputs_to_left: [Default::default(); 8],
+                    stream_inputs_to_right: [Default::default(); 8],
+                },
+                IofwMixerPair {
+                    monitor_pair: IofwMonitorPair {
+                        analog_input_pairs: vec![Default::default(); Self::ANALOG_INPUT_PAIR_COUNT],
+                        digital_a_input_pairs: [Default::default(); 4],
+                        digital_b_input_pairs: vec![
+                            Default::default();
+                            Self::DIGITAL_B_INPUT_PAIR_COUNT
+                        ],
+                        output_volumes: [Default::default(); 2],
+                        output_mutes: [Default::default(); 2],
+                    },
+                    stream_inputs_to_left: [Default::default(); 8],
+                    stream_inputs_to_right: [Default::default(); 8],
+                },
+            ],
+            master_knob: Default::default(),
+            blend_knob: Default::default(),
+        }
+    }
+}
+
+impl<O> AlesisMutableParametersOperation<IofwMixerParams> for O where
+    O: AlesisOperation + IofwMixerSpecification + AlesisParametersSerdes<IofwMixerParams>
 {
 }
 
@@ -552,7 +691,9 @@ fn deserialize_nominal_signal_levels(
 /// Source of 6/7 channels of digital B input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DigitalB67Src {
+    /// S/PDIF input 1/2.
     Spdif12,
+    /// ADAT input B 7/8.
     Adat67,
 }
 
@@ -592,9 +733,13 @@ fn deserialize_digital_b67_src(src: &mut DigitalB67Src, raw: &[u8]) -> Result<()
 /// Pair of mixer output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MixerOutPair {
+    /// Mixer output 1/2.
     Mixer01,
+    /// Mixer output 3/4.
     Mixer23,
+    /// Mixer output 5/6.
     Mixer45,
+    /// Mixer output 7/8.
     Mixer67,
 }
 
@@ -658,6 +803,307 @@ impl<O: IofwOutputSpecification> AlesisParametersSerdes<IofwOutputParams> for O 
         deserialize_mixer_out_pair(&mut params.headphone2_3_out_src, &raw[12..16])?;
         Ok(())
     }
+}
+
+/// Parameters for pair of sources of paired mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct IofwMonitorPairSourcePair {
+    /// Gain from left and right channels to left channel of monitor, between 0x7fffff and 0 (-60
+    /// and 0 dB).
+    pub gain_to_left: [i32; 2],
+    /// Gain from left and right channels to right channel of monitor, between 0x7fffff and 0 (-60
+    /// and 0 dB).
+    pub gain_to_right: [i32; 2],
+    /// Whether to mute left and right channels.
+    pub mutes: [bool; 2],
+    /// Whether to mute the other channels.
+    pub solos: [bool; 2],
+    /// Whether to link left and right channels.
+    pub link: bool,
+}
+
+/// Parameters of source pairs for monitor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IofwMonitorPair {
+    /// Source pairs of analog inputs.
+    pub analog_input_pairs: Vec<IofwMonitorPairSourcePair>,
+    /// Source pairs of digital A inputs.
+    pub digital_a_input_pairs: [IofwMonitorPairSourcePair; 4],
+    /// Source pairs of digital B inputs.
+    pub digital_b_input_pairs: Vec<IofwMonitorPairSourcePair>,
+    /// Volume of left and right outputs, between 0 and 0x100 (-60 and 0 dB).
+    pub output_volumes: [u32; 2],
+    /// Mute of left and right outputs.
+    pub output_mutes: [bool; 2],
+}
+
+/// Parameters of source pairs for mixer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IofwMixerPair {
+    /// Source pairs for monitor.
+    pub monitor_pair: IofwMonitorPair,
+    /// Stream inputs to left channel of mixer.
+    pub stream_inputs_to_left: [i32; 8],
+    /// Stream inputs to right channel of mixer.
+    pub stream_inputs_to_right: [i32; 8],
+}
+
+/// Parametes of source pairs for mixer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IofwMixerParams {
+    /// The setting of each mixer.
+    pub mixer_pairs: [IofwMixerPair; 4],
+    /// The value of master knob, between 0 and 0x100.
+    pub blend_knob: u32,
+    /// The value of master knob, between 0 and 0x100.
+    pub master_knob: u32,
+}
+
+impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
+    const NAME: &'static str = "mixer";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[
+        Range {
+            start: MIXER_PARAMS_OFFSET,
+            end: MIXER_PARAMS_OFFSET + MIXER_PARAMS_SIZE,
+        },
+        Range {
+            start: KNOB_PARAMS_OFFSET,
+            end: KNOB_PARAMS_OFFSET + KNOB_PARAMS_SIZE,
+        },
+    ];
+
+    fn serialize_params(params: &IofwMixerParams, raw: &mut [u8]) -> Result<(), String> {
+        params.mixer_pairs.iter().enumerate().for_each(|(i, srcs)| {
+            let mut mutes_val = 0u32;
+            let mut solos_val = 0u32;
+            let mut links_val = 0u32;
+
+            let digital_b_pos = 2 * (4 - Self::DIGITAL_B_INPUT_PAIR_COUNT);
+            [
+                (&srcs.monitor_pair.analog_input_pairs[..], 0),
+                (&srcs.monitor_pair.digital_a_input_pairs[..], 16),
+                (
+                    &srcs.monitor_pair.digital_b_input_pairs[..],
+                    24 + digital_b_pos,
+                ),
+            ]
+            .iter()
+            .for_each(|(pairs, offset)| {
+                pairs
+                    .iter()
+                    .flat_map(|pair| pair.gain_to_left.iter())
+                    .enumerate()
+                    .for_each(|(j, gain)| {
+                        let mixer_index = i * 2;
+                        let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
+                        gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                    });
+
+                pairs
+                    .iter()
+                    .flat_map(|pair| pair.gain_to_right.iter())
+                    .enumerate()
+                    .for_each(|(j, gain)| {
+                        let mixer_index = i * 2 + 1;
+                        let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
+                        gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                    });
+
+                pairs
+                    .iter()
+                    .flat_map(|pair| pair.mutes.iter())
+                    .enumerate()
+                    .filter(|(_, &mute)| mute)
+                    .for_each(|(j, _)| mutes_val |= 1 << (*offset + j));
+
+                pairs
+                    .iter()
+                    .flat_map(|pair| pair.solos.iter())
+                    .enumerate()
+                    .filter(|(_, &solo)| solo)
+                    .for_each(|(j, _)| solos_val |= 1 << (*offset + j));
+
+                pairs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &pair)| pair.link)
+                    .for_each(|(j, _)| links_val |= 1 << (*offset / 2 + j));
+            });
+
+            let pos = 0x0420 + 4 * i;
+            mutes_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+
+            let pos = 0x0434 + 4 * i;
+            solos_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+
+            let pos = 0x0444 + 4 * i;
+            links_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+
+            [
+                &srcs.stream_inputs_to_left[..],
+                &srcs.stream_inputs_to_right[..],
+            ]
+            .iter()
+            .enumerate()
+            .for_each(|(j, gains)| {
+                gains.iter().enumerate().for_each(|(k, gain)| {
+                    let mixer_index = i * 2 + j;
+                    let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + 8 + k);
+                    gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                });
+            });
+        });
+
+        params
+            .mixer_pairs
+            .iter()
+            .flat_map(|srcs| srcs.monitor_pair.output_volumes.iter())
+            .enumerate()
+            .for_each(|(i, vol)| {
+                let pos = 0x400 + 4 * i;
+                vol.build_quadlet(&mut raw[pos..(pos + 4)]);
+            });
+
+        let mut val = 0u32;
+        params
+            .mixer_pairs
+            .iter()
+            .flat_map(|srcs| srcs.monitor_pair.output_mutes.iter())
+            .enumerate()
+            .filter(|(_, &mute)| mute)
+            .for_each(|(i, _)| val |= 1 << i);
+        val.build_quadlet(&mut raw[0x430..0x434]);
+
+        params.blend_knob.build_quadlet(&mut raw[0x454..0x458]);
+        params.master_knob.build_quadlet(&mut raw[0x458..0x45c]);
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut IofwMixerParams, raw: &[u8]) -> Result<(), String> {
+        params
+            .mixer_pairs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, srcs)| {
+                let digital_b_pos = 2 * (4 - Self::DIGITAL_B_INPUT_PAIR_COUNT);
+
+                let pos = 0x0420 + 4 * i;
+                let mut mutes_val = 0u32;
+                mutes_val.parse_quadlet(&raw[pos..(pos + 4)]);
+
+                let pos = 0x0434 + 4 * i;
+                let mut solos_val = 0u32;
+                solos_val.parse_quadlet(&raw[pos..(pos + 4)]);
+
+                let pos = 0x0444 + 4 * i;
+                let mut links_val = 0u32;
+                links_val.parse_quadlet(&raw[pos..(pos + 4)]);
+
+                [
+                    (&mut srcs.monitor_pair.analog_input_pairs[..], 0),
+                    (&mut srcs.monitor_pair.digital_a_input_pairs[..], 16),
+                    (
+                        &mut srcs.monitor_pair.digital_b_input_pairs[..],
+                        24 + digital_b_pos,
+                    ),
+                ]
+                .iter_mut()
+                .for_each(|(pairs, offset)| {
+                    pairs
+                        .iter_mut()
+                        .flat_map(|pair| pair.gain_to_left.iter_mut())
+                        .enumerate()
+                        .for_each(|(j, gain)| {
+                            let mixer_index = i * 2;
+                            let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
+                            gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                        });
+
+                    pairs
+                        .iter_mut()
+                        .flat_map(|pair| pair.gain_to_right.iter_mut())
+                        .enumerate()
+                        .for_each(|(j, gain)| {
+                            let mixer_index = i * 2 + 1;
+                            let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
+                            gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                        });
+
+                    pairs
+                        .iter_mut()
+                        .flat_map(|pair| pair.mutes.iter_mut())
+                        .enumerate()
+                        .for_each(|(j, mute)| *mute = mutes_val & (1 << (*offset + j)) > 0);
+
+                    pairs
+                        .iter_mut()
+                        .flat_map(|pair| pair.solos.iter_mut())
+                        .enumerate()
+                        .for_each(|(j, solo)| *solo = solos_val & (1 << (*offset + j)) > 0);
+
+                    pairs
+                        .iter_mut()
+                        .enumerate()
+                        .for_each(|(j, pair)| pair.link = links_val & (1 << (*offset / 2 + j)) > 0);
+                });
+
+                [
+                    &mut srcs.stream_inputs_to_left[..],
+                    &mut srcs.stream_inputs_to_right[..],
+                ]
+                .iter_mut()
+                .enumerate()
+                .for_each(|(j, gains)| {
+                    gains.iter_mut().enumerate().for_each(|(k, gain)| {
+                        let mixer_index = i * 2 + j;
+                        let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + 8 + k);
+                        gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                    });
+                });
+            });
+
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|srcs| srcs.monitor_pair.output_volumes.iter_mut())
+            .enumerate()
+            .for_each(|(i, vol)| {
+                let pos = 0x400 + 4 * i;
+                vol.parse_quadlet(&raw[pos..(pos + 4)]);
+            });
+
+        let mut val = 0u32;
+        val.parse_quadlet(&raw[0x430..0x434]);
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|srcs| srcs.monitor_pair.output_mutes.iter_mut())
+            .enumerate()
+            .for_each(|(i, mute)| *mute = val & (1 << i) > 0);
+
+        params.blend_knob.parse_quadlet(&raw[0x454..0x458]);
+        params.master_knob.parse_quadlet(&raw[0x458..0x45c]);
+
+        Ok(())
+    }
+}
+
+impl<O: AlesisOperation + AlesisParametersSerdes<IofwMixerParams>>
+    AlesisFluctuatedParametersOperation<IofwMixerParams> for O
+{
+    const FLUCTUATED_OFFSET_RANGES: &'static [Range<usize>] = &[
+        // NOTE: Mix blend knob operates output volume of mixer 1/2.
+        Range {
+            start: MIXER_OUTPUT_VOLUME_OFFSET,
+            end: MIXER_OUTPUT_VOLUME_OFFSET + 8,
+        },
+        Range {
+            start: KNOB_PARAMS_OFFSET,
+            end: KNOB_PARAMS_OFFSET + KNOB_PARAMS_SIZE,
+        },
+    ];
 }
 
 #[cfg(test)]
@@ -762,5 +1208,180 @@ mod test {
         Io26fwProtocol::deserialize_params(&mut target, &raw).unwrap();
 
         assert_eq!(params, target);
+    }
+
+    #[test]
+    fn io14fw_mixer_params_serdes() {
+        let mut params = Io14fwProtocol::create_mixer_params();
+        params.mixer_pairs.iter_mut().for_each(|mixer_pair| {
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.gain_to_left.iter_mut())
+                .enumerate()
+                .for_each(|(i, gain)| *gain = 2 * i as i32);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.gain_to_right.iter_mut())
+                .enumerate()
+                .for_each(|(i, gain)| *gain = 1 + 2 * i as i32);
+            [
+                &mut mixer_pair.stream_inputs_to_left[..],
+                &mut mixer_pair.stream_inputs_to_right[..],
+            ]
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(j, gain)| *gain = (i * 8 + j) as i32);
+            });
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.mutes.iter_mut())
+                .enumerate()
+                .for_each(|(i, mute)| *mute = i % 2 > 0);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.solos.iter_mut())
+                .enumerate()
+                .for_each(|(i, solo)| *solo = i % 2 > 0);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .enumerate()
+                .for_each(|(i, pair)| pair.link = i % 2 > 0);
+        });
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|pair| pair.monitor_pair.output_volumes.iter_mut())
+            .enumerate()
+            .for_each(|(i, vol)| *vol = 3 * i as u32);
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|pair| pair.monitor_pair.output_mutes.iter_mut())
+            .enumerate()
+            .for_each(|(i, mute)| *mute = i % 2 > 0);
+        params.master_knob = 111;
+        params.blend_knob = 111;
+
+        let size = compute_params_size(
+            <Io14fwProtocol as AlesisParametersSerdes<IofwMixerParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io14fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut p = Io14fwProtocol::create_mixer_params();
+        Io14fwProtocol::deserialize_params(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn io26fw_mixer_params_serdes() {
+        let mut params = Io26fwProtocol::create_mixer_params();
+        params.mixer_pairs.iter_mut().for_each(|mixer_pair| {
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.gain_to_left.iter_mut())
+                .enumerate()
+                .for_each(|(i, gain)| *gain = 2 * i as i32);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.gain_to_right.iter_mut())
+                .enumerate()
+                .for_each(|(i, gain)| *gain = 1 + 2 * i as i32);
+            [
+                &mut mixer_pair.stream_inputs_to_left[..],
+                &mut mixer_pair.stream_inputs_to_right[..],
+            ]
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, gains)| {
+                gains
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(j, gain)| *gain = (i * 8 + j) as i32);
+            });
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.mutes.iter_mut())
+                .enumerate()
+                .for_each(|(i, mute)| *mute = i % 2 > 0);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .flat_map(|pair| pair.solos.iter_mut())
+                .enumerate()
+                .for_each(|(i, solo)| *solo = i % 2 > 0);
+            mixer_pair
+                .monitor_pair
+                .analog_input_pairs
+                .iter_mut()
+                .chain(mixer_pair.monitor_pair.digital_a_input_pairs.iter_mut())
+                .chain(mixer_pair.monitor_pair.digital_b_input_pairs.iter_mut())
+                .enumerate()
+                .for_each(|(i, pair)| pair.link = i % 2 > 0);
+        });
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|pair| pair.monitor_pair.output_volumes.iter_mut())
+            .enumerate()
+            .for_each(|(i, vol)| *vol = 3 * i as u32);
+        params
+            .mixer_pairs
+            .iter_mut()
+            .flat_map(|pair| pair.monitor_pair.output_mutes.iter_mut())
+            .enumerate()
+            .for_each(|(i, mute)| *mute = i % 2 > 0);
+        params.master_knob = 111;
+        params.blend_knob = 111;
+        let size = compute_params_size(
+            <Io26fwProtocol as AlesisParametersSerdes<IofwMixerParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io26fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut p = Io26fwProtocol::create_mixer_params();
+        Io26fwProtocol::deserialize_params(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
     }
 }
