@@ -159,7 +159,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Mbox3Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.specific_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -195,7 +195,7 @@ impl MeasureModel<(SndDice, FwNode)> for Mbox3Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.measure_elem(elem_id, elem_value)? {
+        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
