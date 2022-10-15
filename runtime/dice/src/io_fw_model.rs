@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    protocols::alesis::{mixer::*, *},
-    std::marker::PhantomData,
-};
+use {super::*, protocols::alesis::*, std::marker::PhantomData};
 
 const TIMEOUT_MS: u32 = 20;
 
@@ -20,7 +16,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -43,7 +43,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -59,6 +63,7 @@ where
 
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.output_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.whole_cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -71,7 +76,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -79,11 +88,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
-    fn load(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections).map(
             |(measured_elem_id_list, notified_elem_id_list)| {
                 self.common_ctl.0 = measured_elem_id_list;
@@ -92,10 +97,8 @@ where
         )?;
 
         self.meter_ctl.load(card_cntr)?;
-        self.mixer_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
         self.output_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -137,12 +140,12 @@ where
         )? {
             Ok(true)
         } else if self
-            .mixer_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .output_ctl
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
-            .output_ctl
+            .mixer_ctl
             .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -159,7 +162,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -193,7 +200,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -204,6 +215,7 @@ where
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -211,8 +223,7 @@ where
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
-
+            .partial_cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -226,7 +237,7 @@ where
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -242,7 +253,11 @@ where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -256,7 +271,11 @@ impl<T> CommonCtlOperation<T> for CommonCtl<T> where
         + IofwOutputSpecification
         + AlesisParametersOperation<IofwOutputParams>
         + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerOperation
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
+        + IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -630,21 +649,25 @@ where
     }
 }
 
-#[derive(Default, Debug)]
-struct MixerCtl<T>(IofwMixerState, Vec<ElemId>, PhantomData<T>)
+#[derive(Debug)]
+struct MixerCtl<T>(IofwMixerParams, Vec<ElemId>, PhantomData<T>)
 where
-    T: IofwMixerOperation;
+    T: IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>;
 
-impl<T> MixerCtlOperation<T> for MixerCtl<T>
+impl<T> Default for MixerCtl<T>
 where
-    T: IofwMixerOperation,
+    T: IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>,
 {
-    fn state(&self) -> &IofwMixerState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut IofwMixerState {
-        &mut self.0
+    fn default() -> Self {
+        Self(
+            T::create_mixer_params(),
+            Default::default(),
+            Default::default(),
+        )
     }
 }
 
@@ -659,65 +682,92 @@ const OUTPUT_MUTE_NAME: &str = "monitor-output-mute";
 const MIX_BLEND_KNOB_NAME: &str = "mix-blend-knob";
 const MAIN_LEVEL_KNOB_NAME: &str = "main-level-knob";
 
-pub trait MixerCtlOperation<T: IofwMixerOperation> {
-    fn state(&self) -> &IofwMixerState;
-    fn state_mut(&mut self) -> &mut IofwMixerState;
-
-    const LEVEL_MIN: i32 = 0;
-    const LEVEL_MAX: i32 = 0x007fff00;
-    const LEVEL_STEP: i32 = 0x100;
-    const LEVEL_TLV: DbInterval = DbInterval {
-        min: -9000,
+impl<T> MixerCtl<T>
+where
+    T: IofwMixerSpecification
+        + AlesisParametersOperation<IofwMixerParams>
+        + AlesisMutableParametersOperation<IofwMixerParams>,
+{
+    const GAIN_MIN: i32 = T::GAIN_MIN;
+    const GAIN_MAX: i32 = T::GAIN_MAX;
+    const GAIN_STEP: i32 = 1;
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -6000,
         max: 0,
         linear: false,
         mute_avail: false,
     };
 
-    const KNOB_MIN: i32 = 0;
-    const KNOB_MAX: i32 = 0x100;
+    const VOLUME_MIN: i32 = T::VOLUME_MIN as i32;
+    const VOLUME_MAX: i32 = T::VOLUME_MAX as i32;
+    const VOLUME_STEP: i32 = 1;
+    const VOLUME_TLV: DbInterval = DbInterval {
+        min: -6000,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    const KNOB_MIN: i32 = T::VOLUME_MIN as i32;
+    const KNOB_MAX: i32 = T::VOLUME_MAX as i32;
     const KNOB_STEP: i32 = 1;
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        let mut state = T::create_mixer_state();
-        T::read_mixer_src_gains(req, &mut unit.1, &mut state, timeout_ms)?;
-        T::read_mixer_src_mutes(req, &mut unit.1, &mut state, timeout_ms)?;
-        T::read_mixer_out_vols(req, &mut unit.1, &mut state, timeout_ms)?;
-        T::read_mixer_out_mutes(req, &mut unit.1, &mut state, timeout_ms)?;
-        *self.state_mut() = state;
+    const MONITOR_INPUT_COUNT: usize = (T::ANALOG_INPUT_PAIR_COUNT
+        + T::DIGITAL_A_INPUT_PAIR_COUNT
+        + T::DIGITAL_B_INPUT_PAIR_COUNT)
+        * 2;
+    const STREAM_INPUT_COUNT: usize = T::STREAM_INPUT_PAIR_COUNT * 2;
+    const MIXER_OUTPUT_COUNT: usize = T::MIXER_OUTPUT_PAIR_COUNT * 2;
 
-        let mut measured_elem_id_list = Vec::new();
+    fn whole_cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
+    }
 
-        let count = T::ANALOG_INPUT_COUNT + T::DIGITAL_A_INPUT_COUNT + T::DIGITAL_B_INPUT_COUNT;
+    fn partial_cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let old = self.0.blend_knob;
+        T::cache_partial_params(req, node, &mut self.0, timeout_ms)?;
+        let new = self.0.blend_knob;
+
+        if old != new {
+            let mut params = self.0.clone();
+            params.mixer_pairs[0].monitor_pair.output_volumes[0] = new;
+            params.mixer_pairs[0].monitor_pair.output_volumes[1] = new;
+            T::update_partial_params(req, node, &params, &mut self.0, timeout_ms)?;
+        }
+
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            T::MIXER_COUNT,
-            Self::LEVEL_MIN,
-            Self::LEVEL_MAX,
-            Self::LEVEL_STEP,
-            count,
-            Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+            Self::MIXER_OUTPUT_COUNT,
+            Self::GAIN_MIN,
+            Self::GAIN_MAX,
+            Self::GAIN_STEP,
+            Self::MONITOR_INPUT_COUNT,
+            Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
             true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MUTE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, T::MIXER_PAIR_COUNT, count, true)?;
+        let _ = card_cntr.add_bool_elems(
+            &elem_id,
+            T::MIXER_OUTPUT_PAIR_COUNT,
+            Self::MONITOR_INPUT_COUNT,
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            T::MIXER_COUNT,
-            Self::LEVEL_MIN,
-            Self::LEVEL_MAX,
-            Self::LEVEL_STEP,
-            T::STREAM_INPUT_COUNT,
-            Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+            Self::MIXER_OUTPUT_COUNT,
+            Self::GAIN_MIN,
+            Self::GAIN_MAX,
+            Self::GAIN_STEP,
+            Self::STREAM_INPUT_COUNT,
+            Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
             true,
         )?;
 
@@ -726,17 +776,17 @@ pub trait MixerCtlOperation<T: IofwMixerOperation> {
             .add_int_elems(
                 &elem_id,
                 1,
-                Self::LEVEL_MIN,
-                Self::LEVEL_MAX,
-                Self::LEVEL_STEP,
-                count,
-                Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+                Self::VOLUME_MIN,
+                Self::VOLUME_MAX,
+                Self::VOLUME_STEP,
+                Self::MIXER_OUTPUT_COUNT,
+                Some(&Into::<Vec<u32>>::into(Self::VOLUME_TLV)),
                 true,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_MUTE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIXER_OUTPUT_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIX_BLEND_KNOB_NAME, 0);
         card_cntr
@@ -750,7 +800,7 @@ pub trait MixerCtlOperation<T: IofwMixerOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_LEVEL_KNOB_NAME, 0);
         card_cntr
@@ -764,185 +814,176 @@ pub trait MixerCtlOperation<T: IofwMixerOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        Ok(measured_elem_id_list)
+        Ok(())
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
+                let params = &self.0;
                 let mixer = elem_id.index() as usize;
-                let gains = &self.state().gains[mixer];
-                let mut vals = Vec::new();
-                vals.extend_from_slice(&gains.analog_inputs);
-                vals.extend_from_slice(&gains.digital_a_inputs);
-                vals.extend_from_slice(&gains.digital_b_inputs);
+                let srcs = &params.mixer_pairs[mixer / 2];
+                let vals: Vec<i32> = srcs
+                    .monitor_pair
+                    .analog_input_pairs
+                    .iter()
+                    .chain(srcs.monitor_pair.digital_a_input_pairs.iter())
+                    .chain(srcs.monitor_pair.digital_b_input_pairs.iter())
+                    .flat_map(|pair| {
+                        if mixer % 2 == 0 {
+                            pair.gain_to_left.iter()
+                        } else {
+                            pair.gain_to_right.iter()
+                        }
+                    })
+                    .copied()
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             INPUT_MUTE_NAME => {
-                let mixer = elem_id.index() as usize;
-                let mutes = &self.state().mutes[mixer];
-                let mut vals = Vec::new();
-                vals.extend_from_slice(&mutes.analog_inputs);
-                vals.extend_from_slice(&mutes.digital_a_inputs);
-                vals.extend_from_slice(&mutes.digital_b_inputs);
+                let params = &self.0;
+                let mixer_pair_index = elem_id.index() as usize;
+                let srcs = &params.mixer_pairs[mixer_pair_index];
+                let vals: Vec<bool> = srcs
+                    .monitor_pair
+                    .analog_input_pairs
+                    .iter()
+                    .chain(srcs.monitor_pair.digital_a_input_pairs.iter())
+                    .chain(srcs.monitor_pair.digital_b_input_pairs.iter())
+                    .flat_map(|pair| pair.mutes.iter())
+                    .copied()
+                    .collect();
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             STREAM_GAIN_NAME => {
+                let params = &self.0;
                 let mixer = elem_id.index() as usize;
-                let gains = &self.state().gains[mixer];
-                let mut vals = Vec::new();
-                vals.extend_from_slice(&gains.stream_inputs);
+                let srcs = &params.mixer_pairs[mixer / 2];
+                let vals = if mixer % 2 > 0 {
+                    &srcs.stream_inputs_to_right[..]
+                } else {
+                    &srcs.stream_inputs_to_left[..]
+                };
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&self.state().out_mutes);
+                let params = &self.0;
+                let vals: Vec<bool> = params
+                    .mixer_pairs
+                    .iter()
+                    .flat_map(|mixer| mixer.monitor_pair.output_mutes.iter())
+                    .copied()
+                    .collect();
+                elem_value.set_bool(&vals);
                 Ok(true)
             }
-            _ => self.read_measured_elem(elem_id, elem_value),
+            OUTPUT_VOL_NAME => {
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .mixer_pairs
+                    .iter()
+                    .flat_map(|mixer| mixer.monitor_pair.output_volumes.iter())
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            MAIN_LEVEL_KNOB_NAME => {
+                let params = &self.0;
+                elem_value.set_int(&[params.master_knob as i32]);
+                Ok(true)
+            }
+            MIX_BLEND_KNOB_NAME => {
+                let params = &self.0;
+                elem_value.set_int(&[params.blend_knob as i32]);
+                Ok(true)
+            }
+            _ => Ok(false),
         }
     }
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
+                let mut params = self.0.clone();
                 let mixer = elem_id.index() as usize;
-                let mut gains = self.state().gains[mixer].clone();
-
-                let analog_input_count = gains.analog_inputs.len();
-                let digital_a_input_count = gains.digital_a_inputs.len();
-                let digital_b_input_count = gains.digital_b_inputs.len();
-                let vals = &elem_value.int()
-                    [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
-
-                let analog_inputs = &vals[..analog_input_count];
-                let digital_a_inputs =
-                    &vals[analog_input_count..(analog_input_count + digital_a_input_count)];
-                let digital_b_inputs = &vals[(analog_input_count + digital_a_input_count)..];
-
-                gains.analog_inputs.copy_from_slice(&analog_inputs);
-                gains.digital_a_inputs.copy_from_slice(&digital_a_inputs);
-                gains.digital_b_inputs.copy_from_slice(&digital_b_inputs);
-
-                T::write_mixer_src_gains(
-                    req,
-                    &mut unit.1,
-                    mixer,
-                    &gains,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let srcs = &mut params.mixer_pairs[mixer / 2];
+                srcs.monitor_pair
+                    .analog_input_pairs
+                    .iter_mut()
+                    .chain(srcs.monitor_pair.digital_a_input_pairs.iter_mut())
+                    .chain(srcs.monitor_pair.digital_b_input_pairs.iter_mut())
+                    .flat_map(|pair| {
+                        if mixer % 2 == 0 {
+                            pair.gain_to_left.iter_mut()
+                        } else {
+                            pair.gain_to_right.iter_mut()
+                        }
+                    })
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val);
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             INPUT_MUTE_NAME => {
+                let mut params = self.0.clone();
                 let mixer = elem_id.index() as usize;
-                let mut mutes = self.state().mutes[mixer].clone();
-
-                let analog_input_count = mutes.analog_inputs.len();
-                let digital_a_input_count = mutes.digital_a_inputs.len();
-                let digital_b_input_count = mutes.digital_b_inputs.len();
-                let vals = &elem_value.boolean()
-                    [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
-
-                let analog_inputs = &vals[..analog_input_count];
-                let digital_a_inputs =
-                    &vals[analog_input_count..(analog_input_count + digital_a_input_count)];
-                let digital_b_inputs = &vals[(analog_input_count + digital_a_input_count)..];
-
-                mutes.analog_inputs.copy_from_slice(&analog_inputs);
-                mutes.digital_a_inputs.copy_from_slice(&digital_a_inputs);
-                mutes.digital_b_inputs.copy_from_slice(&digital_b_inputs);
-
-                T::write_mixer_src_mutes(
-                    req,
-                    &mut unit.1,
-                    mixer,
-                    &mutes,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let srcs = &mut params.mixer_pairs[mixer / 2];
+                srcs.monitor_pair
+                    .analog_input_pairs
+                    .iter_mut()
+                    .chain(srcs.monitor_pair.digital_a_input_pairs.iter_mut())
+                    .chain(srcs.monitor_pair.digital_b_input_pairs.iter_mut())
+                    .flat_map(|pair| pair.mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             STREAM_GAIN_NAME => {
+                let mut params = self.0.clone();
                 let mixer = elem_id.index() as usize;
-                let mut gains = self.state().gains[mixer].clone();
-
+                let srcs = &mut params.mixer_pairs[mixer / 2];
+                let gains = if mixer % 2 > 0 {
+                    &mut srcs.stream_inputs_to_right[..]
+                } else {
+                    &mut srcs.stream_inputs_to_left[..]
+                };
                 gains
-                    .stream_inputs
                     .iter_mut()
                     .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s);
-
-                T::write_mixer_src_gains(
-                    req,
-                    &mut unit.1,
-                    mixer,
-                    &gains,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                    .for_each(|(gain, &val)| *gain = val);
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             OUTPUT_VOL_NAME => {
-                let vals = &elem_value.int()[..self.state().out_vols.len()];
-                T::write_mixer_out_vols(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .mixer_pairs
+                    .iter_mut()
+                    .flat_map(|mixer_pair| mixer_pair.monitor_pair.output_volumes.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(vol, &val)| *vol = val as u32);
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
-                let vals = &elem_value.boolean()[..self.state().out_mutes.len()];
-                T::write_mixer_out_mutes(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
-                    .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = self.state().knobs.mix_blend as i32;
-        T::read_knob_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
-
-        let new = self.state().knobs.mix_blend as i32;
-        if new != old {
-            // NOTE: The calculation is done within 32 bit storage without overflow.
-            let val = Self::LEVEL_MAX * new / Self::KNOB_MAX;
-            let mut new = self.state().out_vols.clone();
-            new[0] = val;
-            new[1] = val;
-            T::write_mixer_out_vols(req, &mut unit.1, &new, self.state_mut(), timeout_ms)?;
-        }
-
-        Ok(())
-    }
-
-    fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OUTPUT_VOL_NAME => {
-                elem_value.set_int(&self.state().out_vols);
-                Ok(true)
-            }
-            MIX_BLEND_KNOB_NAME => {
-                elem_value.set_int(&[self.state().knobs.mix_blend as i32]);
-                Ok(true)
-            }
-            MAIN_LEVEL_KNOB_NAME => {
-                elem_value.set_int(&[self.state().knobs.main_level as i32]);
-                Ok(true)
+                let mut params = self.0.clone();
+                params
+                    .mixer_pairs
+                    .iter_mut()
+                    .flat_map(|srcs| srcs.monitor_pair.output_mutes.iter_mut())
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute, val)| *mute = val);
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
