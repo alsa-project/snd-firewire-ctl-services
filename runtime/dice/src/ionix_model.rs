@@ -21,6 +21,7 @@ impl IonixModel {
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -43,16 +44,13 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .mixer_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -63,7 +61,7 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
@@ -78,7 +76,7 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -218,16 +216,8 @@ impl MeterCtl {
     }
 }
 
-fn mixer_src_to_string(src: &MixerSrc) -> String {
-    match src {
-        MixerSrc::Stream(ch) => format!("Stream-{}", ch + 1),
-        MixerSrc::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
-        MixerSrc::Analog(ch) => format!("Analog-{}", ch + 1),
-    }
-}
-
 #[derive(Default, Debug)]
-struct MixerCtl;
+struct MixerCtl(IonixMixerParameters);
 
 impl MixerCtl {
     const BUS_SRC_GAIN_NAME: &'static str = "mixer-bus-input-gain";
@@ -244,34 +234,22 @@ impl MixerCtl {
         mute_avail: false,
     };
 
-    const MIXER_SRCS: [MixerSrc; 20] = [
-        MixerSrc::Analog(0),
-        MixerSrc::Analog(1),
-        MixerSrc::Analog(2),
-        MixerSrc::Analog(3),
-        MixerSrc::Analog(4),
-        MixerSrc::Analog(5),
-        MixerSrc::Analog(6),
-        MixerSrc::Analog(7),
-        MixerSrc::Spdif(0),
-        MixerSrc::Spdif(1),
-        MixerSrc::Stream(0),
-        MixerSrc::Stream(1),
-        MixerSrc::Stream(2),
-        MixerSrc::Stream(3),
-        MixerSrc::Stream(4),
-        MixerSrc::Stream(5),
-        MixerSrc::Stream(6),
-        MixerSrc::Stream(7),
-        MixerSrc::Stream(8),
-        MixerSrc::Stream(9),
-    ];
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms)
+    }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = Self::MIXER_SRCS
-            .iter()
-            .map(|s| mixer_src_to_string(s))
-            .collect();
+        let mut labels = Vec::new();
+        [
+            ("analog-input", IonixProtocol::ANALOG_INPUT_COUNT),
+            ("spdif-input", IonixProtocol::SPDIF_INPUT_COUNT),
+            ("stream-input", IonixProtocol::STREAM_INPUT_COUNT),
+        ]
+        .iter()
+        .for_each(|(label, count)| {
+            (0..*count).for_each(|i| labels.push(format!("{}-{}", label, i)));
+        });
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::BUS_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -312,56 +290,55 @@ impl MixerCtl {
         Ok(())
     }
 
-    fn read(
-        &self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    IonixProtocol::read_mixer_bus_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        timeout_ms,
-                    )
-                    .map(|val| val as i32)
-                })
-                .map(|_| true)
+                let srcs = self.0.bus_sources.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let gains: Vec<i32> = srcs
+                    .analog_inputs
+                    .iter()
+                    .chain(srcs.spdif_inputs.iter())
+                    .chain(srcs.stream_inputs.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&gains);
+                Ok(true)
             }
             Self::MAIN_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    IonixProtocol::read_mixer_main_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        timeout_ms,
-                    )
-                    .map(|val| val as i32)
-                })
-                .map(|_| true)
+                let srcs = self.0.main_sources.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let gains: Vec<i32> = srcs
+                    .analog_inputs
+                    .iter()
+                    .chain(srcs.spdif_inputs.iter())
+                    .chain(srcs.stream_inputs.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&gains);
+                Ok(true)
             }
             Self::REVERB_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    IonixProtocol::read_mixer_reverb_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        timeout_ms,
-                    )
-                    .map(|val| val as i32)
-                })
-                .map(|_| true)
+                let srcs = self.0.reverb_sources.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let gains: Vec<i32> = srcs
+                    .analog_inputs
+                    .iter()
+                    .chain(srcs.spdif_inputs.iter())
+                    .chain(srcs.stream_inputs.iter())
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&gains);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -369,54 +346,77 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
+        req: &FwReq,
+        node: &FwNode,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    IonixProtocol::write_mixer_bus_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        val as u32,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                let srcs = params.bus_sources.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                srcs.analog_inputs
+                    .iter_mut()
+                    .chain(srcs.spdif_inputs.iter_mut())
+                    .chain(srcs.stream_inputs.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as i16);
+                IonixProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             Self::MAIN_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    IonixProtocol::write_mixer_main_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        val as u32,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                let srcs = params.main_sources.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                srcs.analog_inputs
+                    .iter_mut()
+                    .chain(srcs.spdif_inputs.iter_mut())
+                    .chain(srcs.stream_inputs.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as i16);
+                IonixProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             Self::REVERB_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    IonixProtocol::write_mixer_reverb_src_gain(
-                        req,
-                        &mut unit.1,
-                        mixer,
-                        Self::MIXER_SRCS[idx],
-                        val as u32,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                let srcs = params.reverb_sources.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                srcs.analog_inputs
+                    .iter_mut()
+                    .chain(srcs.spdif_inputs.iter_mut())
+                    .chain(srcs.stream_inputs.iter_mut())
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as i16);
+                IonixProtocol::update_partial_parameters(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             _ => Ok(false),
