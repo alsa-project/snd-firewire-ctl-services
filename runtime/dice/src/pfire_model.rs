@@ -86,9 +86,7 @@ where
             unit,
             &mut self.req,
             &self.extension_sections,
-            &self.sections.global.params.avail_rates,
-            &self.sections.global.params.avail_sources,
-            &self.sections.global.params.clock_source_labels,
+            &self.sections.global.params,
             TIMEOUT_MS,
             card_cntr,
         )?;
