@@ -5,6 +5,35 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Lexicon for I-ONIX FW810s.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! analog-input-0/1        -> stream-output-0/1
+//! analog-input-2/3        -> stream-output-2/3
+//! analog-input-4/5        -> stream-output-4/5
+//! analog-input-6/8        -> stream-output-6/7
+//! coaxial-input-0/1       -> stream-output-8/9
+//!
+//! stream-input-0/1        -> mixer-input-0/1
+//! stream-input-2/3        -> mixer-input-2/3
+//! stream-input-4/5        -> mixer-input-4/5
+//! stream-input-6/7        -> mixer-input-6/7
+//! analog-input-0/1        -> mixer-input-8/9
+//! analog-input-2/3        -> mixer-input-10/11
+//! analog-input-4/5        -> mixer-input-12/13
+//! analog-input-6/8        -> mixer-input-14/15
+//! coaxial-input-0/1       -> mixer-input-16/17
+//!
+//! mixer-output-0/1        -> analog-output-0/1
+//! mixer-output-2/3        -> analog-output-2/3
+//! mixer-output-4/5        -> analog-output-4/5
+//! mixer-output-6/7        -> analog-output-6/7
+//! mixer-output-8/9        -> (unused)
+//! mixer-output-10/11      -> coaxial-output-0/1
+//! mixer-output-12/13      -> main-output-0/1 (headphone-output-0/1)
+//! ```
 
 use {
     super::{
