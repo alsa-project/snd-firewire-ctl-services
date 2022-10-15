@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    protocols::alesis::{mixer::*, output::*, *},
+    protocols::alesis::{mixer::*, *},
     std::marker::PhantomData,
 };
 
@@ -17,8 +17,10 @@ pub struct IofwModel<T>
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -38,8 +40,10 @@ impl<T> IofwModel<T>
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -54,6 +58,7 @@ where
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.output_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -63,8 +68,10 @@ impl<T> CtlModel<(SndDice, FwNode)> for IofwModel<T>
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -95,7 +102,7 @@ where
 
     fn read(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        _: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -105,10 +112,7 @@ where
             Ok(true)
         } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .output_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -139,7 +143,7 @@ where
             Ok(true)
         } else if self
             .output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -152,8 +156,10 @@ impl<T> NotifyModel<(SndDice, FwNode), u32> for IofwModel<T>
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -184,8 +190,10 @@ impl<T> MeasureModel<(SndDice, FwNode)> for IofwModel<T>
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -231,8 +239,10 @@ pub struct CommonCtl<T>(Vec<ElemId>, Vec<ElemId>, PhantomData<T>)
 where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -243,8 +253,10 @@ where
 impl<T> CommonCtlOperation<T> for CommonCtl<T> where
     T: IofwMeterSpecification
         + AlesisParametersOperation<IofwMeterParams>
+        + IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>
         + IofwMixerOperation
-        + IofwOutputOperation
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -396,6 +408,228 @@ where
     }
 }
 
+#[derive(Debug)]
+struct OutputCtl<T>(IofwOutputParams, PhantomData<T>)
+where
+    T: IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>;
+
+impl<T> Default for OutputCtl<T>
+where
+    T: IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>,
+{
+    fn default() -> Self {
+        Self(T::create_output_params(), Default::default())
+    }
+}
+
+fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
+    match level {
+        NominalSignalLevel::Consumer => "-10dBV",
+        NominalSignalLevel::Professional => "+4dBu",
+    }
+}
+
+fn digital_b_67_src_to_str(src: &DigitalB67Src) -> &'static str {
+    match src {
+        DigitalB67Src::Spdif12 => "S/PDIF-input-1/2",
+        DigitalB67Src::Adat67 => "ADAT-input-7/8",
+    }
+}
+
+fn mixer_out_pair_to_str(pair: &MixerOutPair) -> &'static str {
+    match pair {
+        MixerOutPair::Mixer01 => "Mixer-output-1/2",
+        MixerOutPair::Mixer23 => "Mixer-output-3/4",
+        MixerOutPair::Mixer45 => "Mixer-output-5/6",
+        MixerOutPair::Mixer67 => "Mixer-output-7/8",
+    }
+}
+
+const OUT_LEVEL_NAME: &str = "output-level";
+const DIGITAL_B_67_SRC_NAME: &str = "monitor-digital-b-7/8-source";
+const SPDIF_OUT_SRC_NAME: &str = "S/PDIF-1/2-output-source";
+const HP23_SRC_NAME: &str = "Headphone-3/4-output-source";
+
+impl<T> OutputCtl<T>
+where
+    T: IofwOutputSpecification
+        + AlesisParametersOperation<IofwOutputParams>
+        + AlesisMutableParametersOperation<IofwOutputParams>,
+{
+    const OUT_LEVELS: [NominalSignalLevel; 2] = [
+        NominalSignalLevel::Consumer,
+        NominalSignalLevel::Professional,
+    ];
+
+    const DIGITAL_B_67_SRCS: [DigitalB67Src; 2] = [DigitalB67Src::Spdif12, DigitalB67Src::Adat67];
+
+    const MIXER_OUT_PAIRS: [MixerOutPair; 4] = [
+        MixerOutPair::Mixer01,
+        MixerOutPair::Mixer23,
+        MixerOutPair::Mixer45,
+        MixerOutPair::Mixer67,
+    ];
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::OUT_LEVELS
+            .iter()
+            .map(|l| nominal_signal_level_to_str(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_LEVEL_NAME, 0);
+        let _ =
+            card_cntr.add_enum_elems(&elem_id, 1, T::ANALOG_OUTPUT_COUNT, &labels, None, true)?;
+
+        if T::HAS_OPT_IFACE_B {
+            let labels: Vec<&str> = Self::DIGITAL_B_67_SRCS
+                .iter()
+                .map(|s| digital_b_67_src_to_str(s))
+                .collect();
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_B_67_SRC_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        }
+
+        let labels: Vec<&str> = Self::MIXER_OUT_PAIRS
+            .iter()
+            .map(|p| mixer_out_pair_to_str(p))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HP23_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            OUT_LEVEL_NAME => {
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .nominal_levels
+                    .iter()
+                    .map(|level| {
+                        let pos = Self::OUT_LEVELS.iter().position(|l| level.eq(&l)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            DIGITAL_B_67_SRC_NAME => {
+                let params = &self.0;
+                let pos = Self::DIGITAL_B_67_SRCS
+                    .iter()
+                    .position(|s| params.digital_67_src.eq(&s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            SPDIF_OUT_SRC_NAME => {
+                let params = &self.0;
+                let pos = Self::MIXER_OUT_PAIRS
+                    .iter()
+                    .position(|p| params.spdif_out_src.eq(&p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            HP23_SRC_NAME => {
+                let params = &self.0;
+                let pos = Self::MIXER_OUT_PAIRS
+                    .iter()
+                    .position(|p| params.headphone2_3_out_src.eq(&p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            OUT_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .nominal_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::OUT_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Nominal output level not found for position {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            DIGITAL_B_67_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::DIGITAL_B_67_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Digital B 7/8 output source not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.digital_67_src = s)?;
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            .map(|_| true),
+            SPDIF_OUT_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::MIXER_OUT_PAIRS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("S/PDIF output source not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.spdif_out_src = s)?;
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            HP23_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::MIXER_OUT_PAIRS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Headphone 3/4 source not found for postiion: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.headphone2_3_out_src = s)?;
+                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 struct MixerCtl<T>(IofwMixerState, Vec<ElemId>, PhantomData<T>)
 where
@@ -413,13 +647,6 @@ where
         &mut self.0
     }
 }
-
-#[derive(Default, Debug)]
-struct OutputCtl<T>(PhantomData<T>)
-where
-    T: IofwOutputOperation;
-
-impl<T: IofwOutputOperation> OutputCtlOperation<T> for OutputCtl<T> {}
 
 const INPUT_GAIN_NAME: &str = "monitor-input-gain";
 const INPUT_MUTE_NAME: &str = "monitor-input-mute";
@@ -717,199 +944,6 @@ pub trait MixerCtlOperation<T: IofwMixerOperation> {
                 elem_value.set_int(&[self.state().knobs.main_level as i32]);
                 Ok(true)
             }
-            _ => Ok(false),
-        }
-    }
-}
-
-fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
-    match level {
-        NominalSignalLevel::Consumer => "-10dBV",
-        NominalSignalLevel::Professional => "+4dBu",
-    }
-}
-
-fn digital_b_67_src_to_str(src: &DigitalB67Src) -> &'static str {
-    match src {
-        DigitalB67Src::Spdif12 => "S/PDIF-input-1/2",
-        DigitalB67Src::Adat67 => "ADAT-input-7/8",
-    }
-}
-
-fn mixer_out_pair_to_str(pair: &MixerOutPair) -> &'static str {
-    match pair {
-        MixerOutPair::Mixer01 => "Mixer-output-1/2",
-        MixerOutPair::Mixer23 => "Mixer-output-3/4",
-        MixerOutPair::Mixer45 => "Mixer-output-5/6",
-        MixerOutPair::Mixer67 => "Mixer-output-7/8",
-    }
-}
-
-const OUT_LEVEL_NAME: &str = "output-level";
-const DIGITAL_B_67_SRC_NAME: &str = "monitor-digital-b-7/8-source";
-const SPDIF_OUT_SRC_NAME: &str = "S/PDIF-1/2-output-source";
-const HP23_SRC_NAME: &str = "Headphone-3/4-output-source";
-
-pub trait OutputCtlOperation<T: IofwOutputOperation> {
-    const OUT_LEVELS: [NominalSignalLevel; 2] = [
-        NominalSignalLevel::Consumer,
-        NominalSignalLevel::Professional,
-    ];
-
-    const DIGITAL_B_67_SRCS: [DigitalB67Src; 2] = [DigitalB67Src::Spdif12, DigitalB67Src::Adat67];
-
-    const MIXER_OUT_PAIRS: [MixerOutPair; 4] = [
-        MixerOutPair::Mixer01,
-        MixerOutPair::Mixer23,
-        MixerOutPair::Mixer45,
-        MixerOutPair::Mixer67,
-    ];
-
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::OUT_LEVELS
-            .iter()
-            .map(|l| nominal_signal_level_to_str(l))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_LEVEL_NAME, 0);
-        let _ =
-            card_cntr.add_enum_elems(&elem_id, 1, T::ANALOG_OUTPUT_COUNT, &labels, None, true)?;
-
-        if T::HAS_OPT_IFACE_B {
-            let labels: Vec<&str> = Self::DIGITAL_B_67_SRCS
-                .iter()
-                .map(|s| digital_b_67_src_to_str(s))
-                .collect();
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_B_67_SRC_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        }
-
-        let labels: Vec<&str> = Self::MIXER_OUT_PAIRS
-            .iter()
-            .map(|p| mixer_out_pair_to_str(p))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HP23_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(
-        &self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OUT_LEVEL_NAME => {
-                let mut levels = vec![NominalSignalLevel::default(); T::ANALOG_OUTPUT_COUNT];
-                T::read_out_levels(req, &mut unit.1, &mut levels, timeout_ms)?;
-                let vals: Vec<u32> = levels
-                    .iter()
-                    .map(|level| Self::OUT_LEVELS.iter().position(|l| l.eq(level)).unwrap() as u32)
-                    .collect();
-                elem_value.set_enum(&vals);
-                Ok(true)
-            }
-            DIGITAL_B_67_SRC_NAME => {
-                let mut src = DigitalB67Src::default();
-                T::read_mixer_digital_b_67_src(req, &mut unit.1, &mut src, timeout_ms)?;
-                let pos = Self::DIGITAL_B_67_SRCS
-                    .iter()
-                    .position(|s| s.eq(&src))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            SPDIF_OUT_SRC_NAME => {
-                let mut pair = MixerOutPair::default();
-                T::read_spdif_out_src(req, &mut unit.1, &mut pair, timeout_ms)?;
-                let pos = Self::MIXER_OUT_PAIRS
-                    .iter()
-                    .position(|p| p.eq(&pair))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            HP23_SRC_NAME => {
-                let mut pair = MixerOutPair::default();
-                T::read_hp23_out_src(req, &mut unit.1, &mut pair, timeout_ms)?;
-                let pos = Self::MIXER_OUT_PAIRS
-                    .iter()
-                    .position(|p| p.eq(&pair))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OUT_LEVEL_NAME => {
-                let mut levels = vec![NominalSignalLevel::default(); T::ANALOG_OUTPUT_COUNT];
-                levels
-                    .iter_mut()
-                    .zip(elem_value.enumerated())
-                    .try_for_each(|(level, &val)| {
-                        let pos = val as usize;
-                        Self::OUT_LEVELS
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Nominal output level not found for position {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&l| *level = l)
-                    })?;
-                T::write_out_levels(req, &mut unit.1, &levels, timeout_ms).map(|_| true)
-            }
-            DIGITAL_B_67_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let src = Self::DIGITAL_B_67_SRCS
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of source of digital B 7/8: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                T::write_mixer_digital_b_67_src(req, &mut unit.1, src, timeout_ms)
-            })
-            .map(|_| true),
-            SPDIF_OUT_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let src = Self::MIXER_OUT_PAIRS
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of pair of mixer output: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                T::write_spdif_out_src(req, &mut unit.1, src, timeout_ms)
-            })
-            .map(|_| true),
-            HP23_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let src = Self::MIXER_OUT_PAIRS
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of pair of mixer output: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                T::write_hp23_out_src(req, &mut unit.1, src, timeout_ms)
-            })
-            .map(|_| true),
             _ => Ok(false),
         }
     }
