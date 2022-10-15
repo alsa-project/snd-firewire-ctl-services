@@ -33,6 +33,11 @@ impl IofwMeterSpecification for Io14fwProtocol {
     const DIGITAL_B_INPUT_COUNT: usize = 2;
 }
 
+impl IofwOutputSpecification for Io14fwProtocol {
+    const ANALOG_OUTPUT_COUNT: usize = 4;
+    const HAS_OPT_IFACE_B: bool = false;
+}
+
 impl IofwMeterOperation for Io14fwProtocol {
     const ANALOG_INPUT_COUNT: usize =
         <Io14fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
@@ -46,8 +51,9 @@ impl IofwMixerOperation for Io14fwProtocol {
 }
 
 impl IofwOutputOperation for Io14fwProtocol {
-    const ANALOG_OUTPUT_COUNT: usize = 4;
-    const HAS_OPT_IFACE_B: bool = false;
+    const ANALOG_OUTPUT_COUNT: usize =
+        <Io14fwProtocol as IofwOutputSpecification>::ANALOG_OUTPUT_COUNT;
+    const HAS_OPT_IFACE_B: bool = <Io14fwProtocol as IofwOutputSpecification>::HAS_OPT_IFACE_B;
 }
 
 /// Protocol implementation specific to iO 26 FireWire.
@@ -65,6 +71,11 @@ impl IofwMeterSpecification for Io26fwProtocol {
     const DIGITAL_B_INPUT_COUNT: usize = 8;
 }
 
+impl IofwOutputSpecification for Io26fwProtocol {
+    const ANALOG_OUTPUT_COUNT: usize = 8;
+    const HAS_OPT_IFACE_B: bool = true;
+}
+
 impl IofwMeterOperation for Io26fwProtocol {
     const ANALOG_INPUT_COUNT: usize =
         <Io26fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
@@ -78,13 +89,20 @@ impl IofwMixerOperation for Io26fwProtocol {
 }
 
 impl IofwOutputOperation for Io26fwProtocol {
-    const ANALOG_OUTPUT_COUNT: usize = 8;
-    const HAS_OPT_IFACE_B: bool = true;
+    const ANALOG_OUTPUT_COUNT: usize =
+        <Io26fwProtocol as IofwOutputSpecification>::ANALOG_OUTPUT_COUNT;
+    const HAS_OPT_IFACE_B: bool = <Io26fwProtocol as IofwOutputSpecification>::HAS_OPT_IFACE_B;
 }
 
 const BASE_OFFSET: usize = 0x00200000;
 
 const METER_OFFSET: usize = 0x04c0;
+
+const OUT_LEVEL_OFFSET: usize = 0x0564;
+const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
+const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
+const HP34_SRC_OFFSET: usize = 0x0570;
+
 const METER_SIZE: usize = 160;
 
 /// Serialize and deserialize for parameters of iO FireWire series.
@@ -135,6 +153,30 @@ pub trait IofwMeterSpecification {
             mixer_outputs: [0; 8],
         }
     }
+}
+
+/// Specification of outputs.
+pub trait IofwOutputSpecification {
+    /// The number of analog outputs.
+    const ANALOG_OUTPUT_COUNT: usize;
+
+    /// Whether optical interface B is available or not.
+    const HAS_OPT_IFACE_B: bool;
+
+    /// Instantiate output parameters.
+    fn create_output_params() -> IofwOutputParams {
+        IofwOutputParams {
+            nominal_levels: vec![Default::default(); Self::ANALOG_OUTPUT_COUNT],
+            digital_67_src: Default::default(),
+            spdif_out_src: Default::default(),
+            headphone2_3_out_src: Default::default(),
+        }
+    }
+}
+
+impl<O> AlesisMutableParametersOperation<IofwOutputParams> for O where
+    O: AlesisOperation + IofwOutputSpecification + AlesisParametersSerdes<IofwOutputParams>
+{
 }
 
 fn compute_params_size(ranges: &[Range<usize>]) -> usize {
@@ -207,7 +249,7 @@ pub trait AlesisParametersOperation<T>: AlesisOperation + AlesisParametersSerdes
 impl<O: AlesisOperation + AlesisParametersSerdes<T>, T> AlesisParametersOperation<T> for O {}
 
 /// Operation for parameters to update state of hardware.
-pub trait IofwMutableParametersOperation<T>: AlesisOperation + AlesisParametersSerdes<T> {
+pub trait AlesisMutableParametersOperation<T>: AlesisOperation + AlesisParametersSerdes<T> {
     /// Update the hardware partially for any change of parameter.
     fn update_partial_params(
         req: &FwReq,
@@ -442,6 +484,182 @@ impl<O: IofwMeterSpecification> AlesisParametersSerdes<IofwMeterParams> for O {
     }
 }
 
+/// Parameters of output.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct IofwOutputParams {
+    /// Nominal signal level of outputs.
+    pub nominal_levels: Vec<NominalSignalLevel>,
+    /// Source of digital output 7/8.
+    pub digital_67_src: DigitalB67Src,
+    /// Source of S/PDIF output 1/2.
+    pub spdif_out_src: MixerOutPair,
+    /// Source of headphone output 3/4.
+    pub headphone2_3_out_src: MixerOutPair,
+}
+
+/// Nominal level of signal.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum NominalSignalLevel {
+    /// -10dBV.
+    Consumer,
+    /// +4dBu.
+    Professional,
+}
+
+impl Default for NominalSignalLevel {
+    fn default() -> Self {
+        NominalSignalLevel::Consumer
+    }
+}
+
+fn serialize_nominal_signal_levels(
+    levels: &[NominalSignalLevel],
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = levels
+        .iter()
+        .enumerate()
+        .filter(|(_, &level)| level == NominalSignalLevel::Professional)
+        .fold(0u32, |val, (i, _)| val | (1 << i));
+
+    val.build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_nominal_signal_levels(
+    levels: &mut [NominalSignalLevel],
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    levels.iter_mut().enumerate().for_each(|(i, level)| {
+        *level = if val & (1 << i) > 0 {
+            NominalSignalLevel::Professional
+        } else {
+            NominalSignalLevel::Consumer
+        };
+    });
+
+    Ok(())
+}
+
+/// Source of 6/7 channels of digital B input.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DigitalB67Src {
+    Spdif12,
+    Adat67,
+}
+
+impl Default for DigitalB67Src {
+    fn default() -> Self {
+        Self::Spdif12
+    }
+}
+
+fn serialize_digital_b67_src(src: &DigitalB67Src, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    match src {
+        DigitalB67Src::Spdif12 => 0,
+        DigitalB67Src::Adat67 => 1,
+    }
+    .build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_digital_b67_src(src: &mut DigitalB67Src, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    *src = match val {
+        0 => DigitalB67Src::Spdif12,
+        1 => DigitalB67Src::Adat67,
+        _ => Err(format!("Digital B 7/8 source not found for value: {}", val))?,
+    };
+
+    Ok(())
+}
+
+/// Pair of mixer output.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MixerOutPair {
+    Mixer01,
+    Mixer23,
+    Mixer45,
+    Mixer67,
+}
+
+impl Default for MixerOutPair {
+    fn default() -> Self {
+        Self::Mixer01
+    }
+}
+
+fn serialize_mixer_out_pair(pair: &MixerOutPair, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    match pair {
+        MixerOutPair::Mixer01 => 0,
+        MixerOutPair::Mixer23 => 1,
+        MixerOutPair::Mixer45 => 2,
+        MixerOutPair::Mixer67 => 3,
+    }
+    .build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_mixer_out_pair(pair: &mut MixerOutPair, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+
+    *pair = match val {
+        0 => MixerOutPair::Mixer01,
+        1 => MixerOutPair::Mixer23,
+        2 => MixerOutPair::Mixer45,
+        3 => MixerOutPair::Mixer67,
+        _ => Err(format!("Mixer output pair not found for value: {}", val))?,
+    };
+
+    Ok(())
+}
+
+impl<O: IofwOutputSpecification> AlesisParametersSerdes<IofwOutputParams> for O {
+    const NAME: &'static str = "output-params";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[Range {
+        start: OUT_LEVEL_OFFSET,
+        end: OUT_LEVEL_OFFSET + 16,
+    }];
+
+    fn serialize_params(params: &IofwOutputParams, raw: &mut [u8]) -> Result<(), String> {
+        serialize_nominal_signal_levels(&params.nominal_levels, &mut raw[..4])?;
+        serialize_digital_b67_src(&params.digital_67_src, &mut raw[4..8])?;
+        serialize_mixer_out_pair(&params.spdif_out_src, &mut raw[8..12])?;
+        serialize_mixer_out_pair(&params.headphone2_3_out_src, &mut raw[12..16])?;
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut IofwOutputParams, raw: &[u8]) -> Result<(), String> {
+        deserialize_nominal_signal_levels(&mut params.nominal_levels, &raw[..4])?;
+        deserialize_digital_b67_src(&mut params.digital_67_src, &raw[4..8])?;
+        deserialize_mixer_out_pair(&mut params.spdif_out_src, &raw[8..12])?;
+        deserialize_mixer_out_pair(&mut params.headphone2_3_out_src, &raw[12..16])?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -491,6 +709,56 @@ mod test {
         Io26fwProtocol::serialize_params(&params, &mut raw).unwrap();
 
         let mut target = <Io26fwProtocol as IofwMeterSpecification>::create_meter_params();
+        Io26fwProtocol::deserialize_params(&mut target, &raw).unwrap();
+
+        assert_eq!(params, target);
+    }
+
+    #[test]
+    fn io14_output_params_serdes() {
+        let mut params = <Io14fwProtocol as IofwOutputSpecification>::create_output_params();
+        params
+            .nominal_levels
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _)| i % 2 > 0)
+            .for_each(|(_, level)| *level = NominalSignalLevel::Professional);
+        params.digital_67_src = DigitalB67Src::Spdif12;
+        params.spdif_out_src = MixerOutPair::Mixer45;
+        params.headphone2_3_out_src = MixerOutPair::Mixer67;
+
+        let size = compute_params_size(
+            <Io14fwProtocol as AlesisParametersSerdes<IofwOutputParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io14fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut target = <Io14fwProtocol as IofwOutputSpecification>::create_output_params();
+        Io14fwProtocol::deserialize_params(&mut target, &raw).unwrap();
+
+        assert_eq!(params, target);
+    }
+
+    #[test]
+    fn io26_output_params_serdes() {
+        let mut params = <Io26fwProtocol as IofwOutputSpecification>::create_output_params();
+        params
+            .nominal_levels
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _)| i % 2 > 0)
+            .for_each(|(_, level)| *level = NominalSignalLevel::Professional);
+        params.digital_67_src = DigitalB67Src::Adat67;
+        params.spdif_out_src = MixerOutPair::Mixer01;
+        params.headphone2_3_out_src = MixerOutPair::Mixer23;
+
+        let size = compute_params_size(
+            <Io14fwProtocol as AlesisParametersSerdes<IofwOutputParams>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        Io26fwProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut target = <Io26fwProtocol as IofwOutputSpecification>::create_output_params();
         Io26fwProtocol::deserialize_params(&mut target, &raw).unwrap();
 
         assert_eq!(params, target);

@@ -8,114 +8,6 @@
 
 use super::*;
 
-const OUT_LEVEL_OFFSET: usize = 0x0564;
-const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
-const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
-const HP34_SRC_OFFSET: usize = 0x0570;
-
-/// Nominal level of signal.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum NominalSignalLevel {
-    /// -10dBV.
-    Consumer,
-    /// +4dBu.
-    Professional,
-}
-
-impl Default for NominalSignalLevel {
-    fn default() -> Self {
-        NominalSignalLevel::Consumer
-    }
-}
-
-impl From<u32> for NominalSignalLevel {
-    fn from(val: u32) -> Self {
-        if val > 0 {
-            Self::Professional
-        } else {
-            Self::Consumer
-        }
-    }
-}
-
-impl From<NominalSignalLevel> for u32 {
-    fn from(level: NominalSignalLevel) -> Self {
-        match level {
-            NominalSignalLevel::Consumer => 0,
-            NominalSignalLevel::Professional => 1,
-        }
-    }
-}
-
-/// Source of 6/7 channels of digital B input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum DigitalB67Src {
-    Spdif12,
-    Adat67,
-}
-
-impl Default for DigitalB67Src {
-    fn default() -> Self {
-        Self::Spdif12
-    }
-}
-
-impl From<u32> for DigitalB67Src {
-    fn from(val: u32) -> Self {
-        if val > 0 {
-            Self::Adat67
-        } else {
-            Self::Spdif12
-        }
-    }
-}
-
-impl From<DigitalB67Src> for u32 {
-    fn from(src: DigitalB67Src) -> Self {
-        match src {
-            DigitalB67Src::Spdif12 => 0,
-            DigitalB67Src::Adat67 => 1,
-        }
-    }
-}
-
-/// Pair of mixer output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MixerOutPair {
-    Mixer01,
-    Mixer23,
-    Mixer45,
-    Mixer67,
-}
-
-impl Default for MixerOutPair {
-    fn default() -> Self {
-        Self::Mixer01
-    }
-}
-
-impl From<u32> for MixerOutPair {
-    fn from(val: u32) -> Self {
-        match val {
-            3 => Self::Mixer67,
-            2 => Self::Mixer45,
-            1 => Self::Mixer23,
-            _ => Self::Mixer01,
-        }
-    }
-}
-
-impl From<MixerOutPair> for u32 {
-    fn from(pair: MixerOutPair) -> Self {
-        match pair {
-            MixerOutPair::Mixer01 => 0,
-            MixerOutPair::Mixer23 => 1,
-            MixerOutPair::Mixer45 => 2,
-            MixerOutPair::Mixer67 => 3,
-        }
-    }
-}
-
 /// Protocol of output for iO FireWire series.
 pub trait IofwOutputOperation {
     const ANALOG_OUTPUT_COUNT: usize;
@@ -127,12 +19,9 @@ pub trait IofwOutputOperation {
         levels: &mut [NominalSignalLevel],
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut flags = vec![false; Self::ANALOG_OUTPUT_COUNT];
-        alesis_read_flags(req, node, OUT_LEVEL_OFFSET, &mut flags[..], timeout_ms).map(|_| {
-            levels
-                .iter_mut()
-                .zip(flags)
-                .for_each(|(l, f)| *l = NominalSignalLevel::from(f as u32))
+        let mut raw = [0; 4];
+        alesis_read_block(req, node, OUT_LEVEL_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let _ = deserialize_nominal_signal_levels(levels, &raw);
         })
     }
 
@@ -142,8 +31,9 @@ pub trait IofwOutputOperation {
         levels: &[NominalSignalLevel],
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut flags: Vec<bool> = levels.iter().map(|l| u32::from(*l) > 0).collect();
-        alesis_write_flags(req, node, OUT_LEVEL_OFFSET, &mut flags, timeout_ms)
+        let mut raw = [0; 4];
+        let _ = serialize_nominal_signal_levels(levels, &mut raw);
+        alesis_read_block(req, node, OUT_LEVEL_OFFSET, &mut raw, timeout_ms)
     }
 
     fn read_mixer_digital_b_67_src(
@@ -160,7 +50,9 @@ pub trait IofwOutputOperation {
             &mut raw,
             timeout_ms,
         )
-        .map(|_| src.parse_quadlet(&raw))
+        .map(|_| {
+            let _ = deserialize_digital_b67_src(src, &raw);
+        })
     }
 
     fn write_mixer_digital_b_67_src(
@@ -170,7 +62,7 @@ pub trait IofwOutputOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        src.build_quadlet(&mut raw);
+        let _ = serialize_digital_b67_src(src, &mut raw);
         alesis_write_block(
             req,
             node,
@@ -187,8 +79,9 @@ pub trait IofwOutputOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        alesis_read_block(req, node, SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms)
-            .map(|_| src.parse_quadlet(&raw))
+        alesis_read_block(req, node, SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let _ = deserialize_mixer_out_pair(src, &raw);
+        })
     }
 
     fn write_spdif_out_src(
@@ -198,7 +91,7 @@ pub trait IofwOutputOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        src.build_quadlet(&mut raw);
+        let _ = serialize_mixer_out_pair(src, &mut raw);
         alesis_write_block(req, node, SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms)
     }
 
@@ -209,8 +102,9 @@ pub trait IofwOutputOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        alesis_read_block(req, node, HP34_SRC_OFFSET, &mut raw, timeout_ms)
-            .map(|_| src.parse_quadlet(&raw))
+        alesis_read_block(req, node, HP34_SRC_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let _ = deserialize_mixer_out_pair(src, &raw);
+        })
     }
 
     fn write_hp23_out_src(
@@ -220,7 +114,7 @@ pub trait IofwOutputOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        src.build_quadlet(&mut raw);
+        let _ = serialize_mixer_out_pair(src, &mut raw);
         alesis_write_block(req, node, HP34_SRC_OFFSET, &mut raw, timeout_ms)
     }
 }
