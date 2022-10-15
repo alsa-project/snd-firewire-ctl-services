@@ -160,7 +160,9 @@ impl MeterCtl {
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms)
+        let res = IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -235,7 +237,9 @@ impl MixerCtl {
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms)
+        let res = IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -366,14 +370,15 @@ impl MixerCtl {
                     .chain(srcs.stream_inputs.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as i16);
-                IonixProtocol::update_partial_parameters(
+                let res = IonixProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MAIN_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
@@ -388,14 +393,15 @@ impl MixerCtl {
                     .chain(srcs.stream_inputs.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as i16);
-                IonixProtocol::update_partial_parameters(
+                let res = IonixProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::REVERB_SRC_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
@@ -410,14 +416,15 @@ impl MixerCtl {
                     .chain(srcs.stream_inputs.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as i16);
-                IonixProtocol::update_partial_parameters(
+                let res = IonixProtocol::update_partial_parameters(
                     req,
                     node,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
