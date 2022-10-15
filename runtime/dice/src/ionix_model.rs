@@ -20,6 +20,7 @@ impl IonixModel {
 
         self.common_ctl
             .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -109,14 +110,13 @@ impl NotifyModel<(SndDice, FwNode), u32> for IonixModel {
 impl MeasureModel<(SndDice, FwNode)> for IonixModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
-        elem_id_list.extend_from_slice(&self.meter_ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -142,10 +142,7 @@ struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
 impl CommonCtlOperation<IonixProtocol> for CommonCtl {}
 
 #[derive(Default, Debug)]
-struct MeterCtl {
-    meters: IonixMeter,
-    measured_elem_list: Vec<ElemId>,
-}
+struct MeterCtl(IonixMeter, Vec<ElemId>);
 
 impl MeterCtl {
     const SPDIF_INPUT_NAME: &'static str = "spdif-input-meter";
@@ -163,6 +160,10 @@ impl MeterCtl {
         linear: false,
         mute_avail: false,
     };
+
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        IonixProtocol::cache_whole_params(req, node, &mut self.0, timeout_ms)
+    }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
@@ -186,41 +187,30 @@ impl MeterCtl {
                     Some(&Vec::<u32>::from(Self::LEVEL_TLV)),
                     false,
                 )
-                .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
-        })?;
-
-        Ok(())
-    }
-
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        IonixProtocol::read_meters(req, &mut unit.1, &mut self.meters, timeout_ms)
+                .map(|mut elem_id_list| self.1.append(&mut elem_id_list))
+        })
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::SPDIF_INPUT_NAME => {
-                elem_value.set_int(&self.meters.spdif_inputs);
+                elem_value.set_int(&self.0.spdif_inputs);
                 Ok(true)
             }
             Self::STREAM_INPUT_NAME => {
-                elem_value.set_int(&self.meters.stream_inputs);
+                elem_value.set_int(&self.0.stream_inputs);
                 Ok(true)
             }
             Self::ANALOG_INPUT_NAME => {
-                elem_value.set_int(&self.meters.analog_inputs);
+                elem_value.set_int(&self.0.analog_inputs);
                 Ok(true)
             }
             Self::BUS_OUTPUT_NAME => {
-                elem_value.set_int(&self.meters.bus_outputs);
+                elem_value.set_int(&self.0.bus_outputs);
                 Ok(true)
             }
             Self::MAIN_OUTPUT_NAME => {
-                elem_value.set_int(&self.meters.main_outputs);
+                elem_value.set_int(&self.0.main_outputs);
                 Ok(true)
             }
             _ => Ok(false),
