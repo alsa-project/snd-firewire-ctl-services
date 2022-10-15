@@ -60,19 +60,16 @@ where
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
     const COEF_STEP: i32 = 1;
 
-    fn load_meter(
+    fn cache_meter(
         &mut self,
-        node: &mut FwNode,
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32,
-        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let ctls = &mut self.tcd22xx_ctl_mut();
+        let ctls = self.tcd22xx_ctl_mut();
 
         let (_, real_blk_dsts) = T::compute_avail_real_blk_pair(RateMode::Low);
-        Self::add_an_elem_for_meter(card_cntr, OUT_METER_NAME, &real_blk_dsts)
-            .map(|mut elem_id_list| ctls.meter_ctl.measured_elem_list.append(&mut elem_id_list))?;
         ctls.meter_ctl.real_meter = vec![0; real_blk_dsts.len()];
         ctls.meter_ctl.real_blk_dsts = real_blk_dsts;
 
@@ -86,23 +83,33 @@ where
                 timeout_ms,
             )?;
         let (_, stream_blk_dsts) = T::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
-        Self::add_an_elem_for_meter(card_cntr, STREAM_TX_METER_NAME, &stream_blk_dsts)
-            .map(|mut elem_id_list| ctls.meter_ctl.measured_elem_list.append(&mut elem_id_list))?;
         ctls.meter_ctl.stream_meter = vec![0; stream_blk_dsts.len()];
         ctls.meter_ctl.stream_blk_dsts = stream_blk_dsts;
 
         let (_, mixer_blk_dsts) = T::compute_avail_mixer_blk_pair(&ctls.caps, RateMode::Low);
-        Self::add_an_elem_for_meter(card_cntr, MIXER_INPUT_METER_NAME, &mixer_blk_dsts)
-            .map(|mut elem_id_list| ctls.meter_ctl.measured_elem_list.append(&mut elem_id_list))?;
         ctls.meter_ctl.mixer_meter = vec![0; mixer_blk_dsts.len()];
         ctls.meter_ctl.out_sat = vec![false; mixer_blk_dsts.len()];
+        ctls.meter_ctl.mixer_blk_dsts = mixer_blk_dsts;
+
+        Ok(())
+    }
+
+    fn load_meter(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let ctl = &mut self.tcd22xx_ctl_mut().meter_ctl;
+
+        Self::add_an_elem_for_meter(card_cntr, OUT_METER_NAME, &ctl.real_blk_dsts)
+            .map(|mut elem_id_list| ctl.measured_elem_list.append(&mut elem_id_list))?;
+
+        Self::add_an_elem_for_meter(card_cntr, STREAM_TX_METER_NAME, &ctl.stream_blk_dsts)
+            .map(|mut elem_id_list| ctl.measured_elem_list.append(&mut elem_id_list))?;
+
+        Self::add_an_elem_for_meter(card_cntr, MIXER_INPUT_METER_NAME, &ctl.mixer_blk_dsts)
+            .map(|mut elem_id_list| ctl.measured_elem_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_SATURATION_NAME, 0);
         card_cntr
-            .add_bool_elems(&elem_id, 1, mixer_blk_dsts.len(), false)
-            .map(|mut elem_id_list| ctls.meter_ctl.measured_elem_list.append(&mut elem_id_list))?;
-
-        ctls.meter_ctl.mixer_blk_dsts = mixer_blk_dsts;
+            .add_bool_elems(&elem_id, 1, ctl.mixer_blk_dsts.len(), false)
+            .map(|mut elem_id_list| ctl.measured_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -212,14 +219,13 @@ where
 {
     const NONE_SRC_LABEL: &'static str = "None";
 
-    fn load_router(
+    fn cache_router(
         &mut self,
-        node: &mut FwNode,
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         global_params: &GlobalParameters,
         timeout_ms: u32,
-        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         let ctls = &mut self.tcd22xx_ctl_mut();
 
@@ -275,39 +281,39 @@ where
 
         ctls.router_ctl.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&ctls.caps, RateMode::Low);
 
+        Ok(())
+    }
+
+    fn load_router(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let ctl = &mut self.tcd22xx_ctl_mut().router_ctl;
+
         Self::add_an_elem_for_src(
             card_cntr,
             ROUTER_OUT_SRC_NAME,
-            &ctls.router_ctl.real_blk_pair.1,
+            &ctl.real_blk_pair.1,
             &[
-                &ctls.router_ctl.real_blk_pair.0,
-                &ctls.router_ctl.stream_blk_pair.0,
-                &ctls.router_ctl.mixer_blk_pair.0,
+                &ctl.real_blk_pair.0,
+                &ctl.stream_blk_pair.0,
+                &ctl.mixer_blk_pair.0,
             ],
         )
-        .map(|mut elem_id_list| ctls.router_ctl.notified_elem_list.append(&mut elem_id_list))?;
+        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
 
         Self::add_an_elem_for_src(
             card_cntr,
             ROUTER_CAP_SRC_NAME,
-            &ctls.router_ctl.stream_blk_pair.1,
-            &[
-                &ctls.router_ctl.real_blk_pair.0,
-                &ctls.router_ctl.mixer_blk_pair.0,
-            ],
+            &ctl.stream_blk_pair.1,
+            &[&ctl.real_blk_pair.0, &ctl.mixer_blk_pair.0],
         )
-        .map(|mut elem_id_list| ctls.router_ctl.notified_elem_list.append(&mut elem_id_list))?;
+        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
 
         Self::add_an_elem_for_src(
             card_cntr,
             ROUTER_MIXER_SRC_NAME,
-            &ctls.router_ctl.mixer_blk_pair.1,
-            &[
-                &ctls.router_ctl.real_blk_pair.0,
-                &ctls.router_ctl.stream_blk_pair.0,
-            ],
+            &ctl.mixer_blk_pair.1,
+            &[&ctl.real_blk_pair.0, &ctl.stream_blk_pair.0],
         )
-        .map(|mut elem_id_list| ctls.router_ctl.notified_elem_list.append(&mut elem_id_list))?;
+        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -556,23 +562,29 @@ where
         mute_avail: false,
     };
 
-    fn load_mixer(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let ctls = &mut self.tcd22xx_ctl_mut();
+    fn cache_mixer(&mut self) -> Result<(), Error> {
+        let ctls = self.tcd22xx_ctl_mut();
         ctls.mixer_ctl.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&ctls.caps, RateMode::Low);
+
+        Ok(())
+    }
+
+    fn load_mixer(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let ctl = &mut self.tcd22xx_ctl_mut().mixer_ctl;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
-                ctls.mixer_ctl.mixer_blk_pair.0.len(),
+                ctl.mixer_blk_pair.0.len(),
                 Self::COEF_MIN,
                 Self::COEF_MAX,
                 Self::COEF_STEP,
-                ctls.mixer_ctl.mixer_blk_pair.1.len(),
+                ctl.mixer_blk_pair.1.len(),
                 Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
                 true,
             )
-            .map(|mut elem_id_list| ctls.mixer_ctl.notified_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -1061,27 +1073,11 @@ where
 {
     fn load(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        global_params: &GlobalParameters,
-        timeout_ms: u32,
         card_cntr: &mut CardCntr,
+        global_params: &GlobalParameters,
     ) -> Result<(), Error> {
-        self.tcd22xx_ctl_mut().caps =
-            CapsSectionProtocol::read_caps(req, &mut unit.1, sections, timeout_ms)?;
-
-        self.cache_standalone(req, &mut unit.1, sections, timeout_ms)?;
-
-        self.load_meter(&mut unit.1, req, sections, timeout_ms, card_cntr)?;
-        self.load_router(
-            &mut unit.1,
-            req,
-            sections,
-            global_params,
-            timeout_ms,
-            card_cntr,
-        )?;
+        self.load_meter(card_cntr)?;
+        self.load_router(card_cntr)?;
         self.load_mixer(card_cntr)?;
         self.load_standalone(global_params, card_cntr)?;
 
@@ -1090,25 +1086,31 @@ where
 
     fn cache(
         &mut self,
-        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
-        sections: &GeneralSections,
-        extension_sections: &ExtensionSections,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        global_params: &GlobalParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let config = &sections.global.params.clock_config;
-        let rate_mode = RateMode::from(config.rate);
-
         let ctls = self.tcd22xx_ctl_mut();
+
+        ctls.caps = CapsSectionProtocol::read_caps(req, node, sections, timeout_ms)?;
         T::cache(
-            &mut unit.1,
+            node,
             req,
-            extension_sections,
+            sections,
             &ctls.caps,
             &mut ctls.state,
-            rate_mode,
+            RateMode::from(global_params.clock_config.rate),
             timeout_ms,
-        )
+        )?;
+
+        self.cache_meter(req, node, sections, timeout_ms)?;
+        self.cache_router(req, node, sections, global_params, timeout_ms)?;
+        self.cache_mixer()?;
+        self.cache_standalone(req, node, sections, timeout_ms)?;
+
+        Ok(())
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1169,14 +1171,23 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
-        sections: &GeneralSections,
-        extension_sections: &ExtensionSections,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        global_params: &GlobalParameters,
         timeout_ms: u32,
         _: u32,
     ) -> Result<(), Error> {
-        self.cache(unit, req, sections, extension_sections, timeout_ms)
+        let ctls = self.tcd22xx_ctl_mut();
+        T::cache(
+            node,
+            req,
+            sections,
+            &ctls.caps,
+            &mut ctls.state,
+            RateMode::from(global_params.clock_config.rate),
+            timeout_ms,
+        )
     }
 
     fn read_notified_elem(
