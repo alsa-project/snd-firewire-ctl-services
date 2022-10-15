@@ -851,7 +851,9 @@ pub struct IofwMonitorPairSourcePair {
     pub link: bool,
 }
 
-/// Parameters of source pairs for monitor.
+/// Parameters of source pairs for monitor. The function to control volume of monitor outputs
+/// seems not to be available in all of models with the latest firmware, while vendor's GUI
+/// application still operates them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IofwMonitorPair {
     /// Source pairs of analog inputs.
@@ -866,7 +868,8 @@ pub struct IofwMonitorPair {
     pub output_mutes: [bool; 2],
 }
 
-/// Parameters of source pairs for mixer.
+/// Parameters of source pairs for mixer. The function to control gain of stream inputs seems not
+/// to be available in iO 26 FireWire with the latest version of firmware.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IofwMixerPair {
     /// Source pairs for monitor.
