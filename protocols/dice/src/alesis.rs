@@ -136,15 +136,8 @@
 //! mixer-output-7/8 -----------+
 //! ```
 
-pub mod meter;
-pub mod mixer;
-pub mod output;
-
 use {
     super::{tcat::*, *},
-    meter::*,
-    mixer::*,
-    output::*,
     std::ops::Range,
 };
 
@@ -173,26 +166,6 @@ impl IofwMixerSpecification for Io14fwProtocol {
     const DIGITAL_B_INPUT_PAIR_COUNT: usize = 1;
 }
 
-impl IofwMeterOperation for Io14fwProtocol {
-    const ANALOG_INPUT_COUNT: usize =
-        <Io14fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
-    const DIGITAL_B_INPUT_COUNT: usize =
-        <Io14fwProtocol as IofwMeterSpecification>::DIGITAL_B_INPUT_COUNT;
-}
-
-impl IofwMixerOperation for Io14fwProtocol {
-    const ANALOG_INPUT_COUNT: usize =
-        <Io14fwProtocol as IofwMixerSpecification>::ANALOG_INPUT_PAIR_COUNT * 2;
-    const DIGITAL_B_INPUT_COUNT: usize =
-        <Io14fwProtocol as IofwMixerSpecification>::DIGITAL_B_INPUT_PAIR_COUNT * 2;
-}
-
-impl IofwOutputOperation for Io14fwProtocol {
-    const ANALOG_OUTPUT_COUNT: usize =
-        <Io14fwProtocol as IofwOutputSpecification>::ANALOG_OUTPUT_COUNT;
-    const HAS_OPT_IFACE_B: bool = <Io14fwProtocol as IofwOutputSpecification>::HAS_OPT_IFACE_B;
-}
-
 /// Protocol implementation specific to iO 26 FireWire.
 #[derive(Default, Debug)]
 pub struct Io26fwProtocol;
@@ -218,26 +191,6 @@ impl IofwMixerSpecification for Io26fwProtocol {
     const DIGITAL_B_INPUT_PAIR_COUNT: usize = 4;
 }
 
-impl IofwMeterOperation for Io26fwProtocol {
-    const ANALOG_INPUT_COUNT: usize =
-        <Io26fwProtocol as IofwMeterSpecification>::ANALOG_INPUT_COUNT;
-    const DIGITAL_B_INPUT_COUNT: usize =
-        <Io26fwProtocol as IofwMeterSpecification>::DIGITAL_B_INPUT_COUNT;
-}
-
-impl IofwMixerOperation for Io26fwProtocol {
-    const ANALOG_INPUT_COUNT: usize =
-        <Io26fwProtocol as IofwMixerSpecification>::ANALOG_INPUT_PAIR_COUNT * 2;
-    const DIGITAL_B_INPUT_COUNT: usize =
-        <Io26fwProtocol as IofwMixerSpecification>::DIGITAL_B_INPUT_PAIR_COUNT * 2;
-}
-
-impl IofwOutputOperation for Io26fwProtocol {
-    const ANALOG_OUTPUT_COUNT: usize =
-        <Io26fwProtocol as IofwOutputSpecification>::ANALOG_OUTPUT_COUNT;
-    const HAS_OPT_IFACE_B: bool = <Io26fwProtocol as IofwOutputSpecification>::HAS_OPT_IFACE_B;
-}
-
 const BASE_OFFSET: usize = 0x00200000;
 
 const MIXER_PARAMS_OFFSET: usize = 0x0038;
@@ -252,9 +205,9 @@ const METER_OFFSET: usize = 0x04c0;
 // NOTE: 0: mixer 0/1, 1: mixer 2/3, 2: mixer 4/5, 3: mixer 6/7, 4: meter.
 // const UI_SELECT_OFFSET: usize = 0x0560;
 const OUT_LEVEL_OFFSET: usize = 0x0564;
-const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
-const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
-const HP34_SRC_OFFSET: usize = 0x0570;
+// const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
+// const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
+// const HP34_SRC_OFFSET: usize = 0x0570;
 
 const KNOB_PARAMS_OFFSET: usize = 0x0574;
 // const MIXER_BLEND_KNOB_OFFSET: usize = 0x0574;
@@ -611,60 +564,6 @@ pub trait AlesisFluctuatedParametersOperation<T>:
                     .map_err(|cause| generate_err(Self::NAME, &cause, &raw))
             })
     }
-}
-
-fn alesis_read_block(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    frame: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::read(req, node, BASE_OFFSET + offset, frame, timeout_ms)
-}
-
-fn alesis_write_block(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    frame: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::write(req, node, BASE_OFFSET + offset, frame, timeout_ms)
-}
-
-fn alesis_read_flags(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    flags: &mut [bool],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    let mut raw = [0; 4];
-    alesis_read_block(req, node, offset, &mut raw, timeout_ms).map(|_| {
-        let mut val = 0u32;
-        val.parse_quadlet(&raw[..]);
-        flags.iter_mut().enumerate().for_each(|(i, flag)| {
-            *flag = val & (1 << i) > 0;
-        });
-    })
-}
-
-fn alesis_write_flags(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    flags: &[bool],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    let val = flags
-        .iter()
-        .enumerate()
-        .filter(|(_, &flag)| flag)
-        .fold(0 as u32, |val, (i, _)| val | (1 << i));
-    let mut raw = [0; 4];
-    val.build_quadlet(&mut raw[..]);
-    alesis_write_block(req, node, offset, &mut raw, timeout_ms)
 }
 
 /// For hardware meters, between 0..0x7fff (-90.0..0.0 dB).
