@@ -192,42 +192,6 @@ fn lexicon_write(
     GeneralProtocol::write(req, node, BASE_OFFSET + offset, frame, timeout_ms)
 }
 
-const DATA_PREFIX: [u8; 5] = [0x06, 0x00, 0x1b, 0x01, 0x41];
-
-#[allow(dead_code)]
-const SYSEX_MSG_PREFIX: u8 = 0xf0;
-#[allow(dead_code)]
-const SYSEX_MSG_SUFFIX: u8 = 0xf7;
-
-impl IonixProtocol {
-    // NOTE: states of all effect are available with structured data by read block request with 512 bytes.
-    pub fn write_effect_data(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        data: &[u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        // NOTE: The data has prefix.
-        let mut msgs = DATA_PREFIX.to_vec();
-        msgs.extend_from_slice(&data);
-
-        // NOTE: Append checksum calculated by XOR for all the data.
-        let checksum = msgs.iter().fold(0u8, |val, &msg| val | msg);
-        msgs.push(checksum);
-
-        // NOTE: Construct MIDI system exclusive message.
-        msgs.insert(0, 0xf0);
-        msgs.push(0xf7);
-
-        // NOTE: One quadlet deliver one byte of message.
-        let mut raw = Vec::<u8>::new();
-        msgs.iter()
-            .for_each(|&msg| raw.extend_from_slice(&(msg as u32).to_be_bytes()));
-
-        lexicon_write(req, node, EFFECT_OFFSET, &mut raw, timeout_ms)
-    }
-}
-
 /// Hardware meter.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IonixMeter {
@@ -809,6 +773,85 @@ impl IonixProtocol {
         )
     }
 }
+
+/// Serialize and deserialize data of system exclusive message.
+pub trait IonixSysExDataSerdes<T> {
+    /// Name of system exclusive message.
+    const NAME: &'static str;
+
+    /// Serialize for data of system exclusive message.
+    fn serialize_sysex_data(params: &T) -> Result<Vec<Vec<u8>>, String>;
+
+    /// Deserialize for data of system exclusive message.
+    fn deserialize_sysex_data<U: AsRef<[u8]>>(params: &mut T, raw: &[U]) -> Result<(), String>;
+}
+
+fn serialize_effect_frame(data: &[u8]) -> Vec<u8> {
+    /// Prefix of data for system exclusive message.
+    const DATA_PREFIX: [u8; 5] = [0x06, 0x00, 0x1b, 0x01, 0x41];
+
+    /// Prefix of system exclusive message.
+    const SYSEX_MSG_PREFIX: u8 = 0xf0;
+
+    /// Suffix of system exclusive message.
+    const SYSEX_MSG_SUFFIX: u8 = 0xf7;
+
+    // NOTE: The data has prefix.
+    let mut sysex_data = DATA_PREFIX.to_vec();
+    sysex_data.extend_from_slice(data);
+
+    // NOTE: Append checksum calculated by XOR for all the data.
+    let checksum = sysex_data.iter().fold(0u8, |val, &msg| val | msg);
+    sysex_data.push(checksum);
+
+    // NOTE: Construct MIDI system exclusive message.
+    let mut sysex = vec![SYSEX_MSG_PREFIX];
+    sysex.append(&mut sysex_data);
+    sysex.push(SYSEX_MSG_SUFFIX);
+
+    // NOTE: One quadlet deliver one byte of message.
+    let mut raw = Vec::new();
+    sysex
+        .iter()
+        .for_each(|&msg| raw.extend_from_slice(&(msg as u32).to_be_bytes()));
+
+    raw
+}
+
+fn generate_effect_err(name: &str, cause: &str) -> Error {
+    let msg = format!("parms: {}, cause: {}", name, cause);
+    Error::new(GeneralProtocolError::VendorDependent, &msg)
+}
+
+/// Operation for effect.
+pub trait LexiconEffectOperation<T>: LexiconOperation + IonixSysExDataSerdes<T> {
+    /// Update parameters for effect.
+    fn update_effect_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        prev: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let new = Self::serialize_sysex_data(params)
+            .map_err(|cause| generate_effect_err(Self::NAME, &cause))?;
+        let old = Self::serialize_sysex_data(prev)
+            .map_err(|cause| generate_effect_err(Self::NAME, &cause))?;
+
+        new.iter()
+            .zip(old.iter())
+            .filter(|(n, o)| !n.eq(o))
+            .try_for_each(|(data, _)| {
+                let mut raw = serialize_effect_frame(data);
+                Self::write(req, node, EFFECT_OFFSET, &mut raw, timeout_ms)
+            })?;
+
+        Self::deserialize_sysex_data(prev, &new)
+            .map_err(|cause| generate_effect_err(Self::NAME, &cause))
+    }
+}
+
+impl<O: LexiconOperation + IonixSysExDataSerdes<T>, T> LexiconEffectOperation<T> for O {}
 
 #[cfg(test)]
 mod test {
