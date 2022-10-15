@@ -22,6 +22,9 @@ const MIXER_REVERB_SRC_OFFSET: usize = 0x0360;
 const METER_OFFSET: usize = 0x0500;
 const EFFECT_OFFSET: usize = 0x4000;
 
+const MIXER_BUS_SRC_SIZE: usize = 0x02d0;
+const MIXER_MAIN_SRC_SIZE: usize = 0x0090;
+const MIXER_REVERB_SRC_SIZE: usize = 0x090;
 const METER_SIZE: usize = 0x200;
 
 /// Protocol implementation specific to Lexicon I-ONIX FW810s.
@@ -532,6 +535,102 @@ impl IonixProtocol {
     }
 }
 
+/// Gains of sources for mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct IonixMixerSources {
+    /// Gains of 8 analog inputs.
+    pub stream_inputs: [i16; IonixProtocol::MIXER_STREAM_INPUT_COUNT],
+    /// Gains of 2 S/PDIF inputs.
+    pub spdif_inputs: [i16; IonixProtocol::MIXER_SPDIF_INPUT_COUNT],
+    /// Gains of 8 analog inputs.
+    pub analog_inputs: [i16; IonixProtocol::MIXER_ANALOG_INPUT_COUNT],
+}
+
+/// Parameters of mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct IonixMixerParameters {
+    /// Sources for bus mixers.
+    pub bus_sources: [IonixMixerSources; IonixProtocol::MIXER_BUS_COUNT],
+    /// Sources for main mixers.
+    pub main_sources: [IonixMixerSources; IonixProtocol::MIXER_MAIN_COUNT],
+    /// Sources for reverb effects.
+    pub reverb_sources: [IonixMixerSources; IonixProtocol::MIXER_REVERB_COUNT],
+}
+
+impl<O: LexiconOperation> LexiconParametersSerdes<IonixMixerParameters> for O {
+    const NAME: &'static str = "meter";
+
+    const OFFSET_RANGES: &'static [Range<usize>] = &[
+        Range {
+            start: MIXER_BUS_SRC_OFFSET,
+            end: MIXER_BUS_SRC_OFFSET + MIXER_BUS_SRC_SIZE,
+        },
+        Range {
+            start: MIXER_MAIN_SRC_OFFSET,
+            end: MIXER_MAIN_SRC_OFFSET + MIXER_MAIN_SRC_SIZE,
+        },
+        Range {
+            start: MIXER_REVERB_SRC_OFFSET,
+            end: MIXER_REVERB_SRC_OFFSET + MIXER_REVERB_SRC_SIZE,
+        },
+    ];
+
+    fn serialize_params(params: &IonixMixerParameters, raw: &mut [u8]) -> Result<(), String> {
+        [
+            (&params.bus_sources[..], 0x0000),
+            (&params.main_sources[..], 0x02d0),
+            (&params.reverb_sources[..], 0x0360),
+        ]
+        .iter()
+        .for_each(|(srcs, offset)| {
+            srcs.iter().enumerate().for_each(|(i, src)| {
+                src.stream_inputs
+                    .iter()
+                    .chain(src.spdif_inputs.iter())
+                    .chain(src.analog_inputs.iter())
+                    .enumerate()
+                    .for_each(|(j, &gain)| {
+                        let pos = *offset + i * 0x48 + j * 4;
+                        raw[pos..(pos + 4)].copy_from_slice(&(gain as i32).to_be_bytes());
+                    });
+            });
+        });
+
+        Ok(())
+    }
+
+    fn deserialize_params(params: &mut IonixMixerParameters, raw: &[u8]) -> Result<(), String> {
+        let mut quadlet = [0; 4];
+        [
+            (&mut params.bus_sources[..], 0x0000),
+            (&mut params.main_sources[..], 0x02d0),
+            (&mut params.reverb_sources[..], 0x0360),
+        ]
+        .iter_mut()
+        .for_each(|(srcs, offset)| {
+            srcs.iter_mut().enumerate().for_each(|(i, src)| {
+                src.stream_inputs
+                    .iter_mut()
+                    .chain(src.spdif_inputs.iter_mut())
+                    .chain(src.analog_inputs.iter_mut())
+                    .enumerate()
+                    .for_each(|(j, gain)| {
+                        let pos = *offset + i * 0x48 + j * 4;
+                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                        *gain = u32::from_be_bytes(quadlet) as i16;
+                    });
+            });
+        });
+
+        Ok(())
+    }
+}
+
+impl<O: LexiconOperation + LexiconParametersSerdes<IonixMixerParameters>>
+    LexiconMutableParametersOperation<IonixMixerParameters> for O
+{
+}
+
 /// Source of mixer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MixerSrc {
@@ -563,6 +662,15 @@ impl From<MixerSrc> for usize {
 }
 
 impl IonixProtocol {
+    /// The number of analog inputs for mixer.
+    pub const MIXER_ANALOG_INPUT_COUNT: usize = 8;
+
+    /// The number of S/PDIF inputs for mixer.
+    pub const MIXER_SPDIF_INPUT_COUNT: usize = 2;
+
+    /// The number of stream inputs for mixer except for input 8/9 to S/PDIF output 0/1.
+    pub const MIXER_STREAM_INPUT_COUNT: usize = 8;
+
     /// The number of channels in bus mixer.
     pub const MIXER_BUS_COUNT: usize = 8;
 
@@ -699,5 +807,41 @@ impl IonixProtocol {
             &mut raw,
             timeout_ms,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn mixer_params_serdes() {
+        let mut params = IonixMixerParameters::default();
+        params
+            .bus_sources
+            .iter_mut()
+            .chain(params.main_sources.iter_mut())
+            .chain(params.reverb_sources.iter_mut())
+            .flat_map(|srcs| {
+                srcs.stream_inputs
+                    .iter_mut()
+                    .chain(srcs.spdif_inputs.iter_mut())
+                    .chain(srcs.analog_inputs.iter_mut())
+            })
+            .enumerate()
+            .for_each(|(i, gain)| *gain = i as i16);
+
+        let size = compute_params_size(
+            <IonixProtocol as LexiconParametersSerdes<IonixMixerParameters>>::OFFSET_RANGES,
+        );
+        let mut raw = vec![0u8; size];
+        IonixProtocol::serialize_params(&params, &mut raw).unwrap();
+
+        let mut p = IonixMixerParameters::default();
+        IonixProtocol::deserialize_params(&mut p, &raw).unwrap();
+
+        assert_eq!(params.bus_sources, p.bus_sources, "{:02x?}", raw);
+        assert_eq!(params.main_sources, p.main_sources);
+        assert_eq!(params.reverb_sources, p.reverb_sources);
     }
 }
