@@ -323,7 +323,9 @@ where
     };
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
+        let res = T::cache_whole_params(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -494,7 +496,9 @@ where
     ];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
+        let res = T::cache_whole_params(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -601,7 +605,9 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DIGITAL_B_67_SRC_NAME => {
                 let mut params = self.0.clone();
@@ -615,7 +621,9 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.digital_67_src = s)?;
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             .map(|_| true),
             SPDIF_OUT_SRC_NAME => {
@@ -629,7 +637,9 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.spdif_out_src = s)?;
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             HP23_SRC_NAME => {
                 let mut params = self.0.clone();
@@ -642,7 +652,9 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.headphone2_3_out_src = s)?;
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -720,7 +732,9 @@ where
     const MIXER_OUTPUT_COUNT: usize = T::MIXER_OUTPUT_PAIR_COUNT * 2;
 
     fn whole_cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_whole_params(req, node, &mut self.0, timeout_ms)
+        let res = T::cache_whole_params(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn partial_cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
@@ -732,7 +746,9 @@ where
             let mut params = self.0.clone();
             params.mixer_pairs[0].monitor_pair.output_volumes[0] = new;
             params.mixer_pairs[0].monitor_pair.output_volumes[1] = new;
-            T::update_partial_params(req, node, &params, &mut self.0, timeout_ms)?;
+            let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+            debug!(params = ?self.0, ?res);
+            res?;
         }
 
         Ok(())
@@ -934,7 +950,9 @@ where
                     })
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -963,7 +981,9 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_VOL_NAME => {
                 let mut params = self.0.clone();
@@ -973,7 +993,9 @@ where
                     .flat_map(|mixer_pair| mixer_pair.monitor_pair.output_volumes.iter_mut())
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as u32);
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -983,7 +1005,9 @@ where
                     .flat_map(|srcs| srcs.monitor_pair.output_mutes.iter_mut())
                     .zip(elem_value.boolean())
                     .for_each(|(mute, val)| *mute = val);
-                T::update_partial_params(req, node, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = T::update_partial_params(req, node, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
