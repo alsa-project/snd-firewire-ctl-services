@@ -107,6 +107,13 @@ where
             TIMEOUT_MS,
         )?;
 
+        self.specific_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         Ok(())
     }
 
@@ -127,14 +134,7 @@ where
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.specific_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.specific_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -169,11 +169,10 @@ where
         )? {
             Ok(true)
         } else if self.specific_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -305,24 +304,8 @@ impl<T> CommonCtlOperation<T> for PfireCommonCtl<T> where
 {
 }
 
-#[derive(Debug)]
-pub struct PfireSpecificCtl<T: PfireSpecificOperation>(Vec<bool>, PhantomData<T>);
-
-impl<T: PfireSpecificOperation> Default for PfireSpecificCtl<T> {
-    fn default() -> Self {
-        Self(vec![Default::default(); T::KNOB_COUNT], Default::default())
-    }
-}
-
-impl<T: PfireSpecificOperation> SpecificCtlOperation<T> for PfireSpecificCtl<T> {
-    fn state(&self) -> &[bool] {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut [bool] {
-        &mut self.0
-    }
-}
+#[derive(Default, Debug)]
+pub struct PfireSpecificCtl<T: PfireSpecificOperation>(PfireSpecificParams, PhantomData<T>);
 
 #[derive(Default, Debug)]
 pub struct PfireTcd22xxCtl<T>(Tcd22xxCtl, PhantomData<T>)
@@ -366,10 +349,7 @@ const MASTER_KNOB_NAME: &str = "master-knob-target";
 const OPT_IFACE_B_MODE_NAME: &str = "optical-iface-b-mode";
 const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
-pub trait SpecificCtlOperation<T: PfireSpecificOperation> {
-    fn state(&self) -> &[bool];
-    fn state_mut(&mut self) -> &mut [bool];
-
+impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: [&'static str; 4] = [
         "analog-out-1/2",
@@ -383,9 +363,20 @@ pub trait SpecificCtlOperation<T: PfireSpecificOperation> {
         StandaloneConverterMode::AdOnly,
     ];
 
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::cache_whole_params(req, node, &sections, &mut self.0, timeout_ms)
+    }
+
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MASTER_KNOB_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::KNOB_COUNT, true)?;
+        let _ =
+            card_cntr.add_bool_elems(&elem_id, 1, Self::MASTER_KNOB_TARGET_LABELS.len(), true)?;
 
         // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
         if T::HAS_OPT_IFACE_B {
@@ -410,10 +401,36 @@ pub trait SpecificCtlOperation<T: PfireSpecificOperation> {
         Ok(())
     }
 
-    fn read(
+    fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MASTER_KNOB_NAME => {
+                elem_value.set_bool(&self.0.knob_assigns);
+                Ok(true)
+            }
+            OPT_IFACE_B_MODE_NAME => {
+                let pos = Self::OPT_IFACE_B_MODES
+                    .iter()
+                    .position(|m| self.0.opt_iface_b_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            STANDALONE_CONVERTER_MODE_NAME => {
+                let pos = Self::STANDALONE_CONVERTER_MODES
+                    .iter()
+                    .position(|m| self.0.standalone_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -421,84 +438,47 @@ pub trait SpecificCtlOperation<T: PfireSpecificOperation> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MASTER_KNOB_NAME => {
-                T::read_knob_assign(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    &mut self.state_mut(),
-                    timeout_ms,
-                )?;
-                elem_value.set_bool(&self.state());
-                Ok(true)
+                let mut params = self.0.clone();
+                params
+                    .knob_assigns
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(assign, val)| *assign = val);
+                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
-            OPT_IFACE_B_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mode = T::read_opt_iface_b_mode(req, &mut unit.1, sections, timeout_ms)?;
-                let pos = Self::OPT_IFACE_B_MODES
+            OPT_IFACE_B_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::OPT_IFACE_B_MODES
                     .iter()
-                    .position(|m| mode.eq(m))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            STANDALONE_CONVERTER_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mode =
-                    T::read_standalone_converter_mode(req, &mut unit.1, sections, timeout_ms)?;
-                let pos = Self::STANDALONE_CONVERTER_MODES
-                    .iter()
-                    .position(|m| mode.eq(m))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MASTER_KNOB_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, T::KNOB_COUNT, |idx, val| {
-                    self.state_mut()[idx] = val;
-                    Ok(())
-                })?;
-                T::write_knob_assign(req, &mut unit.1, sections, &self.state(), timeout_ms)?;
-                Ok(true)
-            }
-            OPT_IFACE_B_MODE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let &mode = Self::OPT_IFACE_B_MODES
-                    .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
                         let msg =
-                            format!("Invalid value for index of optical interface mode: {}", val);
+                            format!("Invalid value for index of optical interface mode: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                T::write_opt_iface_b_mode(req, &mut unit.1, sections, mode, timeout_ms)
-            })
-            .map(|_| true),
-            STANDALONE_CONVERTER_MODE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                let &mode = Self::STANDALONE_CONVERTER_MODES
+                    })
+                    .map(|&mode| params.opt_iface_b_mode = mode)?;
+                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            STANDALONE_CONVERTER_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::STANDALONE_CONVERTER_MODES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
                         let msg = format!(
                             "Invalid value for index of standalone converter mode: {}",
-                            val
+                            pos
                         );
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                T::write_standalone_converter_mode(req, &mut unit.1, sections, mode, timeout_ms)
-            })
-            .map(|_| true),
+                    })
+                    .map(|&mode| params.standalone_mode = mode)?;
+                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
             _ => Ok(false),
         }
     }
