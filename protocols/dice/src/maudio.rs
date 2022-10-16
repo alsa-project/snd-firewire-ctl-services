@@ -16,9 +16,6 @@ use super::{
     *,
 };
 
-const KNOB_ASSIGN_OFFSET: usize = 0x00;
-const STANDALONE_MODE_OFFSET: usize = 0x04;
-
 /// Protocol implementation specific to ProFire 2626.
 #[derive(Default, Debug)]
 pub struct Pfire2626Protocol;
@@ -189,22 +186,106 @@ impl Tcd22xxSpecOperation for Pfire610Protocol {
 }
 
 /// Mode of optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OptIfaceMode {
+    /// For S/PDIF signal.
     Spdif,
+    /// For ADAT signal.
     Adat,
 }
 
+impl Default for OptIfaceMode {
+    fn default() -> Self {
+        Self::Spdif
+    }
+}
+
 /// Mode of standalone converter.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum StandaloneConverterMode {
+    /// For A/D and D/A conversion.
     AdDa,
+    /// For A/D conversion only.
     AdOnly,
 }
+
+impl Default for StandaloneConverterMode {
+    fn default() -> Self {
+        Self::AdDa
+    }
+}
+
+/// Mode of standalone converter.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct PfireSpecificParams {
+    /// Whether volumes of 4 analog output pairs have assignment to hardware knob.
+    pub knob_assigns: [bool; 4],
+    /// Mode of optical interface B.
+    pub opt_iface_b_mode: OptIfaceMode,
+    /// Mode of converter at standalone.
+    pub standalone_mode: StandaloneConverterMode,
+}
+
+const KNOB_ASSIGN_OFFSET: usize = 0x00;
+const STANDALONE_MODE_OFFSET: usize = 0x04;
 
 const KNOB_ASSIGN_MASK: u32 = 0x0f;
 const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
 const STANDALONE_CONVERTER_IS_AD_ONLY_FLAG: u32 = 0x02;
+
+const MIN_SIZE: usize = 8;
+
+fn serialize(params: &PfireSpecificParams, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= MIN_SIZE);
+
+    let mut val = 0u32;
+    params
+        .knob_assigns
+        .iter()
+        .enumerate()
+        .filter(|(_, &v)| v)
+        .for_each(|(i, _)| val |= 1 << i);
+
+    if params.opt_iface_b_mode == OptIfaceMode::Spdif {
+        val |= OPT_IFACE_B_IS_SPDIF_FLAG;
+    }
+    val.build_quadlet(&mut raw[..4]);
+
+    let mut val = 0u32;
+    if params.standalone_mode == StandaloneConverterMode::AdOnly {
+        val |= STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
+    }
+    val.build_quadlet(&mut raw[4..8]);
+
+    Ok(())
+}
+
+fn deserialize(params: &mut PfireSpecificParams, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= MIN_SIZE);
+
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[..4]);
+    params
+        .knob_assigns
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, v)| *v = (val & KNOB_ASSIGN_MASK) & (1 << i) > 0);
+
+    params.opt_iface_b_mode = if val & OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
+        OptIfaceMode::Spdif
+    } else {
+        OptIfaceMode::Adat
+    };
+
+    val.parse_quadlet(&raw[4..8]);
+    params.standalone_mode = if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
+        StandaloneConverterMode::AdOnly
+    } else {
+        StandaloneConverterMode::AdDa
+    };
+
+    Ok(())
+}
 
 /// Protocol implementation specific to ProFire series.
 pub trait PfireSpecificOperation {
@@ -212,6 +293,54 @@ pub trait PfireSpecificOperation {
     const SUPPORT_STANDALONE_CONVERTER: bool;
 
     const KNOB_COUNT: usize = 4;
+
+    fn cache_whole_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut PfireSpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0; sections.application.size];
+        ApplSectionProtocol::read_appl_data(req, node, sections, 0, &mut raw, timeout_ms)?;
+        deserialize(params, &raw).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    fn update_partial_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &PfireSpecificParams,
+        prev: &mut PfireSpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0; sections.application.size];
+        serialize(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0; sections.application.size];
+        serialize(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..sections.application.size)
+            .step_by(4)
+            .try_for_each(|pos| {
+                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                    ApplSectionProtocol::write_appl_data(
+                        req,
+                        node,
+                        sections,
+                        pos,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                } else {
+                    Ok(())
+                }
+            })?;
+
+        deserialize(prev, &new).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
 
     fn read_knob_assign(
         req: &mut FwReq,
@@ -390,5 +519,27 @@ pub trait PfireSpecificOperation {
             &mut data,
             timeout_ms,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn pfire_specific_params_serdes() {
+        let params = PfireSpecificParams {
+            knob_assigns: [false, true, true, false],
+            opt_iface_b_mode: OptIfaceMode::Spdif,
+            standalone_mode: StandaloneConverterMode::AdDa,
+        };
+
+        let mut raw = [0; MIN_SIZE];
+        serialize(&params, &mut raw).unwrap();
+
+        let mut p = PfireSpecificParams::default();
+        deserialize(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
     }
 }
