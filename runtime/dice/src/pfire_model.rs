@@ -378,7 +378,6 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
         let _ =
             card_cntr.add_bool_elems(&elem_id, 1, Self::MASTER_KNOB_TARGET_LABELS.len(), true)?;
 
-        // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
         if T::HAS_OPT_IFACE_B {
             let labels: Vec<&str> = Self::OPT_IFACE_B_MODES
                 .iter()

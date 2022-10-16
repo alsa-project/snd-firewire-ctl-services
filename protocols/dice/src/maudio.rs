@@ -23,6 +23,7 @@ pub struct Pfire2626Protocol;
 impl TcatOperation for Pfire2626Protocol {}
 
 impl TcatGlobalSectionSpecification for Pfire2626Protocol {
+    // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
     const AVAILABLE_CLOCK_SOURCE_OVERRIDE: Option<&'static [ClockSource]> = Some(&[
         ClockSource::Aes1,
         ClockSource::Aes4,
@@ -226,8 +227,8 @@ pub struct PfireSpecificParams {
     pub standalone_mode: StandaloneConverterMode,
 }
 
-const KNOB_ASSIGN_OFFSET: usize = 0x00;
-const STANDALONE_MODE_OFFSET: usize = 0x04;
+// const KNOB_ASSIGN_OFFSET: usize = 0x00;
+// const STANDALONE_MODE_OFFSET: usize = 0x04;
 
 const KNOB_ASSIGN_MASK: u32 = 0x0f;
 const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
@@ -340,185 +341,6 @@ pub trait PfireSpecificOperation {
             })?;
 
         deserialize(prev, &new).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
-
-    fn read_knob_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        targets: &mut [bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map(|_| {
-            let val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
-            targets
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, v)| *v = val & (1 << i) > 0)
-        })
-    }
-
-    fn write_knob_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        targets: &[bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )?;
-        let mut val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
-
-        targets.iter().enumerate().for_each(|(i, knob)| {
-            val &= !(1 << i);
-            if *knob {
-                val |= 1 << i;
-            }
-        });
-        data.copy_from_slice(&val.to_be_bytes());
-
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-    }
-
-    fn read_opt_iface_b_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<OptIfaceMode, Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map(|_| {
-            let val = u32::from_be_bytes(data);
-            if val & OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
-                OptIfaceMode::Spdif
-            } else {
-                OptIfaceMode::Adat
-            }
-        })
-    }
-
-    fn write_opt_iface_b_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        mode: OptIfaceMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )?;
-        let mut val = u32::from_be_bytes(data);
-
-        val &= !OPT_IFACE_B_IS_SPDIF_FLAG;
-        if mode == OptIfaceMode::Spdif {
-            val |= OPT_IFACE_B_IS_SPDIF_FLAG;
-        }
-        data.copy_from_slice(&val.to_be_bytes());
-
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            KNOB_ASSIGN_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-    }
-
-    fn read_standalone_converter_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<StandaloneConverterMode, Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            STANDALONE_MODE_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
-        .map(|_| {
-            let val = u32::from_be_bytes(data);
-            if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
-                StandaloneConverterMode::AdOnly
-            } else {
-                StandaloneConverterMode::AdDa
-            }
-        })
-    }
-
-    fn write_standalone_converter_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        mode: StandaloneConverterMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            STANDALONE_MODE_OFFSET,
-            &mut data,
-            timeout_ms,
-        )?;
-        let mut val = u32::from_be_bytes(data);
-
-        val &= !STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
-        if mode == StandaloneConverterMode::AdOnly {
-            val |= STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
-        }
-        data.copy_from_slice(&val.to_be_bytes());
-
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            STANDALONE_MODE_OFFSET,
-            &mut data,
-            timeout_ms,
-        )
     }
 }
 
