@@ -370,7 +370,9 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_whole_params(req, node, &sections, &mut self.0, timeout_ms)
+        let res = T::cache_whole_params(req, node, &sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -443,8 +445,10 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(assign, val)| *assign = val);
-                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OPT_IFACE_B_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -458,8 +462,10 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_iface_b_mode = mode)?;
-                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             STANDALONE_CONVERTER_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -475,8 +481,10 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.standalone_mode = mode)?;
-                T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res =
+                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
