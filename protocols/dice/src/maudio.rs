@@ -48,11 +48,18 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
             label: None,
         },
         Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Input {
             id: SrcBlkId::Adat,
             offset: 0,
             count: 8,
             label: None,
         },
+        // NOTE: share the same optical interface.
         Input {
             id: SrcBlkId::Adat,
             offset: 8,
@@ -61,7 +68,7 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
         },
         Input {
             id: SrcBlkId::Aes,
-            offset: 0,
+            offset: 6,
             count: 2,
             label: None,
         },
@@ -74,11 +81,18 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
             label: None,
         },
         Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Output {
             id: DstBlkId::Adat,
             offset: 0,
             count: 8,
             label: None,
         },
+        // NOTE: share the same optical interface.
         Output {
             id: DstBlkId::Adat,
             offset: 8,
@@ -87,7 +101,7 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
         },
         Output {
             id: DstBlkId::Aes,
-            offset: 0,
+            offset: 6,
             count: 2,
             label: None,
         },
