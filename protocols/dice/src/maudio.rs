@@ -5,6 +5,151 @@
 //!
 //! The modules includes structure, enumeration, and trait and its implementation for hardware
 //! specification and application protocol specific to M-Audio ProFire series.
+//!
+//! ## Diagram of internal signal flow for Profire 2626
+//!
+//! ```text
+//!
+//! XLR input 1 -------+-------+
+//! Phone input 1 -----+       |
+//!                            |
+//! XLR input 2 -------+-------+
+//! Phone input 2 -----+       |
+//!                            +----------------> analog-input-1/2
+//! XLR input 3/4 ------------------------------> analog-input-3/4
+//! XLR input 5/6 ------------------------------> analog-input-5/6
+//! XLR input 7/8 ------------------------------> analog-input-7/8
+//! Coaxial input ------------------------------> spdif-input-1/2
+//! Optical input A ----------------------------> adat-input-1..8
+//! Optical input B -----------or---------------> adat-input-8..16
+//!                             +---------------> spdif-input-3/4
+//!
+//!                          ++=============++
+//! analog-input-1/2 ------> || 70 x 68     || --> analog-output-1/2
+//! analog-input-3/4 ------> || router      || --> analog-output-3/4
+//! analog-input-5/6 ------> || up to       || --> analog-output-5/6
+//! analog-input-7/8 ------> || 128 entries || --> analog-output-7/8
+//!                          ||             ||
+//! spdif-input-1/2 -------> ||             || --> spdif-output-1/2
+//! spdif-input-3/4 -------> ||             || --> spdif-output-3/4
+//!                          ||             ||
+//! adat-input-1/2 --------> ||             || --> adat-output-1/2
+//! adat-input-3/4 --------> ||             || --> adat-output-3/4
+//! adat-input-5/6 --------> ||             || --> adat-output-5/6
+//! adat-input-7/8 --------> ||             || --> adat-output-7/8
+//!                          ||             ||
+//! adat-input-9/10 -------> ||             || --> adat-output-9/10
+//! adat-input-11/12 ------> ||             || --> adat-output-11/12
+//! adat-input-13/14 ------> ||             || --> adat-output-13/14
+//! adat-input-15/16 ------> ||             || --> adat-output-15/16
+//!                          ||             ||
+//! stream-input-A-1/2 ----> ||             || --> stream-output-A-1/2
+//! stream-input-A-3/4 ----> ||             || --> stream-output-A-3/4
+//! stream-input-A-5/6 ----> ||             || --> stream-output-A-5/6
+//! stream-input-A-7/8 ----> ||             || --> stream-output-A-7/8
+//! stream-input-A-9/10 ---> ||             || --> stream-output-A-9/10
+//!                          ||             ||
+//! stream-input-B-1/2 ----> ||             || --> stream-output-B-1/2
+//! stream-input-B-3/4 ----> ||             || --> stream-output-B-3/4
+//! stream-input-B-5/6 ----> ||             || --> stream-output-B-5/6
+//! stream-input-B-7/8 ----> ||             || --> stream-output-B-7/8
+//! stream-input-B-9/10 ---> ||             || --> stream-output-B-9/10
+//! stream-input-B-11/12 --> ||             || --> stream-output-B-11/12
+//! stream-input-B-13/14 --> ||             || --> stream-output-B-13/14
+//! stream-input-B-15/16 --> ||             || --> stream-output-B-15/16
+//!                          ||             ||
+//! mixer-output-1/2 ------> ||             || --> mixer-input-1/2
+//! mixer-output-3/4 ------> ||             || --> mixer-input-3/4
+//! mixer-output-5/6 ------> ||             || --> mixer-input-5/6
+//! mixer-output-7/8 ------> ||             || --> mixer-input-7/8
+//! mixer-output-9/10 -----> ||             || --> mixer-input-9/10
+//! mixer-output-11/12 ----> ||             || --> mixer-input-11/12
+//! mixer-output-13/14 ----> ||             || --> mixer-input-13/14
+//! mixer-output-15/16 ----> ||             || --> mixer-input-15/16
+//!                          ||             || --> mixer-input-17/18
+//!                          ++=============++
+//!
+//!                          ++============++
+//! mixer-input-1/2 ----->   ||            || --> mixer-output-1/2
+//! mixer-input-3/4 ----->   ||            || --> mixer-output-3/4
+//! mixer-input-5/6 ----->   ||            || --> mixer-output-5/6
+//! mixer-input-7/8 ----->   ||  18 x 16   || --> mixer-output-7/8
+//! mixer-input-9/10 ---->   ||            || --> mixer-output-9/10
+//! mixer-input-11/11 --->   ||   mixer    || --> mixer-output-11/12
+//! mixer-input-13/14 --->   ||            || --> mixer-output-13/14
+//! mixer-input-15/16 --->   ||            || --> mixer-output-15/16
+//! mixer-input-17/18 --->   ||            ||
+//!                          ++============++
+//!
+//! analog-output-1/2 ------------+-------------> Phone output 1/2
+//!                               +-------------> Headphone output 1/2
+//! analog-output-3/4 ------------+-------------> Phone output 1/2
+//!                               +-------------> Headphone output 3/4
+//! analog-output-5/6 --------------------------> Phone output 1/2
+//! analog-output-7/8 --------------------------> Phone output 1/2
+//!
+//! spdif-output-1/2 ---------------------------> Coaxial output
+//!
+//! adat-output-1..8 ---------------------------> Optical A output
+//!
+//! adat-output-9..16 ------------or------------> Optical B output
+//! spdif-output-3/4 -------------+
+//!
+//! ```
+//!
+//! ## Diagram of internal signal flow for Profire 610
+//!
+//! At 176.4/192.0 kHz, both stream-input-A and stream-input-B are available for
+//! analog-output-1..6 and spdif-output-1/2 per each.
+//!
+//! ```text
+//!
+//! XLR input 1/2 ------------------------------> analog-input-1/2
+//! Phone input 3/4 ----------------------------> analog-input-3/4
+//! coaxial input 1/2 --------------------------> spdif-input-1/2
+//!
+//!                          ++=============++
+//! analog-input-1/2 ------> || 32 x 30     || --> analog-output-1/2
+//! analog-input-3/4 ------> || router      || --> analog-output-3/4
+//!                          || up to       ||
+//! spdif-input-1/2 -------> || 128 entries || --> spdif-output-1/2
+//!                          ||             ||
+//! stream-input-1/2 ------> ||             || --> stream-output-1/2
+//! stream-input-3/4 ------> ||             || --> stream-output-3/4
+//! stream-input-5/6 ------> ||             || --> stream-output-5/6
+//! stream-input-7/8 ------> ||             ||
+//! stream-input-9/10 -----> ||             ||
+//!                          ||             ||
+//! mixer-output-1/2 ------> ||             || --> mixer-input-1/2
+//! mixer-output-3/4 ------> ||             || --> mixer-input-3/4
+//! mixer-output-5/6 ------> ||             || --> mixer-input-5/6
+//! mixer-output-7/8 ------> ||             || --> mixer-input-7/8
+//! mixer-output-9/10 -----> ||             || --> mixer-input-9/10
+//! mixer-output-11/12 ----> ||             || --> mixer-input-11/12
+//! mixer-output-13/14 ----> ||             || --> mixer-input-13/14
+//! mixer-output-15/16 ----> ||             || --> mixer-input-15/16
+//!                          ||             || --> mixer-input-17/18
+//!                          ++=============++
+//!
+//!                          ++============++
+//! mixer-input-1/2 ----->   ||            || --> mixer-output-1/2
+//! mixer-input-3/4 ----->   ||            || --> mixer-output-3/4
+//! mixer-input-5/6 ----->   ||            || --> mixer-output-5/6
+//! mixer-input-7/8 ----->   ||  18 x 16   || --> mixer-output-7/8
+//! mixer-input-9/10 ---->   ||            || --> mixer-output-9/10
+//! mixer-input-11/11 --->   ||   mixer    || --> mixer-output-11/12
+//! mixer-input-13/14 --->   ||            || --> mixer-output-13/14
+//! mixer-input-15/16 --->   ||            || --> mixer-output-15/16
+//! mixer-input-17/18 --->   ||            ||
+//!                          ++============++
+//!
+//! analog-output-1/2 ------------+-------------> Phone output 1/2
+//!                               +-------------> Headphone output 1/2
+//! analog-output-3/4 ------------+-------------> Phone output 3/4
+//!                               +-------------> Headphone output 1/2
+//!
+//! spdif-output-1/2 ---------------------------> Coaxial output
+//!
 
 use super::{
     tcat::{
