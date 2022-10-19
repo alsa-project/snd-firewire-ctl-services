@@ -9,6 +9,7 @@ pub struct LiquidS56Model {
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl<LiquidS56Protocol>,
+    tcd22xx_ctls: Tcd22xxCtls<LiquidS56Protocol>,
     tcd22xx_ctl: LiquidS56Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl<LiquidS56Protocol>,
     io_params_ctl: IoParamsCtl<LiquidS56Protocol>,
@@ -31,6 +32,14 @@ impl LiquidS56Model {
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        self.tcd22xx_ctls.cache_whole_params(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            &self.sections.global.params,
+            TIMEOUT_MS,
+        )?;
 
         self.tcd22xx_ctl.cache(
             &mut self.req,
@@ -69,6 +78,8 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections)?;
 
+        self.tcd22xx_ctls.load(card_cntr)?;
+
         self.tcd22xx_ctl
             .load(card_cntr, &self.sections.global.params)?;
 
@@ -86,6 +97,8 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -112,6 +125,15 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
             &self.req,
             &unit.1,
             &mut self.sections,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.write(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -163,6 +185,7 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
 impl NotifyModel<(SndDice, FwNode), u32> for LiquidS56Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.tcd22xx_ctls.notified_elem_id_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
         elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
@@ -174,6 +197,14 @@ impl NotifyModel<(SndDice, FwNode), u32> for LiquidS56Model {
             &mut self.sections,
             *msg,
             TIMEOUT_MS,
+        )?;
+        self.tcd22xx_ctls.parse_notification(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            &self.sections.global.params,
+            TIMEOUT_MS,
+            *msg,
         )?;
         self.tcd22xx_ctl.parse_notification(
             &mut self.req,
@@ -201,6 +232,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for LiquidS56Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
+            Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
@@ -214,12 +247,19 @@ impl NotifyModel<(SndDice, FwNode), u32> for LiquidS56Model {
 impl MeasureModel<(SndDice, FwNode)> for LiquidS56Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.tcd22xx_ctls.measured_elem_id_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+        self.tcd22xx_ctls.cache_partial_params(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -236,6 +276,8 @@ impl MeasureModel<(SndDice, FwNode)> for LiquidS56Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)

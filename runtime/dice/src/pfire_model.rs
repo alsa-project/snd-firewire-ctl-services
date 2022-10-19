@@ -27,12 +27,16 @@ where
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation,
 {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl<T>,
+    tcd22xx_ctls: Tcd22xxCtls<T>,
     tcd22xx_ctl: PfireTcd22xxCtl<T>,
     specific_ctl: PfireSpecificCtl<T>,
 }
@@ -48,7 +52,10 @@ where
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation,
 {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
@@ -58,6 +65,14 @@ where
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        self.tcd22xx_ctls.cache_whole_params(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            &self.sections.global.params,
+            TIMEOUT_MS,
+        )?;
 
         self.tcd22xx_ctl.cache(
             &mut self.req,
@@ -89,10 +104,15 @@ where
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections)?;
+
+        self.tcd22xx_ctls.load(card_cntr)?;
 
         self.tcd22xx_ctl
             .load(card_cntr, &self.sections.global.params)?;
@@ -109,6 +129,8 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -131,6 +153,15 @@ where
             &self.req,
             &unit.1,
             &mut self.sections,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.write(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -172,10 +203,14 @@ where
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.tcd22xx_ctls.notified_elem_id_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
     }
 
@@ -186,6 +221,14 @@ where
             &mut self.sections,
             *msg,
             TIMEOUT_MS,
+        )?;
+        self.tcd22xx_ctls.parse_notification(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            &self.sections.global.params,
+            TIMEOUT_MS,
+            *msg,
         )?;
         self.tcd22xx_ctl.parse_notification(
             &mut self.req,
@@ -206,6 +249,8 @@ where
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
+            Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
@@ -225,16 +270,26 @@ where
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + Tcd22xxSpecOperation
+        + Tcd22xxRouterOperation
+        + Tcd22xxMixerOperation,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.tcd22xx_ctls.measured_elem_id_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
             .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+        self.tcd22xx_ctls.cache_partial_params(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -251,6 +306,8 @@ where
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
