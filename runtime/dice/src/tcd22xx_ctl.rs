@@ -11,7 +11,77 @@ use {
         },
         tcd22xx_spec::*,
     },
+    std::marker::PhantomData,
 };
+
+#[derive(Default, Debug)]
+pub struct Tcd22xxCtls<T>
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+{
+    pub measured_elem_id_list: Vec<ElemId>,
+    pub notified_elem_id_list: Vec<ElemId>,
+
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Tcd22xxCtls<T>
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+{
+    pub fn cache_whole_params(
+        &mut self,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: &ExtensionSections,
+        _: &GlobalParameters,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn load(&mut self, _: &mut CardCntr) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn read(&self, _: &ElemId, _: &ElemValue) -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    pub fn write(
+        &mut self,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: &ExtensionSections,
+        _: &ElemId,
+        _: &ElemValue,
+        _: u32,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    pub fn cache_partial_params(
+        &mut self,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: &ExtensionSections,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn parse_notification(
+        &mut self,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: &ExtensionSections,
+        _: &GlobalParameters,
+        _: u32,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl {
