@@ -238,6 +238,11 @@ impl SaffireproOutGroupOperation for LiquidS56Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
+impl SaffireproIoParamsOperation for LiquidS56Protocol {
+    const AESEBU_IS_SUPPORTED: bool = true;
+    const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool = true;
+}
+
 /// Type of signal for optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptOutIfaceMode {

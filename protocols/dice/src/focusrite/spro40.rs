@@ -136,6 +136,11 @@ impl SaffireproOutGroupOperation for SPro40Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
+impl SaffireproIoParamsOperation for SPro40Protocol {
+    const AESEBU_IS_SUPPORTED: bool = false;
+    const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool = false;
+}
+
 /// Type of signal for optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptOutIfaceMode {
