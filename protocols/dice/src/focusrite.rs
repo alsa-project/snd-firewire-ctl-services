@@ -492,6 +492,270 @@ pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
     }
 }
 
+/// Type of signal for optical output interface.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum OpticalOutIfaceMode {
+    /// For ADAT signal.
+    Adat,
+    /// For S/PDIF signal.
+    Spdif,
+    /// For AES/EBU signal.
+    AesEbu,
+}
+
+impl Default for OpticalOutIfaceMode {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
+
+impl OpticalOutIfaceMode {
+    const ADAT_VALUE: u32 = 0x00000000;
+    const SPDIF_VALUE: u32 = 0x00000001;
+    const AESEBU_VALUE: u32 = 0x00000002;
+}
+
+const OPTICAL_OUT_IFACE_MODE_MASK: u32 = 0x00000003;
+const MIC_AMP_TRANSFORMER_CH0_FLAG: u32 = 0x00000008;
+const MIC_AMP_TRANSFORMER_CH1_FLAG: u32 = 0x00000010;
+
+fn serialize_optical_out_iface_mode(
+    mode: &OpticalOutIfaceMode,
+    aesebu_is_supported: bool,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+    val &= !OPTICAL_OUT_IFACE_MODE_MASK;
+
+    let v = match mode {
+        OpticalOutIfaceMode::Adat => OpticalOutIfaceMode::ADAT_VALUE,
+        OpticalOutIfaceMode::Spdif => OpticalOutIfaceMode::SPDIF_VALUE,
+        OpticalOutIfaceMode::AesEbu => {
+            if aesebu_is_supported {
+                OpticalOutIfaceMode::AESEBU_VALUE
+            } else {
+                Err(format!("AES/EBU is not supported but selected"))?
+            }
+        }
+    };
+    val |= v;
+
+    val.build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_optical_out_iface_mode(
+    mode: &mut OpticalOutIfaceMode,
+    aesebu_is_supported: bool,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+    val &= OPTICAL_OUT_IFACE_MODE_MASK;
+
+    *mode = match val {
+        OpticalOutIfaceMode::ADAT_VALUE => OpticalOutIfaceMode::Adat,
+        OpticalOutIfaceMode::SPDIF_VALUE => OpticalOutIfaceMode::Spdif,
+        OpticalOutIfaceMode::AESEBU_VALUE => {
+            if aesebu_is_supported {
+                OpticalOutIfaceMode::AesEbu
+            } else {
+                Err(format!("AES/EBU is not supported but detected"))?
+            }
+        }
+        _ => Err(format!(
+            "Optical interface mode not found for value {}",
+            val
+        ))?,
+    };
+
+    Ok(())
+}
+
+const MIC_AMP_TRANSFORMER_FLAGS: [u32; 2] =
+    [MIC_AMP_TRANSFORMER_CH0_FLAG, MIC_AMP_TRANSFORMER_CH1_FLAG];
+
+fn serialize_mic_amp_transformers(transformers: &[bool; 2], raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+    val &= !(MIC_AMP_TRANSFORMER_CH0_FLAG | MIC_AMP_TRANSFORMER_CH1_FLAG);
+
+    transformers
+        .iter()
+        .zip(MIC_AMP_TRANSFORMER_FLAGS)
+        .filter(|(&enabled, _)| enabled)
+        .for_each(|(_, flag)| val |= flag);
+
+    val.build_quadlet(raw);
+
+    Ok(())
+}
+
+fn deserialize_mic_amp_transformers(
+    transformers: &mut [bool; 2],
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+    val &= MIC_AMP_TRANSFORMER_CH0_FLAG | MIC_AMP_TRANSFORMER_CH1_FLAG;
+
+    transformers
+        .iter_mut()
+        .zip(MIC_AMP_TRANSFORMER_FLAGS)
+        .for_each(|(enabled, flag)| *enabled = val & flag > 0);
+
+    Ok(())
+}
+
+/// General input/output configuration for Liquid Saffire 56 and Saffire Pro 40.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SaffireproIoParams {
+    /// Whether to activate attenuation for analog output 0/1.
+    pub analog_out_0_1_pad: bool,
+    /// Mode of signal for optical output interface.
+    pub opt_out_iface_mode: OpticalOutIfaceMode,
+    /// Whether to enable transformer of microhphone amplifiers.
+    pub mic_amp_transformers: [bool; 2],
+}
+
+const IO_PARAMS_OFFSET: usize = 0x40;
+const IO_PARAMS_SIZE: usize = 0x20;
+
+fn serialize_io_params(
+    params: &SaffireproIoParams,
+    aesebu_is_supported: bool,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= IO_PARAMS_SIZE);
+
+    params.analog_out_0_1_pad.build_quadlet(&mut raw[..4]);
+    serialize_optical_out_iface_mode(
+        &params.opt_out_iface_mode,
+        aesebu_is_supported,
+        &mut raw[0x1c..0x20],
+    )?;
+    serialize_mic_amp_transformers(&params.mic_amp_transformers, &mut raw[0x1c..0x20])?;
+
+    Ok(())
+}
+
+fn deserialize_io_params(
+    params: &mut SaffireproIoParams,
+    aesebu_is_supported: bool,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= IO_PARAMS_SIZE);
+
+    params.analog_out_0_1_pad.parse_quadlet(&raw[..4]);
+    deserialize_optical_out_iface_mode(
+        &mut params.opt_out_iface_mode,
+        aesebu_is_supported,
+        &raw[0x1c..0x20],
+    )?;
+    deserialize_mic_amp_transformers(&mut params.mic_amp_transformers, &raw[0x1c..0x20])?;
+
+    Ok(())
+}
+
+/// Operation for parameters of input/output configuration.
+pub trait SaffireproIoParamsOperation: SaffireproSwNoticeOperation {
+    /// Whether to support AES/EBU signal in optical interface.
+    const AESEBU_IS_SUPPORTED: bool;
+
+    /// Whether to support transformer function for microphone pre-amplifier.
+    const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool;
+
+    /// Cache state of hardware for whole parameters.
+    fn cache_whole_io_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut SaffireproIoParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; IO_PARAMS_SIZE];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_PARAMS_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_io_params(params, Self::AESEBU_IS_SUPPORTED, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    /// Update state of hardware for partial parameters.
+    fn update_partial_io_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &SaffireproIoParams,
+        prev: &mut SaffireproIoParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(state, Self::AESEBU_IS_SUPPORTED, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..IO_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    IO_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new[..0x04] != old[..0x04] {
+            Self::write_sw_notice(req, node, sections, 0x00000003, timeout_ms)?;
+        }
+
+        if new[0x1c..0x20] != old[0x1c..0x20] {
+            let mut n = 0u32;
+            n.parse_quadlet(&new[0x1c..0x20]);
+            let mut o = 0u32;
+            o.parse_quadlet(&old[0x1c..0x20]);
+
+            if (n ^ o) & 0x00000003 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000004, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000008 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000008, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000010 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000010, timeout_ms)?;
+            }
+        }
+
+        deserialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -545,6 +809,23 @@ mod test {
             hw_knob_value: 33,
         };
         deserialize_out_group_state(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn io_params_serdes() {
+        let params = SaffireproIoParams {
+            analog_out_0_1_pad: true,
+            opt_out_iface_mode: OpticalOutIfaceMode::Spdif,
+            mic_amp_transformers: [true, false],
+        };
+
+        let mut raw = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(&params, false, &mut raw).unwrap();
+
+        let mut p = SaffireproIoParams::default();
+        deserialize_io_params(&mut p, false, &raw).unwrap();
 
         assert_eq!(params, p);
     }
