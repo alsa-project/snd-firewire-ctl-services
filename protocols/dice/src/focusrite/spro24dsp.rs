@@ -327,7 +327,7 @@ const CH_STRIP_FLAG_SW_NOTICE: u32 = 0x00000005;
 
 const COEF_OFFSET: usize = 0x0190;
 const COEF_BLOCK_SIZE: usize = 0x88;
-const COEF_BLOCK_COUNT: usize = 8;
+//const COEF_BLOCK_COUNT: usize = 8;
 
 const EQ_COEF_COUNT: usize = 5;
 
@@ -342,9 +342,9 @@ const COMP_CH1_SW_NOTICE: u32 = 0x00000007;
 
 const EQ_OUTPUT_OFFSET: usize = 0x18;
 const EQ_LOW_FREQ_OFFSET: usize = 0x20;
-const EQ_LOW_MIDDLE_FREQ_OFFSET: usize = 0x34;
-const EQ_HIGH_MIDDLE_FREQ_OFFSET: usize = 0x48;
-const EQ_HIGH_FREQ_OFFSET: usize = 0x5c;
+//const EQ_LOW_MIDDLE_FREQ_OFFSET: usize = 0x34;
+//const EQ_HIGH_MIDDLE_FREQ_OFFSET: usize = 0x48;
+//const EQ_HIGH_FREQ_OFFSET: usize = 0x5c;
 
 const EQ_OUTPUT_CH0_SW_NOTICE: u32 = 0x09;
 const EQ_OUTPUT_CH1_SW_NOTICE: u32 = 0x0a;
@@ -366,9 +366,22 @@ const REVERB_PRE_FILTER_SIGN_OFFSET: usize = 0x84;
 
 const REVERB_SW_NOTICE: u32 = 0x0000001a;
 
-trait QuadletConvert {
-    fn parse(&mut self, quads: &[f32]);
-    fn build(&self, quads: &mut [f32]);
+fn serialize_f32(val: &f32, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    raw[..4].copy_from_slice(&val.to_be_bytes());
+
+    Ok(())
+}
+
+fn deserialize_f32(val: &mut f32, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    *val = f32::from_be_bytes(quadlet);
+
+    Ok(())
 }
 
 /// State of compressor effect.
@@ -415,161 +428,238 @@ pub struct Spro24DspReverbState {
     pub pre_filter: f32,
 }
 
+/// General parameters of DSP effects.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Spro24DspEffectGeneralParams {
+    /// Use equalizer after compressor.
+    pub eq_after_comp: [bool; 2],
+    /// Whether to enable compressor.
+    pub comp_enable: [bool; 2],
+    /// Whether to enable equalizer.
+    pub eq_enable: [bool; 2],
+}
+
 const COEF_BLOCK_COMP: usize = 2;
 const COEF_BLOCK_EQ: usize = 2;
 const COEF_BLOCK_REVERB: usize = 3;
 
-impl QuadletConvert for Spro24DspCompressorState {
-    fn parse(&mut self, quads: &[f32]) {
-        (0..2).for_each(|ch| {
-            let base_offset = (COEF_BLOCK_COMP + ch) * COEF_BLOCK_SIZE;
+// Serialize to a pair of coefficient block.
+fn serialize_compressor_state(
+    state: &Spro24DspCompressorState,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE * 2);
 
-            let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
-            self.output[ch] = quads[pos];
+    (0..2).try_for_each(|ch| {
+        let base_offset = COEF_BLOCK_SIZE * ch;
 
-            let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
-            self.threshold[ch] = quads[pos];
+        let pos = base_offset + COMP_OUTPUT_OFFSET;
+        serialize_f32(&state.output[ch], &mut raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
-            self.ratio[ch] = quads[pos];
+        let pos = base_offset + COMP_THRESHOLD_OFFSET;
+        serialize_f32(&state.threshold[ch], &mut raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
-            self.attack[ch] = quads[pos];
+        let pos = base_offset + COMP_RATIO_OFFSET;
+        serialize_f32(&state.ratio[ch], &mut raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
-            self.release[ch] = quads[pos];
-        });
-    }
+        let pos = base_offset + COMP_ATTACK_OFFSET;
+        serialize_f32(&state.attack[ch], &mut raw[pos..(pos + 4)])?;
 
-    fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT).for_each(|i| {
-            let ch = i % 2;
-            let base_offset = i * COEF_BLOCK_SIZE;
-
-            let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
-            quads[pos] = self.output[ch];
-
-            let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
-            quads[pos] = self.threshold[ch];
-
-            let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
-            quads[pos] = self.ratio[ch];
-
-            let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
-            quads[pos] = self.attack[ch];
-
-            let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
-            quads[pos] = self.release[ch];
-        });
-    }
+        let pos = base_offset + COMP_RELEASE_OFFSET;
+        serialize_f32(&state.release[ch], &mut raw[pos..(pos + 4)])
+    })
 }
 
-impl QuadletConvert for Spro24DspEqualizerState {
-    fn parse(&mut self, quads: &[f32]) {
-        (0..2).for_each(|ch| {
-            let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
+// Deserialize from a pair of coefficient block.
+fn deserialize_compressor_state(
+    state: &mut Spro24DspCompressorState,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE * 2);
 
-            let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
-            self.output[ch] = quads[pos];
+    (0..2).try_for_each(|ch| {
+        let base_offset = COEF_BLOCK_SIZE * ch;
 
-            let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
-            self.low_coef[ch]
-                .0
-                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+        let pos = base_offset + COMP_OUTPUT_OFFSET;
+        deserialize_f32(&mut state.output[ch], &raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
-            self.low_middle_coef[ch]
-                .0
-                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+        let pos = base_offset + COMP_THRESHOLD_OFFSET;
+        deserialize_f32(&mut state.threshold[ch], &raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
-            self.high_middle_coef[ch]
-                .0
-                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+        let pos = base_offset + COMP_RATIO_OFFSET;
+        deserialize_f32(&mut state.ratio[ch], &raw[pos..(pos + 4)])?;
 
-            let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
-            self.high_coef[ch]
-                .0
-                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
-        });
-    }
+        let pos = base_offset + COMP_ATTACK_OFFSET;
+        deserialize_f32(&mut state.attack[ch], &raw[pos..(pos + 4)])?;
 
-    fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT).for_each(|i| {
-            let ch = i % 2;
-            let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
-
-            let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
-            quads[pos] = self.output[ch];
-
-            let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
-            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_coef[ch].0);
-
-            let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
-            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_middle_coef[ch].0);
-
-            let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
-            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_middle_coef[ch].0);
-
-            let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
-            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_coef[ch].0);
-        });
-    }
+        let pos = base_offset + COMP_RELEASE_OFFSET;
+        deserialize_f32(&mut state.release[ch], &raw[pos..(pos + 4)])
+    })
 }
 
-impl QuadletConvert for Spro24DspReverbState {
-    fn parse(&mut self, quads: &[f32]) {
-        let base_offset = COEF_BLOCK_REVERB * COEF_BLOCK_SIZE;
+// Serialize to a pair of coefficient block.
+fn serialize_equalizer_state(
+    state: &Spro24DspEqualizerState,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE * 2);
 
-        let pos = (base_offset + REVERB_SIZE_OFFSET) / 4;
-        self.size = quads[pos];
+    (0..2).try_for_each(|ch| {
+        let base_offset = COEF_BLOCK_SIZE * ch;
 
-        let pos = (base_offset + REVERB_AIR_OFFSET) / 4;
-        self.air = quads[pos];
+        let pos = base_offset + EQ_OUTPUT_OFFSET;
+        serialize_f32(&state.output[ch], &mut raw[pos..(pos + 4)])?;
 
-        let pos = (base_offset + REVERB_ENABLE_OFFSET) / 4;
-        self.enabled = quads[pos] > 0.0;
+        state.low_coef[ch]
+            .0
+            .iter()
+            .chain(state.low_middle_coef[ch].0.iter())
+            .chain(state.high_middle_coef[ch].0.iter())
+            .chain(state.high_coef[ch].0.iter())
+            .enumerate()
+            .try_for_each(|(i, coef)| {
+                let pos = base_offset + EQ_LOW_FREQ_OFFSET + i * 4;
+                serialize_f32(coef, &mut raw[pos..(pos + 4)])
+            })
+    })
+}
 
-        let pos = (base_offset + REVERB_PRE_FILTER_VALUE_OFFSET) / 4;
-        let mut val = quads[pos];
-        let pos = (base_offset + REVERB_PRE_FILTER_SIGN_OFFSET) / 4;
-        if quads[pos] == 0.0 {
-            val *= -1.0;
+// Deserialize from a pair of coefficient block.
+fn deserialize_equalizer_state(
+    state: &mut Spro24DspEqualizerState,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE * 2);
+
+    (0..2).try_for_each(|ch| {
+        let base_offset = COEF_BLOCK_SIZE * ch;
+
+        let pos = base_offset + EQ_OUTPUT_OFFSET;
+        deserialize_f32(&mut state.output[ch], &raw[pos..(pos + 4)])?;
+
+        state.low_coef[ch]
+            .0
+            .iter_mut()
+            .chain(state.low_middle_coef[ch].0.iter_mut())
+            .chain(state.high_middle_coef[ch].0.iter_mut())
+            .chain(state.high_coef[ch].0.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, coef)| {
+                let pos = base_offset + EQ_LOW_FREQ_OFFSET + i * 4;
+                deserialize_f32(coef, &raw[pos..(pos + 4)])
+            })
+    })
+}
+
+// Serialize to a coefficient block.
+fn serialize_reverb_state(state: &Spro24DspReverbState, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE);
+
+    let pos = REVERB_SIZE_OFFSET;
+    serialize_f32(&state.size, &mut raw[pos..(pos + 4)])?;
+
+    let pos = REVERB_AIR_OFFSET;
+    serialize_f32(&state.air, &mut raw[pos..(pos + 4)])?;
+
+    let enabled_pos = REVERB_ENABLE_OFFSET;
+    let disabled_pos = REVERB_DISABLE_OFFSET;
+    let vals = if state.enabled {
+        [1.0, 0.0]
+    } else {
+        [0.0, 1.0]
+    };
+    serialize_f32(&vals[0], &mut raw[enabled_pos..(enabled_pos + 4)])?;
+    serialize_f32(&vals[1], &mut raw[disabled_pos..(disabled_pos + 4)])?;
+
+    let pos = REVERB_ENABLE_OFFSET;
+    let val = if state.enabled { 1.0 } else { 0.0 };
+    serialize_f32(&val, &mut raw[pos..(pos + 4)])?;
+
+    let pos = REVERB_PRE_FILTER_VALUE_OFFSET;
+    let val = state.pre_filter.abs();
+    serialize_f32(&val, &mut raw[pos..(pos + 4)])?;
+
+    let pos = REVERB_PRE_FILTER_SIGN_OFFSET;
+    let sign = if state.pre_filter > 0.0 { 1.0 } else { 0.0 };
+    serialize_f32(&sign, &mut raw[pos..(pos + 4)])?;
+
+    Ok(())
+}
+
+// Deserialize from a coefficient block.
+fn deserialize_reverb_state(state: &mut Spro24DspReverbState, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= COEF_BLOCK_SIZE);
+
+    let pos = REVERB_SIZE_OFFSET;
+    deserialize_f32(&mut state.size, &raw[pos..(pos + 4)])?;
+
+    let pos = REVERB_AIR_OFFSET;
+    deserialize_f32(&mut state.air, &raw[pos..(pos + 4)])?;
+
+    let mut val = 0.0;
+    let pos = REVERB_ENABLE_OFFSET;
+    deserialize_f32(&mut val, &raw[pos..(pos + 4)])?;
+    state.enabled = val > 0.0;
+
+    let mut val = 0.0;
+    let pos = REVERB_PRE_FILTER_VALUE_OFFSET;
+    deserialize_f32(&mut val, &raw[pos..(pos + 4)])?;
+
+    let mut sign = 0.0;
+    let pos = REVERB_PRE_FILTER_SIGN_OFFSET;
+    deserialize_f32(&mut sign, &raw[pos..(pos + 4)])?;
+    if sign == 0.0 {
+        val *= -1.0;
+    }
+    state.pre_filter = val;
+
+    Ok(())
+}
+
+fn serialize_effect_general_params(
+    params: &Spro24DspEffectGeneralParams,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+
+    (0..2).for_each(|i| {
+        let mut flags = 0u16;
+        if params.eq_after_comp[i] {
+            flags |= CH_STRIP_FLAG_EQ_AFTER_COMP;
         }
-        self.pre_filter = val;
-    }
+        if params.comp_enable[i] {
+            flags |= CH_STRIP_FLAG_COMP_ENABLE;
+        }
+        if params.eq_enable[i] {
+            flags |= CH_STRIP_FLAG_EQ_ENABLE;
+        }
 
-    fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT).for_each(|i| {
-            let base_offset = i * COEF_BLOCK_SIZE;
+        val |= (flags as u32) << (16 * i);
+    });
 
-            let pos = (base_offset + REVERB_SIZE_OFFSET) / 4;
-            quads[pos] = self.size;
+    val.build_quadlet(raw);
 
-            let pos = (base_offset + REVERB_AIR_OFFSET) / 4;
-            quads[pos] = self.air;
+    Ok(())
+}
 
-            let enable_pos = (base_offset + REVERB_ENABLE_OFFSET) / 4;
-            let disable_pos = (base_offset + REVERB_DISABLE_OFFSET) / 4;
-            if self.enabled {
-                quads[enable_pos] = 1.0;
-                quads[disable_pos] = 0.0
-            } else {
-                quads[enable_pos] = 0.0;
-                quads[disable_pos] = 1.0
-            }
+fn deserialize_effect_general_params(
+    params: &mut Spro24DspEffectGeneralParams,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
 
-            let mut val = self.pre_filter;
-            let pos = (base_offset + REVERB_PRE_FILTER_SIGN_OFFSET) / 4;
-            quads[pos] = if val > 0.0 { 1.0 } else { 0.0 };
+    let mut val = 0u32;
+    val.parse_quadlet(raw);
+    (0..2).for_each(|i| {
+        let flags = (val >> (i * 16)) as u16;
+        params.eq_after_comp[i] = flags & CH_STRIP_FLAG_EQ_AFTER_COMP > 0;
+        params.comp_enable[i] = flags & CH_STRIP_FLAG_COMP_ENABLE > 0;
+        params.eq_enable[i] = flags & CH_STRIP_FLAG_EQ_ENABLE > 0;
+    });
 
-            if val < 0.0 {
-                val *= -1.0;
-            }
-            let pos = (base_offset + REVERB_PRE_FILTER_VALUE_OFFSET) / 4;
-            quads[pos] = val;
-        });
-    }
+    Ok(())
 }
 
 /// The state of effect.
@@ -578,6 +668,7 @@ pub struct Spro24DspEffectState {
     pub eq_after_comp: [bool; 2],
     pub comp_enable: [bool; 2],
     pub eq_enable: [bool; 2],
+    pub general: Spro24DspEffectGeneralParams,
     pub comp: Spro24DspCompressorState,
     pub eq: Spro24DspEqualizerState,
     pub reverb: Spro24DspReverbState,
@@ -611,6 +702,265 @@ impl SPro24DspProtocol {
     pub const REVERB_PRE_FILTER_MIN: f32 = -1.0;
     pub const REVERB_PRE_FILTER_MAX: f32 = 1.0;
 
+    pub fn cache_effect_general(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; 4];
+
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            CH_STRIP_FLAG_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        serialize_effect_general_params(params, &mut raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn update_effect_general(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &Spro24DspEffectGeneralParams,
+        prev: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; 4];
+        serialize_effect_general_params(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; 4];
+        serialize_effect_general_params(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        if new != old {
+            ApplSectionProtocol::write_appl_data(
+                req,
+                node,
+                sections,
+                CH_STRIP_FLAG_OFFSET,
+                &mut new,
+                timeout_ms,
+            )?;
+            Self::write_sw_notice(req, node, sections, CH_STRIP_FLAG_SW_NOTICE, timeout_ms)?;
+        }
+        deserialize_effect_general_params(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn cache_whole_comp_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP,
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        serialize_compressor_state(params, &mut raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn update_partial_comp_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        comp: &Spro24DspCompressorState,
+        prev: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(comp, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, COMP_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, COMP_CH1_SW_NOTICE, timeout_ms)?;
+
+        deserialize_compressor_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn cache_whole_eq_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ,
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        serialize_equalizer_state(params, &mut raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn update_partial_eq_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        eq: &Spro24DspEqualizerState,
+        prev: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(eq, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH1_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH1_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH1_SW_NOTICE, timeout_ms)?;
+
+        deserialize_equalizer_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn cache_whole_reverb_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE];
+
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB,
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        serialize_reverb_state(params, &mut raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    pub fn update_partial_reverb_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        reverb: &Spro24DspReverbState,
+        prev: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(reverb, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
+        deserialize_reverb_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
     pub fn read_effect_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -636,23 +986,33 @@ impl SPro24DspProtocol {
                 state.eq_enable[i] = flags & CH_STRIP_FLAG_EQ_ENABLE > 0;
             });
         })?;
+        deserialize_effect_general_params(&mut state.general, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
-        let mut raw = vec![0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        ApplSectionProtocol::read_appl_data(req, node, sections, COEF_OFFSET, &mut raw, timeout_ms)
-            .map(|_| {
-                let mut quad = [0; 4];
-                let quads: Vec<f32> = (0..raw.len())
-                    .step_by(4)
-                    .map(|pos| {
-                        quad.copy_from_slice(&raw[pos..(pos + 4)]);
-                        f32::from_be_bytes(quad)
-                    })
-                    .collect();
+        let mut raw = vec![0; COEF_BLOCK_SIZE * 2];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            COEF_OFFSET + COEF_BLOCK_SIZE * 2,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_compressor_state(&mut state.comp, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+        deserialize_equalizer_state(&mut state.eq, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
-                state.comp.parse(&quads);
-                state.eq.parse(&quads);
-                state.reverb.parse(&quads);
-            })
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            COEF_OFFSET + COEF_BLOCK_SIZE * 3,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_reverb_state(&mut state.reverb, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 
     pub fn write_eq_after_comp(
@@ -762,11 +1122,33 @@ impl SPro24DspProtocol {
         state: &mut Spro24DspEffectState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_effect(req, node, sections, comp, &state.comp, timeout_ms)?;
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(comp, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(&state.comp, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
         Self::write_sw_notice(req, node, sections, COMP_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, COMP_CH1_SW_NOTICE, timeout_ms)?;
-        state.comp = *comp;
-        Ok(())
+
+        deserialize_compressor_state(&mut state.comp, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 
     pub fn write_eq_effect(
@@ -777,7 +1159,28 @@ impl SPro24DspProtocol {
         state: &mut Spro24DspEffectState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_effect(req, node, sections, eq, &state.eq, timeout_ms)?;
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(eq, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(&state.eq, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
         Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH1_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH0_SW_NOTICE, timeout_ms)?;
@@ -812,8 +1215,9 @@ impl SPro24DspProtocol {
         )?;
         Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH1_SW_NOTICE, timeout_ms)?;
-        state.eq = *eq;
-        Ok(())
+
+        deserialize_equalizer_state(&mut state.eq, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 
     pub fn write_reverb_effect(
@@ -824,41 +1228,31 @@ impl SPro24DspProtocol {
         state: &mut Spro24DspEffectState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_effect(req, node, sections, reverb, &state.reverb, timeout_ms)?;
-        Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
-        state.reverb = *reverb;
-        Ok(())
-    }
+        let mut new = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(reverb, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
-    fn write_effect<T: QuadletConvert>(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        new: &T,
-        old: &T,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        let mut old_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        new.build(&mut new_quads);
-        old.build(&mut old_quads);
+        let mut old = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(&state.reverb, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
-        new_quads
-            .iter()
-            .zip(old_quads)
-            .enumerate()
-            .filter(|(_, (n, o))| *n != o)
-            .try_for_each(|(i, (val, _))| {
-                let pos = COEF_OFFSET + i * 4;
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
                 ApplSectionProtocol::write_appl_data(
                     req,
                     node,
                     sections,
-                    pos,
-                    &mut val.to_be_bytes(),
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB + pos,
+                    &mut new[pos..(pos + 4)],
                     timeout_ms,
                 )
-            })
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
+        deserialize_reverb_state(&mut state.reverb, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
 
@@ -867,26 +1261,27 @@ mod test {
     use super::*;
 
     #[test]
-    fn comp_state() {
-        let orig = Spro24DspCompressorState {
+    fn compressor_state_serdes() {
+        let state = Spro24DspCompressorState {
             output: [0.04, 0.05],
             threshold: [0.16, 0.17],
             ratio: [0.20, 0.21],
             attack: [0.32, 0.33],
             release: [0.44, 0.45],
         };
-        let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        orig.build(&mut new_quads);
 
-        let mut curr = Spro24DspCompressorState::default();
-        curr.parse(&new_quads);
+        let mut raw = [0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(&state, &mut raw).unwrap();
 
-        assert_eq!(orig, curr);
+        let mut s = Spro24DspCompressorState::default();
+        deserialize_compressor_state(&mut s, &raw).unwrap();
+
+        assert_eq!(state, s);
     }
 
     #[test]
-    fn eq_state() {
-        let orig = Spro24DspEqualizerState {
+    fn equalizer_state_serdes() {
+        let state = Spro24DspEqualizerState {
             output: [0.06, 0.07],
             low_coef: [
                 Spro24DspEqualizerFrequencyBandState([0.00, 0.01, 0.02, 0.03, 0.04]),
@@ -905,29 +1300,46 @@ mod test {
                 Spro24DspEqualizerFrequencyBandState([0.70, 0.71, 0.72, 0.73, 0.74]),
             ],
         };
-        let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        orig.build(&mut new_quads);
 
-        let mut curr = Spro24DspEqualizerState::default();
-        curr.parse(&new_quads);
+        let mut raw = [0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(&state, &mut raw).unwrap();
 
-        assert_eq!(orig, curr);
+        let mut s = Spro24DspEqualizerState::default();
+        deserialize_equalizer_state(&mut s, &raw).unwrap();
+
+        assert_eq!(state, s);
     }
 
     #[test]
-    fn reverb_state() {
-        let orig = Spro24DspReverbState {
+    fn reverb_state_serdes() {
+        let state = Spro24DspReverbState {
             size: 0.04,
             air: 0.14,
             enabled: false,
             pre_filter: -0.1,
         };
-        let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        orig.build(&mut new_quads);
+        let mut raw = [0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(&state, &mut raw).unwrap();
 
-        let mut curr = Spro24DspReverbState::default();
-        curr.parse(&new_quads);
+        let mut s = Spro24DspReverbState::default();
+        deserialize_reverb_state(&mut s, &raw).unwrap();
 
-        assert_eq!(orig, curr);
+        assert_eq!(state, s);
+    }
+
+    #[test]
+    fn effect_general_params_serdes() {
+        let params = Spro24DspEffectGeneralParams {
+            eq_after_comp: [false, true],
+            comp_enable: [true, false],
+            eq_enable: [false, true],
+        };
+        let mut raw = [0u8; 4];
+        serialize_effect_general_params(&params, &mut raw).unwrap();
+
+        let mut p = Spro24DspEffectGeneralParams::default();
+        deserialize_effect_general_params(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
     }
 }
