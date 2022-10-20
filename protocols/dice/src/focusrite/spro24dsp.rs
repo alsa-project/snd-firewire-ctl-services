@@ -151,7 +151,7 @@
 //!    1 | output volume    | 0x00000000 | 0x42800000 | -36.0 dB | +36.0 dB |
 //!    2 | threshold        | 0xbfa00000 | 0x00000000 | -80.0 dB |   0.0 dB |
 //!    3 | ratio            | 0x3d000000 | 0x3f000000 |  1.1:1   |  inf:1   |
-//!    4 | attack           | 0xbf700000 | 0xbf800000 |   2ms    |  100ms   |
+//!    4 | attack           | 0xbf800000 | 0xbf700000 |   2ms    |  100ms   |
 //!    5 | release          | 0x3f700000 | 0x3f800000 |  100ms   |   3s     |
 //!
 //! ### Equalizer output coefficients (2 quadlets)
@@ -593,8 +593,8 @@ impl SPro24DspProtocol {
     pub const COMPRESSOR_RATIO_MIN: f32 = 0.03125;
     pub const COMPRESSOR_RATIO_MAX: f32 = 0.5;
 
-    pub const COMPRESSOR_ATTACK_MIN: f32 = -0.9375;
-    pub const COMPRESSOR_ATTACK_MAX: f32 = -1.0;
+    pub const COMPRESSOR_ATTACK_MIN: f32 = -1.0;
+    pub const COMPRESSOR_ATTACK_MAX: f32 = -0.9375;
 
     pub const COMPRESSOR_RELEASE_MIN: f32 = 0.9375;
     pub const COMPRESSOR_RELEASE_MAX: f32 = 1.0;
