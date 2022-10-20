@@ -483,7 +483,9 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_whole_io_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = T::cache_whole_io_params(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -543,8 +545,16 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
             ANALOG_OUT_0_1_PAD_NAME => {
                 let mut params = self.0.clone();
                 params.analog_out_0_1_pad = elem_value.boolean()[0];
-                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = T::update_partial_io_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OPTICAL_OUT_IFACE_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -558,8 +568,16 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_out_iface_mode = mode)?;
-                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = T::update_partial_io_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIC_AMP_TRANSFORMER_NAME => {
                 let mut params = self.0.clone();
@@ -568,8 +586,16 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(transformer, val)| *transformer = val);
-                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let res = T::update_partial_io_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
