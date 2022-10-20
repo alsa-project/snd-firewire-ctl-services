@@ -81,6 +81,13 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
             TIMEOUT_MS,
         )?;
 
+        self.specific_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         self.out_grp_ctl.load(card_cntr)?;
         self.io_params_ctl.load(card_cntr)?;
         self.specific_ctl.load(card_cntr)?;
@@ -109,14 +116,7 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
             Ok(true)
         } else if self.io_params_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.specific_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.specific_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -169,11 +169,10 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.specific_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -287,7 +286,7 @@ impl Tcd22xxCtlOperation<LiquidS56Protocol> for LiquidS56Tcd22xxCtl {
     }
 }
 
-fn analog_input_level_to_str(level: &AnalogInputLevel) -> &'static str {
+fn analog_input_level_to_str(level: &AnalogInputLevel) -> &str {
     match level {
         AnalogInputLevel::Mic => "Microphone",
         AnalogInputLevel::Line => "Line",
@@ -296,7 +295,7 @@ fn analog_input_level_to_str(level: &AnalogInputLevel) -> &'static str {
     }
 }
 
-fn mic_amp_emulation_type_to_str(emulation_type: &MicAmpEmulationType) -> &'static str {
+fn mic_amp_emulation_type_to_str(emulation_type: &MicAmpEmulationType) -> &str {
     match emulation_type {
         MicAmpEmulationType::Flat => "Flat",
         MicAmpEmulationType::Trany1h => "TRANY-1-H",
@@ -313,8 +312,39 @@ fn mic_amp_emulation_type_to_str(emulation_type: &MicAmpEmulationType) -> &'stat
     }
 }
 
+fn meter_display_target_to_str(target: &MeterDisplayTarget) -> &str {
+    match target {
+        MeterDisplayTarget::AnalogInput0 => "Analog-input-1",
+        MeterDisplayTarget::AnalogInput1 => "Analog-input-2",
+        MeterDisplayTarget::AnalogInput2 => "Analog-input-3",
+        MeterDisplayTarget::AnalogInput3 => "Analog-input-4",
+        MeterDisplayTarget::AnalogInput4 => "Analog-input-5",
+        MeterDisplayTarget::AnalogInput5 => "Analog-input-6",
+        MeterDisplayTarget::AnalogInput6 => "Analog-input-7",
+        MeterDisplayTarget::AnalogInput7 => "Analog-input-8",
+        MeterDisplayTarget::SpdifInput0 => "S/PDIF-input-1",
+        MeterDisplayTarget::SpdifInput1 => "S/PDIF-input-2",
+        MeterDisplayTarget::AdatInput0 => "ADAT-input-1",
+        MeterDisplayTarget::AdatInput1 => "ADAT-input-2",
+        MeterDisplayTarget::AdatInput2 => "ADAT-input-3",
+        MeterDisplayTarget::AdatInput3 => "ADAT-input-4",
+        MeterDisplayTarget::AdatInput4 => "ADAT-input-5",
+        MeterDisplayTarget::AdatInput5 => "ADAT-input-6",
+        MeterDisplayTarget::AdatInput6 => "ADAT-input-7",
+        MeterDisplayTarget::AdatInput7 => "ADAT-input-8",
+        MeterDisplayTarget::AdatInput8 => "ADAT-input-9",
+        MeterDisplayTarget::AdatInput9 => "ADAT-input-10",
+        MeterDisplayTarget::AdatInput10 => "ADAT-input-11",
+        MeterDisplayTarget::AdatInput11 => "ADAT-input-12",
+        MeterDisplayTarget::AdatInput12 => "ADAT-input-13",
+        MeterDisplayTarget::AdatInput13 => "ADAT-input-14",
+        MeterDisplayTarget::AdatInput14 => "ADAT-input-15",
+        MeterDisplayTarget::AdatInput15 => "ADAT-input-16",
+    }
+}
+
 #[derive(Default, Debug)]
-struct SpecificCtl;
+struct SpecificCtl(LiquidS56SpecificParams);
 
 impl SpecificCtl {
     const ANALOG_INPUT_LEVEL_NAME: &'static str = "analog-input-levels";
@@ -344,40 +374,50 @@ impl SpecificCtl {
         MicAmpEmulationType::NewAge,
     ];
 
-    const HARMONICS_MIN: i32 = 0;
-    const HARMONICS_MAX: i32 = 21;
+    const HARMONICS_MIN: i32 = LiquidS56Protocol::MIC_AMP_HARMONICS_MIN as i32;
+    const HARMONICS_MAX: i32 = LiquidS56Protocol::MIC_AMP_HARMONICS_MAX as i32;
     const HARMONICS_STEP: i32 = 1;
 
     const LED_STATE_LABELS: [&'static str; 4] = ["ADAT1", "ADAT2", "S/PDIF", "MIDI-in"];
 
-    const METER_DISPLAY_TARGETS: [&'static str; 26] = [
-        "Analog-input-1",
-        "Analog-input-2",
-        "Analog-input-3",
-        "Analog-input-4",
-        "Analog-input-5",
-        "Analog-input-6",
-        "Analog-input-7",
-        "Analog-input-8",
-        "S/PDIF-input-1",
-        "S/PDIF-input-2",
-        "ADAT-input-1",
-        "ADAT-input-2",
-        "ADAT-input-3",
-        "ADAT-input-4",
-        "ADAT-input-5",
-        "ADAT-input-6",
-        "ADAT-input-7",
-        "ADAT-input-8",
-        "ADAT-input-9",
-        "ADAT-input-10",
-        "ADAT-input-11",
-        "ADAT-input-12",
-        "ADAT-input-13",
-        "ADAT-input-14",
-        "ADAT-input-15",
-        "ADAT-input-16",
+    const METER_DISPLAY_TARGETS: &'static [MeterDisplayTarget] = &[
+        MeterDisplayTarget::AnalogInput0,
+        MeterDisplayTarget::AnalogInput1,
+        MeterDisplayTarget::AnalogInput2,
+        MeterDisplayTarget::AnalogInput3,
+        MeterDisplayTarget::AnalogInput4,
+        MeterDisplayTarget::AnalogInput5,
+        MeterDisplayTarget::AnalogInput6,
+        MeterDisplayTarget::AnalogInput7,
+        MeterDisplayTarget::SpdifInput0,
+        MeterDisplayTarget::SpdifInput1,
+        MeterDisplayTarget::AdatInput0,
+        MeterDisplayTarget::AdatInput1,
+        MeterDisplayTarget::AdatInput2,
+        MeterDisplayTarget::AdatInput3,
+        MeterDisplayTarget::AdatInput4,
+        MeterDisplayTarget::AdatInput5,
+        MeterDisplayTarget::AdatInput6,
+        MeterDisplayTarget::AdatInput7,
+        MeterDisplayTarget::AdatInput8,
+        MeterDisplayTarget::AdatInput9,
+        MeterDisplayTarget::AdatInput10,
+        MeterDisplayTarget::AdatInput11,
+        MeterDisplayTarget::AdatInput12,
+        MeterDisplayTarget::AdatInput13,
+        MeterDisplayTarget::AdatInput14,
+        MeterDisplayTarget::AdatInput15,
     ];
+
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        LiquidS56Protocol::cache_whole_specific_params(req, node, sections, &mut self.0, timeout_ms)
+    }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::ANALOG_INPUT_LEVELS
@@ -421,6 +461,10 @@ impl SpecificCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::LED_STATE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, Self::LED_STATE_LABELS.len(), true)?;
 
+        let labels: Vec<&str> = Self::METER_DISPLAY_TARGETS
+            .iter()
+            .map(|target| meter_display_target_to_str(target))
+            .collect();
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
             0,
@@ -428,36 +472,22 @@ impl SpecificCtl {
             Self::METER_DISPLAY_TARGETS_NAME,
             0,
         );
-        card_cntr.add_enum_elems(&elem_id, 1, 8, &Self::METER_DISPLAY_TARGETS, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 8, &labels, None, true)?;
 
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ANALOG_INPUT_LEVEL_NAME => {
-                let mut levels = [AnalogInputLevel::Reserved(0); 8];
-                LiquidS56Protocol::read_analog_input_level(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    &mut levels,
-                    timeout_ms,
-                )?;
-                let vals: Vec<u32> = levels
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .analog_input_levels
                     .iter()
                     .map(|level| {
                         let pos = Self::ANALOG_INPUT_LEVELS
                             .iter()
-                            .position(|l| l.eq(level))
+                            .position(|l| level.eq(l))
                             .unwrap();
                         pos as u32
                     })
@@ -466,78 +496,48 @@ impl SpecificCtl {
                 Ok(true)
             }
             Self::MIC_AMP_EMULATION_TYPE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let emulation_type = LiquidS56Protocol::read_mic_amp_emulation_type(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        timeout_ms,
-                    )?;
-                    let pos = Self::MIC_AMP_EMULATION_TYPES
-                        .iter()
-                        .position(|t| t.eq(&emulation_type))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .mic_amp_emulation_types
+                    .iter()
+                    .map(|emulation_type| {
+                        let pos = Self::MIC_AMP_EMULATION_TYPES
+                            .iter()
+                            .position(|t| emulation_type.eq(t))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             Self::MIC_AMP_HARMONICS_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    let harmonics = LiquidS56Protocol::read_mic_amp_harmonics(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        timeout_ms,
-                    )?;
-                    Ok(harmonics as i32)
-                })
-                .map(|_| true)
+                let params = &self.0;
+                let vals: Vec<i32> = params
+                    .mic_amp_harmonics
+                    .iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             Self::MIC_AMP_POLARITY_NAME => {
-                ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
-                    LiquidS56Protocol::read_mic_amp_polarity(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        timeout_ms,
-                    )
-                })
-                .map(|_| true)
+                let params = &self.0;
+                elem_value.set_bool(&params.mic_amp_polarities);
+                Ok(true)
             }
             Self::LED_STATE_NAME => {
-                let mut state = LedState::default();
-                LiquidS56Protocol::read_led_state(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    &mut state,
-                    timeout_ms,
-                )?;
-                let vals = [state.adat1, state.adat2, state.spdif, state.midi_in];
-                elem_value.set_bool(&vals);
+                let params = &self.0;
+                let state = &params.led_states;
+                elem_value.set_bool(&[state.adat1, state.adat2, state.spdif, state.midi_in]);
                 Ok(true)
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
-                let mut targets = [0; 8];
-                LiquidS56Protocol::read_meter_display_targets(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    &mut targets,
-                    timeout_ms,
-                )?;
-                let vals: Vec<u32> = targets
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .meter_display_targets
                     .iter()
-                    .map(|&target| {
-                        if target < Self::METER_DISPLAY_TARGETS.len() {
-                            target as u32
-                        } else {
-                            0
-                        }
-                    })
+                    .map(|&target| target as u32)
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
@@ -548,122 +548,143 @@ impl SpecificCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ANALOG_INPUT_LEVEL_NAME => {
-                let vals = &new.enumerated()[..8];
-                let mut levels = [AnalogInputLevel::Reserved(0); 8];
-                levels
+                let mut params = self.0.clone();
+                params
+                    .analog_input_levels
                     .iter_mut()
-                    .zip(vals)
-                    .enumerate()
-                    .try_for_each(|(i, (level, val))| {
-                        let l = Self::ANALOG_INPUT_LEVELS
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::ANALOG_INPUT_LEVELS
                             .iter()
-                            .nth(*val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
-                                let msg = format!("Invalid index of analog input level: {}", val);
+                                let msg = format!("Invalid index of analog input level: {}", pos);
                                 Error::new(FileError::Inval, &msg)
-                            })?;
-
-                        if (i < 2 || i > 3) && *l == AnalogInputLevel::Inst {
-                            let msg = "Instrument level is just available for channel 3 and 4";
-                            Err(Error::new(FileError::Inval, &msg))
-                        } else {
-                            *level = *l;
-                            Ok(())
-                        }
+                            })
+                            .map(|&l| *level = l)
                     })?;
-                LiquidS56Protocol::write_analog_input_level(
+                LiquidS56Protocol::update_partial_specific_params(
                     req,
-                    &mut unit.1,
+                    node,
                     sections,
-                    &levels,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::MIC_AMP_EMULATION_TYPE_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    let &emulation_type = Self::MIC_AMP_EMULATION_TYPES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of emulation type: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    LiquidS56Protocol::write_mic_amp_emulation_type(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        emulation_type,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                params
+                    .mic_amp_emulation_types
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(emulation_type, &val)| {
+                        let pos = val as usize;
+                        Self::MIC_AMP_EMULATION_TYPES
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of emulation type: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&t| *emulation_type = t)
+                    })?;
+                LiquidS56Protocol::update_partial_specific_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             Self::MIC_AMP_HARMONICS_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    LiquidS56Protocol::write_mic_amp_harmonics(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        val as u8,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                params
+                    .mic_amp_harmonics
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(harmonics, &val)| *harmonics = val as u8);
+                LiquidS56Protocol::update_partial_specific_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             Self::MIC_AMP_POLARITY_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                    LiquidS56Protocol::write_mic_amp_polarity(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        val,
-                        timeout_ms,
-                    )
-                })
+                let mut params = self.0.clone();
+                params
+                    .mic_amp_polarities
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(polarity, val)| *polarity = val);
+                LiquidS56Protocol::update_partial_specific_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
                 .map(|_| true)
             }
             Self::LED_STATE_NAME => {
-                let vals = &new.boolean()[..4];
-                let state = LedState {
-                    adat1: vals[0],
-                    adat2: vals[1],
-                    spdif: vals[2],
-                    midi_in: vals[3],
-                };
-                LiquidS56Protocol::write_led_state(req, &mut unit.1, sections, &state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                let vals = elem_value.boolean();
+                params.led_states.adat1 = vals[0];
+                params.led_states.adat2 = vals[1];
+                params.led_states.spdif = vals[2];
+                params.led_states.midi_in = vals[3];
+                LiquidS56Protocol::update_partial_specific_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
-                let vals = &new.enumerated()[..8];
-                let mut targets = [0; 8];
-                targets.iter_mut().zip(vals).try_for_each(|(target, val)| {
-                    if *val < Self::METER_DISPLAY_TARGETS.len() as u32 {
-                        *target = *val as usize;
-                        Ok(())
-                    } else {
-                        let msg = format!("Invalid index of meter display target: {}", val);
-                        Err(Error::new(FileError::Inval, &msg))
-                    }
-                })?;
-                LiquidS56Protocol::write_meter_display_targets(
+                let mut params = self.0.clone();
+                params
+                    .meter_display_targets
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .try_for_each(|(target, &val)| {
+                        let pos = val as usize;
+                        Self::METER_DISPLAY_TARGETS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Meter display target not found for position {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&t| *target = t)
+                    })?;
+                LiquidS56Protocol::update_partial_specific_params(
                     req,
-                    &mut unit.1,
+                    node,
                     sections,
-                    &targets,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
