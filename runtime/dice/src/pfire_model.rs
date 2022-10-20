@@ -32,7 +32,7 @@ where
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
-    common_ctl: PfireCommonCtl<T>,
+    common_ctl: CommonCtl<T>,
     tcd22xx_ctl: PfireTcd22xxCtl<T>,
     specific_ctl: PfireSpecificCtl<T>,
 }
@@ -54,7 +54,7 @@ where
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -78,12 +78,7 @@ where
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -256,7 +251,7 @@ where
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -280,28 +275,6 @@ where
             Ok(false)
         }
     }
-}
-
-#[derive(Default, Debug)]
-pub struct PfireCommonCtl<T>(Vec<ElemId>, Vec<ElemId>, PhantomData<T>)
-where
-    T: PfireSpecificOperation // to avoid implementation candidates.
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>;
-
-impl<T> CommonCtlOperation<T> for PfireCommonCtl<T> where
-    T: PfireSpecificOperation // to avoid implementation candidates.
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>
-{
 }
 
 #[derive(Default, Debug)]

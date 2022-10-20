@@ -7,7 +7,7 @@ use {super::*, protocols::tcelectronic::studio::*};
 pub struct Studiok48Model {
     req: FwReq,
     sections: GeneralSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<Studiok48Protocol>,
     lineout_ctl: LineoutCtl,
     remote_ctl: RemoteCtl,
     config_ctl: ConfigCtl,
@@ -33,7 +33,7 @@ impl Studiok48Model {
         )?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.lineout_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.remote_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -57,12 +57,7 @@ impl Studiok48Model {
 
 impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.lineout_ctl.load(card_cntr)?;
         self.remote_ctl.load(card_cntr)?;
@@ -274,7 +269,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         if !self.reverb_state_ctl.is_bypassed() {
             self.reverb_meter_ctl
@@ -306,11 +301,6 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         }
     }
 }
-
-#[derive(Default, Debug)]
-struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
-
-impl CommonCtlOperation<Studiok48Protocol> for CommonCtl {}
 
 fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     match level {

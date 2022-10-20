@@ -59,7 +59,7 @@ where
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.output_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -89,12 +89,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
@@ -220,7 +215,7 @@ where
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl
             .partial_cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -243,46 +238,6 @@ where
             Ok(false)
         }
     }
-}
-
-#[derive(Default, Debug)]
-pub struct CommonCtl<T>(Vec<ElemId>, Vec<ElemId>, PhantomData<T>)
-where
-    T: IofwMeterSpecification
-        + AlesisParametersOperation<IofwMeterParams>
-        + IofwOutputSpecification
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerSpecification
-        + AlesisParametersOperation<IofwMixerParams>
-        + AlesisMutableParametersOperation<IofwMixerParams>
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>;
-
-impl<T> CommonCtlOperation<T> for CommonCtl<T> where
-    T: IofwMeterSpecification
-        + AlesisParametersOperation<IofwMeterParams>
-        + IofwOutputSpecification
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerSpecification
-        + AlesisParametersOperation<IofwMixerParams>
-        + AlesisMutableParametersOperation<IofwMixerParams>
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>
-{
 }
 
 #[derive(Debug)]
