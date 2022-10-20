@@ -11,7 +11,7 @@ pub struct SPro24Model {
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro24Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
-    input_ctl: InputCtl,
+    input_ctl: SaffireproInputCtl<SPro24Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -61,6 +61,13 @@ impl CtlModel<(SndDice, FwNode)> for SPro24Model {
             TIMEOUT_MS,
         )?;
 
+        self.input_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         let _ = self.out_grp_ctl.load(
             card_cntr,
             unit,
@@ -93,14 +100,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24Model {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -144,8 +144,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro24Model {
         )? {
             Ok(true)
         } else if self.input_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -273,8 +273,3 @@ impl OutGroupCtlOperation<SPro24Protocol> for OutGroupCtl {
         &mut self.0
     }
 }
-
-#[derive(Default)]
-struct InputCtl;
-
-impl SaffireproInputCtlOperation<SPro24Protocol> for InputCtl {}
