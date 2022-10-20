@@ -5,6 +5,88 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for hardware
 //! specification and application protocol specific to Avid Mbox 3 Pro.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! XLR input 1 -----------------+-------+-------> analog-input-1/2
+//! Phone input 1 ---------------+       |
+//!                                      |
+//! XLR input 2 -----------------+-------+
+//! Phone input 2 ---------------+
+//!
+//! XLR input 3 -----------------+-------+-------> analog-input-3/4
+//! Phone input 3 ---------------+       |
+//!                                      |
+//! XLR input 4 -----------------+-------+
+//! Phone input 4 ---------------+
+//!
+//! RCA input 5/6 ---------------or--------------> analog-input-5/6
+//! Mini Phone ------------------+
+//! coaxial input 1/2 ---------------------------> spdif-input-1/2
+//!
+//! analog-input-1/2 ----------------------------> stream-output-1/2
+//! analog-input-3/4 ----------------------------> stream-output-3/4
+//! analog-input-5/6 ----------------------------> stream-output-5/6
+//! spdif-input-1/2 -----------------------------> stream-output-7/8
+//!
+//!                          ++=============++
+//! analog-input-1/2 ------> ||             || --> analog-output-1/2
+//! analog-input-3/4 ------> ||             || --> analog-output-3/4
+//! analog-input-5/6 ------> ||             || --> analog-output-5/6
+//! spdif-input-1/2 -------> ||             || --> spdif-output-1/2
+//!                          ||             ||
+//!                          ||             || --> headphone-output-1/2
+//!                          ||             || --> headphone-output-3/4
+//!                          ||   34 x 42   ||
+//! reberb-output-1/2 -----> ||             || --> reverb-input-1/2
+//!                          ||   router    ||
+//! stream-input-1/2 ------> ||             || --> stream-output-1/2
+//! stream-input-3/4 ------> ||   up to     || --> stream-output-3/4
+//! stream-input-5/6 ------> ||             || --> stream-output-5/6
+//! stream-input-7/8 ------> || 128 entries || --> stream-output-7/8
+//!                          ||             ||
+//! mixer-output-1/2 ------> ||             || --> mixer-input-1/2
+//! mixer-output-3/4 ------> ||             || --> mixer-input-3/4
+//! mixer-output-5/6 ------> ||             || --> mixer-input-5/6
+//! mixer-output-7/8 ------> ||             || --> mixer-input-7/8
+//! mixer-output-9/10 -----> ||             || --> mixer-input-9/10
+//! mixer-output-11/12 ----> ||             || --> mixer-input-11/12
+//! mixer-output-13/14 ----> ||             || --> mixer-input-13/14
+//! mixer-output-15/16 ----> ||             || --> mixer-input-15/16
+//!                          ||             || --> mixer-input-17/18
+//!                          ||             ||
+//!                          ||             || --> control-room-output-1/2
+//!                          ++=============++
+//!
+//!                          ++=============++
+//! reverb-input-1/2 ------> ||    reverb   || --> reverb-output-1/2
+//!                          ||    effect   ||
+//!                          ++=============++
+//!
+//!                          ++=============++
+//! mixer-input-1/2 -------> ||             || --> mixer-output-1/2
+//! mixer-input-3/4 -------> ||             || --> mixer-output-3/4
+//! mixer-input-5/6 -------> ||             || --> mixer-output-5/6
+//! mixer-input-7/8 -------> ||   18 x 16   || --> mixer-output-7/8
+//! mixer-input-9/10 ------> ||             || --> mixer-output-9/10
+//! mixer-input-11/11 -----> ||    mixer    || --> mixer-output-11/12
+//! mixer-input-13/14 -----> ||             || --> mixer-output-13/14
+//! mixer-input-15/16 -----> ||             || --> mixer-output-15/16
+//! mixer-input-17/18 -----> ||             ||
+//!                          ++=============++
+//!
+//! analog-output-1/2 ---------------------------> Phone output 1/2
+//! analog-output-3/4 ---------------------------> Phone output 3/4
+//! analog-output-5/6 ---------------------------> Phone output 5/6
+//!
+//! headphone-output-1/2 ------------------------> Headphone output 1/2
+//! headphone-output-3/4 ------------------------> Headphone output 3/4
+//!
+//! spdif-output-1/2 ----------------------------> Coaxial output 1/2
+//!
+//! ```
 
 use super::{
     tcat::{
