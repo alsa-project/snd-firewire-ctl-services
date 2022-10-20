@@ -10,24 +10,11 @@ pub struct SPro40Model {
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro40Tcd22xxCtl,
-    out_grp_ctl: OutGroupCtl,
+    out_grp_ctl: OutGroupCtl<SPro40Protocol>,
     specific_ctl: SpecificCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
-
-#[derive(Default)]
-struct OutGroupCtl(OutGroupState, Vec<ElemId>);
-
-impl OutGroupCtlOperation<SPro40Protocol> for OutGroupCtl {
-    fn state(&self) -> &OutGroupState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut OutGroupState {
-        &mut self.0
-    }
-}
 
 impl SPro40Model {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -74,15 +61,14 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
             TIMEOUT_MS,
         )?;
 
-        self.out_grp_ctl
-            .load(
-                card_cntr,
-                unit,
-                &mut self.req,
-                &self.extension_sections,
-                TIMEOUT_MS,
-            )
-            .map(|mut elem_id_list| self.out_grp_ctl.1.append(&mut elem_id_list))?;
+        self.out_grp_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
+        self.out_grp_ctl.load(card_cntr)?;
         self.specific_ctl.load(card_cntr)?;
 
         Ok(())
@@ -149,8 +135,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -196,8 +182,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro40Model {
             *msg,
         )?;
         self.out_grp_ctl.parse_notification(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             *msg,
             TIMEOUT_MS,
@@ -215,7 +201,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro40Model {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.out_grp_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
