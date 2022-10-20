@@ -302,9 +302,10 @@ impl SaffireproSwNoticeOperation for SPro24DspProtocol {
 }
 
 impl SaffireproOutGroupOperation for SPro24DspProtocol {
+    const OUT_GROUP_STATE_OFFSET: usize = 0x000c;
+
     const ENTRY_COUNT: usize = 6;
     const HAS_VOL_HWCTL: bool = false;
-    const OUT_CTL_OFFSET: usize = 0x000c;
 
     const SRC_NOTICE: u32 = 0x00000001;
     const DIM_MUTE_NOTICE: u32 = 0x00000002;

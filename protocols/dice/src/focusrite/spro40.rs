@@ -127,9 +127,10 @@ const OUT_PAD_SW_NOTICE: u32 = 0x00000003;
 const IO_FLAG_SW_NOTICE: u32 = 0x00000004;
 
 impl SaffireproOutGroupOperation for SPro40Protocol {
+    const OUT_GROUP_STATE_OFFSET: usize = 0x000c;
+
     const ENTRY_COUNT: usize = 10;
     const HAS_VOL_HWCTL: bool = true;
-    const OUT_CTL_OFFSET: usize = 0x000c;
 
     const SRC_NOTICE: u32 = SRC_SW_NOTICE;
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
