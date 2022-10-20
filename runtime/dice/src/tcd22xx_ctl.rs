@@ -22,11 +22,20 @@ where
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
 
+    caps: ExtensionCaps,
+
+    state: Tcd22xxState,
+
     supported_sources: Vec<ClockSource>,
     supported_source_labels: Vec<String>,
     supported_rates: Vec<ClockRate>,
 
+    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+
+    current_rate: u32,
+
     standalone_ctls: StandaloneCtls<T>,
+    mixer_ctls: MixerCtls<T>,
 }
 
 impl<T> Tcd22xxCtls<T>
@@ -41,6 +50,8 @@ where
         global_params: &GlobalParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        self.caps = CapsSectionProtocol::read_caps(req, node, sections, timeout_ms)?;
+
         self.supported_sources = global_params.avail_sources.to_vec();
 
         self.supported_source_labels = self
@@ -57,6 +68,19 @@ where
 
         self.supported_rates = global_params.avail_rates.to_vec();
 
+        self.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&self.caps, RateMode::Low);
+
+        T::cache(
+            node,
+            req,
+            sections,
+            &self.caps,
+            &mut self.state,
+            RateMode::from(global_params.clock_config.rate),
+            timeout_ms,
+        )?;
+        self.current_rate = global_params.current_rate;
+
         self.standalone_ctls
             .cache(req, node, sections, timeout_ms)?;
 
@@ -70,6 +94,11 @@ where
             &self.supported_source_labels,
             &self.supported_rates,
         )?;
+
+        self.mixer_ctls
+            .load(card_cntr, &self.mixer_blk_pair)
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
+
         Ok(())
     }
 
@@ -80,6 +109,11 @@ where
             &self.supported_sources,
             &self.supported_rates,
         )? {
+            Ok(true)
+        } else if self
+            .mixer_ctls
+            .read(elem_id, elem_value, &self.state.mixer_cache)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -106,6 +140,17 @@ where
             timeout_ms,
         )? {
             Ok(true)
+        } else if self.mixer_ctls.write(
+            req,
+            node,
+            sections,
+            &self.caps,
+            &mut self.state,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -123,13 +168,25 @@ where
 
     pub fn parse_notification(
         &mut self,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: &ExtensionSections,
-        _: &GlobalParameters,
-        _: u32,
-        _: u32,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        global_params: &GlobalParameters,
+        timeout_ms: u32,
+        msg: u32,
     ) -> Result<(), Error> {
+        if msg > 0 && global_params.current_rate != self.current_rate {
+            T::cache(
+                node,
+                req,
+                sections,
+                &self.caps,
+                &mut self.state,
+                RateMode::from(global_params.clock_config.rate),
+                timeout_ms,
+            )?;
+            self.current_rate = global_params.current_rate;
+        }
         Ok(())
     }
 }
@@ -482,17 +539,108 @@ where
 }
 
 #[derive(Default, Debug)]
+struct MixerCtls<T>(PhantomData<T>);
+
+impl<T> MixerCtls<T>
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+{
+    const COEF_MIN: i32 = 0;
+    const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
+    const COEF_STEP: i32 = 1;
+    const COEF_TLV: DbInterval = DbInterval {
+        min: -6000,
+        max: 400,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        (mixer_blk_srcs, mixer_blk_dsts): &(Vec<SrcBlk>, Vec<DstBlk>),
+    ) -> Result<Vec<ElemId>, Error> {
+        eprintln!("{:?} {:?}", mixer_blk_srcs, mixer_blk_dsts);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            mixer_blk_srcs.len(),
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            mixer_blk_dsts.len(),
+            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
+            true,
+        )
+    }
+
+    fn read(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        mixer_cache: &[Vec<i32>],
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MIXER_SRC_GAIN_NAME => {
+                let dst_ch = elem_id.index() as usize;
+                mixer_cache
+                    .iter()
+                    .nth(dst_ch)
+                    .map(|coefs| elem_value.set_int(coefs))
+                    .unwrap();
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        state: &mut Tcd22xxState,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MIXER_SRC_GAIN_NAME => {
+                let dst_ch = elem_id.index() as usize;
+                let mut params = state.mixer_cache.clone();
+                params
+                    .iter_mut()
+                    .nth(dst_ch)
+                    .ok_or_else(|| {
+                        let msg = format!("Mixer destination not found for position {}", dst_ch);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|coefs| {
+                        coefs
+                            .iter_mut()
+                            .zip(elem_value.int())
+                            .for_each(|(coef, &val)| *coef = val);
+                    })?;
+                T::update_mixer_coef(node, req, sections, caps, state, &params, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct Tcd22xxCtl {
     state: Tcd22xxState,
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
     router_ctl: RouterCtl,
-    mixer_ctl: MixerCtl,
 }
 
 pub trait Tcd22xxCtlOperation<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     fn tcd22xx_ctl(&self) -> &Tcd22xxCtl;
     fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl;
@@ -521,7 +669,7 @@ const INPUT_SATURATION_NAME: &str = "mixer-out-saturation";
 
 pub trait MeterCtlOperation<T>: Tcd22xxCtlOperation<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
@@ -663,7 +811,7 @@ where
 impl<O, T> MeterCtlOperation<T> for O
 where
     O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
 }
 
@@ -682,7 +830,7 @@ const ROUTER_MIXER_SRC_NAME: &str = "mixer-source";
 
 pub trait RouterCtlOperation<T: Tcd22xxRouterOperation>: Tcd22xxCtlOperation<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const NONE_SRC_LABEL: &'static str = "None";
 
@@ -1002,133 +1150,11 @@ where
 impl<O, T> RouterCtlOperation<T> for O
 where
     O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
-}
-
-#[derive(Default, Debug)]
-struct MixerCtl {
-    // Maximum number block in low rate mode.
-    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    notified_elem_list: Vec<ElemId>,
 }
 
 const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
-
-pub trait MixerCtlOperation<T>: Tcd22xxCtlOperation<T>
-where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
-{
-    const COEF_MIN: i32 = 0;
-    const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
-    const COEF_STEP: i32 = 1;
-    const COEF_TLV: DbInterval = DbInterval {
-        min: -6000,
-        max: 400,
-        linear: false,
-        mute_avail: false,
-    };
-
-    fn cache_mixer(&mut self) -> Result<(), Error> {
-        let ctls = self.tcd22xx_ctl_mut();
-        ctls.mixer_ctl.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&ctls.caps, RateMode::Low);
-
-        Ok(())
-    }
-
-    fn load_mixer(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let ctl = &mut self.tcd22xx_ctl_mut().mixer_ctl;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                ctl.mixer_blk_pair.0.len(),
-                Self::COEF_MIN,
-                Self::COEF_MAX,
-                Self::COEF_STEP,
-                ctl.mixer_blk_pair.1.len(),
-                Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
-                true,
-            )
-            .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
-
-        Ok(())
-    }
-
-    fn read_mixer(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_SRC_GAIN_NAME => {
-                let dst_ch = elem_id.index() as usize;
-                let res = self
-                    .tcd22xx_ctl()
-                    .state
-                    .mixer_cache
-                    .iter()
-                    .nth(dst_ch)
-                    .map(|entries| {
-                        elem_value.set_int(entries);
-                        true
-                    })
-                    .unwrap_or(false);
-                Ok(res)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write_mixer(
-        &mut self,
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_SRC_GAIN_NAME => {
-                let ctls = &mut self.tcd22xx_ctl_mut();
-                let dst_ch = elem_id.index() as usize;
-                let mut cache = ctls.state.mixer_cache.clone();
-                let res = match cache.iter_mut().nth(dst_ch) {
-                    Some(entries) => {
-                        let _ = ElemValueAccessor::<i32>::get_vals(
-                            new,
-                            old,
-                            entries.len(),
-                            |src_ch, val| {
-                                entries[src_ch] = val;
-                                Ok(())
-                            },
-                        );
-                        T::update_mixer_coef(
-                            node,
-                            req,
-                            sections,
-                            &ctls.caps,
-                            &mut ctls.state,
-                            &cache,
-                            timeout_ms,
-                        )?;
-                        true
-                    }
-                    None => false,
-                };
-                Ok(res)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-impl<O, T> MixerCtlOperation<T> for O
-where
-    O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
-{
-}
 
 const STANDALONE_CLK_SRC_NAME: &str = "standalone-clock-source";
 const STANDALONE_SPDIF_HIGH_RATE_NAME: &str = "standalone-spdif-high-rate";
@@ -1157,14 +1183,13 @@ fn word_clock_mode_to_str(mode: &WordClockMode) -> &str {
 }
 
 pub trait Tcd22xxCtlExt<T>:
-    Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T> + MixerCtlOperation<T>
+    Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     fn load(&mut self, card_cntr: &mut CardCntr, _: &GlobalParameters) -> Result<(), Error> {
         self.load_meter(card_cntr)?;
         self.load_router(card_cntr)?;
-        self.load_mixer(card_cntr)?;
 
         Ok(())
     }
@@ -1192,7 +1217,6 @@ where
 
         self.cache_meter(req, node, sections, timeout_ms)?;
         self.cache_router(req, node, sections, global_params, timeout_ms)?;
-        self.cache_mixer()?;
 
         Ok(())
     }
@@ -1201,8 +1225,6 @@ where
         if self.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.read_router(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1220,8 +1242,6 @@ where
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if self.write_router(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
-            Ok(true)
-        } else if self.write_mixer(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1244,7 +1264,6 @@ where
 
     fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.tcd22xx_ctl().router_ctl.notified_elem_list);
-        elem_id_list.extend_from_slice(&self.tcd22xx_ctl().mixer_ctl.notified_elem_list);
     }
 
     fn parse_notification(
@@ -1271,7 +1290,7 @@ where
 
 impl<O, T> Tcd22xxCtlExt<T> for O
 where
-    O: Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T> + MixerCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    O: Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T>,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
 }
