@@ -11,70 +11,59 @@
 //! I note that optical input interface is available exclusively for ADAT input and S/PDIF input.
 //!
 //! ```text
-//!                        ++===========++
-//! mixer-input-0/1 -----> ||           || -> mixer-output-0/1
-//! mixer-input-2/3 -----> ||           || -> mixer-output-2/3
-//! mixer-input-4/5 -----> ||           || -> mixer-output-4/5
-//! mixer-input-6/7 -----> ||   mixer   || -> mixer-output-6/7
-//! mixer-input-8/9 -----> ||           || -> mixer-output-8/9
-//! mixer-input-10/11 ---> ||  18 x 16  || -> mixer-output-10/11
-//! mixer-input-12/13 ---> ||           || -> mixer-output-12/13
-//! mixer-input-14/15 ---> ||           || -> mixer-output-14/15
-//! mixer-input-16/17 ---> ||           ||
-//!                        ++===========++
 //!
-//!                        ++===========++
-//! mic-input-0/1 -------> ||           || -> mixer-input-0/1
-//! line-input-0/1 ------> ||           || -> mixer-input-2/3
-//! spdif-input-0/1 -----> ||           || -> mixer-input-4/5
-//!                        ||  mixer    || -> mixer-input-6/7
-//! stream-input-0/1 ----> ||  input    || -> mixer-input-8/9
-//! stream-input-2/3 ----> ||  router   || -> mixer-input-10/11
-//! stream-input-4/5 ----> ||           || -> mixer-input-12/13
-//! stream-input-6/7 ----> ||   x 18    || -> mixer-input-14/15
-//! stream-input-8/9 ----> ||           || -> mixer-input-16/17
-//! stream-input-10/11 --> ||           ||
-//!                        ++===========++
+//! XLR input 1 ------+---------+
+//! Phone input 1-----+         |
+//!                             |
+//! XLR input 2 ------+---------+
+//! Phone input 2 ----+         |
+//!                             +----------------> analog-input-1/2
+//! Phone input 3/4 -----------------------------> analog-input-3/4
+//! Coaxial input 1/2 ---------------------------> spdif-input-1/2
 //!
-//!                        ++===========++
-//! mic-input-0/1 -------> ||           ||
-//! line-input-0/1 ------> ||           ||
-//! spdif-input-0/1 -----> ||           ||
-//!                        ||  stream   ||
-//! mixer-output-0/1 ----> ||  capture  || -> stream-output-0/1
-//! mixer-output-2/3 ----> ||  router   || -> stream-output-2/3
-//! mixer-output-4/5 ----> ||           || -> stream-output-4/5
-//! mixer-output-6/7 ----> ||    x 8    || -> stream-output-6/7
-//! mixer-output-8/9 ----> ||           ||
-//! mixer-output-10/11 --> ||           ||
-//! mixer-output-12/13 --> ||           ||
-//! mixer-output-14/15 --> ||           ||
-//!                        ++===========++
+//!                        ++=============++
+//! analog-input-1/2 ----> ||   34 x 32   || ----> analog-output-1/2
+//! analog-input-3/4 ----> ||   router    || ----> analog-output-3/4
+//! spdif-input-1/2 -----> ||   up to     || ----> spdif-output-1/2
+//!                        || 128 entries ||
+//! stream-input-1/2 ----> ||             || ----> stream-output-1/2
+//! stream-input-3/4 ----> ||             || ----> stream-output-3/4
+//! stream-input-5/6 ----> ||             || ----> stream-output-5/6
+//! stream-input-7/8 ----> ||             || ----> stream-output-7/8
+//! stream-input-9/10 ---> ||             ||
+//! stream-input-11/12 --> ||             ||
+//!                        ||             ||
+//! mixer-output-1/2 ----> ||             || ----> mixer-input-1/2
+//! mixer-output-3/4 ----> ||             || ----> mixer-input-3/4
+//! mixer-output-5/6 ----> ||             || ----> mixer-input-5/6
+//! mixer-output-7/8 ----> ||             || ----> mixer-input-7/8
+//! mixer-output-9/10 ---> ||             || ----> mixer-input-9/10
+//! mixer-output-11/12 --> ||             || ----> mixer-input-11/12
+//! mixer-output-13/14 --> ||             || ----> mixer-input-13/14
+//! mixer-output-15/16 --> ||             || ----> mixer-input-15/16
+//!                        ||             || ----> mixer-input-17/18
+//!                        ++=============++
 //!
-//!                        ++===========++
-//! mic-input-0/1 -------> ||           ||
-//! line-input-0/1 ------> ||           ||
-//! spdif-input-0/1 -----> ||           ||
-//!                        ||           ||
-//! stream-input-0/1 ----> ||           ||
-//! stream-input-2/3 ----> ||           ||
-//! stream-input-4/5 ----> ||           ||
-//! stream-input-6/7 ----> ||           ||
-//! stream-input-8/9 ----> ||  physical ||
-//! stream-input-10/11 --> ||  output   || -> analog-output-0/1
-//! stream-input-12/13 --> ||  router   || -> analog-output-2/3
-//! stream-input-14/15 --> ||           || -> spdif-output-0/1
-//! stream-input-16/17 --> ||   x 6     ||
-//!                        ||           ||
-//! mixer-output-0/1 ----> ||           ||
-//! mixer-output-2/3 ----> ||           ||
-//! mixer-output-4/5 ----> ||           ||
-//! mixer-output-6/7 ----> ||           ||
-//! mixer-output-8/9 ----> ||           ||
-//! mixer-output-10/11 --> ||           ||
-//! mixer-output-12/13 --> ||           ||
-//! mixer-output-14/15 --> ||           ||
-//!                        ++===========++
+//!                        ++=============++
+//! mixer-input-1/2 -----> ||             || ----> mixer-output-1/2
+//! mixer-input-3/4 -----> ||             || ----> mixer-output-3/4
+//! mixer-input-5/6 -----> ||             || ----> mixer-output-5/6
+//! mixer-input-7/8 -----> ||    mixer    || ----> mixer-output-7/8
+//! mixer-input-9/10 ----> ||             || ----> mixer-output-9/10
+//! mixer-input-11/12 ---> ||   18 x 16   || ----> mixer-output-10/12
+//! mixer-input-13/14 ---> ||             || ----> mixer-output-12/14
+//! mixer-input-15/16 ---> ||             || ----> mixer-output-14/16
+//! mixer-input-17/18 ---> ||             ||
+//!                        ++=============++
+//!
+//!                        ++=============++
+//!                        ||             || ----> Phone output 1/2
+//! analog-output-1/2 ---> ||   output    ||
+//! analog-output-3/4 ---> ||    group    || --+-> Phone output 3/4
+//!                        ||             ||   +-> Headphone output 1/2
+//!                        ++=============++
+//!
+//! spdif-output-1/2 ----------------------------> Coaxial output 1/2
 //!
 //! ```
 

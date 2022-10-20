@@ -11,97 +11,84 @@
 //! I note that optical input interface is available exclusively for ADAT input and S/PDIF input.
 //!
 //! ```text
-//!                          ++===========++
-//!                          || equalizer ||
-//! ch-strip-input-0/1 ----> ||     &     || -> ch-strip-output-0/1
-//!                          ||compressor ||
-//!                          ++===========++
 //!
-//!                          ++===========++
-//! reverb-input-0/1 ------> ||  reverb   || -> reverb-output-0/1
-//!                          ++===========++
+//! XLR input 1 ------+---------+
+//! Phone input 1-----+         |
+//!                             |
+//! XLR input 2 ------+---------+
+//! Phone input 2 ----+         |
+//!                             +------------------> analog-input-1/2
+//! Phone input 3/4 -------------------------------> analog-input-3/4
+//! Phone input 5/6 -------------------------------> analog-input-5/6
+//! Coaxial input 1/2 -----------------------------> spdif-input-1/2
+//! Optical input --------------or-----------------> spdif-input-3/4
+//!                             +------------------> adat-input-1..8
 //!
-//!                          ++===========++
-//! mixer-input-0/1 -------> ||           || -> mixer-output-0/1
-//! mixer-input-2/3 -------> ||           || -> mixer-output-2/3
-//! mixer-input-4/5 -------> ||           || -> mixer-output-4/5
-//! mixer-input-6/7 -------> ||   mixer   || -> mixer-output-6/7
-//! mixer-input-8/9 -------> ||           || -> mixer-output-8/9
-//! mixer-input-10/11 -----> ||  18 x 16  || -> mixer-output-10/11
-//! mixer-input-12/13 -----> ||           || -> mixer-output-12/13
-//! mixer-input-14/15 -----> ||           || -> mixer-output-14/15
-//! mixer-input-16/17 -----> ||           ||
-//!                          ++===========++
+//!                          ++=============++
+//! analog-input-1/2 ------> ||   46 x 46   || ----> analog-output-1/2
+//! analog-input-3/4 ------> ||   router    || ----> analog-output-3/4
+//! analog-input-5/6 ------> ||   up to     || ----> analog-output-5/6
+//! spdif-input-1/2 -------> || 128 entries || ----> spdif-output-1/2
+//! spdif-input-3/4 -------> ||             ||
+//! adat-input-1/2 --------> ||             ||
+//! adat-input-3/4 --------> ||             ||
+//! adat-input-5/6 --------> ||             ||
+//! adat-input-7/8 --------> ||             ||
+//!                          ||             ||
+//! stream-input-1/2 ------> ||             || ----> stream-output-1/2
+//! stream-input-3/4 ------> ||             || ----> stream-output-3/4
+//! stream-input-5/6 ------> ||             || ----> stream-output-5/6
+//! stream-input-7/8 ------> ||             || ----> stream-output-7/8
+//!                          ||             || ----> stream-output-9/10
+//!                          ||             || ----> stream-output-11/12
+//!                          ||             || ----> stream-output-13/14
+//!                          ||             || ----> stream-output-15/16
+//!                          ||             ||
+//! mixer-output-1/2 ------> ||             || ----> mixer-input-1/2
+//! mixer-output-3/4 ------> ||             || ----> mixer-input-3/4
+//! mixer-output-5/6 ------> ||             || ----> mixer-input-5/6
+//! mixer-output-7/8 ------> ||             || ----> mixer-input-7/8
+//! mixer-output-9/10 -----> ||             || ----> mixer-input-9/10
+//! mixer-output-11/12 ----> ||             || ----> mixer-input-11/12
+//! mixer-output-13/14 ----> ||             || ----> mixer-input-13/14
+//! mixer-output-15/16 ----> ||             || ----> mixer-input-15/16
+//!                          ||             || ----> mixer-input-17/18
+//!                          ||             ||
+//! ch-strip-output-1/2 ---> ||             || ----> ch-strip-input-1/2
+//! reverb-output-1/2 -----> ||             || ----> reverb-input-1/2
+//!                          ++=============++
 //!
-//!                          ++===========++
-//! mic-input-0/1 ---------> ||           ||
-//! line-input-0/1 --------> ||           ||
-//! spdif-coax-input-0/1 --> ||           ||
-//! adat-input-0/1 --------> ||           ||
-//! adat-input-2/3 --------> ||           || -> mixer-input-0/1
-//! adat-input-4/5 --------> ||  mixer    || -> mixer-input-2/3
-//! adat-input-6/7 --------> ||  input    || -> mixer-input-4/5
-//! spdif-opt-input-0/1 ---> ||  router   || -> mixer-input-6/7
-//!                          ||           || -> mixer-input-8/9
-//! stream-input-0/1 ------> ||   x 18    || -> mixer-input-10/11
-//! stream-input-2/3 ------> ||           || -> mixer-input-12/13
-//! stream-input-4/5 ------> ||           || -> mixer-input-14/15
-//! stream-input-6/7 ------> ||           || -> mixer-input-16/17
-//!                          ||           ||
-//! ch-strip-output-0/1 ---> ||           ||
-//! reverb-output-0/1 -----> ||           ||
-//!                          ++===========++
+//!                          ++=============++
+//! mixer-input-1/2 -------> ||             || ----> mixer-output-1/2
+//! mixer-input-3/4 -------> ||             || ----> mixer-output-3/4
+//! mixer-input-5/6 -------> ||             || ----> mixer-output-5/6
+//! mixer-input-7/8 -------> ||    mixer    || ----> mixer-output-7/8
+//! mixer-input-9/10 ------> ||             || ----> mixer-output-9/10
+//! mixer-input-11/12 -----> ||   18 x 16   || ----> mixer-output-10/12
+//! mixer-input-13/14 -----> ||             || ----> mixer-output-12/14
+//! mixer-input-15/16 -----> ||             || ----> mixer-output-14/16
+//! mixer-input-17/18 -----> ||             ||
+//!                          ++=============++
 //!
-//!                          ++===========++
-//! mic-input-0/1 ---------> ||           ||
-//! line-input-0/1 --------> ||           ||
-//! spdif-coax-input-0/1 --> ||           ||
-//! adat-input-0/1 --------> ||           ||
-//! adat-input-2/3 --------> ||           ||
-//! adat-input-4/5 --------> ||           ||
-//! adat-input-6/7 --------> ||           || -> stream-output-0/1
-//! spdif-opt-input-0/1 ---> ||  stream   || -> stream-output-2/3
-//!                          ||  capture  || -> stream-output-4/5
-//! mixer-output-0/1 ------> ||  router   || -> stream-output-6/7
-//! mixer-output-2/3 ------> ||           || -> stream-output-8/9
-//! mixer-output-4/5 ------> ||   x 16    || -> stream-output-10/11
-//! mixer-output-6/7 ------> ||           || -> stream-output-12/13
-//! mixer-output-8/9 ------> ||           || -> stream-output-14/15
-//! mixer-output-10/11 ----> ||           ||
-//! mixer-output-12/13 ----> ||           ||
-//! mixer-output-14/15 ----> ||           ||
-//!                          ||           ||
-//! ch-strip-0/1 ----------> ||           ||
-//! reverb-0/1 ------------> ||           ||
-//!                          ++===========++
+//!                          ++=============++
+//!                          ||             || ----> Phone output 1/2
+//!                          ||             ||
+//! analog-output-1/2 -----> ||   output    || --+-> Phone output 3/4
+//! analog-output-3/4 -----> ||             ||   +-> Headphone output 1/2
+//! analog-output-5/6 -----> ||   group     ||
+//!                          ||             || --+-> Phone output 5/6
+//!                          ||             ||   +-> Headphone output 3/4
+//!                          ++=============++
 //!
-//!                          ++===========++
-//! mic-input-0/1 ---------> ||           ||
-//! line-input-0/1 --------> ||           ||
-//! spdif-coax-input-0/1 --> ||           ||
-//! adat-input-0/1 --------> ||           ||
-//! adat-input-2/3 --------> ||           ||
-//! adat-input-4/5 --------> ||           ||
-//! adat-input-6/7 --------> ||           ||
-//! spdif-opt-input-0/1 ---> ||           ||
-//!                          ||           ||
-//! stream-input-0/1 ------> ||           || -> analog-output-0/1
-//! stream-input-2/3 ------> ||  physical || -> analog-output-2/3
-//! stream-input-4/5 ------> ||  output   || -> analog-output-4/5
-//! stream-input-6/7 ------> ||  router   || -> spdif-output-0/1
-//!                          ||           ||
-//! mixer-output-0/1 ------> ||   x 12    || -> ch-strip-input-0/1
-//! mixer-output-2/3 ------> ||           || -> reverb-input-0/1
-//! mixer-output-4/5 ------> ||           ||
-//! mixer-output-6/7 ------> ||           ||
-//! mixer-output-8/9 ------> ||           ||
-//! mixer-output-10/11 ----> ||           ||
-//! mixer-output-12/13 ----> ||           ||
-//! mixer-output-14/15 ----> ||           ||
-//!                          ||           ||
-//! ch-strip-output-0/1 ---> ||           ||
-//! reverb-output-0/1 -----> ||           ||
-//!                          ++===========++
+//!                          ++=============++
+//!                          ||  equalizer  ||
+//! ch-strip-input-1/2 ----> ||      &      || ----> ch-strip-output-1/2
+//!                          || compressor  ||
+//!                          ++=============++
+//!
+//!                          ++=============++
+//! reverb-input-1/2 ------> ||   reverb    || ----> reverb-output-1/2
+//!                          ++=============++
 //!
 //! ```
 //!

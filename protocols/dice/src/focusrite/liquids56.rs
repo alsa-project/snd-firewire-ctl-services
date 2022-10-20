@@ -5,6 +5,107 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Liquid Saffire 56.
+//!
+//! ## Diagram of internal signal flow for Liquid Saffire 56.
+//!
+//! I note that optical input interface is available exclusively for ADAT input and S/PDIF input.
+//!
+//! ```text
+//!
+//! XLR input 1 ------+---------+------------------> analog-input-1/2
+//! Phone input 1-----+         |
+//!                             |
+//! XLR input 2 ------+---------+
+//! Phone input 2 ----+
+//!
+//! XLR input 3 ------+---------+------------------> analog-input-3/4
+//! Phone input 3-----+         |
+//!                             |
+//! XLR input 4 ------+---------+
+//! Phone input 4 ----+
+//!
+//! XLR input 5 ------+---------+------------------> analog-input-5/6
+//! Phone input 5-----+         |
+//!                             |
+//! XLR input 6 ------+---------+
+//! Phone input 6 ----+
+//!
+//! XLR input 7 ------+---------+------------------> analog-input-7/8
+//! Phone input 7-----+         |
+//!                             |
+//! XLR input 8 ------+---------+
+//! Phone input 8 ----+
+//!
+//! Coaxial input 1/2 -----------------------------> spdif-input-1/2
+//! Optical input A -------------------------------> adat-input-1..8
+//! Optical input B ------------or-----------------> spdif-input-3/4
+//!                             +------------------> adat-input-9..16
+//!
+//!                          ++=============++
+//! analog-input-1/2 ------> ||   72 x 76   || ----> analog-output-1/2
+//! analog-input-3/4 ------> ||   router    || ----> analog-output-3/4
+//! analog-input-5/6 ------> ||   up to     || ----> analog-output-5/6
+//! analog-input-7/8 ------> || 128 entries || ----> analog-output-7/8
+//!                          ||             || ----> analog-output-9/10
+//! spdif-input-1/2 -------> ||             || ----> spdif-output-1/2
+//! spdif-input-3/4 -------> ||             || ----> spdif-output-3/4
+//! adat-input-1/2 --------> ||             || ----> adat-input-1/2
+//! adat-input-3/4 --------> ||             || ----> adat-input-3/4
+//! adat-input-5/6 --------> ||             || ----> adat-input-5/6
+//! adat-input-7/8 --------> ||             || ----> adat-input-7/8
+//! adat-input-9/10 -------> ||             || ----> adat-input-9/10
+//! adat-input-11/12 ------> ||             || ----> adat-input-11/12
+//! adat-input-13/14 ------> ||             || ----> adat-input-13/14
+//! adat-input-15/16 ------> ||             || ----> adat-input-15/16
+//!                          ||             ||
+//! stream-input-A-1/2 ----> ||             || ----> stream-output-A-1/2
+//! stream-input-A-3/4 ----> ||             || ----> stream-output-A-3/4
+//! stream-input-A-5/6 ----> ||             || ----> stream-output-A-5/6
+//! stream-input-A-7/8 ----> ||             || ----> stream-output-A-7/8
+//! stream-input-A-9/10 ---> ||             || ----> stream-output-A-9/10
+//! stream-input-A-11/12 --> ||             || ----> stream-output-A-11/12
+//! stream-input-A-13/14 --> ||             || ----> stream-output-A-13/14
+//! stream-input-A-15/16 --> ||             || ----> stream-output-A-15/16
+//!                          ||             ||
+//! stream-input-B-1/2 ----> ||             || ----> stream-output-B-1/2
+//! stream-input-B-3/4 ----> ||             || ----> stream-output-B-3/4
+//! stream-input-B-5/6 ----> ||             || ----> stream-output-B-5/6
+//! stream-input-B-7/8 ----> ||             || ----> stream-output-B-7/8
+//! stream-input-B-9/10 ---> ||             || ----> stream-output-B-9/10
+//! stream-input-B-11/12 --> ||             || ----> stream-output-B-11/12
+//!                          ||             ||
+//! mixer-output-1/2 ------> ||             || ----> mixer-input-1/2
+//! mixer-output-3/4 ------> ||             || ----> mixer-input-3/4
+//! mixer-output-5/6 ------> ||             || ----> mixer-input-5/6
+//! mixer-output-7/8 ------> ||             || ----> mixer-input-7/8
+//! mixer-output-9/10 -----> ||             || ----> mixer-input-9/10
+//! mixer-output-11/12 ----> ||             || ----> mixer-input-11/12
+//! mixer-output-13/14 ----> ||             || ----> mixer-input-13/14
+//! mixer-output-15/16 ----> ||             || ----> mixer-input-15/16
+//!                          ||             || ----> mixer-input-17/18
+//!                          ++=============++
+//!
+//!                          ++=============++
+//!                          ||             || ----> Phone output 1/2
+//!                          ||             || ----> Phone output 3/4
+//! analog-output-1/2 -----> ||             || ----> Phone output 5/6
+//! analog-output-3/4 -----> ||   output    ||
+//! analog-output-5/6 -----> ||             || --+-> Phone output 7/8
+//! analog-output-7/8 -----> ||   group     ||   +-> Headphone output 1/2
+//! analog-output-9/10 ----> ||             ||
+//!                          ||             || --+-> Phone output 9/10
+//!                          ||             ||   +-> Headphone output 3/4
+//!                          ||             ||
+//!                          ++=============++
+//!
+//! spdif-output-1/2 ------------------------------> Coaxial output 1/2
+//!
+//! adat-output-1..8 ------------------------------> Optical output A
+//!
+//! spdif-output-3/4 -------------or---------------> Optical output B
+//! adat-output-1..8 -------------+
+//!
+//! ```
 
 use super::{tcat::tcd22xx_spec::*, *};
 
