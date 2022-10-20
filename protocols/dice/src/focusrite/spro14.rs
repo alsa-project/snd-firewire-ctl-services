@@ -135,9 +135,10 @@ impl SaffireproSwNoticeOperation for SPro14Protocol {
 }
 
 impl SaffireproOutGroupOperation for SPro14Protocol {
+    const OUT_GROUP_STATE_OFFSET: usize = 0x0010;
+
     const ENTRY_COUNT: usize = 4;
     const HAS_VOL_HWCTL: bool = false;
-    const OUT_CTL_OFFSET: usize = 0x0010;
 
     const SRC_NOTICE: u32 = 0x00000001;
     const DIM_MUTE_NOTICE: u32 = 0x00000002;
