@@ -10,23 +10,10 @@ pub struct SPro26Model {
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro26Tcd22xxCtl,
-    out_grp_ctl: OutGroupCtl,
+    out_grp_ctl: OutGroupCtl<SPro26Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 20;
-
-#[derive(Default)]
-struct OutGroupCtl(OutGroupState, Vec<ElemId>);
-
-impl OutGroupCtlOperation<SPro26Protocol> for OutGroupCtl {
-    fn state(&self) -> &OutGroupState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut OutGroupState {
-        &mut self.0
-    }
-}
 
 impl SPro26Model {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -73,15 +60,14 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
             TIMEOUT_MS,
         )?;
 
-        self.out_grp_ctl
-            .load(
-                card_cntr,
-                unit,
-                &mut self.req,
-                &self.extension_sections,
-                TIMEOUT_MS,
-            )
-            .map(|mut elem_id_list| self.out_grp_ctl.1.append(&mut elem_id_list))?;
+        self.out_grp_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
+        self.out_grp_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -138,8 +124,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -176,8 +162,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
             *msg,
         )?;
         self.out_grp_ctl.parse_notification(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             *msg,
             TIMEOUT_MS,
@@ -195,7 +181,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.out_grp_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

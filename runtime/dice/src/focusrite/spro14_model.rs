@@ -10,7 +10,7 @@ pub struct SPro14Model {
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro14Tcd22xxCtl,
-    out_grp_ctl: OutGroupCtl,
+    out_grp_ctl: OutGroupCtl<SPro14Protocol>,
     input_ctl: SaffireproInputCtl<SPro14Protocol>,
 }
 
@@ -61,6 +61,13 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
             TIMEOUT_MS,
         )?;
 
+        self.out_grp_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         self.input_ctl.cache(
             &mut self.req,
             &mut unit.1,
@@ -68,14 +75,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
             TIMEOUT_MS,
         )?;
 
-        let _ = self.out_grp_ctl.load(
-            card_cntr,
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
-
+        self.out_grp_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
 
         Ok(())
@@ -135,8 +135,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -247,19 +247,6 @@ impl Tcd22xxCtlOperation<SPro14Protocol> for SPro14Tcd22xxCtl {
     }
 
     fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
-        &mut self.0
-    }
-}
-
-#[derive(Default)]
-struct OutGroupCtl(OutGroupState, Vec<ElemId>);
-
-impl OutGroupCtlOperation<SPro14Protocol> for OutGroupCtl {
-    fn state(&self) -> &OutGroupState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut OutGroupState {
         &mut self.0
     }
 }
