@@ -380,7 +380,15 @@ impl CompressorCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SPro24DspProtocol::cache_whole_comp_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = SPro24DspProtocol::cache_whole_comp_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -486,67 +494,72 @@ impl CompressorCtl {
             COMPRESSOR_OUTPUT_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.output);
-                SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_partial_comp_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             COMPRESSOR_THRESHOLD_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.threshold);
-                SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_partial_comp_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             COMPRESSOR_RATIO_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.ratio);
-                SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_partial_comp_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             COMPRESSOR_ATTACK_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.attack);
-                SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_partial_comp_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             COMPRESSOR_RELEASE_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.release);
-                SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_partial_comp_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -566,7 +579,10 @@ impl EqualizerCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SPro24DspProtocol::cache_whole_eq_params(req, node, sections, &mut self.0, timeout_ms)
+        let res =
+            SPro24DspProtocol::cache_whole_eq_params(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -609,15 +625,16 @@ impl EqualizerCtl {
             EQUALIZER_OUTPUT_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.output);
-                SPro24DspProtocol::update_partial_eq_params(
+                let res = SPro24DspProtocol::update_partial_eq_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -640,7 +657,15 @@ impl ReverbCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SPro24DspProtocol::cache_whole_reverb_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = SPro24DspProtocol::cache_whole_reverb_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -727,59 +752,63 @@ impl ReverbCtl {
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.size = vals[0];
-                SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_partial_reverb_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_AIR_NAME => {
                 let mut vals = [0.0];
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.air = vals[0];
-                SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_partial_reverb_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_ENABLE_NAME => {
                 let val = elem_value.boolean()[0];
                 let mut params = self.0.clone();
                 params.enabled = val;
-                SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_partial_reverb_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             REVERB_PRE_FILTER_NAME => {
                 let mut vals = [0.0];
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.pre_filter = vals[0];
-                SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_partial_reverb_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -804,7 +833,10 @@ impl EffectGeneralCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SPro24DspProtocol::cache_effect_general(req, node, sections, &mut self.0, timeout_ms)
+        let res =
+            SPro24DspProtocol::cache_effect_general(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -870,15 +902,16 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .for_each(|(order, &val)| *order = val > 0);
-                SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_effect_general(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             COMPRESSOR_ENABLE_NAME => {
                 let mut params = self.0.clone();
@@ -887,15 +920,16 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enable, val)| *enable = val);
-                SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_effect_general(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             EQUALIZER_ENABLE_NAME => {
                 let mut params = self.0.clone();
@@ -904,15 +938,16 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enable, val)| *enable = val);
-                SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_effect_general(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
