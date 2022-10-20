@@ -13,7 +13,6 @@ pub struct ExtensionModel {
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl<ExtensionProtocol>,
     tcd22xx_ctls: Tcd22xxCtls<ExtensionProtocol>,
-    tcd22xx_ctl: ExtensionTcd22xxCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -41,13 +40,6 @@ impl ExtensionModel {
             TIMEOUT_MS,
         )?;
 
-        self.tcd22xx_ctl.cache(
-            &mut self.req,
-            &mut unit.1,
-            &self.extension_sections,
-            &self.sections.global.params,
-            TIMEOUT_MS,
-        )?;
         Ok(())
     }
 }
@@ -57,9 +49,6 @@ impl CtlModel<(SndDice, FwNode)> for ExtensionModel {
         self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.tcd22xx_ctls.load(card_cntr)?;
-
-        self.tcd22xx_ctl
-            .load(card_cntr, &self.sections.global.params)?;
 
         Ok(())
     }
@@ -74,8 +63,6 @@ impl CtlModel<(SndDice, FwNode)> for ExtensionModel {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else {
             Ok(false)
         }
@@ -85,7 +72,7 @@ impl CtlModel<(SndDice, FwNode)> for ExtensionModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
@@ -107,16 +94,6 @@ impl CtlModel<(SndDice, FwNode)> for ExtensionModel {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.tcd22xx_ctl.write(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
         } else {
             Ok(false)
         }
@@ -127,7 +104,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for ExtensionModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.notified_elem_id_list);
-        self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
@@ -139,14 +115,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for ExtensionModel {
             TIMEOUT_MS,
         )?;
         self.tcd22xx_ctls.parse_notification(
-            &mut self.req,
-            &mut unit.1,
-            &self.extension_sections,
-            &self.sections.global.params,
-            TIMEOUT_MS,
-            *msg,
-        )?;
-        self.tcd22xx_ctl.parse_notification(
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
@@ -167,8 +135,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for ExtensionModel {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else {
             Ok(false)
         }
@@ -179,7 +145,6 @@ impl MeasureModel<(SndDice, FwNode)> for ExtensionModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.measured_elem_id_list);
-        self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -188,12 +153,6 @@ impl MeasureModel<(SndDice, FwNode)> for ExtensionModel {
         self.tcd22xx_ctls.cache_partial_params(
             &mut self.req,
             &mut unit.1,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
-        self.tcd22xx_ctl.measure_states(
-            unit,
-            &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
         )?;
@@ -209,8 +168,6 @@ impl MeasureModel<(SndDice, FwNode)> for ExtensionModel {
         if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -360,19 +317,6 @@ impl Tcd22xxSpecOperation for ExtensionProtocol {
             ch: 3,
         },
     ];
-}
-
-#[derive(Default)]
-struct ExtensionTcd22xxCtl(Tcd22xxCtl);
-
-impl Tcd22xxCtlOperation<ExtensionProtocol> for ExtensionTcd22xxCtl {
-    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
-        &self.0
-    }
-
-    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
-        &mut self.0
-    }
 }
 
 pub fn detect_extended_model(node: &mut FwNode) -> bool {
