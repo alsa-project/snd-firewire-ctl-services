@@ -8,8 +8,6 @@
 
 use super::{tcat::tcd22xx_spec::*, *};
 
-const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
-const IO_FLAGS_OFFSET: usize = 0x005c;
 const EMULATION_TYPE_OFFSET: usize = 0x0278;
 const HARMONICS_OFFSET: usize = 0x0280;
 const POLARITY_OFFSET: usize = 0x0288;
@@ -220,7 +218,6 @@ impl SaffireproSwNoticeOperation for LiquidS56Protocol {
 
 const SRC_SW_NOTICE: u32 = 0x00000001;
 const DIM_MUTE_SW_NOTICE: u32 = 0x00000003;
-const IO_FLAG_SW_NOTICE: u32 = 0x00000004;
 const MIC_AMP_1_HARMONICS_SW_NOTICE: u32 = 0x00000006;
 const MIC_AMP_2_HARMONICS_SW_NOTICE: u32 = 0x00000007;
 const MIC_AMP_1_EMULATION_SW_NOTICE: u32 = 0x00000008;
@@ -241,14 +238,6 @@ impl SaffireproOutGroupOperation for LiquidS56Protocol {
 impl SaffireproIoParamsOperation for LiquidS56Protocol {
     const AESEBU_IS_SUPPORTED: bool = true;
     const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool = true;
-}
-
-/// Type of signal for optical output interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum OptOutIfaceMode {
-    Adat,
-    Spdif,
-    AesEbu,
 }
 
 /// Emulation type of mic pre amp.
@@ -390,169 +379,6 @@ impl LedState {
 
 /// Protocol specific to Saffire Pro 26.
 impl LiquidS56Protocol {
-    pub fn read_analog_out_0_1_pad_offset(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            ANALOG_OUT_0_1_PAD_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| u32::from_be_bytes(raw) > 0)
-    }
-
-    pub fn write_analog_out_0_1_pad_offset(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        enable: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        enable.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            ANALOG_OUT_0_1_PAD_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-        Self::write_sw_notice(req, node, sections, DIM_MUTE_SW_NOTICE, timeout_ms)
-    }
-
-    pub fn read_opt_out_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<OptOutIfaceMode, Error> {
-        let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| {
-            let val = u32::from_be_bytes(raw);
-            if val & 0x00000001 > 0 {
-                OptOutIfaceMode::Spdif
-            } else if val & 0x00000002 > 0 {
-                OptOutIfaceMode::AesEbu
-            } else {
-                OptOutIfaceMode::Adat
-            }
-        })
-    }
-
-    pub fn write_opt_out_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        mode: OptOutIfaceMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-
-        let mut val = u32::from_be_bytes(raw);
-        val &= !0x00000003;
-
-        if mode == OptOutIfaceMode::Spdif {
-            val |= 0x00000001;
-        } else if mode == OptOutIfaceMode::AesEbu {
-            val |= 0x00000002;
-        }
-        val.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-        Self::write_sw_notice(req, node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
-    }
-
-    pub fn read_mic_amp_transformer(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        ch: usize,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| u32::from_be_bytes(raw) & (1 << (ch + 4)) > 0)
-    }
-
-    pub fn write_mic_amp_transformer(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        ch: usize,
-        state: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-
-        let mut val = u32::from_be_bytes(raw);
-        val &= !0x00000018;
-        if state {
-            val |= 1 << (ch + 4);
-        } else {
-            val &= !(1 << (ch + 4));
-        }
-        val.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            IO_FLAGS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-        let sw_notice = if ch == 0 {
-            MIC_AMP_1_EMULATION_SW_NOTICE
-        } else {
-            MIC_AMP_2_EMULATION_SW_NOTICE
-        };
-        Self::write_sw_notice(req, node, sections, sw_notice, timeout_ms)
-    }
-
     pub fn read_mic_amp_emulation_type(
         req: &mut FwReq,
         node: &mut FwNode,
