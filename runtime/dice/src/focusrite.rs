@@ -313,7 +313,9 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_whole_input_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = T::cache_whole_input_params(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -393,15 +395,16 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::update_partial_input_params(
+                let res = T::update_partial_input_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
                 let mut params = self.0.clone();
@@ -420,15 +423,16 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::update_partial_input_params(
+                let res = T::update_partial_input_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
