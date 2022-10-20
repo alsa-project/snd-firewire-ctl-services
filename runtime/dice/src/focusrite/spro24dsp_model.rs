@@ -11,7 +11,7 @@ pub struct SPro24DspModel {
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro24DspTcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
-    input_ctl: InputCtl,
+    input_ctl: SaffireproInputCtl<SPro24DspProtocol>,
     effect_ctl: EffectCtl,
 }
 
@@ -77,6 +77,13 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
             )
             .map(|mut elem_id_list| self.out_grp_ctl.1.append(&mut elem_id_list))?;
 
+        self.input_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         self.input_ctl.load(card_cntr)?;
 
         self.effect_ctl.load(
@@ -109,14 +116,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.effect_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -162,8 +162,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.input_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -300,11 +300,6 @@ impl OutGroupCtlOperation<SPro24DspProtocol> for OutGroupCtl {
         &mut self.0
     }
 }
-
-#[derive(Default)]
-struct InputCtl;
-
-impl SaffireproInputCtlOperation<SPro24DspProtocol> for InputCtl {}
 
 #[derive(Default)]
 struct EffectCtl(Spro24DspEffectState, Vec<ElemId>);

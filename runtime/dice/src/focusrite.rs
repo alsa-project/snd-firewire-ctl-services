@@ -11,6 +11,7 @@ pub mod spro40_model;
 use {
     super::{tcd22xx_ctl::*, *},
     protocols::{focusrite::*, tcat::extension::*},
+    std::marker::PhantomData,
 };
 
 const VOL_NAME: &str = "output-group-volume";
@@ -289,7 +290,12 @@ fn line_input_level_to_str(level: &SaffireproLineInputLevel) -> &'static str {
     }
 }
 
-trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
+#[derive(Default, Debug)]
+pub struct SaffireproInputCtl<T>(SaffireproInputParams, PhantomData<T>)
+where
+    T: SaffireproInputOperation;
+
+impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
     const MIC_LEVELS: [SaffireproMicInputLevel; 2] = [
         SaffireproMicInputLevel::Line,
         SaffireproMicInputLevel::Instrument,
@@ -300,7 +306,17 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
         SaffireproLineInputLevel::High,
     ];
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::cache_whole_input_params(req, node, sections, &mut self.0, timeout_ms)
+    }
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::MIC_LEVELS
             .iter()
             .map(|l| mic_input_level_to_str(l))
@@ -318,39 +334,33 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
-                let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
-                T::read_mic_level(req, &mut unit.1, sections, &mut levels, timeout_ms)?;
-                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
-                    let pos = Self::MIC_LEVELS
-                        .iter()
-                        .position(|l| l.eq(&levels[idx]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .0
+                    .mic_levels
+                    .iter()
+                    .map(|level| {
+                        let pos = Self::MIC_LEVELS.iter().position(|l| level.eq(l)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             LINE_INPUT_LEVEL_NAME => {
-                let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
-                T::read_line_level(req, &mut unit.1, sections, &mut levels, timeout_ms)?;
-                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
-                    let pos = Self::LINE_LEVELS
-                        .iter()
-                        .position(|l| l.eq(&levels[idx]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .0
+                    .line_levels
+                    .iter()
+                    .map(|level| {
+                        let pos = Self::LINE_LEVELS.iter().position(|l| level.eq(l)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -358,8 +368,8 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -367,34 +377,58 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
-                let vals = &elem_value.enumerated()[..T::MIC_INPUT_COUNT];
-                let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
-                vals.iter().enumerate().try_for_each(|(i, &val)| {
-                    Self::MIC_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for mic input levels: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| levels[i] = l)
-                })?;
-                T::write_mic_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .mic_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::MIC_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index for mic input levels: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
+                T::update_partial_input_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
-                let vals = &elem_value.enumerated()[..T::LINE_INPUT_COUNT];
-                let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
-                vals.iter().enumerate().try_for_each(|(i, &val)| {
-                    Self::LINE_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for line input levels: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| levels[i] = l)
-                })?;
-                T::write_line_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
+                let mut params = self.0.clone();
+                params
+                    .line_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::LINE_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index for line input levels: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
+                T::update_partial_input_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
