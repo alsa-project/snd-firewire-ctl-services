@@ -10,7 +10,6 @@ pub struct SPro14Model {
     extension_sections: ExtensionSections,
     common_ctl: CommonCtl<SPro14Protocol>,
     tcd22xx_ctls: Tcd22xxCtls<SPro14Protocol>,
-    tcd22xx_ctl: SPro14Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl<SPro14Protocol>,
     input_ctl: SaffireproInputCtl<SPro14Protocol>,
 }
@@ -28,14 +27,6 @@ impl SPro14Model {
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.tcd22xx_ctls.cache_whole_params(
-            &mut self.req,
-            &mut unit.1,
-            &self.extension_sections,
-            &self.sections.global.params,
-            TIMEOUT_MS,
-        )?;
-
-        self.tcd22xx_ctl.cache(
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
@@ -67,9 +58,6 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
 
         self.tcd22xx_ctls.load(card_cntr)?;
 
-        self.tcd22xx_ctl
-            .load(card_cntr, &self.sections.global.params)?;
-
         self.out_grp_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
 
@@ -86,8 +74,6 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(elem_id, elem_value)? {
@@ -101,7 +87,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
@@ -119,16 +105,6 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
             &mut unit.1,
             &self.extension_sections,
             elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.tcd22xx_ctl.write(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            old,
             new,
             TIMEOUT_MS,
         )? {
@@ -161,7 +137,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro14Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.notified_elem_id_list);
-        self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
@@ -173,14 +148,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro14Model {
             TIMEOUT_MS,
         )?;
         self.tcd22xx_ctls.parse_notification(
-            &mut self.req,
-            &mut unit.1,
-            &self.extension_sections,
-            &self.sections.global.params,
-            TIMEOUT_MS,
-            *msg,
-        )?;
-        self.tcd22xx_ctl.parse_notification(
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
@@ -201,8 +168,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro14Model {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else {
             Ok(false)
         }
@@ -213,7 +178,6 @@ impl MeasureModel<(SndDice, FwNode)> for SPro14Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.measured_elem_id_list);
-        self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -222,12 +186,6 @@ impl MeasureModel<(SndDice, FwNode)> for SPro14Model {
         self.tcd22xx_ctls.cache_partial_params(
             &mut self.req,
             &mut unit.1,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )?;
-        self.tcd22xx_ctl.measure_states(
-            unit,
-            &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
         )?;
@@ -244,23 +202,8 @@ impl MeasureModel<(SndDice, FwNode)> for SPro14Model {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.tcd22xx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default)]
-struct SPro14Tcd22xxCtl(Tcd22xxCtl);
-
-impl Tcd22xxCtlOperation<SPro14Protocol> for SPro14Tcd22xxCtl {
-    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
-        &self.0
-    }
-
-    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
-        &mut self.0
     }
 }

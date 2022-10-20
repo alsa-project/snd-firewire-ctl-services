@@ -1088,19 +1088,6 @@ where
         }
     }
 }
-#[derive(Default, Debug)]
-pub struct Tcd22xxCtl {
-    state: Tcd22xxState,
-    caps: ExtensionCaps,
-}
-
-pub trait Tcd22xxCtlOperation<T>
-where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
-{
-    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl;
-    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl;
-}
 
 const OUT_METER_NAME: &str = "output-source-meter";
 const STREAM_TX_METER_NAME: &str = "stream-source-meter";
@@ -1137,96 +1124,4 @@ fn word_clock_mode_to_str(mode: &WordClockMode) -> &str {
         WordClockMode::Middle => "Middle",
         WordClockMode::High => "High",
     }
-}
-
-pub trait Tcd22xxCtlExt<T>: Tcd22xxCtlOperation<T>
-where
-    T: Tcd22xxSpecOperation,
-{
-    fn load(&mut self, _: &mut CardCntr, _: &GlobalParameters) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn cache(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        global_params: &GlobalParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let ctls = self.tcd22xx_ctl_mut();
-
-        ctls.caps = CapsSectionProtocol::read_caps(req, node, sections, timeout_ms)?;
-        T::cache(
-            node,
-            req,
-            sections,
-            &ctls.caps,
-            &mut ctls.state,
-            RateMode::from(global_params.clock_config.rate),
-            timeout_ms,
-        )?;
-
-        Ok(())
-    }
-
-    fn read(&self, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(true)
-    }
-
-    fn write(
-        &mut self,
-        _: &mut (SndDice, FwNode),
-        _: &mut FwReq,
-        _: &ExtensionSections,
-        _: &ElemId,
-        _: &ElemValue,
-        _: &ElemValue,
-        _: u32,
-    ) -> Result<bool, Error> {
-        Ok(false)
-    }
-
-    fn get_measured_elem_list(&self, _: &mut Vec<ElemId>) {}
-
-    fn measure_states(
-        &mut self,
-        _: &mut (SndDice, FwNode),
-        _: &mut FwReq,
-        _: &ExtensionSections,
-        _: u32,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn get_notified_elem_list(&self, _: &mut Vec<ElemId>) {}
-
-    fn parse_notification(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        global_params: &GlobalParameters,
-        timeout_ms: u32,
-        _: u32,
-    ) -> Result<(), Error> {
-        let ctls = self.tcd22xx_ctl_mut();
-        T::cache(
-            node,
-            req,
-            sections,
-            &ctls.caps,
-            &mut ctls.state,
-            RateMode::from(global_params.clock_config.rate),
-            timeout_ms,
-        )
-    }
-}
-
-impl<O, T> Tcd22xxCtlExt<T> for O
-where
-    O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxMixerOperation,
-{
 }
