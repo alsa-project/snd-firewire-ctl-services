@@ -181,6 +181,5 @@ impl SaffireproOutGroupOperation for SPro24Protocol {
 }
 
 impl SaffireproInputOperation for SPro24Protocol {
-    const MIC_INPUT_OFFSET: usize = 0x0058;
-    const LINE_INPUT_OFFSET: usize = 0x005c;
+    const INPUT_PARAMS_OFFSET: usize = 0x0058;
 }
