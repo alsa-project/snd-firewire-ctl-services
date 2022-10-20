@@ -144,6 +144,5 @@ impl SaffireproOutGroupOperation for SPro14Protocol {
 }
 
 impl SaffireproInputOperation for SPro14Protocol {
-    const MIC_INPUT_OFFSET: usize = 0x005c;
-    const LINE_INPUT_OFFSET: usize = 0x0060;
+    const INPUT_PARAMS_OFFSET: usize = 0x005c;
 }

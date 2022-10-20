@@ -311,8 +311,7 @@ impl SaffireproOutGroupOperation for SPro24DspProtocol {
 }
 
 impl SaffireproInputOperation for SPro24DspProtocol {
-    const MIC_INPUT_OFFSET: usize = 0x0058;
-    const LINE_INPUT_OFFSET: usize = 0x005c;
+    const INPUT_PARAMS_OFFSET: usize = 0x0058;
 }
 
 // When VRM mode is enabled, write 0x00000001 to the offset

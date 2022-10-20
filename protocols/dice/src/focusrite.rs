@@ -463,7 +463,7 @@ pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
 }
 
 /// The level of microphone input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireproMicInputLevel {
     /// Gain range: -10dB to +36 dB.
     Line,
@@ -478,7 +478,7 @@ impl Default for SaffireproMicInputLevel {
 }
 
 /// The level of line input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireproLineInputLevel {
     /// +16 dBu.
     Low,
@@ -492,18 +492,154 @@ impl Default for SaffireproLineInputLevel {
     }
 }
 
+/// Parameters for analog inputs.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SaffireproInputParams {
+    /// Nominal level of microphone inputs.
+    pub mic_levels: [SaffireproMicInputLevel; 2],
+    /// Nominal level of line inputs.
+    pub line_levels: [SaffireproLineInputLevel; 2],
+}
+
 const MIC_INPUT_LEVEL_INSTRUMENT_FLAG: u16 = 0x0002;
 const LINE_INPUT_LEVEL_HIGH_FLAG: u16 = 0x0001;
 
+const INPUT_PARAMS_SIZE: usize = 8;
+
+fn serialize_input_params(params: &SaffireproInputParams, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= INPUT_PARAMS_SIZE);
+
+    let mut val = 0u32;
+    params.mic_levels.iter().enumerate().for_each(|(i, level)| {
+        if *level == SaffireproMicInputLevel::Instrument {
+            val |= (MIC_INPUT_LEVEL_INSTRUMENT_FLAG as u32) << (16 * i);
+        };
+    });
+    val.build_quadlet(&mut raw[..4]);
+
+    let mut val = 0u32;
+    params
+        .line_levels
+        .iter()
+        .enumerate()
+        .for_each(|(i, level)| {
+            if *level == SaffireproLineInputLevel::High {
+                val |= (LINE_INPUT_LEVEL_HIGH_FLAG as u32) << (16 * i);
+            }
+        });
+    val.build_quadlet(&mut raw[4..8]);
+
+    Ok(())
+}
+
+fn deserialize_input_params(params: &mut SaffireproInputParams, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= INPUT_PARAMS_SIZE);
+
+    let mut val = 0u32;
+
+    val.parse_quadlet(&raw[..4]);
+    params
+        .mic_levels
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, level)| {
+            let flag = (val >> (16 * i)) as u16;
+            *level = if flag & MIC_INPUT_LEVEL_INSTRUMENT_FLAG > 0 {
+                SaffireproMicInputLevel::Instrument
+            } else {
+                SaffireproMicInputLevel::Line
+            };
+        });
+
+    val.parse_quadlet(&raw[4..8]);
+    params
+        .line_levels
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, level)| {
+            let flag = (val >> (16 * i)) as u16;
+            *level = if flag & LINE_INPUT_LEVEL_HIGH_FLAG > 0 {
+                SaffireproLineInputLevel::High
+            } else {
+                SaffireproLineInputLevel::Low
+            };
+        });
+
+    Ok(())
+}
+
 /// Input protocol specific to Pro 14 and Pro 24.
 pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
-    const MIC_INPUT_OFFSET: usize;
-    const LINE_INPUT_OFFSET: usize;
+    const INPUT_PARAMS_OFFSET: usize;
+
+    const MIC_INPUT_OFFSET: usize = Self::INPUT_PARAMS_OFFSET;
+    const LINE_INPUT_OFFSET: usize = Self::INPUT_PARAMS_OFFSET + 4;
 
     const SW_NOTICE: u32 = 0x00000004;
 
     const MIC_INPUT_COUNT: usize = 2;
     const LINE_INPUT_COUNT: usize = 2;
+
+    /// Cache state of hardware for whole parameters.
+    fn cache_whole_input_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut SaffireproInputParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; INPUT_PARAMS_SIZE];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            Self::INPUT_PARAMS_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_input_params(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+
+    /// Update state of hardware for partial parameters.
+    fn update_partial_input_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &SaffireproInputParams,
+        prev: &mut SaffireproInputParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..INPUT_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                ApplSectionProtocol::write_appl_data(
+                    req,
+                    node,
+                    sections,
+                    Self::INPUT_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new != old {
+            Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)?;
+        }
+
+        deserialize_input_params(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
 
     fn read_mic_level(
         req: &mut FwReq,
@@ -627,5 +763,32 @@ pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
             timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn input_params_serdes() {
+        let params = SaffireproInputParams {
+            mic_levels: [
+                SaffireproMicInputLevel::Instrument,
+                SaffireproMicInputLevel::Line,
+            ],
+            line_levels: [
+                SaffireproLineInputLevel::High,
+                SaffireproLineInputLevel::Low,
+            ],
+        };
+
+        let mut raw = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(&params, &mut raw).unwrap();
+
+        let mut p = SaffireproInputParams::default();
+        deserialize_input_params(&mut p, &raw).unwrap();
+
+        assert_eq!(params, p);
     }
 }
