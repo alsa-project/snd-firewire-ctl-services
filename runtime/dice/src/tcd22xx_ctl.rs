@@ -22,7 +22,11 @@ where
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
 
-    _phantom: PhantomData<T>,
+    supported_sources: Vec<ClockSource>,
+    supported_source_labels: Vec<String>,
+    supported_rates: Vec<ClockRate>,
+
+    standalone_ctls: StandaloneCtls<T>,
 }
 
 impl<T> Tcd22xxCtls<T>
@@ -31,33 +35,80 @@ where
 {
     pub fn cache_whole_params(
         &mut self,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: &ExtensionSections,
-        _: &GlobalParameters,
-        _: u32,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        global_params: &GlobalParameters,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
+        self.supported_sources = global_params.avail_sources.to_vec();
+
+        self.supported_source_labels = self
+            .supported_sources
+            .iter()
+            .filter_map(|src| {
+                global_params
+                    .clock_source_labels
+                    .iter()
+                    .find(|(s, _)| src.eq(s))
+                    .map(|(_, l)| l.to_string())
+            })
+            .collect();
+
+        self.supported_rates = global_params.avail_rates.to_vec();
+
+        self.standalone_ctls
+            .cache(req, node, sections, timeout_ms)?;
+
         Ok(())
     }
 
-    pub fn load(&mut self, _: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.standalone_ctls.load(
+            card_cntr,
+            &self.supported_sources,
+            &self.supported_source_labels,
+            &self.supported_rates,
+        )?;
         Ok(())
     }
 
-    pub fn read(&self, _: &ElemId, _: &ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    pub fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        if self.standalone_ctls.read(
+            elem_id,
+            elem_value,
+            &self.supported_sources,
+            &self.supported_rates,
+        )? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn write(
         &mut self,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: &ExtensionSections,
-        _: &ElemId,
-        _: &ElemValue,
-        _: u32,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.standalone_ctls.write(
+            req,
+            node,
+            sections,
+            elem_id,
+            elem_value,
+            &self.supported_sources,
+            &self.supported_rates,
+            timeout_ms,
+        )? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn cache_partial_params(
@@ -84,13 +135,359 @@ where
 }
 
 #[derive(Default, Debug)]
+struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>);
+
+impl<T> StandaloneCtls<T>
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+{
+    const ADAT_MODES: &'static [AdatParam] = &[
+        AdatParam::Normal,
+        AdatParam::SMUX2,
+        AdatParam::SMUX4,
+        AdatParam::Auto,
+    ];
+
+    const WC_MODES: &'static [WordClockMode] = &[
+        WordClockMode::Normal,
+        WordClockMode::Low,
+        WordClockMode::Middle,
+        WordClockMode::High,
+    ];
+
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        StandaloneSectionProtocol::cache_standalone_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        )
+    }
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        supported_sources: &[ClockSource],
+        supported_source_labels: &[String],
+        supported_rates: &[ClockRate],
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &supported_source_labels, None, true)?;
+
+        if supported_sources
+            .iter()
+            .find(|&src| {
+                src.eq(&ClockSource::Aes1)
+                    || src.eq(&ClockSource::Aes2)
+                    || src.eq(&ClockSource::Aes3)
+                    || src.eq(&ClockSource::Aes4)
+            })
+            .is_some()
+        {
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card,
+                0,
+                0,
+                STANDALONE_SPDIF_HIGH_RATE_NAME,
+                0,
+            );
+            let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        }
+
+        if supported_sources
+            .iter()
+            .find(|&src| src.eq(&ClockSource::Adat))
+            .is_some()
+        {
+            let labels: Vec<&str> = Self::ADAT_MODES
+                .iter()
+                .map(|mode| adat_mode_to_str(mode))
+                .collect();
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_ADAT_MODE_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        }
+
+        if supported_sources
+            .iter()
+            .find(|&src| src.eq(&ClockSource::WordClock))
+            .is_some()
+        {
+            let labels: Vec<&str> = Self::WC_MODES
+                .iter()
+                .map(|mode| word_clock_mode_to_str(mode))
+                .collect();
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_WC_MODE_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card,
+                0,
+                0,
+                STANDALONE_WC_RATE_NUMERATOR_NAME,
+                0,
+            );
+            let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 4095, 1, 1, None, true)?;
+
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card,
+                0,
+                0,
+                STANDALONE_WC_RATE_DENOMINATOR_NAME,
+                0,
+            );
+            let _ =
+                card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
+        }
+
+        let labels: Vec<String> = supported_rates
+            .iter()
+            .map(|r| clock_rate_to_string(r))
+            .collect();
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Card,
+            0,
+            0,
+            STANDALONE_INTERNAL_CLK_RATE_NAME,
+            0,
+        );
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        supported_sources: &[ClockSource],
+        supported_rates: &[ClockRate],
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            STANDALONE_CLK_SRC_NAME => {
+                let params = &self.0;
+                let pos = supported_sources
+                    .iter()
+                    .position(|src| params.clock_source.eq(src))
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Unexpected value for source: {}",
+                            clock_source_to_string(&params.clock_source)
+                        );
+                        Error::new(FileError::Nxio, &msg)
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            STANDALONE_SPDIF_HIGH_RATE_NAME => {
+                let params = &self.0;
+                elem_value.set_bool(&[params.aes_high_rate]);
+                Ok(true)
+            }
+            STANDALONE_ADAT_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::ADAT_MODES
+                    .iter()
+                    .position(|src| params.adat_mode.eq(src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            STANDALONE_WC_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::WC_MODES
+                    .iter()
+                    .position(|mode| params.word_clock_param.mode.eq(mode))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            STANDALONE_WC_RATE_NUMERATOR_NAME => {
+                let params = &self.0;
+                elem_value.set_int(&[params.word_clock_param.rate.numerator as i32]);
+                Ok(true)
+            }
+            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
+                let params = &self.0;
+                elem_value.set_int(&[params.word_clock_param.rate.denominator as i32]);
+                Ok(true)
+            }
+            STANDALONE_INTERNAL_CLK_RATE_NAME => {
+                let params = &self.0;
+                let pos = supported_rates
+                    .iter()
+                    .position(|rate| params.internal_rate.eq(rate))
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Unexpected value for rate: {}",
+                            clock_rate_to_string(&params.internal_rate)
+                        );
+                        Error::new(FileError::Nxio, &msg)
+                    })?;
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        supported_sources: &[ClockSource],
+        supported_rates: &[ClockRate],
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            STANDALONE_CLK_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                supported_sources
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of source: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&src| params.clock_source = src)?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_SPDIF_HIGH_RATE_NAME => {
+                let mut params = self.0.clone();
+                params.aes_high_rate = elem_value.boolean()[0];
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_ADAT_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::ADAT_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Standalone ADAT mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.adat_mode = mode)?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_WC_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::WC_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Standalone Word Clock mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.word_clock_param.mode = mode)?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_WC_RATE_NUMERATOR_NAME => {
+                let mut params = self.0.clone();
+                params.word_clock_param.rate.numerator = elem_value.int()[0] as u16;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
+                let mut params = self.0.clone();
+                params.word_clock_param.rate.denominator = elem_value.int()[0] as u16;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            STANDALONE_INTERNAL_CLK_RATE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                supported_rates
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of rate: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&rate| params.internal_rate = rate)?;
+                StandaloneSectionProtocol::update_standalone_params(
+                    req,
+                    node,
+                    &sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct Tcd22xxCtl {
     state: Tcd22xxState,
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
     router_ctl: RouterCtl,
     mixer_ctl: MixerCtl,
-    standalone_ctl: StandaloneCtl,
 }
 
 pub trait Tcd22xxCtlOperation<T>
@@ -733,13 +1130,6 @@ where
 {
 }
 
-#[derive(Default, Debug)]
-struct StandaloneCtl {
-    params: StandaloneParameters,
-    rates: Vec<ClockRate>,
-    srcs: Vec<ClockSource>,
-}
-
 const STANDALONE_CLK_SRC_NAME: &str = "standalone-clock-source";
 const STANDALONE_SPDIF_HIGH_RATE_NAME: &str = "standalone-spdif-high-rate";
 const STANDALONE_ADAT_MODE_NAME: &str = "standalone-adat-mode";
@@ -766,390 +1156,15 @@ fn word_clock_mode_to_str(mode: &WordClockMode) -> &str {
     }
 }
 
-pub trait StandaloneCtlOperation<T>: Tcd22xxCtlOperation<T>
-where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
-{
-    const ADAT_MODES: &'static [AdatParam] = &[
-        AdatParam::Normal,
-        AdatParam::SMUX2,
-        AdatParam::SMUX4,
-        AdatParam::Auto,
-    ];
-
-    const WC_MODES: &'static [WordClockMode] = &[
-        WordClockMode::Normal,
-        WordClockMode::Low,
-        WordClockMode::Middle,
-        WordClockMode::High,
-    ];
-
-    fn cache_standalone(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let params = &mut self.tcd22xx_ctl_mut().standalone_ctl.params;
-        StandaloneSectionProtocol::cache_standalone_params(req, node, sections, params, timeout_ms)
-    }
-
-    fn load_standalone(
-        &mut self,
-        global_params: &GlobalParameters,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        let labels: Vec<&str> = global_params
-            .avail_sources
-            .iter()
-            .filter_map(|src| {
-                global_params
-                    .clock_source_labels
-                    .iter()
-                    .find(|(s, _)| src.eq(s))
-                    .map(|(_, l)| l.as_str())
-            })
-            .collect();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        if global_params
-            .avail_sources
-            .iter()
-            .find(|&src| {
-                src.eq(&ClockSource::Aes1)
-                    || src.eq(&ClockSource::Aes2)
-                    || src.eq(&ClockSource::Aes3)
-                    || src.eq(&ClockSource::Aes4)
-            })
-            .is_some()
-        {
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Card,
-                0,
-                0,
-                STANDALONE_SPDIF_HIGH_RATE_NAME,
-                0,
-            );
-            let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        }
-
-        if global_params
-            .avail_sources
-            .iter()
-            .find(|&src| src.eq(&ClockSource::Adat))
-            .is_some()
-        {
-            let labels: Vec<&str> = Self::ADAT_MODES
-                .iter()
-                .map(|mode| adat_mode_to_str(mode))
-                .collect();
-            let elem_id =
-                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_ADAT_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        }
-
-        if global_params
-            .avail_sources
-            .iter()
-            .find(|&src| src.eq(&ClockSource::WordClock))
-            .is_some()
-        {
-            let labels: Vec<&str> = Self::WC_MODES
-                .iter()
-                .map(|mode| word_clock_mode_to_str(mode))
-                .collect();
-            let elem_id =
-                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_WC_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Card,
-                0,
-                0,
-                STANDALONE_WC_RATE_NUMERATOR_NAME,
-                0,
-            );
-            let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 4095, 1, 1, None, true)?;
-
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Card,
-                0,
-                0,
-                STANDALONE_WC_RATE_DENOMINATOR_NAME,
-                0,
-            );
-            let _ =
-                card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
-        }
-
-        let labels: Vec<String> = global_params
-            .avail_rates
-            .iter()
-            .map(|r| clock_rate_to_string(r))
-            .collect();
-
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            STANDALONE_INTERNAL_CLK_RATE_NAME,
-            0,
-        );
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        self.tcd22xx_ctl_mut().standalone_ctl.rates = global_params.avail_rates.to_vec();
-        self.tcd22xx_ctl_mut().standalone_ctl.srcs = global_params.avail_sources.to_vec();
-
-        Ok(())
-    }
-
-    fn read_standalone(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            STANDALONE_CLK_SRC_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                let pos = ctl
-                    .srcs
-                    .iter()
-                    .position(|src| ctl.params.clock_source.eq(src))
-                    .ok_or_else(|| {
-                        let msg = format!(
-                            "Unexpected value for source: {}",
-                            clock_source_to_string(&ctl.params.clock_source)
-                        );
-                        Error::new(FileError::Nxio, &msg)
-                    })?;
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            STANDALONE_SPDIF_HIGH_RATE_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                elem_value.set_bool(&[ctl.params.aes_high_rate]);
-                Ok(true)
-            }
-            STANDALONE_ADAT_MODE_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                let pos = Self::ADAT_MODES
-                    .iter()
-                    .position(|src| ctl.params.adat_mode.eq(src))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            STANDALONE_WC_MODE_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                let pos = Self::WC_MODES
-                    .iter()
-                    .position(|mode| ctl.params.word_clock_param.mode.eq(mode))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            STANDALONE_WC_RATE_NUMERATOR_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                elem_value.set_int(&[ctl.params.word_clock_param.rate.numerator as i32]);
-                Ok(true)
-            }
-            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                elem_value.set_int(&[ctl.params.word_clock_param.rate.denominator as i32]);
-                Ok(true)
-            }
-            STANDALONE_INTERNAL_CLK_RATE_NAME => {
-                let ctl = &self.tcd22xx_ctl().standalone_ctl;
-                let pos = ctl
-                    .rates
-                    .iter()
-                    .position(|rate| ctl.params.internal_rate.eq(rate))
-                    .ok_or_else(|| {
-                        let msg = format!(
-                            "Unexpected value for rate: {}",
-                            clock_rate_to_string(&ctl.params.internal_rate)
-                        );
-                        Error::new(FileError::Nxio, &msg)
-                    })?;
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write_standalone(
-        &mut self,
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            STANDALONE_CLK_SRC_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                let pos = elem_value.enumerated()[0] as usize;
-                params.clock_source = ctl
-                    .srcs
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of source: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .copied()?;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_SPDIF_HIGH_RATE_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                params.aes_high_rate = elem_value.boolean()[0];
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_ADAT_MODE_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                let pos = elem_value.enumerated()[0] as usize;
-                params.adat_mode = Self::ADAT_MODES
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Standalone ADAT mode not found for position {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .copied()?;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_WC_MODE_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                let pos = elem_value.enumerated()[0] as usize;
-                params.word_clock_param.mode = Self::WC_MODES
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg =
-                            format!("Standalone Word Clock mode not found for position {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .copied()?;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_WC_RATE_NUMERATOR_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                params.word_clock_param.rate.numerator = elem_value.int()[0] as u16;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                params.word_clock_param.rate.denominator = elem_value.int()[0] as u16;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            STANDALONE_INTERNAL_CLK_RATE_NAME => {
-                let ctl = &mut self.tcd22xx_ctl_mut().standalone_ctl;
-                let mut params = ctl.params.clone();
-                let pos = elem_value.enumerated()[0] as usize;
-                params.internal_rate = ctl
-                    .rates
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .copied()?;
-                StandaloneSectionProtocol::update_standalone_params(
-                    req,
-                    node,
-                    &sections,
-                    &params,
-                    &mut ctl.params,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-impl<O, T> StandaloneCtlOperation<T> for O
-where
-    O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
-{
-}
-
 pub trait Tcd22xxCtlExt<T>:
-    Tcd22xxCtlOperation<T>
-    + MeterCtlOperation<T>
-    + RouterCtlOperation<T>
-    + MixerCtlOperation<T>
-    + StandaloneCtlOperation<T>
+    Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T> + MixerCtlOperation<T>
 where
     T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
 {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        global_params: &GlobalParameters,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr, _: &GlobalParameters) -> Result<(), Error> {
         self.load_meter(card_cntr)?;
         self.load_router(card_cntr)?;
         self.load_mixer(card_cntr)?;
-        self.load_standalone(global_params, card_cntr)?;
 
         Ok(())
     }
@@ -1178,7 +1193,6 @@ where
         self.cache_meter(req, node, sections, timeout_ms)?;
         self.cache_router(req, node, sections, global_params, timeout_ms)?;
         self.cache_mixer()?;
-        self.cache_standalone(req, node, sections, timeout_ms)?;
 
         Ok(())
     }
@@ -1189,8 +1203,6 @@ where
         } else if self.read_router(elem_id, elem_value)? {
             Ok(true)
         } else if self.read_mixer(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_standalone(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1210,8 +1222,6 @@ where
         if self.write_router(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else if self.write_mixer(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
-            Ok(true)
-        } else if self.write_standalone(&mut unit.1, req, sections, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1261,11 +1271,7 @@ where
 
 impl<O, T> Tcd22xxCtlExt<T> for O
 where
-    O: Tcd22xxCtlOperation<T>
-        + MeterCtlOperation<T>
-        + RouterCtlOperation<T>
-        + MixerCtlOperation<T>
-        + StandaloneCtlOperation<T>,
+    O: Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T> + MixerCtlOperation<T>,
     T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
 {
 }
