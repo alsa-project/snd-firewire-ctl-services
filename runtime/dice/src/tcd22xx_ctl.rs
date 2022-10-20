@@ -30,12 +30,15 @@ where
     supported_source_labels: Vec<String>,
     supported_rates: Vec<ClockRate>,
 
+    real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+    stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
 
     current_rate: u32,
 
     standalone_ctls: StandaloneCtls<T>,
     mixer_ctls: MixerCtls<T>,
+    router_ctls: RouterCtls<T>,
 }
 
 impl<T> Tcd22xxCtls<T>
@@ -68,6 +71,41 @@ where
 
         self.supported_rates = global_params.avail_rates.to_vec();
 
+        self.real_blk_pair = T::compute_avail_real_blk_pair(RateMode::Low);
+
+        // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
+        // such models that second rx or tx stream is not available at mode of low rate.
+        let mut rate_modes: Vec<RateMode> = Vec::default();
+        global_params
+            .avail_rates
+            .iter()
+            .map(|&r| RateMode::from(r))
+            .for_each(|m| {
+                if rate_modes.iter().find(|&&mode| mode.eq(&m)).is_none() {
+                    rate_modes.push(m);
+                }
+            });
+        rate_modes.iter().try_for_each(|&m| {
+            CurrentConfigSectionProtocol::read_current_stream_format_entries(
+                req, node, sections, &self.caps, m, timeout_ms,
+            )
+            .map(|(tx, rx)| {
+                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(&tx, &rx);
+                tx_blk.iter().for_each(|src| {
+                    if self.stream_blk_pair.0.iter().find(|s| s.eq(&src)).is_none() {
+                        self.stream_blk_pair.0.push(*src);
+                    }
+                });
+                rx_blk.iter().for_each(|dst| {
+                    if self.stream_blk_pair.1.iter().find(|d| d.eq(&dst)).is_none() {
+                        self.stream_blk_pair.1.push(*dst);
+                    }
+                });
+            })
+        })?;
+        self.stream_blk_pair.0.sort();
+        self.stream_blk_pair.1.sort();
+
         self.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&self.caps, RateMode::Low);
 
         T::cache(
@@ -99,6 +137,15 @@ where
             .load(card_cntr, &self.mixer_blk_pair)
             .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
+        self.router_ctls
+            .load(
+                card_cntr,
+                &self.real_blk_pair,
+                &self.stream_blk_pair,
+                &self.mixer_blk_pair,
+            )
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
+
         Ok(())
     }
 
@@ -114,6 +161,15 @@ where
             .mixer_ctls
             .read(elem_id, elem_value, &self.state.mixer_cache)?
         {
+            Ok(true)
+        } else if self.router_ctls.read(
+            elem_id,
+            elem_value,
+            &self.state.router_entries,
+            &self.real_blk_pair,
+            &self.stream_blk_pair,
+            &self.mixer_blk_pair,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -148,6 +204,20 @@ where
             &mut self.state,
             elem_id,
             elem_value,
+            timeout_ms,
+        )? {
+            Ok(true)
+        } else if self.router_ctls.write(
+            req,
+            node,
+            sections,
+            &self.caps,
+            elem_id,
+            elem_value,
+            &mut self.state,
+            &self.real_blk_pair,
+            &self.stream_blk_pair,
+            &self.mixer_blk_pair,
             timeout_ms,
         )? {
             Ok(true)
@@ -631,11 +701,233 @@ where
 }
 
 #[derive(Default, Debug)]
+struct RouterCtls<T>(PhantomData<T>)
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation;
+
+impl<T> RouterCtls<T>
+where
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+{
+    const NONE_SRC_LABEL: &'static str = "None";
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        real_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        stream_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        mixer_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut notified_elem_id_list = Vec::new();
+
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_OUT_SRC_NAME,
+            &real_blk_pair.1,
+            &[&real_blk_pair.0, &stream_blk_pair.0, &mixer_blk_pair.0],
+        )
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_CAP_SRC_NAME,
+            &stream_blk_pair.1,
+            &[&real_blk_pair.0, &mixer_blk_pair.0],
+        )
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_MIXER_SRC_NAME,
+            &mixer_blk_pair.1,
+            &[&real_blk_pair.0, &stream_blk_pair.0],
+        )
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn add_an_elem_for_src(
+        card_cntr: &mut CardCntr,
+        label: &str,
+        dsts: &[DstBlk],
+        srcs: &[&[SrcBlk]],
+    ) -> Result<Vec<ElemId>, Error> {
+        let targets: Vec<String> = dsts.iter().map(|&dst| T::dst_blk_label(dst)).collect();
+
+        let mut sources: Vec<String> = srcs
+            .iter()
+            .flat_map(|srcs| *srcs)
+            .map(|src| T::src_blk_label(src))
+            .collect();
+        sources.insert(0, Self::NONE_SRC_LABEL.to_string());
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, label, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, targets.len(), &sources, None, true)
+    }
+
+    fn read(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        router_entries: &[RouterEntry],
+        real_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        stream_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        mixer_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ROUTER_OUT_SRC_NAME => Self::read_elem_src(
+                elem_value,
+                router_entries,
+                &real_blk_pair.1,
+                &[&real_blk_pair.0, &stream_blk_pair.0, &mixer_blk_pair.0],
+            ),
+            ROUTER_CAP_SRC_NAME => Self::read_elem_src(
+                elem_value,
+                router_entries,
+                &stream_blk_pair.1,
+                &[&real_blk_pair.0, &mixer_blk_pair.0],
+            ),
+            ROUTER_MIXER_SRC_NAME => Self::read_elem_src(
+                elem_value,
+                router_entries,
+                &mixer_blk_pair.1,
+                &[&real_blk_pair.0, &stream_blk_pair.0],
+            ),
+            _ => Ok(false),
+        }
+    }
+
+    fn read_elem_src(
+        elem_value: &ElemValue,
+        router_entries: &[RouterEntry],
+        dsts: &[DstBlk],
+        srcs: &[&[SrcBlk]],
+    ) -> Result<bool, Error> {
+        let vals: Vec<u32> = dsts
+            .iter()
+            .map(|dst| {
+                router_entries
+                    .iter()
+                    .find(|entry| dst.eq(&entry.dst))
+                    .and_then(|entry| {
+                        srcs.iter()
+                            .flat_map(|&list| list)
+                            .position(|src| entry.src.eq(src))
+                            .map(|pos| 1 + pos as u32)
+                    })
+                    .unwrap_or(0)
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        state: &mut Tcd22xxState,
+        real_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        stream_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        mixer_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ROUTER_OUT_SRC_NAME => Self::write_elem_src(
+                req,
+                node,
+                sections,
+                caps,
+                elem_value,
+                state,
+                &real_blk_pair.1,
+                &[&real_blk_pair.0, &stream_blk_pair.0, &mixer_blk_pair.0],
+                timeout_ms,
+            ),
+            ROUTER_CAP_SRC_NAME => Self::write_elem_src(
+                req,
+                node,
+                sections,
+                caps,
+                elem_value,
+                state,
+                &stream_blk_pair.1,
+                &[&real_blk_pair.0, &mixer_blk_pair.0],
+                timeout_ms,
+            ),
+            ROUTER_MIXER_SRC_NAME => Self::write_elem_src(
+                req,
+                node,
+                sections,
+                caps,
+                elem_value,
+                state,
+                &mixer_blk_pair.1,
+                &[&real_blk_pair.0, &stream_blk_pair.0],
+                timeout_ms,
+            ),
+            _ => Ok(false),
+        }
+    }
+
+    fn write_elem_src(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        elem_value: &ElemValue,
+        state: &mut Tcd22xxState,
+        dsts: &[DstBlk],
+        srcs: &[&[SrcBlk]],
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let mut entries = state.router_entries.clone();
+
+        dsts.iter()
+            .zip(elem_value.enumerated())
+            .for_each(|(dst, &val)| {
+                let src = if val == 0 {
+                    SrcBlk {
+                        id: SrcBlkId::Reserved(0xff),
+                        ch: 0xff,
+                    }
+                } else {
+                    let pos = (val - 1) as usize;
+                    srcs.iter()
+                        .flat_map(|&list| list)
+                        .nth(pos)
+                        .copied()
+                        .unwrap_or_else(|| SrcBlk {
+                            id: SrcBlkId::Reserved(0xff),
+                            ch: 0xff,
+                        })
+                };
+
+                match entries.iter_mut().find(|entry| entry.dst.eq(dst)) {
+                    Some(entry) => entry.src = src,
+                    None => entries.push(RouterEntry {
+                        dst: *dst,
+                        src,
+                        ..Default::default()
+                    }),
+                }
+            });
+
+        T::update_router_entries(node, req, sections, caps, state, entries, timeout_ms)
+            .map(|_| true)
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct Tcd22xxCtl {
     state: Tcd22xxState,
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
-    router_ctl: RouterCtl,
 }
 
 pub trait Tcd22xxCtlOperation<T>
@@ -815,344 +1107,9 @@ where
 {
 }
 
-#[derive(Default, Debug)]
-struct RouterCtl {
-    // Maximum number block in low rate mode.
-    real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    notified_elem_list: Vec<ElemId>,
-}
-
 const ROUTER_OUT_SRC_NAME: &str = "output-source";
 const ROUTER_CAP_SRC_NAME: &str = "stream-source";
 const ROUTER_MIXER_SRC_NAME: &str = "mixer-source";
-
-pub trait RouterCtlOperation<T: Tcd22xxRouterOperation>: Tcd22xxCtlOperation<T>
-where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
-{
-    const NONE_SRC_LABEL: &'static str = "None";
-
-    fn cache_router(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        global_params: &GlobalParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let ctls = &mut self.tcd22xx_ctl_mut();
-
-        ctls.router_ctl.real_blk_pair = T::compute_avail_real_blk_pair(RateMode::Low);
-
-        // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
-        // such models that second rx or tx stream is not available at mode of low rate.
-        let mut rate_modes: Vec<RateMode> = Vec::default();
-        global_params
-            .avail_rates
-            .iter()
-            .map(|&r| RateMode::from(r))
-            .for_each(|m| {
-                if rate_modes.iter().find(|&&mode| mode.eq(&m)).is_none() {
-                    rate_modes.push(m);
-                }
-            });
-        rate_modes.iter().try_for_each(|&m| {
-            CurrentConfigSectionProtocol::read_current_stream_format_entries(
-                req, node, sections, &ctls.caps, m, timeout_ms,
-            )
-            .map(|(tx, rx)| {
-                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(&tx, &rx);
-                tx_blk.iter().for_each(|src| {
-                    if ctls
-                        .router_ctl
-                        .stream_blk_pair
-                        .0
-                        .iter()
-                        .find(|s| s.eq(&src))
-                        .is_none()
-                    {
-                        ctls.router_ctl.stream_blk_pair.0.push(*src);
-                    }
-                });
-                rx_blk.iter().for_each(|dst| {
-                    if ctls
-                        .router_ctl
-                        .stream_blk_pair
-                        .1
-                        .iter()
-                        .find(|d| d.eq(&dst))
-                        .is_none()
-                    {
-                        ctls.router_ctl.stream_blk_pair.1.push(*dst);
-                    }
-                });
-            })
-        })?;
-
-        ctls.router_ctl.stream_blk_pair.0.sort();
-        ctls.router_ctl.stream_blk_pair.1.sort();
-
-        ctls.router_ctl.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&ctls.caps, RateMode::Low);
-
-        Ok(())
-    }
-
-    fn load_router(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let ctl = &mut self.tcd22xx_ctl_mut().router_ctl;
-
-        Self::add_an_elem_for_src(
-            card_cntr,
-            ROUTER_OUT_SRC_NAME,
-            &ctl.real_blk_pair.1,
-            &[
-                &ctl.real_blk_pair.0,
-                &ctl.stream_blk_pair.0,
-                &ctl.mixer_blk_pair.0,
-            ],
-        )
-        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
-
-        Self::add_an_elem_for_src(
-            card_cntr,
-            ROUTER_CAP_SRC_NAME,
-            &ctl.stream_blk_pair.1,
-            &[&ctl.real_blk_pair.0, &ctl.mixer_blk_pair.0],
-        )
-        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
-
-        Self::add_an_elem_for_src(
-            card_cntr,
-            ROUTER_MIXER_SRC_NAME,
-            &ctl.mixer_blk_pair.1,
-            &[&ctl.real_blk_pair.0, &ctl.stream_blk_pair.0],
-        )
-        .map(|mut elem_id_list| ctl.notified_elem_list.append(&mut elem_id_list))?;
-
-        Ok(())
-    }
-
-    fn read_router(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            ROUTER_OUT_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl();
-                Self::read_elem_src(
-                    &ctls.state,
-                    elem_value,
-                    &ctls.router_ctl.real_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.stream_blk_pair.0,
-                        &ctls.router_ctl.mixer_blk_pair.0,
-                    ],
-                );
-                Ok(true)
-            }
-            ROUTER_CAP_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl();
-                Self::read_elem_src(
-                    &ctls.state,
-                    elem_value,
-                    &ctls.router_ctl.stream_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.mixer_blk_pair.0,
-                    ],
-                );
-                Ok(true)
-            }
-            ROUTER_MIXER_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl();
-                Self::read_elem_src(
-                    &ctls.state,
-                    elem_value,
-                    &ctls.router_ctl.mixer_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.stream_blk_pair.0,
-                    ],
-                );
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write_router(
-        &mut self,
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            ROUTER_OUT_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl_mut();
-                Self::write_elem_src(
-                    &mut ctls.state,
-                    node,
-                    req,
-                    sections,
-                    &ctls.caps,
-                    old,
-                    new,
-                    &ctls.router_ctl.real_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.stream_blk_pair.0,
-                        &ctls.router_ctl.mixer_blk_pair.0,
-                    ],
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            ROUTER_CAP_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl_mut();
-                Self::write_elem_src(
-                    &mut ctls.state,
-                    node,
-                    req,
-                    sections,
-                    &ctls.caps,
-                    old,
-                    new,
-                    &ctls.router_ctl.stream_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.mixer_blk_pair.0,
-                    ],
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            ROUTER_MIXER_SRC_NAME => {
-                let ctls = self.tcd22xx_ctl_mut();
-                Self::write_elem_src(
-                    &mut ctls.state,
-                    node,
-                    req,
-                    sections,
-                    &ctls.caps,
-                    old,
-                    new,
-                    &ctls.router_ctl.mixer_blk_pair.1,
-                    &[
-                        &ctls.router_ctl.real_blk_pair.0,
-                        &ctls.router_ctl.stream_blk_pair.0,
-                    ],
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn add_an_elem_for_src(
-        card_cntr: &mut CardCntr,
-        label: &str,
-        dsts: &[DstBlk],
-        srcs: &[&[SrcBlk]],
-    ) -> Result<Vec<ElemId>, Error> {
-        let targets = dsts
-            .iter()
-            .map(|&dst| T::dst_blk_label(dst))
-            .collect::<Vec<String>>();
-        let mut sources = srcs
-            .iter()
-            .flat_map(|srcs| *srcs)
-            .map(|src| T::src_blk_label(src))
-            .collect::<Vec<String>>();
-        sources.insert(0, Self::NONE_SRC_LABEL.to_string());
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, label, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, targets.len(), &sources, None, true)
-    }
-
-    fn read_elem_src(
-        state: &Tcd22xxState,
-        elem_value: &ElemValue,
-        dsts: &[DstBlk],
-        srcs: &[&[SrcBlk]],
-    ) {
-        let _ = ElemValueAccessor::<u32>::set_vals(elem_value, dsts.len(), |idx| {
-            let dst = dsts[idx];
-
-            let val = state
-                .router_entries
-                .iter()
-                .find(|entry| entry.dst.eq(&dst))
-                .and_then(|entry| {
-                    srcs.iter()
-                        .flat_map(|srcs| *srcs)
-                        .position(|src| entry.src.eq(src))
-                        .map(|pos| 1 + pos as u32)
-                })
-                .unwrap_or(0);
-            Ok(val)
-        });
-    }
-
-    fn write_elem_src(
-        state: &mut Tcd22xxState,
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        old: &ElemValue,
-        new: &ElemValue,
-        dsts: &[DstBlk],
-        srcs: &[&[SrcBlk]],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut entries = state.router_entries.clone();
-
-        ElemValueAccessor::<u32>::get_vals(new, old, dsts.len(), |idx, val| {
-            let dst = dsts[idx];
-
-            let src = if val > 0 {
-                let pos = (val as usize) - 1;
-                srcs.iter()
-                    .flat_map(|srcs| *srcs)
-                    .nth(pos)
-                    .cloned()
-                    .unwrap_or_else(|| SrcBlk {
-                        id: SrcBlkId::Reserved(0xff),
-                        ch: 0xff,
-                    })
-            } else {
-                SrcBlk {
-                    id: SrcBlkId::Reserved(0xff),
-                    ch: 0xff,
-                }
-            };
-
-            match entries.iter_mut().find(|entry| entry.dst.eq(&dst)) {
-                Some(entry) => entry.src = src,
-                None => entries.push(RouterEntry {
-                    dst,
-                    src,
-                    ..Default::default()
-                }),
-            }
-
-            Ok(())
-        })?;
-
-        T::update_router_entries(node, req, sections, caps, state, entries, timeout_ms)
-    }
-}
-
-impl<O, T> RouterCtlOperation<T> for O
-where
-    O: Tcd22xxCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
-{
-}
 
 const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
 
@@ -1182,14 +1139,12 @@ fn word_clock_mode_to_str(mode: &WordClockMode) -> &str {
     }
 }
 
-pub trait Tcd22xxCtlExt<T>:
-    Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T>
+pub trait Tcd22xxCtlExt<T>: Tcd22xxCtlOperation<T> + MeterCtlOperation<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecOperation,
 {
     fn load(&mut self, card_cntr: &mut CardCntr, _: &GlobalParameters) -> Result<(), Error> {
         self.load_meter(card_cntr)?;
-        self.load_router(card_cntr)?;
 
         Ok(())
     }
@@ -1216,15 +1171,12 @@ where
         )?;
 
         self.cache_meter(req, node, sections, timeout_ms)?;
-        self.cache_router(req, node, sections, global_params, timeout_ms)?;
 
         Ok(())
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.read_meter(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.read_router(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1233,19 +1185,15 @@ where
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32,
+        _: &mut (SndDice, FwNode),
+        _: &mut FwReq,
+        _: &ExtensionSections,
+        _: &ElemId,
+        _: &ElemValue,
+        _: &ElemValue,
+        _: u32,
     ) -> Result<bool, Error> {
-        if self.write_router(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(false)
     }
 
     fn get_measured_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
@@ -1262,9 +1210,7 @@ where
         self.measure_states_meter(&mut unit.1, req, sections, timeout_ms)
     }
 
-    fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.tcd22xx_ctl().router_ctl.notified_elem_list);
-    }
+    fn get_notified_elem_list(&self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(
         &mut self,
@@ -1290,7 +1236,7 @@ where
 
 impl<O, T> Tcd22xxCtlExt<T> for O
 where
-    O: Tcd22xxCtlOperation<T> + MeterCtlOperation<T> + RouterCtlOperation<T>,
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    O: Tcd22xxCtlOperation<T> + MeterCtlOperation<T>,
+    T: Tcd22xxSpecOperation + Tcd22xxMixerOperation,
 {
 }
