@@ -451,3 +451,127 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
         }
     }
 }
+
+#[derive(Default, Debug)]
+pub struct IoParamsCtl<T>(SaffireproIoParams, PhantomData<T>)
+where
+    T: SaffireproIoParamsOperation;
+
+fn optical_out_iface_mode_to_str(mode: &OpticalOutIfaceMode) -> &'static str {
+    match mode {
+        OpticalOutIfaceMode::Adat => "ADAT",
+        OpticalOutIfaceMode::Spdif => "S/PDIF",
+        OpticalOutIfaceMode::AesEbu => "AES/EBU",
+    }
+}
+
+const ANALOG_OUT_0_1_PAD_NAME: &str = "analog-output-1/2-pad";
+const OPTICAL_OUT_IFACE_MODE_NAME: &str = "optical-output-interface-mode";
+const MIC_AMP_TRANSFORMER_NAME: &str = "mic-amp-transformer";
+
+impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
+    const OPTICAL_OUT_IFACE_MODES: [OpticalOutIfaceMode; 3] = [
+        OpticalOutIfaceMode::Adat,
+        OpticalOutIfaceMode::Spdif,
+        OpticalOutIfaceMode::AesEbu,
+    ];
+
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::cache_whole_io_params(req, node, sections, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_OUT_0_1_PAD_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let labels: Vec<&str> = Self::OPTICAL_OUT_IFACE_MODES
+            .iter()
+            .take(if T::AESEBU_IS_SUPPORTED { 3 } else { 2 })
+            .map(|mode| optical_out_iface_mode_to_str(mode))
+            .collect();
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPTICAL_OUT_IFACE_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_AMP_TRANSFORMER_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 2, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ANALOG_OUT_0_1_PAD_NAME => {
+                let params = &self.0;
+                elem_value.set_bool(&[params.analog_out_0_1_pad]);
+                Ok(true)
+            }
+            OPTICAL_OUT_IFACE_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::OPTICAL_OUT_IFACE_MODES
+                    .iter()
+                    .position(|m| params.opt_out_iface_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            MIC_AMP_TRANSFORMER_NAME => {
+                let params = &self.0;
+                elem_value.set_bool(&params.mic_amp_transformers);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ANALOG_OUT_0_1_PAD_NAME => {
+                let mut params = self.0.clone();
+                params.analog_out_0_1_pad = elem_value.boolean()[0];
+                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            OPTICAL_OUT_IFACE_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::OPTICAL_OUT_IFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid index of optical output interface mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.opt_out_iface_mode = mode)?;
+                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            MIC_AMP_TRANSFORMER_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .mic_amp_transformers
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(transformer, val)| *transformer = val);
+                T::update_partial_io_params(req, node, sections, &params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}

@@ -11,6 +11,7 @@ pub struct LiquidS56Model {
     common_ctl: CommonCtl,
     tcd22xx_ctl: LiquidS56Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl<LiquidS56Protocol>,
+    io_params_ctl: IoParamsCtl<LiquidS56Protocol>,
     specific_ctl: SpecificCtl,
 }
 
@@ -73,7 +74,15 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
             TIMEOUT_MS,
         )?;
 
+        self.io_params_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         self.out_grp_ctl.load(card_cntr)?;
+        self.io_params_ctl.load(card_cntr)?;
         self.specific_ctl.load(card_cntr)?;
 
         Ok(())
@@ -97,6 +106,8 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.io_params_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.specific_ctl.read(
             unit,
@@ -140,6 +151,15 @@ impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
+        } else if self.io_params_ctl.write(
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
@@ -267,14 +287,6 @@ impl Tcd22xxCtlOperation<LiquidS56Protocol> for LiquidS56Tcd22xxCtl {
     }
 }
 
-fn opt_out_iface_mode_to_str(mode: &OptOutIfaceMode) -> &'static str {
-    match mode {
-        OptOutIfaceMode::Adat => "ADAT",
-        OptOutIfaceMode::Spdif => "S/PDIF",
-        OptOutIfaceMode::AesEbu => "AES/EBU",
-    }
-}
-
 fn analog_input_level_to_str(level: &AnalogInputLevel) -> &'static str {
     match level {
         AnalogInputLevel::Mic => "Microphone",
@@ -305,21 +317,12 @@ fn mic_amp_emulation_type_to_str(emulation_type: &MicAmpEmulationType) -> &'stat
 struct SpecificCtl;
 
 impl SpecificCtl {
-    const ANALOG_OUT_0_1_PAD_NAME: &'static str = "analog-output-1/2-pad";
-    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-output-interface-mode";
-    const MIC_AMP_TRANSFORMER_NAME: &'static str = "mic-amp-transformer";
     const ANALOG_INPUT_LEVEL_NAME: &'static str = "analog-input-levels";
     const MIC_AMP_EMULATION_TYPE_NAME: &'static str = "mic-amp-emulation-types";
     const MIC_AMP_HARMONICS_NAME: &'static str = "mic-amp-harmonics";
     const MIC_AMP_POLARITY_NAME: &'static str = "mic-amp-polarities";
     const LED_STATE_NAME: &'static str = "LED-states";
     const METER_DISPLAY_TARGETS_NAME: &'static str = "meter-display-targets";
-
-    const OPT_OUT_IFACE_MODES: [OptOutIfaceMode; 3] = [
-        OptOutIfaceMode::Adat,
-        OptOutIfaceMode::Spdif,
-        OptOutIfaceMode::AesEbu,
-    ];
 
     const ANALOG_INPUT_LEVELS: [AnalogInputLevel; 3] = [
         AnalogInputLevel::Mic,
@@ -377,22 +380,6 @@ impl SpecificCtl {
     ];
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ANALOG_OUT_0_1_PAD_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-
-        let labels: Vec<&str> = Self::OPT_OUT_IFACE_MODES
-            .iter()
-            .map(|mode| opt_out_iface_mode_to_str(mode))
-            .collect();
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_OUT_IFACE_MODE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIC_AMP_TRANSFORMER_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 2, true)?;
-
         let labels: Vec<&str> = Self::ANALOG_INPUT_LEVELS
             .iter()
             .map(|level| analog_input_level_to_str(level))
@@ -456,42 +443,6 @@ impl SpecificCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let enabled = LiquidS56Protocol::read_analog_out_0_1_pad_offset(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    timeout_ms,
-                )?;
-                elem_value.set_bool(&[enabled]);
-                Ok(true)
-            }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mode = LiquidS56Protocol::read_opt_out_iface_mode(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    timeout_ms,
-                )?;
-                let pos = Self::OPT_OUT_IFACE_MODES
-                    .iter()
-                    .position(|m| m.eq(&mode))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            Self::MIC_AMP_TRANSFORMER_NAME => {
-                ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
-                    LiquidS56Protocol::read_mic_amp_transformer(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        timeout_ms,
-                    )
-                })
-                .map(|_| true)
-            }
             Self::ANALOG_INPUT_LEVEL_NAME => {
                 let mut levels = [AnalogInputLevel::Reserved(0); 8];
                 LiquidS56Protocol::read_analog_input_level(
@@ -606,49 +557,6 @@ impl SpecificCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let val = new.boolean()[0];
-                LiquidS56Protocol::write_analog_out_0_1_pad_offset(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    val,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
-                let val = new.enumerated()[0];
-                let &mode = Self::OPT_OUT_IFACE_MODES
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg =
-                            format!("Invalid index of optical output interface mode: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                LiquidS56Protocol::write_opt_out_iface_mode(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    mode,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            Self::MIC_AMP_TRANSFORMER_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                    LiquidS56Protocol::write_mic_amp_transformer(
-                        req,
-                        &mut unit.1,
-                        sections,
-                        idx,
-                        val,
-                        timeout_ms,
-                    )
-                })
-                .map(|_| true)
-            }
             Self::ANALOG_INPUT_LEVEL_NAME => {
                 let vals = &new.enumerated()[..8];
                 let mut levels = [AnalogInputLevel::Reserved(0); 8];
