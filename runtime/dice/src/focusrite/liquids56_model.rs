@@ -416,7 +416,15 @@ impl SpecificCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        LiquidS56Protocol::cache_whole_specific_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = LiquidS56Protocol::cache_whole_specific_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -573,15 +581,16 @@ impl SpecificCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MIC_AMP_EMULATION_TYPE_NAME => {
                 let mut params = self.0.clone();
@@ -600,15 +609,16 @@ impl SpecificCtl {
                             })
                             .map(|&t| *emulation_type = t)
                     })?;
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MIC_AMP_HARMONICS_NAME => {
                 let mut params = self.0.clone();
@@ -617,15 +627,16 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(harmonics, &val)| *harmonics = val as u8);
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MIC_AMP_POLARITY_NAME => {
                 let mut params = self.0.clone();
@@ -634,15 +645,16 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(polarity, val)| *polarity = val);
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::LED_STATE_NAME => {
                 let mut params = self.0.clone();
@@ -651,15 +663,16 @@ impl SpecificCtl {
                 params.led_states.adat2 = vals[1];
                 params.led_states.spdif = vals[2];
                 params.led_states.midi_in = vals[3];
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
                 let mut params = self.0.clone();
@@ -679,15 +692,16 @@ impl SpecificCtl {
                             })
                             .map(|&t| *target = t)
                     })?;
-                LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_partial_specific_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
