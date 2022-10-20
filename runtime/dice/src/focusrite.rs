@@ -49,7 +49,9 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_whole_out_group_state(req, node, sections, &mut self.0, timeout_ms)
+        let res = T::cache_whole_out_group_state(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -157,15 +159,16 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as i8);
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             VOL_MUTE_NAME => {
                 let mut params = self.0.clone();
@@ -174,15 +177,16 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_mute, val)| *vol_mute = val);
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             VOL_HWCTL_NAME => {
                 let mut params = self.0.clone();
@@ -191,28 +195,30 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_hwctl, val)| *vol_hwctl = val);
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MUTE_NAME => {
                 let mut params = self.0.clone();
                 params.mute_enabled = elem_value.boolean()[0];
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MUTE_HWCTL_NAME => {
                 let mut params = self.0.clone();
@@ -221,28 +227,30 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(mute_hwctl, val)| *mute_hwctl = val);
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DIM_NAME => {
                 let mut params = self.0.clone();
                 params.dim_enabled = elem_value.boolean()[0];
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DIM_HWCTL_NAME => {
                 let mut params = self.0.clone();
@@ -251,15 +259,16 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(dim_hwctl, val)| *dim_hwctl = val);
-                T::update_partial_out_group_state(
+                let res = T::update_partial_out_group_state(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
