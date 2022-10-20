@@ -7,7 +7,7 @@ use super::*;
 pub struct MinimalModel {
     req: FwReq,
     sections: GeneralSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<GeneralProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -17,7 +17,7 @@ impl MinimalModel {
         GeneralProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -25,12 +25,7 @@ impl MinimalModel {
 
 impl CtlModel<(SndDice, FwNode)> for MinimalModel {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )
+        self.common_ctl.load(card_cntr, &self.sections)
     }
 
     fn read(
@@ -88,7 +83,7 @@ impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -107,8 +102,3 @@ struct GeneralProtocol;
 impl TcatOperation for GeneralProtocol {}
 
 impl TcatGlobalSectionSpecification for GeneralProtocol {}
-
-#[derive(Default, Debug)]
-struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
-
-impl CommonCtlOperation<GeneralProtocol> for CommonCtl {}

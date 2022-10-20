@@ -11,7 +11,7 @@ pub struct FStudioMobileModel {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<FStudioMobileProtocol>,
     tcd22xx_ctl: FStudioMobileTcd22xxCtl,
 }
 
@@ -27,7 +27,7 @@ impl FStudioMobileModel {
         )?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -39,12 +39,7 @@ impl CtlModel<(SndDice, FwNode)> for FStudioMobileModel {
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -174,7 +169,7 @@ impl MeasureModel<(SndDice, FwNode)> for FStudioMobileModel {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -199,11 +194,6 @@ impl MeasureModel<(SndDice, FwNode)> for FStudioMobileModel {
         }
     }
 }
-
-#[derive(Default, Debug)]
-struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
-
-impl CommonCtlOperation<FStudioMobileProtocol> for CommonCtl {}
 
 #[derive(Default)]
 struct FStudioMobileTcd22xxCtl(Tcd22xxCtl);

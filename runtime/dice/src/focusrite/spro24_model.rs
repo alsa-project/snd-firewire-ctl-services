@@ -8,7 +8,7 @@ pub struct SPro24Model {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<SPro24Protocol>,
     tcd22xx_ctl: SPro24Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl<SPro24Protocol>,
     input_ctl: SaffireproInputCtl<SPro24Protocol>,
@@ -21,7 +21,7 @@ impl SPro24Model {
         SPro24Protocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -33,12 +33,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24Model {
         unit: &mut (SndDice, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -217,7 +212,7 @@ impl MeasureModel<(SndDice, FwNode)> for SPro24Model {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             unit,
             &mut self.req,
@@ -242,11 +237,6 @@ impl MeasureModel<(SndDice, FwNode)> for SPro24Model {
         }
     }
 }
-
-#[derive(Default, Debug)]
-struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
-
-impl CommonCtlOperation<SPro24Protocol> for CommonCtl {}
 
 #[derive(Default)]
 struct SPro24Tcd22xxCtl(Tcd22xxCtl);

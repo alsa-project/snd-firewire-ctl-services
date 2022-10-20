@@ -7,7 +7,7 @@ use {super::*, protocols::tcelectronic::desktop::*};
 pub struct Desktopk6Model {
     req: FwReq,
     sections: GeneralSections,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<Desktopk6Protocol>,
     hw_state_ctl: HwStateCtl,
     config_ctl: ConfigCtl,
     mixer_ctl: MixerCtl,
@@ -27,7 +27,7 @@ impl Desktopk6Model {
         )?;
 
         self.common_ctl
-            .whole_cache(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -40,12 +40,7 @@ impl Desktopk6Model {
 
 impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections).map(
-            |(measured_elem_id_list, notified_elem_id_list)| {
-                self.common_ctl.0 = measured_elem_id_list;
-                self.common_ctl.1 = notified_elem_id_list;
-            },
-        )?;
+        self.common_ctl.load(card_cntr, &self.sections)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.config_ctl.load(card_cntr)?;
@@ -177,7 +172,7 @@ impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
@@ -197,11 +192,6 @@ impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
         }
     }
 }
-
-#[derive(Default, Debug)]
-struct CommonCtl(Vec<ElemId>, Vec<ElemId>);
-
-impl CommonCtlOperation<Desktopk6Protocol> for CommonCtl {}
 
 fn meter_target_to_str(target: &MeterTarget) -> &'static str {
     match target {

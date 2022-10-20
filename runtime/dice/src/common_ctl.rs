@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use super::*;
+use {super::*, std::marker::PhantomData};
+
+#[derive(Default, Debug)]
+pub struct CommonCtl<T>(pub Vec<ElemId>, pub Vec<ElemId>, PhantomData<T>)
+where
+    T: TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>;
 
 const CLK_RATE_NAME: &str = "clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
@@ -9,7 +19,7 @@ const NICKNAME: &str = "nickname";
 const LOCKED_CLK_SRC_NAME: &str = "locked-clock-source";
 const SLIPPED_CLK_SRC_NAME: &str = "slipped-clock-source";
 
-pub trait CommonCtlOperation<T>
+impl<T> CommonCtl<T>
 where
     T: TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -18,10 +28,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
-    const CLK_CAPS_FIXUP: Option<(&'static [ClockRate], &'static [ClockSource])> = None;
-    const CLK_SRC_LABELS_FIXUP: Option<&'static [&'static str]> = None;
-
-    fn whole_cache(
+    pub fn cache_whole_params(
         &mut self,
         req: &FwReq,
         node: &FwNode,
@@ -50,14 +57,11 @@ where
         Ok(())
     }
 
-    fn load(
+    pub fn load(
         &mut self,
         card_cntr: &mut CardCntr,
         sections: &GeneralSections,
-    ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        let mut notified_elem_list = Vec::new();
-        let mut measured_elem_list = Vec::new();
-
+    ) -> Result<(), Error> {
         let params = &sections.global.params;
 
         let labels: Vec<String> = params
@@ -67,8 +71,9 @@ where
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
-        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        notified_elem_list.append(&mut elem_id_list);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .avail_sources
@@ -83,13 +88,14 @@ where
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
-        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        notified_elem_list.append(&mut elem_id_list);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, NICKNAME, 0);
         card_cntr
             .add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)
-            .map(|mut elem_id_list| notified_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .external_source_states
@@ -106,18 +112,20 @@ where
 
         if labels.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOCKED_CLK_SRC_NAME, 0);
-            let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, labels.len(), false)?;
-            notified_elem_list.append(&mut elem_id_list);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, labels.len(), false)
+                .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SLIPPED_CLK_SRC_NAME, 0);
-            let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, labels.len(), false)?;
-            measured_elem_list.append(&mut elem_id_list);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, labels.len(), false)
+                .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
         }
 
-        Ok((measured_elem_list, notified_elem_list))
+        Ok(())
     }
 
-    fn read(
+    pub fn read(
         &mut self,
         sections: &GeneralSections,
         elem_id: &ElemId,
@@ -181,7 +189,7 @@ where
         }
     }
 
-    fn write(
+    pub fn write(
         &mut self,
         unit: &SndDice,
         req: &FwReq,
@@ -255,7 +263,7 @@ where
         }
     }
 
-    fn measure(
+    pub fn cache_partial_params(
         &mut self,
         req: &FwReq,
         node: &FwNode,
@@ -276,7 +284,7 @@ where
         Ok(())
     }
 
-    fn parse_notification(
+    pub fn parse_notification(
         &self,
         req: &FwReq,
         node: &FwNode,
