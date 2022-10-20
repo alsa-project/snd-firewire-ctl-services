@@ -365,7 +365,9 @@ impl SpecificCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Mbox3Protocol::cache_whole_params(req, node, sections, &mut self.0, timeout_ms)
+        let res = Mbox3Protocol::cache_whole_params(req, node, sections, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -633,15 +635,16 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&case| params.standalone_use_case = case)?;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut params = self.0.clone();
@@ -650,15 +653,16 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(assign, val)| *assign = val);
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MUTE_BUTTON_NAME => {
                 let mut params = self.0.clone();
@@ -671,15 +675,16 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.mute_led = s)?;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::MONO_BUTTON_NAME => {
                 let mut params = self.0.clone();
@@ -692,15 +697,16 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.mono_led = s)?;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::SPKR_BUTTON_NAME => {
                 let mut params = self.0.clone();
@@ -713,54 +719,58 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.spkr_led = s)?;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::DIM_LED_USAGE_NAME => {
                 let mut params = self.0.clone();
                 params.dim_led = elem_value.boolean()[0];
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::HOLD_DURATION_NAME => {
                 let mut params = self.0.clone();
                 params.duration_hold = elem_value.int()[0] as u8;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::PHANTOM_POWERING_NAME => {
                 let mut params = self.0.clone();
                 params.phantom_powering = elem_value.boolean()[0];
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::INPUT_HPF_NAME => {
                 let mut params = self.0.clone();
@@ -769,15 +779,16 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enabled, val)| *enabled = val);
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::OUTPUT_TRIM_NAME => {
                 let mut params = self.0.clone();
@@ -786,15 +797,16 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(trim, &val)| *trim = val as u8);
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::REVERB_TYPE_NAME => {
                 let mut params = self.0.clone();
@@ -807,54 +819,58 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| params.reverb_type = t)?;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::REVERB_VOL_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_volume = elem_value.int()[0] as u8;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::REVERB_DURATION_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_duration = elem_value.int()[0] as u8;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             Self::REVERB_FEEDBACK_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_feedback = elem_value.int()[0] as u8;
-                Mbox3Protocol::update_partial_params(
+                let res = Mbox3Protocol::update_partial_params(
                     req,
                     node,
                     sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -868,6 +884,9 @@ impl SpecificCtl {
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Mbox3Protocol::cache_notified_params(req, node, sections, msg, &mut self.0, timeout_ms)
+        let res =
+            Mbox3Protocol::cache_notified_params(req, node, sections, msg, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 }
