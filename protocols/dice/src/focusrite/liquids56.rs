@@ -35,7 +35,7 @@ impl Tcd22xxSpecOperation for LiquidS56Protocol {
         },
         Input {
             id: SrcBlkId::Ins1,
-            offset: 0,
+            offset: 2,
             count: 6,
             label: None,
         },
