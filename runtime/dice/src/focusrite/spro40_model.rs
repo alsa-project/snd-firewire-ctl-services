@@ -11,7 +11,7 @@ pub struct SPro40Model {
     common_ctl: CommonCtl,
     tcd22xx_ctl: SPro40Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl<SPro40Protocol>,
-    specific_ctl: SpecificCtl,
+    io_params_ctl: IoParamsCtl<SPro40Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -68,8 +68,15 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
             TIMEOUT_MS,
         )?;
 
+        self.io_params_ctl.cache(
+            &mut self.req,
+            &mut unit.1,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
+
         self.out_grp_ctl.load(card_cntr)?;
-        self.specific_ctl.load(card_cntr)?;
+        self.io_params_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -93,14 +100,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.specific_ctl.read(
-            unit,
-            &mut self.req,
-            &self.extension_sections,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.io_params_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -143,9 +143,9 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.specific_ctl.write(
-            unit,
+        } else if self.io_params_ctl.write(
             &mut self.req,
+            &mut unit.1,
             &self.extension_sections,
             elem_id,
             new,
@@ -258,122 +258,5 @@ impl Tcd22xxCtlOperation<SPro40Protocol> for SPro40Tcd22xxCtl {
 
     fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
         &mut self.0
-    }
-}
-
-fn opt_out_iface_mode_to_string(mode: &OptOutIfaceMode) -> String {
-    match mode {
-        OptOutIfaceMode::Adat => "ADAT",
-        OptOutIfaceMode::Spdif => "S/PDIF",
-    }
-    .to_string()
-}
-
-#[derive(Default, Debug)]
-struct SpecificCtl;
-
-impl SpecificCtl {
-    const ANALOG_OUT_0_1_PAD_NAME: &'static str = "analog-output-1/2-pad";
-    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-output-interface-mode";
-
-    const OPT_OUT_IFACE_MODES: [OptOutIfaceMode; 2] =
-        [OptOutIfaceMode::Adat, OptOutIfaceMode::Spdif];
-
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ANALOG_OUT_0_1_PAD_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-
-        let labels: Vec<String> = Self::OPT_OUT_IFACE_MODES
-            .iter()
-            .map(|mode| opt_out_iface_mode_to_string(mode))
-            .collect();
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_OUT_IFACE_MODE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let enabled = SPro40Protocol::read_analog_out_0_1_pad(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    timeout_ms,
-                )?;
-                elem_value.set_bool(&[enabled]);
-                Ok(true)
-            }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mode = SPro40Protocol::read_opt_out_iface_mode(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    timeout_ms,
-                )?;
-                let pos = Self::OPT_OUT_IFACE_MODES
-                    .iter()
-                    .position(|m| m.eq(&mode))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut (SndDice, FwNode),
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let val = elem_value.boolean()[0];
-                SPro40Protocol::write_analog_out_0_1_pad(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    val,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &mode = Self::OPT_OUT_IFACE_MODES
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg =
-                            format!("Invalid index of optical output interface mode: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                SPro40Protocol::write_opt_out_iface_mode(
-                    req,
-                    &mut unit.1,
-                    sections,
-                    mode,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
     }
 }
