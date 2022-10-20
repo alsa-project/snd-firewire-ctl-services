@@ -20,7 +20,7 @@ use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
     common_ctl::*,
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    core::{card_cntr::*, dispatcher::*, *},
     firewire_dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
