@@ -26,8 +26,17 @@ impl PeakSectionProtocol {
             ))?
         }
 
-        let entries = caps.router.maximum_entry_count as usize;
-        read_router_entries(req, node, caps, sections.peak.offset, entries, timeout_ms)
-            .map_err(|e| Error::new(ProtocolExtensionError::Peak, &e.to_string()))
+        let entry_count = caps.router.maximum_entry_count as usize;
+        let mut entries = vec![RouterEntry::default(); entry_count];
+        read_router_entries(
+            req,
+            node,
+            caps,
+            sections.peak.offset,
+            &mut entries,
+            timeout_ms,
+        )
+        .map_err(|e| Error::new(ProtocolExtensionError::Peak, &e.to_string()))
+        .map(|_| entries)
     }
 }

@@ -48,8 +48,10 @@ impl CurrentConfigSectionProtocol {
             caps.router.maximum_entry_count as usize,
         );
 
-        read_router_entries(req, node, caps, offset + 4, entry_count, timeout_ms)
+        let mut entries = vec![RouterEntry::default(); entry_count];
+        read_router_entries(req, node, caps, offset + 4, &mut entries, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
+            .map(|_| entries)
     }
 
     pub fn read_current_stream_format_entries(
