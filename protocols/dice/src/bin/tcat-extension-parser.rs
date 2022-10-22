@@ -11,11 +11,20 @@ use {
             peak_section::*, standalone_section::*, *,
         },
         global_section::*,
+        *,
     },
     std::{sync::Arc, thread},
 };
 
 const TIMEOUT_MS: u32 = 20;
+
+struct Protocol;
+
+impl TcatOperation for Protocol {}
+
+impl TcatGlobalSectionSpecification for Protocol {}
+
+impl TcatExtensionOperation for Protocol {}
 
 fn clock_rate_to_string(rate: &ClockRate) -> String {
     match rate {
@@ -307,8 +316,9 @@ fn main() {
             let th = thread::spawn(move || d.run());
 
             let mut req = FwReq::new();
-            let result = ProtocolExtension::read_extension_sections(&mut req, &mut node, TIMEOUT_MS)
-                .and_then(|sections| {
+            let mut sections = ExtensionSections::default();
+            let result = Protocol::read_extension_sections(&req, &node, &mut sections, TIMEOUT_MS)
+                .and_then(|_| {
                     print_sections(&sections);
                     let caps = CapsSectionProtocol::read_caps(
                         &mut req,

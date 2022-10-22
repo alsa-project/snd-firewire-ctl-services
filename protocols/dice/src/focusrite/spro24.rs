@@ -91,6 +91,8 @@ impl TcatOperation for SPro24Protocol {}
 
 impl TcatGlobalSectionSpecification for SPro24Protocol {}
 
+impl TcatExtensionOperation for SPro24Protocol {}
+
 impl Tcd22xxSpecOperation for SPro24Protocol {
     const INPUTS: &'static [Input] = &[
         Input {

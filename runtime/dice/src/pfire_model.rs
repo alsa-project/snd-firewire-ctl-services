@@ -28,6 +28,7 @@ where
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation,
@@ -52,6 +53,7 @@ where
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation,
@@ -62,8 +64,7 @@ where
         self.common_ctl
             .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
-        self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        T::read_extension_sections(&self.req, &unit.1, &mut self.extension_sections, TIMEOUT_MS)?;
 
         self.tcd22xx_ctls.cache_whole_params(
             &mut self.req,
@@ -96,6 +97,7 @@ where
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation,
@@ -180,6 +182,7 @@ where
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation,
@@ -236,6 +239,7 @@ where
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation,

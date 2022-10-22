@@ -29,8 +29,12 @@ impl ExtensionModel {
         self.common_ctl
             .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
-        self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        ExtensionProtocol::read_extension_sections(
+            &self.req,
+            &unit.1,
+            &mut self.extension_sections,
+            TIMEOUT_MS,
+        )?;
 
         self.tcd22xx_ctls.cache_whole_params(
             &mut self.req,
@@ -182,6 +186,8 @@ impl TcatOperation for ExtensionProtocol {}
 
 impl TcatGlobalSectionSpecification for ExtensionProtocol {}
 
+impl TcatExtensionOperation for ExtensionProtocol {}
+
 impl Tcd22xxSpecOperation for ExtensionProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
@@ -321,7 +327,8 @@ impl Tcd22xxSpecOperation for ExtensionProtocol {
 
 pub fn detect_extended_model(node: &mut FwNode) -> bool {
     let mut req = FwReq::default();
-    let res = ProtocolExtension::read_extension_sections(&mut req, node, 100);
+    let mut sections = ExtensionSections::default();
+    let res = ExtensionProtocol::read_extension_sections(&req, node, &mut sections, 100);
 
     // MEMO: workaround for old firmware. Invalidate the negative effect by failure of
     // previous transaction.

@@ -223,6 +223,57 @@ impl ErrorDomain for ProtocolExtensionError {
 
 const EXTENSION_OFFSET: usize = 0x00200000;
 
+/// Operation of TCAT protocol extension.
+pub trait TcatExtensionOperation: TcatOperation {
+    /// Initiate read transaction to offset in specific address space and finish it.
+    fn read_extension(
+        req: &FwReq,
+        node: &FwNode,
+        section: &ExtensionSection,
+        offset: usize,
+        frames: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::read(
+            req,
+            node,
+            EXTENSION_OFFSET + section.offset + offset,
+            frames,
+            timeout_ms,
+        )
+    }
+
+    /// Initiate write transaction to offset in specific address space and finish it.
+    fn write_extension(
+        req: &FwReq,
+        node: &FwNode,
+        section: &ExtensionSection,
+        offset: usize,
+        frames: &mut [u8],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::write(
+            req,
+            node,
+            EXTENSION_OFFSET + section.offset + offset,
+            frames,
+            timeout_ms,
+        )
+    }
+
+    /// Read section layout.
+    fn read_extension_sections(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &mut ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = [0; ExtensionSections::SIZE];
+        Self::read(req, node, EXTENSION_OFFSET, &mut raw, timeout_ms)
+            .map(|_| deserialize_extension_sections(sections, &raw).unwrap())
+    }
+}
+
 fn extension_read(
     req: &mut FwReq,
     node: &mut FwNode,
@@ -241,27 +292,6 @@ fn extension_write(
     timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::write(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
-}
-
-/// Protocol implementation of extension section.
-#[derive(Default)]
-pub struct ProtocolExtension;
-
-impl ProtocolExtension {
-    pub fn read_extension_sections(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<ExtensionSections, Error> {
-        let mut raw = [0; ExtensionSections::SIZE];
-        extension_read(req, node, 0, &mut raw, timeout_ms)?;
-
-        let mut sections = ExtensionSections::default();
-        deserialize_extension_sections(&mut sections, &raw)
-            .map_err(|cause| Error::new(FileError::Io, &cause))?;
-
-        Ok(sections)
-    }
 }
 
 /// Identifier of destination block.

@@ -179,6 +179,8 @@ impl TcatGlobalSectionSpecification for Pfire2626Protocol {
     ]);
 }
 
+impl TcatExtensionOperation for Pfire2626Protocol {}
+
 impl PfireSpecificOperation for Pfire2626Protocol {
     const HAS_OPT_IFACE_B: bool = true;
     const SUPPORT_STANDALONE_CONVERTER: bool = true;
@@ -297,6 +299,8 @@ impl TcatGlobalSectionSpecification for Pfire610Protocol {
     const AVAILABLE_CLOCK_SOURCE_OVERRIDE: Option<&'static [ClockSource]> =
         Some(&[ClockSource::Aes1, ClockSource::Internal]);
 }
+
+impl TcatExtensionOperation for Pfire610Protocol {}
 
 impl PfireSpecificOperation for Pfire610Protocol {
     const HAS_OPT_IFACE_B: bool = false;

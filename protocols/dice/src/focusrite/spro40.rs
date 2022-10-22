@@ -87,6 +87,8 @@ impl TcatOperation for SPro40Protocol {}
 
 impl TcatGlobalSectionSpecification for SPro40Protocol {}
 
+impl TcatExtensionOperation for SPro40Protocol {}
+
 impl Tcd22xxSpecOperation for SPro40Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
