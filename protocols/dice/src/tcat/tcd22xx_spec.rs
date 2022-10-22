@@ -1,47 +1,68 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
+//! Specification of TCD2210 and TCD2220 ASICs and firmware.
+
 use super::{
     extension::{caps_section::*, cmd_section::*, current_config_section::*, router_section::*, *},
     *,
 };
 
-#[derive(Default, Debug)]
+/// State of TCD22xx for combination of destination and source block.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Tcd22xxState {
     real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+/// Descriptor for input port.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Input {
+    /// Identifier of source block.
     pub id: SrcBlkId,
+    /// Offset of channel number.
     pub offset: u8,
+    /// Count of channel number.
     pub count: u8,
+    /// String expression.
     pub label: Option<&'static str>,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+/// Descriptor for output port.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Output {
+    /// Identifier of destination block.
     pub id: DstBlkId,
+    /// Offset of channel number.
     pub offset: u8,
+    /// Count of channel number.
     pub count: u8,
+    /// String expression.
     pub label: Option<&'static str>,
 }
 
+/// Specification of TCD22xx.
 pub trait Tcd22xxSpecification {
-    // For each model.
+    /// Physical input ports.
     const INPUTS: &'static [Input];
+
+    /// Physical output ports.
     const OUTPUTS: &'static [Output];
+
+    /// Ports with fixed position in router entries.
     const FIXED: &'static [SrcBlk];
 
-    // From specification of TCD22xx.
+    /// The number of mixer outputs at specification of TCD22xx.
     const MIXER_OUT_PORTS: [u8; 3] = [16, 16, 8];
+
+    /// The number of mixer inputs at specification of TCD22xx.
     const MIXER_IN_PORTS: [(DstBlkId, u8); 2] = [(DstBlkId::MixerTx0, 16), (DstBlkId::MixerTx1, 2)];
 
-    // From specification of ADAT/SMUX.
+    /// The number of ADAT channels at specification of ADAT/SMUX.
     const ADAT_CHANNELS: [u8; 3] = [8, 4, 2];
 
+    /// Compute the number of ADAT channels.
     fn adat_channel_count(rate_mode: RateMode) -> u8 {
         let index = match rate_mode {
             RateMode::Low => 0,
@@ -51,6 +72,7 @@ pub trait Tcd22xxSpecification {
         Self::ADAT_CHANNELS[index]
     }
 
+    /// Compute the number of mixer outputs.
     fn mixer_out_port_count(rate_mode: RateMode) -> u8 {
         let index = match rate_mode {
             RateMode::Low => 0,
@@ -60,12 +82,14 @@ pub trait Tcd22xxSpecification {
         Self::MIXER_OUT_PORTS[index]
     }
 
+    /// Compute the number of mixer inputs.
     fn mixer_in_port_count() -> u8 {
         Self::MIXER_IN_PORTS
             .iter()
             .fold(0, |accum, (_, count)| accum + count)
     }
 
+    /// Compute available destination and source blocks for physical ports.
     fn compute_avail_real_blk_pair(rate_mode: RateMode) -> (Vec<SrcBlk>, Vec<DstBlk>) {
         let mut srcs = Vec::<SrcBlk>::new();
         Self::INPUTS.iter().for_each(|entry| {
@@ -100,6 +124,7 @@ pub trait Tcd22xxSpecification {
         (srcs, dsts)
     }
 
+    /// Compute available destination and source blocks for Tx/Rx streams.
     fn compute_avail_stream_blk_pair(
         tx_entries: &[FormatEntry],
         rx_entries: &[FormatEntry],
@@ -121,6 +146,7 @@ pub trait Tcd22xxSpecification {
         (src_blk_list, dst_blk_list)
     }
 
+    /// Compute available destination and source blocks for mixer inputs and outputs.
     fn compute_avail_mixer_blk_pair(
         caps: &ExtensionCaps,
         rate_mode: RateMode,
@@ -142,6 +168,7 @@ pub trait Tcd22xxSpecification {
         (src_blk_list, dst_blk_list)
     }
 
+    /// Label for source block.
     fn src_blk_label(src_blk: &SrcBlk) -> String {
         Self::INPUTS
             .iter()
@@ -167,6 +194,7 @@ pub trait Tcd22xxSpecification {
             })
     }
 
+    /// Label for destination block.
     fn dst_blk_label(dst_blk: DstBlk) -> String {
         Self::OUTPUTS
             .iter()
@@ -193,6 +221,7 @@ pub trait Tcd22xxSpecification {
             })
     }
 
+    /// Refine router entries by defined descriptors.
     fn refine_router_entries(entries: &mut Vec<RouterEntry>, srcs: &[&SrcBlk], dsts: &[&DstBlk]) {
         entries.retain(|entry| srcs.iter().find(|src| entry.src.eq(src)).is_some());
         entries.retain(|entry| dsts.iter().find(|dst| entry.dst.eq(dst)).is_some());
@@ -218,7 +247,9 @@ pub trait Tcd22xxSpecification {
     }
 }
 
+/// Operation specific to TCD22xx.
 pub trait Tcd22xxOperation: Tcd22xxSpecification {
+    /// Cache combination of destination and source block.
     fn cache_tcd22xx_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -248,6 +279,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         Ok(())
     }
 
+    /// Update router entries.
     fn update_router_entries(
         node: &mut FwNode,
         req: &mut FwReq,
