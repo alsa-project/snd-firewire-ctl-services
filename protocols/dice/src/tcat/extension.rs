@@ -295,7 +295,7 @@ fn extension_write(
 }
 
 /// Identifier of destination block.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DstBlkId {
     Aes,
     Adat,
@@ -316,23 +316,34 @@ impl Default for DstBlkId {
 }
 
 /// Destination block in router function.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DstBlk {
+    /// The identifier of destination block.
     pub id: DstBlkId,
+    /// The channel number.
     pub ch: u8,
 }
 
 /// Identifier of source block.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SrcBlkId {
+    /// AES, S/PDIF, and TOS outputs.
     Aes,
+    /// ADAT outputs.
     Adat,
+    /// mixer outputs.
     Mixer,
+    /// Analog outputs A (Inter IC sound interface).
     Ins0,
+    /// Analog outputs B (Inter IC sound interface).
     Ins1,
+    /// Standard AMBA 2.0 compliant APB interface.
     ArmAprAudio,
+    /// 1394 Audio video system A.
     Avs0,
+    /// 1394 Audio video system B.
     Avs1,
+    /// Discard audio signal.
     Mute,
     Reserved(u8),
 }
@@ -344,17 +355,22 @@ impl Default for SrcBlkId {
 }
 
 /// Source block in router function.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SrcBlk {
+    /// The identifier of source block.
     pub id: SrcBlkId,
+    /// The channel number.
     pub ch: u8,
 }
 
 /// Entry of route in router function.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RouterEntry {
+    /// Destination block.
     pub dst: DstBlk,
+    /// Source block.
     pub src: SrcBlk,
+    /// Detected level of audio signal.
     pub peak: u16,
 }
 
@@ -369,6 +385,26 @@ pub struct FormatEntry {
 
 /// The number of channels in stream format for AC3 channels.
 pub const AC3_CHANNELS: usize = 32;
+
+/// Serialize and deserialize parameters for variable length of data in extension section.
+pub trait TcatExtensionVariableLengthSectionParamsSerdes<T> {
+    /// Offset to operate.
+    const OFFSET: usize;
+
+    /// Detect size to operate.
+    fn detect_size(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<usize, Error>;
+
+    /// Serialize parameters.
+    fn serialize_extension_variable_params(params: &T, raw: &mut [u8]) -> Result<(), String>;
+
+    /// Deserialize parameters.
+    fn deserialize_extension_variable_params(params: &mut T, raw: &[u8]) -> Result<(), String>;
+}
 
 #[cfg(test)]
 mod test {

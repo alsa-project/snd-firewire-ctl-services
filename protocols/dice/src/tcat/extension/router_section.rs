@@ -28,15 +28,17 @@ impl RouterSectionProtocol {
             u32::from_be_bytes(data) as usize,
             caps.router.maximum_entry_count as usize,
         );
+        let mut entries = vec![RouterEntry::default(); entry_count];
         read_router_entries(
             req,
             node,
             caps,
             sections.router.offset + 4,
-            entry_count,
+            &mut entries,
             timeout_ms,
         )
         .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))
+        .map(|_| entries)
     }
 
     pub fn write_router_entries(
