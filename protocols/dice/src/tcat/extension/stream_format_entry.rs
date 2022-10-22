@@ -2,185 +2,185 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use super::{caps_section::*, *};
 
-/// The alternative type of data for stream format.
-pub type FormatEntryData = [u8; FormatEntry::SIZE];
-
 impl FormatEntry {
     const SIZE: usize = 268;
     const NAMES_MAX_SIZE: usize = 256;
 }
 
-impl TryFrom<FormatEntryData> for FormatEntry {
-    type Error = Error;
+fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= FormatEntry::SIZE);
 
-    fn try_from(raw: FormatEntryData) -> Result<Self, Self::Error> {
-        let mut quadlet = [0; 4];
+    entry.pcm_count.build_quadlet(&mut raw[..4]);
+    entry.midi_count.build_quadlet(&mut raw[4..8]);
 
-        quadlet.copy_from_slice(&raw[..4]);
-        let pcm_count = u32::from_be_bytes(quadlet) as u8;
+    raw[8..264].copy_from_slice(&build_labels(&entry.labels, FormatEntry::NAMES_MAX_SIZE));
 
-        quadlet.copy_from_slice(&raw[4..8]);
-        let midi_count = u32::from_be_bytes(quadlet) as u8;
+    let val = entry
+        .enable_ac3
+        .iter()
+        .enumerate()
+        .filter(|(_, &enabled)| enabled)
+        .fold(0 as u32, |val, (i, _)| val | (1 << i));
+    raw[264..268].copy_from_slice(&val.to_be_bytes());
 
-        let labels = parse_labels(&raw[8..264]).map_err(|e| {
-            let msg = format!("Invalid data for string: {}", e);
-            Error::new(ProtocolExtensionError::StreamFormatEntry, &msg)
-        })?;
-
-        let mut enable_ac3 = [false; AC3_CHANNELS];
-        quadlet.copy_from_slice(&raw[264..268]);
-        let val = u32::from_be_bytes(quadlet);
-        enable_ac3
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, v)| *v = (1 << i) & val > 0);
-
-        let entry = FormatEntry {
-            pcm_count,
-            midi_count,
-            labels,
-            enable_ac3,
-        };
-
-        Ok(entry)
-    }
+    Ok(())
 }
 
-impl From<FormatEntry> for FormatEntryData {
-    fn from(entry: FormatEntry) -> Self {
-        let mut raw = [0; FormatEntry::SIZE];
-        raw[..4].copy_from_slice(&(entry.pcm_count as u32).to_be_bytes());
-        raw[4..8].copy_from_slice(&(entry.midi_count as u32).to_be_bytes());
+fn deserialize_stream_format_entry(entry: &mut FormatEntry, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= FormatEntry::SIZE);
 
-        raw[8..264].copy_from_slice(&build_labels(&entry.labels, FormatEntry::NAMES_MAX_SIZE));
+    entry.pcm_count.parse_quadlet(&raw[..4]);
+    entry.midi_count.parse_quadlet(&raw[4..8]);
+    entry.labels = parse_labels(&raw[8..264])
+        .map_err(|e| format!("Fail to parse label of stream channel {}", e))?;
 
-        let val = entry
-            .enable_ac3
-            .iter()
-            .enumerate()
-            .filter(|(_, &enabled)| enabled)
-            .fold(0 as u32, |val, (i, _)| val | (1 << i));
-        raw[264..268].copy_from_slice(&val.to_be_bytes());
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[264..268]);
 
-        raw
-    }
+    entry
+        .enable_ac3
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, v)| *v = (1 << i) & val > 0);
+
+    Ok(())
 }
 
-pub fn read_stream_format_entries(
+pub(crate) fn calculate_stream_format_entries_size(
+    tx_entry_count: usize,
+    rx_entry_count: usize,
+) -> usize {
+    8 + (tx_entry_count + rx_entry_count) * FormatEntry::SIZE
+}
+
+pub(crate) fn serialize_stream_format_entries(
+    (tx_entries, rx_entries): (&[FormatEntry], &[FormatEntry]),
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len()));
+
+    let tx_entry_count = tx_entries.len() as u32;
+    tx_entry_count.build_quadlet(&mut raw[..4]);
+
+    let rx_entry_count = rx_entries.len() as u32;
+    rx_entry_count.build_quadlet(&mut raw[4..8]);
+
+    tx_entries
+        .iter()
+        .chain(rx_entries)
+        .enumerate()
+        .try_for_each(|(i, entry)| {
+            let pos = 8 + i * FormatEntry::SIZE;
+            serialize_stream_format_entry(entry, &mut raw[pos..(pos + FormatEntry::SIZE)])
+        })
+}
+
+pub(crate) fn deserialize_stream_format_entries(
+    (tx_entries, rx_entries): (&mut Vec<FormatEntry>, &mut Vec<FormatEntry>),
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len()));
+
+    let mut tx_entry_count = 0u32;
+    tx_entry_count.parse_quadlet(&raw[..4]);
+
+    let mut rx_entry_count = 0u32;
+    rx_entry_count.parse_quadlet(&raw[4..8]);
+
+    tx_entries.resize_with(tx_entry_count as usize, Default::default);
+    rx_entries.resize_with(rx_entry_count as usize, Default::default);
+
+    tx_entries
+        .iter_mut()
+        .chain(rx_entries)
+        .enumerate()
+        .try_for_each(|(i, entry)| {
+            let pos = 8 + i * FormatEntry::SIZE;
+            deserialize_stream_format_entry(entry, &raw[pos..(pos + FormatEntry::SIZE)])
+        })
+}
+
+pub(crate) fn read_stream_format_entries(
     req: &mut FwReq,
     node: &mut FwNode,
     caps: &ExtensionCaps,
     offset: usize,
     timeout_ms: u32,
 ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
-    let mut data = [0; 8];
-    extension_read(req, node, offset, &mut data, timeout_ms)?;
+    let mut raw = [0; 8];
+    extension_read(req, node, offset, &mut raw, timeout_ms)?;
 
-    let mut quadlet = [0; 4];
-    quadlet.copy_from_slice(&data[..4]);
-    let tx_count = u32::from_be_bytes(quadlet) as usize;
-    if tx_count > caps.general.max_tx_streams as usize {
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[..4]);
+    let tx_entry_count = val as usize;
+    if tx_entry_count > caps.general.max_tx_streams as usize {
         let msg = format!(
             "Unexpected count of tx streams: {} but {} expected",
-            tx_count, caps.general.max_tx_streams
+            tx_entry_count, caps.general.max_tx_streams
         );
         Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
     }
 
-    quadlet.copy_from_slice(&data[4..]);
-    let rx_count = u32::from_be_bytes(quadlet) as usize;
-    if rx_count > caps.general.max_rx_streams as usize {
+    val.parse_quadlet(&raw[4..8]);
+    let rx_entry_count = val as usize;
+    if rx_entry_count > caps.general.max_rx_streams as usize {
         let msg = format!(
             "Unexpected count of rx streams: {} but {} expected",
-            rx_count, caps.general.max_rx_streams
+            rx_entry_count, caps.general.max_rx_streams
         );
         Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
     }
 
-    let mut tx_entries = Vec::new();
-    (0..tx_count).try_for_each(|i| {
-        let mut raw = [0; FormatEntry::SIZE];
-        extension_read(
-            req,
-            node,
-            offset + 8 + FormatEntry::SIZE * i,
-            &mut raw,
-            timeout_ms,
-        )?;
-        FormatEntry::try_from(raw)
-            .map_err(|e| {
-                let msg = format!("Fail to parse TX stream entry {}: {}", i, e);
-                Error::new(ProtocolExtensionError::StreamFormatEntry, &msg)
-            })
-            .map(|entry| tx_entries.push(entry))
-    })?;
+    let size = calculate_stream_format_entries_size(tx_entry_count, rx_entry_count);
+    let mut raw = vec![0u8; size];
+    extension_read(req, node, offset, &mut raw, timeout_ms)?;
 
-    let mut rx_entries = Vec::new();
-    (0..rx_count).try_for_each(|i| {
-        let mut raw = [0; FormatEntry::SIZE];
-        extension_read(
-            req,
-            node,
-            offset + 8 + FormatEntry::SIZE * (tx_count + i),
-            &mut raw,
-            timeout_ms,
-        )?;
-        FormatEntry::try_from(raw)
-            .map_err(|e| {
-                let msg = format!("Fail to parse RX stream entry {}: {}", i, e);
-                Error::new(ProtocolExtensionError::StreamFormatEntry, &msg)
-            })
-            .map(|entry| rx_entries.push(entry))
-    })?;
+    let mut tx_entries = vec![FormatEntry::default(); tx_entry_count];
+    let mut rx_entries = vec![FormatEntry::default(); rx_entry_count];
+
+    deserialize_stream_format_entries((&mut tx_entries, &mut rx_entries), &raw)
+        .map_err(|cause| Error::new(ProtocolExtensionError::StreamFormatEntry, &cause))?;
 
     Ok((tx_entries, rx_entries))
 }
 
-pub fn write_stream_format_entries(
+pub(crate) fn write_stream_format_entries(
     req: &mut FwReq,
     node: &mut FwNode,
     caps: &ExtensionCaps,
     offset: usize,
-    pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>),
+    (tx_entries, rx_entries): (&[FormatEntry], &[FormatEntry]),
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    let (tx, rx) = pair;
-
-    if tx.len() != caps.general.max_tx_streams as usize {
+    if tx_entries.len() != caps.general.max_tx_streams as usize {
         let msg = format!(
             "Unexpected count of tx streams: {} but {} expected",
-            tx.len(),
+            tx_entries.len(),
             caps.general.max_tx_streams
         );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
+        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?;
     }
 
-    if rx.len() != caps.general.max_rx_streams as usize {
+    if rx_entries.len() != caps.general.max_rx_streams as usize {
         let msg = format!(
             "Unexpected count of rx streams: {} but {} expected",
-            rx.len(),
+            rx_entries.len(),
             caps.general.max_rx_streams
         );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
+        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?;
     }
 
-    let mut data = Vec::new();
-    data.extend_from_slice(&(tx.len() as u32).to_be_bytes());
-    data.extend_from_slice(&(rx.len() as u32).to_be_bytes());
-    tx.iter().for_each(|entry| {
-        data.extend_from_slice(entry);
-    });
-    rx.iter().for_each(|entry| {
-        data.extend_from_slice(entry);
-    });
-    extension_write(req, node, offset, &mut data, timeout_ms)
+    let size = calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len());
+    let mut raw = vec![0u8; size];
+    serialize_stream_format_entries((&tx_entries, &rx_entries), &mut raw)
+        .map_err(|cause| Error::new(ProtocolExtensionError::StreamFormatEntry, &cause))?;
+
+    extension_write(req, node, offset, &mut raw, timeout_ms)
 }
 
 #[cfg(test)]
 mod test {
-    use super::{FormatEntry, FormatEntryData, AC3_CHANNELS};
-
-    use std::convert::TryFrom;
+    use super::*;
 
     #[test]
     fn stream_format_entry_from() {
@@ -195,7 +195,13 @@ mod test {
             ],
             enable_ac3: [true; AC3_CHANNELS],
         };
-        let data = Into::<FormatEntryData>::into(entry.clone());
-        assert_eq!(entry, FormatEntry::try_from(data).unwrap());
+
+        let mut raw = vec![0u8; FormatEntry::SIZE];
+        serialize_stream_format_entry(&entry, &mut raw).unwrap();
+
+        let mut e = FormatEntry::default();
+        deserialize_stream_format_entry(&mut e, &raw).unwrap();
+
+        assert_eq!(entry, e);
     }
 }

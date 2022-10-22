@@ -375,11 +375,15 @@ pub struct RouterEntry {
 }
 
 /// Entry of stream format.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FormatEntry {
+    /// The number of PCM channels.
     pub pcm_count: u8,
+    /// The number of MIDI channels.
     pub midi_count: u8,
+    /// Labels for the channels.
     pub labels: Vec<String>,
+    /// AC3 capabilities.
     pub enable_ac3: [bool; AC3_CHANNELS],
 }
 

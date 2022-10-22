@@ -29,7 +29,7 @@ impl StreamFormatSectionProtocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
-        pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>),
+        (tx_entries, rx_entries): (&[FormatEntry], &[FormatEntry]),
         timeout_ms: u32,
     ) -> Result<(), Error> {
         write_stream_format_entries(
@@ -37,7 +37,7 @@ impl StreamFormatSectionProtocol {
             node,
             caps,
             sections.stream_format.offset,
-            pair,
+            (tx_entries, rx_entries),
             timeout_ms,
         )
         .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
