@@ -219,11 +219,18 @@ fn print_current_router_entries(
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
     println!("Current router entries:");
+    let mut entries = Vec::with_capacity(caps.router.maximum_entry_count as usize);
     RATE_MODES.iter().try_for_each(|&mode| {
-        CurrentConfigSectionProtocol::read_current_router_entries(
-            req, node, sections, caps, mode, TIMEOUT_MS,
+        CurrentConfigSectionProtocol::cache_current_config_router_entries(
+            req,
+            node,
+            sections,
+            caps,
+            mode,
+            &mut entries,
+            TIMEOUT_MS,
         )
-        .map(|entries| {
+        .map(|_| {
             println!("  {}:", mode);
             entries.iter().enumerate().for_each(|(i, entry)| {
                 println!("    entry {}: {:?} <- {:?}", i, entry.dst, entry.src);
@@ -258,10 +265,18 @@ fn print_current_stream_format_entries(
 ) -> Result<(), Error> {
     println!("Current stream format entries:");
     RATE_MODES.iter().try_for_each(|&mode| {
-        CurrentConfigSectionProtocol::read_current_stream_format_entries(
-            req, node, sections, caps, mode, TIMEOUT_MS,
+        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
+        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
+        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
+            req,
+            node,
+            sections,
+            caps,
+            mode,
+            (&mut tx_entries, &mut rx_entries),
+            TIMEOUT_MS,
         )
-        .map(|(tx_entries, rx_entries)| {
+        .map(|_| {
             println!("  {}:", mode);
             tx_entries.iter().enumerate().for_each(|(i, entry)| {
                 println!("    Tx stream {}:", i);
