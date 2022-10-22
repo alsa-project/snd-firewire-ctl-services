@@ -507,6 +507,34 @@ pub trait PfireSpecificOperation {
     }
 }
 
+impl<O: PfireSpecificOperation> ApplSectionParamsSerdes<PfireSpecificParams> for O {
+    const APPL_PARAMS_OFFSET: usize = 0;
+
+    const APPL_PARAMS_SIZE: usize = MIN_SIZE;
+
+    fn serialize_appl_params(params: &PfireSpecificParams, raw: &mut [u8]) -> Result<(), String> {
+        serialize(params, raw)
+    }
+
+    fn deserialize_appl_params(params: &mut PfireSpecificParams, raw: &[u8]) -> Result<(), String> {
+        deserialize(params, raw)
+    }
+}
+
+impl<O> TcatApplSectionParamsOperation<PfireSpecificParams> for O where
+    O: TcatExtensionOperation
+        + PfireSpecificOperation
+        + ApplSectionParamsSerdes<PfireSpecificParams>
+{
+}
+
+impl<O> TcatApplSectionMutableParamsOperation<PfireSpecificParams> for O where
+    O: TcatExtensionOperation
+        + PfireSpecificOperation
+        + ApplSectionParamsSerdes<PfireSpecificParams>
+{
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
