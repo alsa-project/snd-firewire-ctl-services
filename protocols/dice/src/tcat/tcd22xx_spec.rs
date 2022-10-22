@@ -322,20 +322,3 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
 }
 
 impl<O: Tcd22xxSpecification> Tcd22xxOperation for O {}
-
-pub trait Tcd22xxStateOperation: Tcd22xxOperation {
-    fn cache(
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        state: &mut Tcd22xxState,
-        rate_mode: RateMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_router_entries(node, req, sections, caps, rate_mode, state, timeout_ms)?;
-        Ok(())
-    }
-}
-
-impl<O: Tcd22xxOperation> Tcd22xxStateOperation for O {}

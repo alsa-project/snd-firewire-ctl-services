@@ -117,13 +117,14 @@ where
 
         self.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&self.caps, RateMode::Low);
 
-        T::cache(
+        let rate_mode = RateMode::try_from(global_params.current_rate).unwrap();
+        T::cache_router_entries(
             node,
             req,
             sections,
             &self.caps,
+            rate_mode,
             &mut self.state,
-            RateMode::from(global_params.clock_config.rate),
             timeout_ms,
         )?;
         self.current_rate = global_params.current_rate;
@@ -280,13 +281,14 @@ where
         msg: u32,
     ) -> Result<(), Error> {
         if msg > 0 && global_params.current_rate != self.current_rate {
-            T::cache(
+            let rate_mode = RateMode::try_from(global_params.current_rate).unwrap();
+            T::cache_router_entries(
                 node,
                 req,
                 sections,
                 &self.caps,
+                rate_mode,
                 &mut self.state,
-                RateMode::from(global_params.clock_config.rate),
                 timeout_ms,
             )?;
             self.current_rate = global_params.current_rate;
