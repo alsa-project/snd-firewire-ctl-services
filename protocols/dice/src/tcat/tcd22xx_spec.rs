@@ -8,8 +8,6 @@ use super::{
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxState {
-    pub router_entries: Vec<RouterEntry>,
-
     real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
@@ -195,11 +193,7 @@ pub trait Tcd22xxSpecification {
             })
     }
 
-    fn refine_router_entries(
-        mut entries: Vec<RouterEntry>,
-        srcs: &[&SrcBlk],
-        dsts: &[&DstBlk],
-    ) -> Vec<RouterEntry> {
+    fn refine_router_entries(entries: &mut Vec<RouterEntry>, srcs: &[&SrcBlk], dsts: &[&DstBlk]) {
         entries.retain(|entry| srcs.iter().find(|src| entry.src.eq(src)).is_some());
         entries.retain(|entry| dsts.iter().find(|dst| entry.dst.eq(dst)).is_some());
         Self::FIXED.iter().enumerate().for_each(|(i, &src)| {
@@ -221,7 +215,6 @@ pub trait Tcd22xxSpecification {
                 }
             }
         });
-        entries
     }
 }
 
@@ -232,8 +225,8 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
-        state: &mut Tcd22xxState,
-        entries: Vec<RouterEntry>,
+        state: &Tcd22xxState,
+        entries: &mut Vec<RouterEntry>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let srcs: Vec<_> = state
@@ -251,7 +244,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
             .chain(&state.mixer_blk_pair.1)
             .collect();
 
-        let entries = Self::refine_router_entries(entries, &srcs, &dsts);
+        Self::refine_router_entries(entries, &srcs, &dsts);
         if entries.len() > caps.router.maximum_entry_count as usize {
             let msg = format!(
                 "The number of entries for router section should be less than {} but {}",
@@ -261,20 +254,17 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
             Err(Error::new(FileError::Inval, &msg))?
         }
 
-        if entries != state.router_entries {
-            RouterSectionProtocol::write_router_whole_entries(
-                req, node, sections, caps, &entries, timeout_ms,
-            )?;
-            CmdSectionProtocol::initiate(
-                req,
-                node,
-                sections,
-                caps,
-                Opcode::LoadRouter(rate_mode),
-                timeout_ms,
-            )?;
-            state.router_entries = entries;
-        }
+        RouterSectionProtocol::write_router_whole_entries(
+            req, node, sections, caps, &entries, timeout_ms,
+        )?;
+        CmdSectionProtocol::initiate(
+            req,
+            node,
+            sections,
+            caps,
+            Opcode::LoadRouter(rate_mode),
+            timeout_ms,
+        )?;
 
         Ok(())
     }
@@ -286,6 +276,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         caps: &ExtensionCaps,
         rate_mode: RateMode,
         state: &mut Tcd22xxState,
+        entries: &mut Vec<RouterEntry>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
@@ -305,15 +296,8 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
 
         state.mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
 
-        let mut entries = Vec::with_capacity(caps.router.maximum_entry_count as usize);
         CurrentConfigSectionProtocol::cache_current_config_router_entries(
-            req,
-            node,
-            sections,
-            caps,
-            rate_mode,
-            &mut entries,
-            timeout_ms,
+            req, node, sections, caps, rate_mode, entries, timeout_ms,
         )?;
         Self::update_router_entries(
             node, req, sections, caps, rate_mode, state, entries, timeout_ms,
