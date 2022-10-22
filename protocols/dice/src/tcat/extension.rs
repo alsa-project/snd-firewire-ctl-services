@@ -26,54 +26,136 @@ use {
     std::cmp::Ordering,
 };
 
+/// Section in control and status register (CSR) of node.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ExtensionSection {
+    /// The offset of section in specific address space.
+    pub offset: usize,
+    /// The size of section.
+    pub size: usize,
+}
+
+impl ExtensionSection {
+    const SIZE: usize = 8;
+}
+
+#[cfg(test)]
+fn serialize_extension_section(section: &ExtensionSection, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ExtensionSection::SIZE);
+
+    let val = (section.offset / 4) as u32;
+    val.build_quadlet(&mut raw[..4]);
+
+    let val = (section.size / 4) as u32;
+    val.build_quadlet(&mut raw[4..8]);
+
+    Ok(())
+}
+
+fn deserialize_extension_section(section: &mut ExtensionSection, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ExtensionSection::SIZE);
+
+    let mut val = 0u32;
+    val.parse_quadlet(&raw[..4]);
+    section.offset = 4 * val as usize;
+
+    val.parse_quadlet(&raw[4..8]);
+    section.size = 4 * val as usize;
+
+    Ok(())
+}
+
 /// Sections for protocol extension.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtensionSections {
-    pub caps: Section<()>,
-    pub cmd: Section<()>,
-    pub mixer: Section<()>,
-    pub peak: Section<()>,
-    pub router: Section<()>,
-    pub stream_format: Section<()>,
-    pub current_config: Section<()>,
-    pub standalone: Section<()>,
-    pub application: Section<()>,
+    /// Capability.
+    pub caps: ExtensionSection,
+    /// Command.
+    pub cmd: ExtensionSection,
+    /// Mixer.
+    pub mixer: ExtensionSection,
+    /// Peak.
+    pub peak: ExtensionSection,
+    /// Router.
+    pub router: ExtensionSection,
+    /// Stream format configuration.
+    pub stream_format: ExtensionSection,
+    /// Current configurations.
+    pub current_config: ExtensionSection,
+    /// Stand alone configuration.
+    pub standalone: ExtensionSection,
+    /// Application specific configurations.
+    pub application: ExtensionSection,
 }
 
 impl ExtensionSections {
     const SECTION_COUNT: usize = 9;
-    const SIZE: usize = SECTION_ENTRY_SIZE * Self::SECTION_COUNT;
+    const SIZE: usize = ExtensionSection::SIZE * Self::SECTION_COUNT;
 }
 
-impl From<&[u8]> for ExtensionSections {
-    fn from(raw: &[u8]) -> Self {
-        ExtensionSections {
-            caps: Section::from(&raw[..8]),
-            cmd: Section::from(&raw[8..16]),
-            mixer: Section::from(&raw[16..24]),
-            peak: Section::from(&raw[24..32]),
-            router: Section::from(&raw[32..40]),
-            stream_format: Section::from(&raw[40..48]),
-            current_config: Section::from(&raw[48..56]),
-            standalone: Section::from(&raw[56..64]),
-            application: Section::from(&raw[64..72]),
-        }
-    }
+#[cfg(test)]
+fn serialize_extension_sections(
+    sections: &ExtensionSections,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ExtensionSections::SIZE);
+
+    serialize_extension_section(&sections.caps, &mut raw[..8])?;
+    serialize_extension_section(&sections.cmd, &mut raw[8..16])?;
+    serialize_extension_section(&sections.mixer, &mut raw[16..24])?;
+    serialize_extension_section(&sections.peak, &mut raw[24..32])?;
+    serialize_extension_section(&sections.router, &mut raw[32..40])?;
+    serialize_extension_section(&sections.stream_format, &mut raw[40..48])?;
+    serialize_extension_section(&sections.current_config, &mut raw[48..56])?;
+    serialize_extension_section(&sections.standalone, &mut raw[56..64])?;
+    serialize_extension_section(&sections.application, &mut raw[64..72])?;
+
+    Ok(())
+}
+
+fn deserialize_extension_sections(
+    sections: &mut ExtensionSections,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= ExtensionSections::SIZE);
+
+    deserialize_extension_section(&mut sections.caps, &raw[..8])?;
+    deserialize_extension_section(&mut sections.cmd, &raw[8..16])?;
+    deserialize_extension_section(&mut sections.mixer, &raw[16..24])?;
+    deserialize_extension_section(&mut sections.peak, &raw[24..32])?;
+    deserialize_extension_section(&mut sections.router, &raw[32..40])?;
+    deserialize_extension_section(&mut sections.stream_format, &raw[40..48])?;
+    deserialize_extension_section(&mut sections.current_config, &raw[48..56])?;
+    deserialize_extension_section(&mut sections.standalone, &raw[56..64])?;
+    deserialize_extension_section(&mut sections.application, &raw[64..72])?;
+
+    Ok(())
 }
 
 /// Any error of protocol extension.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtocolExtensionError {
+    /// Capability.
     Caps,
+    /// Command.
     Cmd,
+    /// Mixer.
     Mixer,
+    /// Entry of router.
     RouterEntry,
+    /// Peak.
     Peak,
+    /// Router.
     Router,
+    /// Entry of stream format.
     StreamFormatEntry,
+    /// Stream format configuration.
     StreamFormat,
+    /// Current configurations.
     CurrentConfig,
+    /// Application specific configuration.
     Appl,
+    /// Stand alone configuration.
     Standalone,
     Invalid(i32),
 }
@@ -171,9 +253,14 @@ impl ProtocolExtension {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<ExtensionSections, Error> {
-        let mut data = [0; ExtensionSections::SIZE];
-        extension_read(req, node, 0, &mut data, timeout_ms)
-            .map(|_| ExtensionSections::from(&data[..]))
+        let mut raw = [0; ExtensionSections::SIZE];
+        extension_read(req, node, 0, &mut raw, timeout_ms)?;
+
+        let mut sections = ExtensionSections::default();
+        deserialize_extension_sections(&mut sections, &raw)
+            .map_err(|cause| Error::new(FileError::Io, &cause))?;
+
+        Ok(sections)
     }
 }
 
@@ -255,8 +342,7 @@ pub const AC3_CHANNELS: usize = 32;
 
 #[cfg(test)]
 mod test {
-    use super::ExtensionSections;
-    use super::Section;
+    use super::*;
 
     #[test]
     fn section_from() {
@@ -269,61 +355,50 @@ mod test {
             0x00, 0x00,
         ];
         let space = ExtensionSections {
-            caps: Section {
+            caps: ExtensionSection {
                 offset: 0x44,
                 size: 0x40,
-                raw: vec![0; 0x40],
-                ..Default::default()
             },
-            cmd: Section {
+            cmd: ExtensionSection {
                 offset: 0x3c,
                 size: 0x38,
-                raw: vec![0; 0x38],
-                ..Default::default()
             },
-            mixer: Section {
+            mixer: ExtensionSection {
                 offset: 0x34,
                 size: 0x30,
-                raw: vec![0; 0x30],
-                ..Default::default()
             },
-            peak: Section {
+            peak: ExtensionSection {
                 offset: 0x2c,
                 size: 0x28,
-                raw: vec![0; 0x28],
-                ..Default::default()
             },
-            router: Section {
+            router: ExtensionSection {
                 offset: 0x24,
                 size: 0x20,
-                raw: vec![0; 0x20],
-                ..Default::default()
             },
-            stream_format: Section {
+            stream_format: ExtensionSection {
                 offset: 0x1c,
                 size: 0x18,
-                raw: vec![0; 0x18],
-                ..Default::default()
             },
-            current_config: Section {
+            current_config: ExtensionSection {
                 offset: 0x14,
                 size: 0x10,
-                raw: vec![0; 0x10],
-                ..Default::default()
             },
-            standalone: Section {
+            standalone: ExtensionSection {
                 offset: 0x0c,
                 size: 0x08,
-                raw: vec![0; 0x08],
-                ..Default::default()
             },
-            application: Section {
+            application: ExtensionSection {
                 offset: 0x04,
                 size: 0x00,
-                raw: Vec::new(),
-                ..Default::default()
             },
         };
-        assert_eq!(space, ExtensionSections::from(&raw[..]));
+
+        let mut r = vec![0u8; raw.len()];
+        serialize_extension_sections(&space, &mut r).unwrap();
+        assert_eq!(&raw[..], &r);
+
+        let mut s = ExtensionSections::default();
+        deserialize_extension_sections(&mut s, &raw).unwrap();
+        assert_eq!(space, s);
     }
 }
