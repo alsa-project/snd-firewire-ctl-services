@@ -2,17 +2,13 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use super::{
-    extension::{
-        caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
-        router_section::*, *,
-    },
+    extension::{caps_section::*, cmd_section::*, current_config_section::*, router_section::*, *},
     *,
 };
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxState {
     pub router_entries: Vec<RouterEntry>,
-    pub mixer_cache: Vec<Vec<i32>>,
 
     rate_mode: RateMode,
     real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
@@ -316,72 +312,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
 
 impl<O: Tcd22xxSpecOperation> Tcd22xxRouterOperation for O {}
 
-pub trait Tcd22xxMixerOperation: Tcd22xxSpecOperation {
-    fn update_mixer_coef(
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        state: &mut Tcd22xxState,
-        entries: &[Vec<i32>],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cache = &mut state.mixer_cache;
-
-        (0..cache.len()).take(entries.len()).try_for_each(|dst_ch| {
-            (0..cache[dst_ch].len())
-                .take(entries[dst_ch].len())
-                .try_for_each(|src_ch| {
-                    let coef = entries[dst_ch][src_ch];
-                    if cache[dst_ch][src_ch] != coef {
-                        MixerSectionProtocol::write_coef(
-                            req,
-                            node,
-                            sections,
-                            caps,
-                            dst_ch,
-                            src_ch,
-                            coef as u32,
-                            timeout_ms,
-                        )?;
-                        cache[dst_ch][src_ch] = coef;
-                    }
-                    Ok(())
-                })
-        })
-    }
-
-    fn cache_mixer_coefs(
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        state: &mut Tcd22xxState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let rate_mode = state.rate_mode;
-
-        let output_count = Self::mixer_out_port_count(rate_mode);
-        let input_count = Self::mixer_in_port_count();
-
-        state.mixer_cache = Vec::new();
-        (0..output_count as usize).try_for_each(|dst_ch| {
-            let mut entry = Vec::new();
-            (0..input_count as usize)
-                .try_for_each(|src_ch| {
-                    MixerSectionProtocol::read_coef(
-                        req, node, sections, caps, dst_ch, src_ch, timeout_ms,
-                    )
-                    .map(|coef| entry.push(coef as i32))
-                })
-                .map(|_| state.mixer_cache.push(entry))
-        })
-    }
-}
-
-impl<O: Tcd22xxSpecOperation> Tcd22xxMixerOperation for O {}
-
-pub trait Tcd22xxStateOperation: Tcd22xxRouterOperation + Tcd22xxMixerOperation {
+pub trait Tcd22xxStateOperation: Tcd22xxRouterOperation {
     fn cache(
         node: &mut FwNode,
         req: &mut FwReq,
@@ -393,9 +324,8 @@ pub trait Tcd22xxStateOperation: Tcd22xxRouterOperation + Tcd22xxMixerOperation 
     ) -> Result<(), Error> {
         state.rate_mode = rate_mode;
         Self::cache_router_entries(node, req, sections, caps, state, timeout_ms)?;
-        Self::cache_mixer_coefs(node, req, sections, caps, state, timeout_ms)?;
         Ok(())
     }
 }
 
-impl<O: Tcd22xxRouterOperation + Tcd22xxMixerOperation> Tcd22xxStateOperation for O {}
+impl<O: Tcd22xxRouterOperation> Tcd22xxStateOperation for O {}
