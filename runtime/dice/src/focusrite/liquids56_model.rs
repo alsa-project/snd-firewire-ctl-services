@@ -252,7 +252,6 @@ fn analog_input_level_to_str(level: &AnalogInputLevel) -> &str {
         AnalogInputLevel::Mic => "Microphone",
         AnalogInputLevel::Line => "Line",
         AnalogInputLevel::Inst => "Instrument",
-        AnalogInputLevel::Reserved(_) => "Reserved",
     }
 }
 
@@ -269,7 +268,6 @@ fn mic_amp_emulation_type_to_str(emulation_type: &MicAmpEmulationType) -> &str {
         MicAmpEmulationType::Deutsch72 => "DEUTSCH-72",
         MicAmpEmulationType::Stellar1b => "STELLAR-1B",
         MicAmpEmulationType::NewAge => "NEW-AGE-1",
-        MicAmpEmulationType::Reserved(_) => "Reserved",
     }
 }
 
