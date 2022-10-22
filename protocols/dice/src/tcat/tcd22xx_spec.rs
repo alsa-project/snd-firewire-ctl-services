@@ -297,26 +297,6 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
 
         Ok(())
     }
-
-    fn cache_router_entries(
-        node: &mut FwNode,
-        req: &mut FwReq,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        rate_mode: RateMode,
-        state: &mut Tcd22xxState,
-        entries: &mut Vec<RouterEntry>,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_tcd22xx_state(req, node, sections, caps, rate_mode, state, timeout_ms)?;
-
-        CurrentConfigSectionProtocol::cache_current_config_router_entries(
-            req, node, sections, caps, rate_mode, entries, timeout_ms,
-        )?;
-        Self::update_router_entries(
-            node, req, sections, caps, rate_mode, state, entries, timeout_ms,
-        )
-    }
 }
 
 impl<O: Tcd22xxSpecification> Tcd22xxOperation for O {}
