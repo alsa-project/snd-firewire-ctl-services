@@ -749,7 +749,7 @@ where
 }
 
 #[derive(Default, Debug)]
-struct RouterCtls<T>(Tcd22xxState, PhantomData<T>)
+struct RouterCtls<T>(Vec<RouterEntry>, Tcd22xxState, PhantomData<T>)
 where
     T: Tcd22xxSpecification + Tcd22xxOperation;
 
@@ -774,6 +774,7 @@ where
             sections,
             caps,
             rate_mode,
+            &mut self.1,
             &mut self.0,
             timeout_ms,
         )
@@ -872,7 +873,6 @@ where
             .iter()
             .map(|dst| {
                 self.0
-                    .router_entries
                     .iter()
                     .find(|entry| dst.eq(&entry.dst))
                     .and_then(|entry| {
@@ -952,7 +952,7 @@ where
         srcs: &[&[SrcBlk]],
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let mut entries = self.0.router_entries.clone();
+        let mut entries = self.0.clone();
 
         dsts.iter()
             .zip(elem_value.enumerated())
@@ -992,11 +992,13 @@ where
             sections,
             caps,
             rate_mode,
-            &mut self.0,
-            entries,
+            &mut self.1,
+            &mut entries,
             timeout_ms,
         )
-        .map(|_| true)
+        .map(|_| self.0 = entries)?;
+
+        Ok(true)
     }
 }
 
