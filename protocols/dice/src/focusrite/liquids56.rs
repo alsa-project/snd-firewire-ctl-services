@@ -126,7 +126,7 @@ impl TcatGlobalSectionSpecification for LiquidS56Protocol {}
 
 impl TcatExtensionOperation for LiquidS56Protocol {}
 
-impl Tcd22xxSpecOperation for LiquidS56Protocol {
+impl Tcd22xxSpecification for LiquidS56Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

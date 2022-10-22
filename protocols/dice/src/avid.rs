@@ -124,7 +124,7 @@ impl TcatGlobalSectionSpecification for Mbox3Protocol {}
 
 impl TcatExtensionOperation for Mbox3Protocol {}
 
-impl Tcd22xxSpecOperation for Mbox3Protocol {
+impl Tcd22xxSpecification for Mbox3Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

@@ -18,7 +18,7 @@ impl TcatGlobalSectionSpecification for BlackbirdProtocol {}
 
 impl TcatExtensionOperation for BlackbirdProtocol {}
 
-impl Tcd22xxSpecOperation for BlackbirdProtocol {
+impl Tcd22xxSpecification for BlackbirdProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

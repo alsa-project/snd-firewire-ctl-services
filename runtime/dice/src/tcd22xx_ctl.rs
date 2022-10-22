@@ -17,7 +17,7 @@ use {
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -44,7 +44,7 @@ where
 
 impl<T> Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -302,7 +302,7 @@ struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>);
 
 impl<T> StandaloneCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     const ADAT_MODES: &'static [AdatParam] = &[
         AdatParam::Normal,
@@ -649,7 +649,7 @@ struct MixerCtls<T>(Vec<Vec<u16>>, PhantomData<T>);
 
 impl<T> MixerCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
@@ -766,11 +766,11 @@ where
 #[derive(Default, Debug)]
 struct RouterCtls<T>(PhantomData<T>)
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation;
+    T: Tcd22xxSpecification + Tcd22xxOperation;
 
 impl<T> RouterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     const NONE_SRC_LABEL: &'static str = "None";
 
@@ -989,7 +989,7 @@ where
 #[derive(Default, Debug)]
 struct MeterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     peak_entries: Vec<RouterEntry>,
 
@@ -1004,7 +1004,7 @@ where
 
 impl<T> MeterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
