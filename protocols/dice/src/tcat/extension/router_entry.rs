@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use super::{caps_section::*, *};
+
+use super::*;
 
 impl DstBlk {
     const ID_MASK: u8 = 0xf0;
@@ -261,57 +262,6 @@ pub(crate) fn deserialize_router_entries(
         let pos = i * RouterEntry::SIZE;
         deserialize_router_entry(entry, &raw[pos..(pos + RouterEntry::SIZE)])
     })
-}
-
-// NOTE: In peak section, the number of router entries is not available.
-pub(crate) fn read_router_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    caps: &ExtensionCaps,
-    offset: usize,
-    entries: &mut [RouterEntry],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    if entries.len() > caps.router.maximum_entry_count as usize {
-        let msg = format!(
-            "Invalid entries to read: {} but greater than {}",
-            entries.len(),
-            caps.router.maximum_entry_count
-        );
-        Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
-    }
-
-    let size = calculate_router_entries_size(entries.len());
-    let mut raw = vec![0; size];
-    extension_read(req, node, offset, &mut raw, timeout_ms)?;
-
-    deserialize_router_entries(entries, &raw)
-        .map_err(|cause| Error::new(ProtocolExtensionError::RouterEntry, &cause))
-}
-
-pub(crate) fn write_router_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    caps: &ExtensionCaps,
-    offset: usize,
-    entries: &[RouterEntry],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    if entries.len() > caps.router.maximum_entry_count as usize {
-        let msg = format!(
-            "Invalid number of entries to read: {} but greater than {}",
-            entries.len(),
-            caps.router.maximum_entry_count * 4
-        );
-        Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
-    }
-
-    let size = 4 + calculate_router_entries_size(entries.len());
-    let mut raw = vec![0; size];
-    (entries.len() as u32).build_quadlet(&mut raw[..4]);
-    serialize_router_entries(entries, &mut raw[4..])
-        .map_err(|cause| Error::new(ProtocolExtensionError::RouterEntry, &cause))?;
-    extension_write(req, node, offset, &mut raw, timeout_ms)
 }
 
 #[cfg(test)]
