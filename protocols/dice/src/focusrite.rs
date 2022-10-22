@@ -192,7 +192,7 @@ const NOTIFY_DIM_MUTE_CHANGE: u32 = 0x00200000;
 const NOTIFY_VOL_CHANGE: u32 = 0x00400000;
 
 /// Output group operation.
-pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
+pub trait SaffireproOutGroupSpecification: SaffireproSwNoticeOperation {
     /// Offset of output group state.
     const OUT_GROUP_STATE_OFFSET: usize;
 
@@ -223,7 +223,7 @@ pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
     }
 }
 
-impl<O: SaffireproOutGroupOperation> ApplSectionParamsSerdes<OutGroupState> for O {
+impl<O: SaffireproOutGroupSpecification> ApplSectionParamsSerdes<OutGroupState> for O {
     const APPL_PARAMS_OFFSET: usize = O::OUT_GROUP_STATE_OFFSET;
 
     const APPL_PARAMS_SIZE: usize = OUT_GROUP_STATE_SIZE;
@@ -239,7 +239,7 @@ impl<O: SaffireproOutGroupOperation> ApplSectionParamsSerdes<OutGroupState> for 
 
 impl<O> TcatApplSectionParamsOperation<OutGroupState> for O where
     O: TcatExtensionOperation
-        + SaffireproOutGroupOperation
+        + SaffireproOutGroupSpecification
         + ApplSectionParamsSerdes<OutGroupState>
 {
 }
@@ -247,7 +247,7 @@ impl<O> TcatApplSectionParamsOperation<OutGroupState> for O where
 impl<O> TcatApplSectionMutableParamsOperation<OutGroupState> for O
 where
     O: TcatExtensionOperation
-        + SaffireproOutGroupOperation
+        + SaffireproOutGroupSpecification
         + ApplSectionParamsSerdes<OutGroupState>,
 {
     fn update_appl_partial_params(
@@ -432,7 +432,7 @@ fn deserialize_input_params(params: &mut SaffireproInputParams, raw: &[u8]) -> R
 }
 
 /// Input protocol specific to Pro 14 and Pro 24.
-pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
+pub trait SaffireproInputSpecification: SaffireproSwNoticeOperation {
     const INPUT_PARAMS_OFFSET: usize;
 
     const SW_NOTICE: u32 = 0x00000004;
@@ -441,7 +441,7 @@ pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
     const LINE_INPUT_COUNT: usize = 2;
 }
 
-impl<O: SaffireproInputOperation> ApplSectionParamsSerdes<SaffireproInputParams> for O {
+impl<O: SaffireproInputSpecification> ApplSectionParamsSerdes<SaffireproInputParams> for O {
     const APPL_PARAMS_OFFSET: usize = O::INPUT_PARAMS_OFFSET;
 
     const APPL_PARAMS_SIZE: usize = INPUT_PARAMS_SIZE;
@@ -460,7 +460,7 @@ impl<O: SaffireproInputOperation> ApplSectionParamsSerdes<SaffireproInputParams>
 
 impl<O> TcatApplSectionParamsOperation<SaffireproInputParams> for O where
     O: TcatExtensionOperation
-        + SaffireproInputOperation
+        + SaffireproInputSpecification
         + ApplSectionParamsSerdes<SaffireproInputParams>
 {
 }
@@ -468,7 +468,7 @@ impl<O> TcatApplSectionParamsOperation<SaffireproInputParams> for O where
 impl<O> TcatApplSectionMutableParamsOperation<SaffireproInputParams> for O
 where
     O: TcatExtensionOperation
-        + SaffireproInputOperation
+        + SaffireproInputSpecification
         + ApplSectionParamsSerdes<SaffireproInputParams>,
 {
     fn update_appl_partial_params(
@@ -687,7 +687,7 @@ fn deserialize_io_params(
 }
 
 /// Operation for parameters of input/output configuration.
-pub trait SaffireproIoParamsOperation: SaffireproSwNoticeOperation {
+pub trait SaffireproIoParamsSpecification: SaffireproSwNoticeOperation {
     /// Whether to support AES/EBU signal in optical interface.
     const AESEBU_IS_SUPPORTED: bool;
 
@@ -695,7 +695,7 @@ pub trait SaffireproIoParamsOperation: SaffireproSwNoticeOperation {
     const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool;
 }
 
-impl<O: SaffireproIoParamsOperation> ApplSectionParamsSerdes<SaffireproIoParams> for O {
+impl<O: SaffireproIoParamsSpecification> ApplSectionParamsSerdes<SaffireproIoParams> for O {
     const APPL_PARAMS_OFFSET: usize = IO_PARAMS_OFFSET;
 
     const APPL_PARAMS_SIZE: usize = IO_PARAMS_SIZE;
@@ -711,7 +711,7 @@ impl<O: SaffireproIoParamsOperation> ApplSectionParamsSerdes<SaffireproIoParams>
 
 impl<O> TcatApplSectionParamsOperation<SaffireproIoParams> for O where
     O: TcatExtensionOperation
-        + SaffireproIoParamsOperation
+        + SaffireproIoParamsSpecification
         + ApplSectionParamsSerdes<SaffireproIoParams>
 {
 }
@@ -719,7 +719,7 @@ impl<O> TcatApplSectionParamsOperation<SaffireproIoParams> for O where
 impl<O> TcatApplSectionMutableParamsOperation<SaffireproIoParams> for O
 where
     O: TcatExtensionOperation
-        + SaffireproIoParamsOperation
+        + SaffireproIoParamsSpecification
         + ApplSectionParamsSerdes<SaffireproIoParams>,
 {
     fn update_appl_partial_params(

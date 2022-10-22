@@ -328,7 +328,7 @@ const MIC_AMP_2_EMULATION_SW_NOTICE: u32 = 0x00000009;
 const MIC_AMP_POLARITY_SW_NOTICE: u32 = 0x0000000a;
 const INPUT_LEVEL_SW_NOTICE: u32 = 0x0000000b;
 
-impl SaffireproOutGroupOperation for LiquidS56Protocol {
+impl SaffireproOutGroupSpecification for LiquidS56Protocol {
     const OUT_GROUP_STATE_OFFSET: usize = 0x000c;
 
     const ENTRY_COUNT: usize = 10;
@@ -338,7 +338,7 @@ impl SaffireproOutGroupOperation for LiquidS56Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
-impl SaffireproIoParamsOperation for LiquidS56Protocol {
+impl SaffireproIoParamsSpecification for LiquidS56Protocol {
     const AESEBU_IS_SUPPORTED: bool = true;
     const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool = true;
 }

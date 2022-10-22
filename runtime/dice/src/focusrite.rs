@@ -28,14 +28,14 @@ const MUTE_HWCTL_NAME: &str = "output-group-mute-hwctl";
 #[derive(Debug)]
 pub struct OutGroupCtl<T>(OutGroupState, Vec<ElemId>, PhantomData<T>)
 where
-    T: SaffireproOutGroupOperation
+    T: SaffireproOutGroupSpecification
         + TcatApplSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>;
 
 impl<T> Default for OutGroupCtl<T>
 where
-    T: SaffireproOutGroupOperation
+    T: SaffireproOutGroupSpecification
         + TcatApplSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
@@ -51,7 +51,7 @@ where
 
 impl<T> OutGroupCtl<T>
 where
-    T: SaffireproOutGroupOperation
+    T: SaffireproOutGroupSpecification
         + TcatApplSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
@@ -324,13 +324,13 @@ fn line_input_level_to_str(level: &SaffireproLineInputLevel) -> &'static str {
 #[derive(Default, Debug)]
 pub struct SaffireproInputCtl<T>(SaffireproInputParams, PhantomData<T>)
 where
-    T: SaffireproInputOperation
+    T: SaffireproInputSpecification
         + TcatApplSectionParamsOperation<SaffireproInputParams>
         + TcatApplSectionMutableParamsOperation<SaffireproInputParams>;
 
 impl<T> SaffireproInputCtl<T>
 where
-    T: SaffireproInputOperation
+    T: SaffireproInputSpecification
         + TcatApplSectionParamsOperation<SaffireproInputParams>
         + TcatApplSectionMutableParamsOperation<SaffireproInputParams>,
 {
@@ -480,7 +480,7 @@ where
 #[derive(Default, Debug)]
 pub struct IoParamsCtl<T>(SaffireproIoParams, PhantomData<T>)
 where
-    T: SaffireproIoParamsOperation
+    T: SaffireproIoParamsSpecification
         + TcatApplSectionParamsOperation<SaffireproIoParams>
         + TcatApplSectionMutableParamsOperation<SaffireproIoParams>;
 
@@ -498,7 +498,7 @@ const MIC_AMP_TRANSFORMER_NAME: &str = "mic-amp-transformer";
 
 impl<T> IoParamsCtl<T>
 where
-    T: SaffireproIoParamsOperation
+    T: SaffireproIoParamsSpecification
         + TcatApplSectionParamsOperation<SaffireproIoParams>
         + TcatApplSectionMutableParamsOperation<SaffireproIoParams>,
 {
