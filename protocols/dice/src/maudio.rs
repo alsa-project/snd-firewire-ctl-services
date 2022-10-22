@@ -457,54 +457,6 @@ pub trait PfireSpecificOperation {
     const SUPPORT_STANDALONE_CONVERTER: bool;
 
     const KNOB_COUNT: usize = 4;
-
-    fn cache_whole_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut PfireSpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; sections.application.size];
-        ApplSectionProtocol::read_appl_data(req, node, sections, 0, &mut raw, timeout_ms)?;
-        deserialize(params, &raw).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
-
-    fn update_partial_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &PfireSpecificParams,
-        prev: &mut PfireSpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut new = vec![0; sections.application.size];
-        serialize(params, &mut new)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        let mut old = vec![0; sections.application.size];
-        serialize(prev, &mut old)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        (0..sections.application.size)
-            .step_by(4)
-            .try_for_each(|pos| {
-                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                    ApplSectionProtocol::write_appl_data(
-                        req,
-                        node,
-                        sections,
-                        pos,
-                        &mut new[pos..(pos + 4)],
-                        timeout_ms,
-                    )
-                } else {
-                    Ok(())
-                }
-            })?;
-
-        deserialize(prev, &new).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
 }
 
 impl<O: PfireSpecificOperation> ApplSectionParamsSerdes<PfireSpecificParams> for O {

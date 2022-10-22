@@ -827,29 +827,6 @@ impl ApplSectionParamsSerdes<LiquidS56SpecificParams> for LiquidS56Protocol {
 impl LiquidS56Protocol {
     pub const MIC_AMP_HARMONICS_MIN: u8 = 0;
     pub const MIC_AMP_HARMONICS_MAX: u8 = 21;
-
-    /// Cache state of hardware for whole parameters.
-    pub fn cache_whole_specific_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut LiquidS56SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
-    }
-
-    /// Update state of hardware for partial parameters.
-    pub fn update_partial_specific_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &LiquidS56SpecificParams,
-        prev: &mut LiquidS56SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::update_appl_partial_params(req, node, sections, params, prev, timeout_ms)
-    }
 }
 
 impl TcatApplSectionParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {}
