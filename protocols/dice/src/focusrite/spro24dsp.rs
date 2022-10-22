@@ -651,59 +651,32 @@ fn deserialize_effect_general_params(
     Ok(())
 }
 
-impl SPro24DspProtocol {
-    pub const COMPRESSOR_OUTPUT_MIN: f32 = 0.0;
-    pub const COMPRESSOR_OUTPUT_MAX: f32 = 64.0;
+impl ApplSectionParamsSerdes<Spro24DspEffectGeneralParams> for SPro24DspProtocol {
+    const APPL_PARAMS_OFFSET: usize = CH_STRIP_FLAG_OFFSET;
 
-    pub const COMPRESSOR_THRESHOLD_MIN: f32 = -1.25;
-    pub const COMPRESSOR_THRESHOLD_MAX: f32 = 0.0;
+    const APPL_PARAMS_SIZE: usize = 4;
 
-    pub const COMPRESSOR_RATIO_MIN: f32 = 0.03125;
-    pub const COMPRESSOR_RATIO_MAX: f32 = 0.5;
-
-    pub const COMPRESSOR_ATTACK_MIN: f32 = -1.0;
-    pub const COMPRESSOR_ATTACK_MAX: f32 = -0.9375;
-
-    pub const COMPRESSOR_RELEASE_MIN: f32 = 0.9375;
-    pub const COMPRESSOR_RELEASE_MAX: f32 = 1.0;
-
-    pub const EQUALIZER_OUTPUT_MIN: f32 = 0.0;
-    pub const EQUALIZER_OUTPUT_MAX: f32 = 1.0;
-
-    pub const REVERB_SIZE_MIN: f32 = 0.0;
-    pub const REVERB_SIZE_MAX: f32 = 1.0;
-
-    pub const REVERB_AIR_MIN: f32 = 0.0;
-    pub const REVERB_AIR_MAX: f32 = 1.0;
-
-    pub const REVERB_PRE_FILTER_MIN: f32 = -1.0;
-    pub const REVERB_PRE_FILTER_MAX: f32 = 1.0;
-
-    pub fn cache_effect_general(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut Spro24DspEffectGeneralParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0u8; 4];
-
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            CH_STRIP_FLAG_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-
-        serialize_effect_general_params(params, &mut raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    fn serialize_appl_params(
+        params: &Spro24DspEffectGeneralParams,
+        raw: &mut [u8],
+    ) -> Result<(), String> {
+        serialize_effect_general_params(params, raw)
     }
 
-    pub fn update_effect_general(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    fn deserialize_appl_params(
+        params: &mut Spro24DspEffectGeneralParams,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_effect_general_params(params, raw)
+    }
+}
+
+impl TcatApplSectionParamsOperation<Spro24DspEffectGeneralParams> for SPro24DspProtocol {}
+
+impl TcatApplSectionMutableParamsOperation<Spro24DspEffectGeneralParams> for SPro24DspProtocol {
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         params: &Spro24DspEffectGeneralParams,
         prev: &mut Spro24DspEffectGeneralParams,
@@ -718,10 +691,10 @@ impl SPro24DspProtocol {
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
         if new != old {
-            ApplSectionProtocol::write_appl_data(
+            Self::write_extension(
                 req,
                 node,
-                sections,
+                &sections.application,
                 CH_STRIP_FLAG_OFFSET,
                 &mut new,
                 timeout_ms,
@@ -731,39 +704,41 @@ impl SPro24DspProtocol {
         deserialize_effect_general_params(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
+}
 
-    pub fn cache_whole_comp_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut Spro24DspCompressorState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+impl ApplSectionParamsSerdes<Spro24DspCompressorState> for SPro24DspProtocol {
+    const APPL_PARAMS_OFFSET: usize = COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP;
 
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP,
-            &mut raw,
-            timeout_ms,
-        )?;
+    const APPL_PARAMS_SIZE: usize = COEF_BLOCK_SIZE * 2;
 
-        serialize_compressor_state(params, &mut raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    fn serialize_appl_params(
+        params: &Spro24DspCompressorState,
+        raw: &mut [u8],
+    ) -> Result<(), String> {
+        serialize_compressor_state(params, raw)
     }
 
-    pub fn update_partial_comp_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    fn deserialize_appl_params(
+        params: &mut Spro24DspCompressorState,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_compressor_state(params, raw)
+    }
+}
+
+impl TcatApplSectionParamsOperation<Spro24DspCompressorState> for SPro24DspProtocol {}
+
+impl TcatApplSectionMutableParamsOperation<Spro24DspCompressorState> for SPro24DspProtocol {
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
-        comp: &Spro24DspCompressorState,
+        params: &Spro24DspCompressorState,
         prev: &mut Spro24DspCompressorState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
-        serialize_compressor_state(comp, &mut new)
+        serialize_compressor_state(params, &mut new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
         let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
@@ -772,10 +747,10 @@ impl SPro24DspProtocol {
 
         (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
             if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                ApplSectionProtocol::write_appl_data(
+                Self::write_extension(
                     req,
                     node,
-                    sections,
+                    &sections.application,
                     COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
@@ -790,39 +765,41 @@ impl SPro24DspProtocol {
         deserialize_compressor_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
+}
 
-    pub fn cache_whole_eq_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut Spro24DspEqualizerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+impl ApplSectionParamsSerdes<Spro24DspEqualizerState> for SPro24DspProtocol {
+    const APPL_PARAMS_OFFSET: usize = COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ;
 
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ,
-            &mut raw,
-            timeout_ms,
-        )?;
+    const APPL_PARAMS_SIZE: usize = COEF_BLOCK_SIZE * 2;
 
-        serialize_equalizer_state(params, &mut raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    fn serialize_appl_params(
+        params: &Spro24DspEqualizerState,
+        raw: &mut [u8],
+    ) -> Result<(), String> {
+        serialize_equalizer_state(params, raw)
     }
 
-    pub fn update_partial_eq_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    fn deserialize_appl_params(
+        params: &mut Spro24DspEqualizerState,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_equalizer_state(params, raw)
+    }
+}
+
+impl TcatApplSectionParamsOperation<Spro24DspEqualizerState> for SPro24DspProtocol {}
+
+impl TcatApplSectionMutableParamsOperation<Spro24DspEqualizerState> for SPro24DspProtocol {
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
-        eq: &Spro24DspEqualizerState,
+        params: &Spro24DspEqualizerState,
         prev: &mut Spro24DspEqualizerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
-        serialize_equalizer_state(eq, &mut new)
+        serialize_equalizer_state(params, &mut new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
         let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
@@ -831,10 +808,10 @@ impl SPro24DspProtocol {
 
         (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
             if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                ApplSectionProtocol::write_appl_data(
+                Self::write_extension(
                     req,
                     node,
-                    sections,
+                    &sections.application,
                     COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
@@ -881,39 +858,38 @@ impl SPro24DspProtocol {
         deserialize_equalizer_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
+}
 
-    pub fn cache_whole_reverb_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut Spro24DspReverbState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0u8; COEF_BLOCK_SIZE];
+impl ApplSectionParamsSerdes<Spro24DspReverbState> for SPro24DspProtocol {
+    const APPL_PARAMS_OFFSET: usize = COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB;
 
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB,
-            &mut raw,
-            timeout_ms,
-        )?;
+    const APPL_PARAMS_SIZE: usize = COEF_BLOCK_SIZE;
 
-        serialize_reverb_state(params, &mut raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    fn serialize_appl_params(params: &Spro24DspReverbState, raw: &mut [u8]) -> Result<(), String> {
+        serialize_reverb_state(params, raw)
     }
 
-    pub fn update_partial_reverb_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    fn deserialize_appl_params(
+        params: &mut Spro24DspReverbState,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_reverb_state(params, raw)
+    }
+}
+
+impl TcatApplSectionParamsOperation<Spro24DspReverbState> for SPro24DspProtocol {}
+
+impl TcatApplSectionMutableParamsOperation<Spro24DspReverbState> for SPro24DspProtocol {
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
-        reverb: &Spro24DspReverbState,
+        params: &Spro24DspReverbState,
         prev: &mut Spro24DspReverbState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new = vec![0u8; COEF_BLOCK_SIZE];
-        serialize_reverb_state(reverb, &mut new)
+        serialize_reverb_state(params, &mut new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
 
         let mut old = vec![0u8; COEF_BLOCK_SIZE];
@@ -922,10 +898,10 @@ impl SPro24DspProtocol {
 
         (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
             if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                ApplSectionProtocol::write_appl_data(
+                Self::write_extension(
                     req,
                     node,
-                    sections,
+                    &sections.application,
                     COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
@@ -937,6 +913,119 @@ impl SPro24DspProtocol {
         Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
         deserialize_reverb_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl SPro24DspProtocol {
+    pub const COMPRESSOR_OUTPUT_MIN: f32 = 0.0;
+    pub const COMPRESSOR_OUTPUT_MAX: f32 = 64.0;
+
+    pub const COMPRESSOR_THRESHOLD_MIN: f32 = -1.25;
+    pub const COMPRESSOR_THRESHOLD_MAX: f32 = 0.0;
+
+    pub const COMPRESSOR_RATIO_MIN: f32 = 0.03125;
+    pub const COMPRESSOR_RATIO_MAX: f32 = 0.5;
+
+    pub const COMPRESSOR_ATTACK_MIN: f32 = -1.0;
+    pub const COMPRESSOR_ATTACK_MAX: f32 = -0.9375;
+
+    pub const COMPRESSOR_RELEASE_MIN: f32 = 0.9375;
+    pub const COMPRESSOR_RELEASE_MAX: f32 = 1.0;
+
+    pub const EQUALIZER_OUTPUT_MIN: f32 = 0.0;
+    pub const EQUALIZER_OUTPUT_MAX: f32 = 1.0;
+
+    pub const REVERB_SIZE_MIN: f32 = 0.0;
+    pub const REVERB_SIZE_MAX: f32 = 1.0;
+
+    pub const REVERB_AIR_MIN: f32 = 0.0;
+    pub const REVERB_AIR_MAX: f32 = 1.0;
+
+    pub const REVERB_PRE_FILTER_MIN: f32 = -1.0;
+    pub const REVERB_PRE_FILTER_MAX: f32 = 1.0;
+
+    pub fn cache_effect_general(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
+    }
+
+    pub fn update_effect_general(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &Spro24DspEffectGeneralParams,
+        prev: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, params, prev, timeout_ms)
+    }
+
+    pub fn cache_whole_comp_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
+    }
+
+    pub fn update_partial_comp_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        comp: &Spro24DspCompressorState,
+        prev: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, comp, prev, timeout_ms)
+    }
+
+    pub fn cache_whole_eq_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
+    }
+
+    pub fn update_partial_eq_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        eq: &Spro24DspEqualizerState,
+        prev: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, eq, prev, timeout_ms)
+    }
+
+    pub fn cache_whole_reverb_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
+    }
+
+    pub fn update_partial_reverb_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        reverb: &Spro24DspReverbState,
+        prev: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, reverb, prev, timeout_ms)
     }
 }
 
