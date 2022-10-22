@@ -138,7 +138,6 @@ fn print_caps(caps: &ExtensionCaps) {
         AsicType::DiceII => "DiceII".to_string(),
         AsicType::Tcd2210 => "TCD2210".to_string(),
         AsicType::Tcd2220 => "TCD2220".to_string(),
-        AsicType::Reserved(val) => format!("Reserved({})", val),
     };
     println!("    asic_type:        {}", label);
 }
