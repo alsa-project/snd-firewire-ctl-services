@@ -309,21 +309,22 @@ impl ExtensionCaps {
 pub struct CapsSectionProtocol;
 
 impl CapsSectionProtocol {
+    /// Read capabilities.
     pub fn read_caps(
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &mut ExtensionCaps,
         timeout_ms: u32,
-    ) -> Result<ExtensionCaps, Error> {
+    ) -> Result<(), Error> {
         let mut raw = vec![0; ExtensionCaps::SIZE];
         extension_read(req, node, sections.caps.offset, &mut raw, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))?;
 
-        let mut caps = ExtensionCaps::default();
-        deserialize_extension_caps(&mut caps, &raw)
+        deserialize_extension_caps(caps, &raw)
             .map_err(|cause| Error::new(ProtocolExtensionError::Caps, &cause))?;
 
-        Ok(caps)
+        Ok(())
     }
 }
 

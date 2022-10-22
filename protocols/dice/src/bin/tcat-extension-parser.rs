@@ -319,10 +319,12 @@ fn main() {
             let result = Protocol::read_extension_sections(&req, &node, &mut sections, TIMEOUT_MS)
                 .and_then(|_| {
                     print_sections(&sections);
-                    let caps = CapsSectionProtocol::read_caps(
+                    let mut caps = ExtensionCaps::default();
+                    CapsSectionProtocol::read_caps(
                         &mut req,
                         &mut node,
                         &sections,
+                        &mut caps,
                         TIMEOUT_MS
                     )?;
                     print_caps(&caps);
