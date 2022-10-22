@@ -768,68 +768,35 @@ const MONO_BUTTON_PUSHED: u32 = 0x00800000;
 const MUTE_BUTTON_PUSHED: u32 = 0x00400000;
 const MUTE_BUTTON_HELD: u32 = 0x00200000;
 
-impl Mbox3Protocol {
-    /// Cache state of hardware for whole parameters.
-    pub fn cache_whole_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
+impl ApplSectionParamsSerdes<Mbox3SpecificParams> for Mbox3Protocol {
+    const APPL_PARAMS_OFFSET: usize = 0;
+
+    const APPL_PARAMS_SIZE: usize = MIN_SIZE;
+
+    fn serialize_appl_params(params: &Mbox3SpecificParams, raw: &mut [u8]) -> Result<(), String> {
+        serialize(params, raw)
+    }
+
+    fn deserialize_appl_params(params: &mut Mbox3SpecificParams, raw: &[u8]) -> Result<(), String> {
+        deserialize(params, raw)
+    }
+}
+
+impl TcatApplSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
+
+impl TcatApplSectionMutableParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
+
+impl TcatApplSectionNotifiedParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {
+    fn cache_appl_notified_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         params: &mut Mbox3SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0u8; sections.application.size];
-        ApplSectionProtocol::read_appl_data(req, node, sections, 0, &mut raw, timeout_ms)?;
-        deserialize(params, &raw).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
-
-    /// Update state of hardware for part of parameters.
-    pub fn update_partial_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &Mbox3SpecificParams,
-        prev: &mut Mbox3SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut new = vec![0u8; sections.application.size];
-        serialize(params, &mut new)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        let mut old = vec![0u8; sections.application.size];
-        serialize(prev, &mut old)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        (0..sections.application.size)
-            .step_by(4)
-            .try_for_each(|pos| {
-                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                    ApplSectionProtocol::write_appl_data(
-                        req,
-                        node,
-                        sections,
-                        pos,
-                        &mut new[pos..(pos + 4)],
-                        timeout_ms,
-                    )
-                } else {
-                    Ok(())
-                }
-            })?;
-
-        deserialize(prev, &new).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
-
-    /// Cache state of hardware for notified parameters.
-    pub fn cache_notified_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
         msg: u32,
-        params: &mut Mbox3SpecificParams,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if msg & (PHANTOM_POWERING_CHANGED | MASTER_KNOB_CHANGED) > 0 {
-            Self::cache_whole_params(req, node, sections, params, timeout_ms)?;
+            Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)?;
         }
 
         let mut p = params.clone();
@@ -881,10 +848,47 @@ impl Mbox3Protocol {
         }
 
         if !p.eq(params) {
-            Self::update_partial_params(req, node, sections, &p, params, timeout_ms)?;
+            Self::update_appl_partial_params(req, node, sections, &p, params, timeout_ms)?;
         }
 
         Ok(())
+    }
+}
+
+impl Mbox3Protocol {
+    /// Cache state of hardware for whole parameters.
+    pub fn cache_whole_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &mut Mbox3SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
+    }
+
+    /// Update state of hardware for part of parameters.
+    pub fn update_partial_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &Mbox3SpecificParams,
+        prev: &mut Mbox3SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, params, prev, timeout_ms)
+    }
+
+    /// Cache state of hardware for notified parameters.
+    pub fn cache_notified_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        msg: u32,
+        params: &mut Mbox3SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache_appl_notified_params(req, node, sections, params, msg, timeout_ms)
     }
 }
 
