@@ -855,43 +855,6 @@ impl TcatApplSectionNotifiedParamsOperation<Mbox3SpecificParams> for Mbox3Protoc
     }
 }
 
-impl Mbox3Protocol {
-    /// Cache state of hardware for whole parameters.
-    pub fn cache_whole_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut Mbox3SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
-    }
-
-    /// Update state of hardware for part of parameters.
-    pub fn update_partial_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &Mbox3SpecificParams,
-        prev: &mut Mbox3SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::update_appl_partial_params(req, node, sections, params, prev, timeout_ms)
-    }
-
-    /// Cache state of hardware for notified parameters.
-    pub fn cache_notified_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        msg: u32,
-        params: &mut Mbox3SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_appl_notified_params(req, node, sections, params, msg, timeout_ms)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
