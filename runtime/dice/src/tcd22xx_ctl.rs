@@ -54,7 +54,7 @@ where
         global_params: &GlobalParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.caps = CapsSectionProtocol::read_caps(req, node, sections, timeout_ms)?;
+        CapsSectionProtocol::read_caps(req, node, sections, &mut self.caps, timeout_ms)?;
 
         self.supported_sources = global_params.avail_sources.to_vec();
 
