@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use super::{caps_section::*, *};
+
+use super::*;
 
 impl FormatEntry {
     const SIZE: usize = 268;
@@ -98,84 +99,6 @@ pub(crate) fn deserialize_stream_format_entries(
             let pos = 8 + i * FormatEntry::SIZE;
             deserialize_stream_format_entry(entry, &raw[pos..(pos + FormatEntry::SIZE)])
         })
-}
-
-pub(crate) fn read_stream_format_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    caps: &ExtensionCaps,
-    offset: usize,
-    timeout_ms: u32,
-) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
-    let mut raw = [0; 8];
-    extension_read(req, node, offset, &mut raw, timeout_ms)?;
-
-    let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
-    let tx_entry_count = val as usize;
-    if tx_entry_count > caps.general.max_tx_streams as usize {
-        let msg = format!(
-            "Unexpected count of tx streams: {} but {} expected",
-            tx_entry_count, caps.general.max_tx_streams
-        );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
-    }
-
-    val.parse_quadlet(&raw[4..8]);
-    let rx_entry_count = val as usize;
-    if rx_entry_count > caps.general.max_rx_streams as usize {
-        let msg = format!(
-            "Unexpected count of rx streams: {} but {} expected",
-            rx_entry_count, caps.general.max_rx_streams
-        );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?
-    }
-
-    let size = calculate_stream_format_entries_size(tx_entry_count, rx_entry_count);
-    let mut raw = vec![0u8; size];
-    extension_read(req, node, offset, &mut raw, timeout_ms)?;
-
-    let mut tx_entries = vec![FormatEntry::default(); tx_entry_count];
-    let mut rx_entries = vec![FormatEntry::default(); rx_entry_count];
-
-    deserialize_stream_format_entries((&mut tx_entries, &mut rx_entries), &raw)
-        .map_err(|cause| Error::new(ProtocolExtensionError::StreamFormatEntry, &cause))?;
-
-    Ok((tx_entries, rx_entries))
-}
-
-pub(crate) fn write_stream_format_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    caps: &ExtensionCaps,
-    offset: usize,
-    (tx_entries, rx_entries): (&[FormatEntry], &[FormatEntry]),
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    if tx_entries.len() != caps.general.max_tx_streams as usize {
-        let msg = format!(
-            "Unexpected count of tx streams: {} but {} expected",
-            tx_entries.len(),
-            caps.general.max_tx_streams
-        );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?;
-    }
-
-    if rx_entries.len() != caps.general.max_rx_streams as usize {
-        let msg = format!(
-            "Unexpected count of rx streams: {} but {} expected",
-            rx_entries.len(),
-            caps.general.max_rx_streams
-        );
-        Err(Error::new(ProtocolExtensionError::StreamFormatEntry, &msg))?;
-    }
-
-    let size = calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len());
-    let mut raw = vec![0u8; size];
-    serialize_stream_format_entries((&tx_entries, &rx_entries), &mut raw)
-        .map_err(|cause| Error::new(ProtocolExtensionError::StreamFormatEntry, &cause))?;
-
-    extension_write(req, node, offset, &mut raw, timeout_ms)
 }
 
 #[cfg(test)]
