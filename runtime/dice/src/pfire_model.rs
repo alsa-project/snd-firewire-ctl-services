@@ -5,7 +5,10 @@ use {
     super::{tcd22xx_ctl::*, *},
     protocols::{
         maudio::*,
-        tcat::{extension::*, tcd22xx_spec::*},
+        tcat::{
+            extension::{appl_section::*, *},
+            tcd22xx_spec::*,
+        },
     },
     std::marker::PhantomData,
 };
@@ -31,7 +34,9 @@ where
         + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation,
+        + Tcd22xxMixerOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     req: FwReq,
     sections: GeneralSections,
@@ -56,7 +61,9 @@ where
         + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation,
+        + Tcd22xxMixerOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
@@ -100,7 +107,9 @@ where
         + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation,
+        + Tcd22xxMixerOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections)?;
@@ -185,7 +194,9 @@ where
         + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation,
+        + Tcd22xxMixerOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
@@ -242,7 +253,9 @@ where
         + TcatExtensionOperation
         + Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation,
+        + Tcd22xxMixerOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
@@ -278,7 +291,11 @@ where
 }
 
 #[derive(Default, Debug)]
-pub struct PfireSpecificCtl<T: PfireSpecificOperation>(PfireSpecificParams, PhantomData<T>);
+pub struct PfireSpecificCtl<T: PfireSpecificOperation>(PfireSpecificParams, PhantomData<T>)
+where
+    T: PfireSpecificOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>;
 
 fn opt_iface_b_mode_to_str(mode: &OptIfaceMode) -> &'static str {
     match mode {
@@ -298,7 +315,12 @@ const MASTER_KNOB_NAME: &str = "master-knob-target";
 const OPT_IFACE_B_MODE_NAME: &str = "optical-iface-b-mode";
 const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
-impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
+impl<T> PfireSpecificCtl<T>
+where
+    T: PfireSpecificOperation
+        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+{
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: [&'static str; 4] = [
         "analog-out-1/2",
@@ -319,7 +341,7 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_whole_params(req, node, &sections, &mut self.0, timeout_ms);
+        let res = T::cache_appl_whole_params(req, node, &sections, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -394,8 +416,14 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(assign, val)| *assign = val);
-                let res =
-                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                let res = T::update_appl_partial_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
@@ -411,8 +439,14 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_iface_b_mode = mode)?;
-                let res =
-                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                let res = T::update_appl_partial_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
@@ -430,8 +464,14 @@ impl<T: PfireSpecificOperation> PfireSpecificCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.standalone_mode = mode)?;
-                let res =
-                    T::update_partial_params(req, node, sections, &params, &mut self.0, timeout_ms);
+                let res = T::update_appl_partial_params(
+                    req,
+                    node,
+                    sections,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
