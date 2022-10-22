@@ -23,7 +23,6 @@ pub struct PfireModel<T>
 where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -32,9 +31,6 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
@@ -50,7 +46,6 @@ impl<T> PfireModel<T>
 where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -59,9 +54,6 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
@@ -96,7 +88,6 @@ impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
 where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -105,9 +96,6 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
@@ -183,7 +171,6 @@ impl<T> NotifyModel<(SndDice, FwNode), u32> for PfireModel<T>
 where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -192,9 +179,6 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
@@ -242,7 +226,6 @@ impl<T> MeasureModel<(SndDice, FwNode)> for PfireModel<T>
 where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -251,9 +234,6 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
-        + Tcd22xxMixerOperation
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
