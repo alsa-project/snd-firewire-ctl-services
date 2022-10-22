@@ -32,7 +32,7 @@ pub struct Output {
     pub label: Option<&'static str>,
 }
 
-pub trait Tcd22xxSpecOperation {
+pub trait Tcd22xxSpecification {
     // For each model.
     const INPUTS: &'static [Input];
     const OUTPUTS: &'static [Output];
@@ -226,7 +226,7 @@ pub trait Tcd22xxSpecOperation {
     }
 }
 
-pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
+pub trait Tcd22xxOperation: Tcd22xxSpecification {
     fn update_router_entries(
         node: &mut FwNode,
         req: &mut FwReq,
@@ -320,9 +320,9 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
     }
 }
 
-impl<O: Tcd22xxSpecOperation> Tcd22xxRouterOperation for O {}
+impl<O: Tcd22xxSpecification> Tcd22xxOperation for O {}
 
-pub trait Tcd22xxStateOperation: Tcd22xxRouterOperation {
+pub trait Tcd22xxStateOperation: Tcd22xxOperation {
     fn cache(
         node: &mut FwNode,
         req: &mut FwReq,
@@ -338,4 +338,4 @@ pub trait Tcd22xxStateOperation: Tcd22xxRouterOperation {
     }
 }
 
-impl<O: Tcd22xxRouterOperation> Tcd22xxStateOperation for O {}
+impl<O: Tcd22xxOperation> Tcd22xxStateOperation for O {}

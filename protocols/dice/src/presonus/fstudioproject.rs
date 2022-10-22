@@ -15,7 +15,7 @@ impl TcatGlobalSectionSpecification for FStudioProjectProtocol {}
 
 impl TcatExtensionOperation for FStudioProjectProtocol {}
 
-impl Tcd22xxSpecOperation for FStudioProjectProtocol {
+impl Tcd22xxSpecification for FStudioProjectProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

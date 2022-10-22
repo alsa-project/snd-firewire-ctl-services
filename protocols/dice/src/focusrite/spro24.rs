@@ -93,7 +93,7 @@ impl TcatGlobalSectionSpecification for SPro24Protocol {}
 
 impl TcatExtensionOperation for SPro24Protocol {}
 
-impl Tcd22xxSpecOperation for SPro24Protocol {
+impl Tcd22xxSpecification for SPro24Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

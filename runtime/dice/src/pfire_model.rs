@@ -21,8 +21,8 @@ pub type Pfire610Model = PfireModel<Pfire610Protocol>;
 #[derive(Default)]
 pub struct PfireModel<T>
 where
-    T: Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -44,8 +44,8 @@ where
 
 impl<T> PfireModel<T>
 where
-    T: Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -86,8 +86,8 @@ where
 
 impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
 where
-    T: Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -169,8 +169,8 @@ where
 
 impl<T> NotifyModel<(SndDice, FwNode), u32> for PfireModel<T>
 where
-    T: Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
@@ -224,8 +224,8 @@ where
 
 impl<T> MeasureModel<(SndDice, FwNode)> for PfireModel<T>
 where
-    T: Tcd22xxSpecOperation
-        + Tcd22xxRouterOperation
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
         + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>

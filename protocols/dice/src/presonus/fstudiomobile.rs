@@ -15,7 +15,7 @@ impl TcatGlobalSectionSpecification for FStudioMobileProtocol {}
 
 impl TcatExtensionOperation for FStudioMobileProtocol {}
 
-impl Tcd22xxSpecOperation for FStudioMobileProtocol {
+impl Tcd22xxSpecification for FStudioMobileProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

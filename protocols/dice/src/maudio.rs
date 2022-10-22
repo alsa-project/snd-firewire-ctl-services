@@ -186,7 +186,7 @@ impl PfireSpecificSpecification for Pfire2626Protocol {
     const SUPPORT_STANDALONE_CONVERTER: bool = true;
 }
 
-impl Tcd22xxSpecOperation for Pfire2626Protocol {
+impl Tcd22xxSpecification for Pfire2626Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins1,
@@ -308,7 +308,7 @@ impl PfireSpecificSpecification for Pfire610Protocol {
 }
 
 // NOTE: the second rx stream is firstly available at higher sampling rate.
-impl Tcd22xxSpecOperation for Pfire610Protocol {
+impl Tcd22xxSpecification for Pfire610Protocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,

@@ -188,7 +188,7 @@ impl TcatGlobalSectionSpecification for ExtensionProtocol {}
 
 impl TcatExtensionOperation for ExtensionProtocol {}
 
-impl Tcd22xxSpecOperation for ExtensionProtocol {
+impl Tcd22xxSpecification for ExtensionProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
             id: SrcBlkId::Ins0,
