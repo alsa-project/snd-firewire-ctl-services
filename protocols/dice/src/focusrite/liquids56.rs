@@ -357,7 +357,6 @@ pub enum MicAmpEmulationType {
     Deutsch72,
     Stellar1b,
     NewAge,
-    Reserved(u32),
 }
 
 impl Default for MicAmpEmulationType {
@@ -403,8 +402,6 @@ fn serialize_mic_amp_emulation_types(
                 MicAmpEmulationType::Deutsch72 => MicAmpEmulationType::DEUTSCH72_VALUE,
                 MicAmpEmulationType::Stellar1b => MicAmpEmulationType::STELLAR1B_VALUE,
                 MicAmpEmulationType::NewAge => MicAmpEmulationType::NEWAGE_VALUE,
-                // TODO
-                MicAmpEmulationType::Reserved(_) => unreachable!(),
             }
             .build_quadlet(&mut raw[pos..(pos + 4)]);
         });
@@ -507,7 +504,6 @@ pub enum AnalogInputLevel {
     Mic,
     /// Available for Analog input 3 and 4 only.
     Inst,
-    Reserved(u8),
 }
 
 impl Default for AnalogInputLevel {
@@ -538,8 +534,6 @@ fn serialize_analog_input_levels(
                     AnalogInputLevel::Line => AnalogInputLevel::LINE_VALUE,
                     AnalogInputLevel::Mic => AnalogInputLevel::MIC_VALUE,
                     AnalogInputLevel::Inst => AnalogInputLevel::INST_VALUE,
-                    // TODO
-                    _ => unreachable!(),
                 };
                 val |= (v as u32) << (j * 8);
             });
