@@ -768,13 +768,31 @@ where
         rate_mode: RateMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_router_entries(
+        T::cache_tcd22xx_state(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            &mut self.1,
+            timeout_ms,
+        )?;
+        CurrentConfigSectionProtocol::cache_current_config_router_entries(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            &mut self.0,
+            timeout_ms,
+        )?;
+        T::update_router_entries(
             node,
             req,
             sections,
             caps,
             rate_mode,
-            &mut self.1,
+            &self.1,
             &mut self.0,
             timeout_ms,
         )
@@ -992,7 +1010,7 @@ where
             sections,
             caps,
             rate_mode,
-            &mut self.1,
+            &self.1,
             &mut entries,
             timeout_ms,
         )
