@@ -37,32 +37,4 @@ impl PeakSectionProtocol {
         deserialize_router_entries(entries, &raw)
             .map_err(|cause| Error::new(ProtocolExtensionError::Peak, &cause))
     }
-
-    pub fn read_peak_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        timeout_ms: u32,
-    ) -> Result<Vec<RouterEntry>, Error> {
-        if !caps.general.peak_avail {
-            Err(Error::new(
-                ProtocolExtensionError::Peak,
-                "Peak is not available",
-            ))?
-        }
-
-        let entry_count = caps.router.maximum_entry_count as usize;
-        let mut entries = vec![RouterEntry::default(); entry_count];
-        read_router_entries(
-            req,
-            node,
-            caps,
-            sections.peak.offset,
-            &mut entries,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Peak, &e.to_string()))
-        .map(|_| entries)
-    }
 }
