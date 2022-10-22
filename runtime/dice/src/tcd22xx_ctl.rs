@@ -86,12 +86,20 @@ where
                     rate_modes.push(m);
                 }
             });
-        rate_modes.iter().try_for_each(|&m| {
-            CurrentConfigSectionProtocol::read_current_stream_format_entries(
-                req, node, sections, &self.caps, m, timeout_ms,
+        let mut tx_entries = Vec::with_capacity(self.caps.general.max_tx_streams as usize);
+        let mut rx_entries = Vec::with_capacity(self.caps.general.max_rx_streams as usize);
+        rate_modes.iter().try_for_each(|&mode| {
+            CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
+                req,
+                node,
+                sections,
+                &self.caps,
+                mode,
+                (&mut tx_entries, &mut rx_entries),
+                timeout_ms,
             )
-            .map(|(tx, rx)| {
-                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(&tx, &rx);
+            .map(|_| {
+                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
                 tx_blk.iter().for_each(|src| {
                     if self.stream_blk_pair.0.iter().find(|s| s.eq(&src)).is_none() {
                         self.stream_blk_pair.0.push(*src);
