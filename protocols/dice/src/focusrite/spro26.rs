@@ -95,6 +95,8 @@ impl TcatOperation for SPro26Protocol {}
 
 impl TcatGlobalSectionSpecification for SPro26Protocol {}
 
+impl TcatExtensionOperation for SPro26Protocol {}
+
 impl Tcd22xxSpecOperation for SPro26Protocol {
     const INPUTS: &'static [Input] = &[
         Input {

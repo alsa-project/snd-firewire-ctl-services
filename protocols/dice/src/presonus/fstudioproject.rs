@@ -13,6 +13,8 @@ impl TcatOperation for FStudioProjectProtocol {}
 
 impl TcatGlobalSectionSpecification for FStudioProjectProtocol {}
 
+impl TcatExtensionOperation for FStudioProjectProtocol {}
+
 impl Tcd22xxSpecOperation for FStudioProjectProtocol {
     const INPUTS: &'static [Input] = &[
         Input {
