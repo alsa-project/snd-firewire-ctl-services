@@ -148,20 +148,43 @@ fn print_mixer(
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
+    let mut saturations = vec![false; caps.mixer.output_count as usize];
+    MixerSectionProtocol::cache_mixer_whole_saturation(
+        req,
+        node,
+        sections,
+        caps,
+        &mut saturations,
+        TIMEOUT_MS,
+    )?;
+
+    let mut entries =
+        vec![vec![0u16; caps.mixer.input_count as usize]; caps.mixer.output_count as usize];
+    MixerSectionProtocol::cache_mixer_whole_coefficients(
+        req,
+        node,
+        sections,
+        caps,
+        &mut entries,
+        TIMEOUT_MS,
+    )?;
+
     println!("Mixer:");
+
     println!("  Saturation:");
-    let entries = MixerSectionProtocol::read_saturation(req, node, sections, caps, TIMEOUT_MS)?;
-    entries.iter().enumerate().for_each(|(i, saturation)| {
+    saturations.iter().enumerate().for_each(|(i, saturation)| {
         println!("    dst {}: {}", i, saturation);
     });
 
     println!("  Coefficiency:");
-    (0..(caps.mixer.output_count as usize)).try_for_each(|dst| {
-        (0..(caps.mixer.input_count as usize)).try_for_each(|src| {
-            MixerSectionProtocol::read_coef(req, node, sections, caps, dst, src, TIMEOUT_MS)
-                .map(|coef| println!("    dst {} <- src {}: {}", dst, src, coef))
-        })
-    })
+    entries.iter().enumerate().for_each(|(dst, coefs)| {
+        coefs
+            .iter()
+            .enumerate()
+            .for_each(|(src, &coef)| println!("    dst {} <- src {}: {}", dst, src, coef));
+    });
+
+    Ok(())
 }
 
 fn print_peak(
