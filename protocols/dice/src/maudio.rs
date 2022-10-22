@@ -181,7 +181,7 @@ impl TcatGlobalSectionSpecification for Pfire2626Protocol {
 
 impl TcatExtensionOperation for Pfire2626Protocol {}
 
-impl PfireSpecificOperation for Pfire2626Protocol {
+impl PfireSpecificSpecification for Pfire2626Protocol {
     const HAS_OPT_IFACE_B: bool = true;
     const SUPPORT_STANDALONE_CONVERTER: bool = true;
 }
@@ -302,7 +302,7 @@ impl TcatGlobalSectionSpecification for Pfire610Protocol {
 
 impl TcatExtensionOperation for Pfire610Protocol {}
 
-impl PfireSpecificOperation for Pfire610Protocol {
+impl PfireSpecificSpecification for Pfire610Protocol {
     const HAS_OPT_IFACE_B: bool = false;
     const SUPPORT_STANDALONE_CONVERTER: bool = false;
 }
@@ -452,14 +452,14 @@ fn deserialize(params: &mut PfireSpecificParams, raw: &[u8]) -> Result<(), Strin
 }
 
 /// Protocol implementation specific to ProFire series.
-pub trait PfireSpecificOperation {
+pub trait PfireSpecificSpecification {
     const HAS_OPT_IFACE_B: bool;
     const SUPPORT_STANDALONE_CONVERTER: bool;
 
     const KNOB_COUNT: usize = 4;
 }
 
-impl<O: PfireSpecificOperation> ApplSectionParamsSerdes<PfireSpecificParams> for O {
+impl<O: PfireSpecificSpecification> ApplSectionParamsSerdes<PfireSpecificParams> for O {
     const APPL_PARAMS_OFFSET: usize = 0;
 
     const APPL_PARAMS_SIZE: usize = MIN_SIZE;
@@ -475,14 +475,14 @@ impl<O: PfireSpecificOperation> ApplSectionParamsSerdes<PfireSpecificParams> for
 
 impl<O> TcatApplSectionParamsOperation<PfireSpecificParams> for O where
     O: TcatExtensionOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + ApplSectionParamsSerdes<PfireSpecificParams>
 {
 }
 
 impl<O> TcatApplSectionMutableParamsOperation<PfireSpecificParams> for O where
     O: TcatExtensionOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + ApplSectionParamsSerdes<PfireSpecificParams>
 {
 }
