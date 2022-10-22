@@ -263,7 +263,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
 
         if entries != state.router_entries {
             let rate_mode = state.rate_mode;
-            RouterSectionProtocol::write_router_entries(
+            RouterSectionProtocol::write_router_whole_entries(
                 req, node, sections, caps, &entries, timeout_ms,
             )?;
             CmdSectionProtocol::initiate(
