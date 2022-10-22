@@ -22,22 +22,22 @@ use super::{
 };
 
 /// Software notice protocol to update hardware parameter.
-pub trait SaffireproSwNoticeOperation {
+pub trait SaffireproSwNoticeOperation: TcatExtensionOperation {
     const SW_NOTICE_OFFSET: usize;
 
     fn write_sw_notice(
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         notice: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         notice.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
+        Self::write_extension(
             req,
             node,
-            sections,
+            &sections.application,
             Self::SW_NOTICE_OFFSET,
             &mut raw,
             timeout_ms,
@@ -315,6 +315,108 @@ pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
     }
 }
 
+impl<O: SaffireproOutGroupOperation> ApplSectionParamsSerdes<OutGroupState> for O {
+    const APPL_PARAMS_OFFSET: usize = O::OUT_GROUP_STATE_OFFSET;
+
+    const APPL_PARAMS_SIZE: usize = OUT_GROUP_STATE_SIZE;
+
+    fn serialize_appl_params(params: &OutGroupState, raw: &mut [u8]) -> Result<(), String> {
+        serialize_out_group_state(params, raw)
+    }
+
+    fn deserialize_appl_params(params: &mut OutGroupState, raw: &[u8]) -> Result<(), String> {
+        deserialize_out_group_state(params, raw)
+    }
+}
+
+impl<O> TcatApplSectionParamsOperation<OutGroupState> for O where
+    O: TcatExtensionOperation
+        + SaffireproOutGroupOperation
+        + ApplSectionParamsSerdes<OutGroupState>
+{
+}
+
+impl<O> TcatApplSectionMutableParamsOperation<OutGroupState> for O
+where
+    O: TcatExtensionOperation
+        + SaffireproOutGroupOperation
+        + ApplSectionParamsSerdes<OutGroupState>,
+{
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        params: &OutGroupState,
+        prev: &mut OutGroupState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; OUT_GROUP_STATE_SIZE];
+        serialize_out_group_state(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; OUT_GROUP_STATE_SIZE];
+        serialize_out_group_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..OUT_GROUP_STATE_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    Self::OUT_GROUP_STATE_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new[..0x08] != old[..0x08] {
+            Self::write_sw_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)?;
+        }
+
+        if new[0x08..0x34] != old[0x08..0x34] {
+            Self::write_sw_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)?;
+        }
+
+        deserialize_out_group_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl<O> TcatApplSectionNotifiedParamsOperation<OutGroupState> for O
+where
+    O: TcatApplSectionParamsOperation<OutGroupState>,
+{
+    fn cache_appl_notified_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        params: &mut OutGroupState,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if msg & (NOTIFY_DIM_MUTE_CHANGE | NOTIFY_VOL_CHANGE) > 0 {
+            Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)?;
+
+            if msg & NOTIFY_VOL_CHANGE > 0 {
+                let vol_hwctls = params.vol_hwctls.clone();
+                let hw_knob_value = params.hw_knob_value;
+                params
+                    .vols
+                    .iter_mut()
+                    .zip(vol_hwctls)
+                    .filter(|(_, vol_hwctl)| *vol_hwctl)
+                    .for_each(|(vol, _)| *vol = hw_knob_value);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 /// The level of microphone input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireproMicInputLevel {
@@ -474,6 +576,76 @@ pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
                     req,
                     node,
                     sections,
+                    Self::INPUT_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new != old {
+            Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)?;
+        }
+
+        deserialize_input_params(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl<O: SaffireproInputOperation> ApplSectionParamsSerdes<SaffireproInputParams> for O {
+    const APPL_PARAMS_OFFSET: usize = O::INPUT_PARAMS_OFFSET;
+
+    const APPL_PARAMS_SIZE: usize = INPUT_PARAMS_SIZE;
+
+    fn serialize_appl_params(params: &SaffireproInputParams, raw: &mut [u8]) -> Result<(), String> {
+        serialize_input_params(params, raw)
+    }
+
+    fn deserialize_appl_params(
+        params: &mut SaffireproInputParams,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_input_params(params, raw)
+    }
+}
+
+impl<O> TcatApplSectionParamsOperation<SaffireproInputParams> for O where
+    O: TcatExtensionOperation
+        + SaffireproInputOperation
+        + ApplSectionParamsSerdes<SaffireproInputParams>
+{
+}
+
+impl<O> TcatApplSectionMutableParamsOperation<SaffireproInputParams> for O
+where
+    O: TcatExtensionOperation
+        + SaffireproInputOperation
+        + ApplSectionParamsSerdes<SaffireproInputParams>,
+{
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        params: &SaffireproInputParams,
+        prev: &mut SaffireproInputParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..INPUT_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
                     Self::INPUT_PARAMS_OFFSET + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
@@ -719,6 +891,92 @@ pub trait SaffireproIoParamsOperation: SaffireproSwNoticeOperation {
                     req,
                     node,
                     sections,
+                    IO_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new[..0x04] != old[..0x04] {
+            Self::write_sw_notice(req, node, sections, 0x00000003, timeout_ms)?;
+        }
+
+        if new[0x1c..0x20] != old[0x1c..0x20] {
+            let mut n = 0u32;
+            n.parse_quadlet(&new[0x1c..0x20]);
+            let mut o = 0u32;
+            o.parse_quadlet(&old[0x1c..0x20]);
+
+            if (n ^ o) & 0x00000003 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000004, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000008 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000008, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000010 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000010, timeout_ms)?;
+            }
+        }
+
+        deserialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl<O: SaffireproIoParamsOperation> ApplSectionParamsSerdes<SaffireproIoParams> for O {
+    const APPL_PARAMS_OFFSET: usize = IO_PARAMS_OFFSET;
+
+    const APPL_PARAMS_SIZE: usize = IO_PARAMS_SIZE;
+
+    fn serialize_appl_params(params: &SaffireproIoParams, raw: &mut [u8]) -> Result<(), String> {
+        serialize_io_params(params, O::AESEBU_IS_SUPPORTED, raw)
+    }
+
+    fn deserialize_appl_params(params: &mut SaffireproIoParams, raw: &[u8]) -> Result<(), String> {
+        deserialize_io_params(params, O::AESEBU_IS_SUPPORTED, raw)
+    }
+}
+
+impl<O> TcatApplSectionParamsOperation<SaffireproIoParams> for O where
+    O: TcatExtensionOperation
+        + SaffireproIoParamsOperation
+        + ApplSectionParamsSerdes<SaffireproIoParams>
+{
+}
+
+impl<O> TcatApplSectionMutableParamsOperation<SaffireproIoParams> for O
+where
+    O: TcatExtensionOperation
+        + SaffireproIoParamsOperation
+        + ApplSectionParamsSerdes<SaffireproIoParams>,
+{
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        params: &SaffireproIoParams,
+        prev: &mut SaffireproIoParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(params, Self::AESEBU_IS_SUPPORTED, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..IO_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
                     IO_PARAMS_OFFSET + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,

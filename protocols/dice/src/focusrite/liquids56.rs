@@ -803,6 +803,26 @@ fn deserialize_specific_params(
     Ok(())
 }
 
+impl ApplSectionParamsSerdes<LiquidS56SpecificParams> for LiquidS56Protocol {
+    const APPL_PARAMS_OFFSET: usize = SPECIFIC_PARAMS_OFFSET;
+
+    const APPL_PARAMS_SIZE: usize = SPECIFIC_PARAMS_SIZE;
+
+    fn serialize_appl_params(
+        params: &LiquidS56SpecificParams,
+        raw: &mut [u8],
+    ) -> Result<(), String> {
+        serialize_specific_params(params, raw)
+    }
+
+    fn deserialize_appl_params(
+        params: &mut LiquidS56SpecificParams,
+        raw: &[u8],
+    ) -> Result<(), String> {
+        deserialize_specific_params(params, raw)
+    }
+}
+
 /// Protocol specific to Saffire Pro 26.
 impl LiquidS56Protocol {
     pub const MIC_AMP_HARMONICS_MIN: u8 = 0;
@@ -816,23 +836,28 @@ impl LiquidS56Protocol {
         params: &mut LiquidS56SpecificParams,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut raw = vec![0u8; SPECIFIC_PARAMS_SIZE];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            SPECIFIC_PARAMS_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-        deserialize_specific_params(params, &raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+        Self::cache_appl_whole_params(req, node, sections, params, timeout_ms)
     }
 
     /// Update state of hardware for partial parameters.
     pub fn update_partial_specific_params(
         req: &mut FwReq,
         node: &mut FwNode,
+        sections: &ExtensionSections,
+        params: &LiquidS56SpecificParams,
+        prev: &mut LiquidS56SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::update_appl_partial_params(req, node, sections, params, prev, timeout_ms)
+    }
+}
+
+impl TcatApplSectionParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {}
+
+impl TcatApplSectionMutableParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {
+    fn update_appl_partial_params(
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         params: &LiquidS56SpecificParams,
         prev: &mut LiquidS56SpecificParams,
@@ -848,10 +873,10 @@ impl LiquidS56Protocol {
 
         (0..SPECIFIC_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
             if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                ApplSectionProtocol::write_appl_data(
+                Self::write_extension(
                     req,
                     node,
-                    sections,
+                    &sections.application,
                     SPECIFIC_PARAMS_OFFSET + pos,
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
