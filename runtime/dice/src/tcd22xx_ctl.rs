@@ -983,6 +983,8 @@ struct MeterCtls<T>
 where
     T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
+    peak_entries: Vec<RouterEntry>,
+
     real_meter: Vec<i32>,
     stream_meter: Vec<i32>,
     mixer_meter: Vec<i32>,
@@ -1011,8 +1013,16 @@ where
         mixer_blk_dsts: &[DstBlk],
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let entries =
-            PeakSectionProtocol::read_peak_entries(req, node, sections, &caps, timeout_ms)?;
+        self.peak_entries
+            .resize_with(caps.router.maximum_entry_count as usize, Default::default);
+        PeakSectionProtocol::cache_peak_whole_entries(
+            req,
+            node,
+            sections,
+            &caps,
+            &mut self.peak_entries,
+            timeout_ms,
+        )?;
 
         self.real_meter
             .resize_with(real_blk_dsts.len(), Default::default);
@@ -1021,10 +1031,15 @@ where
         self.mixer_meter
             .resize_with(real_blk_dsts.len(), Default::default);
 
-        self.real_meter
+        let real_meter = &mut self.real_meter;
+        let stream_meter = &mut self.stream_meter;
+        let mixer_meter = &mut self.mixer_meter;
+        let peak_entries = &self.peak_entries;
+
+        real_meter
             .iter_mut()
-            .chain(&mut self.stream_meter)
-            .chain(&mut self.mixer_meter)
+            .chain(stream_meter)
+            .chain(mixer_meter)
             .zip(
                 real_blk_dsts
                     .iter()
@@ -1032,7 +1047,7 @@ where
                     .chain(mixer_blk_dsts),
             )
             .for_each(|(meter, dst)| {
-                *meter = entries
+                *meter = peak_entries
                     .iter()
                     .find(|entry| dst.eq(&entry.dst))
                     .map(|entry| entry.peak as i32)
