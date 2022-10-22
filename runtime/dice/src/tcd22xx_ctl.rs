@@ -52,7 +52,9 @@ where
         global_params: &GlobalParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        CapsSectionProtocol::read_caps(req, node, sections, &mut self.caps, timeout_ms)?;
+        let res = CapsSectionProtocol::read_caps(req, node, sections, &mut self.caps, timeout_ms);
+        debug!(params = ?self.caps, ?res);
+        res?;
 
         self.supported_sources = global_params.avail_sources.to_vec();
 
@@ -310,13 +312,15 @@ where
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        StandaloneSectionProtocol::cache_standalone_params(
+        let res = StandaloneSectionProtocol::cache_standalone_params(
             req,
             node,
             sections,
             &mut self.0,
             timeout_ms,
-        )
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(
@@ -511,28 +515,28 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&src| params.clock_source = src)?;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_SPDIF_HIGH_RATE_NAME => {
                 let mut params = self.0.clone();
                 params.aes_high_rate = elem_value.boolean()[0];
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_ADAT_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -545,15 +549,15 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.adat_mode = mode)?;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_WC_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -567,41 +571,41 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.word_clock_param.mode = mode)?;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_WC_RATE_NUMERATOR_NAME => {
                 let mut params = self.0.clone();
                 params.word_clock_param.rate.numerator = elem_value.int()[0] as u16;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_WC_RATE_DENOMINATOR_NAME => {
                 let mut params = self.0.clone();
                 params.word_clock_param.rate.denominator = elem_value.int()[0] as u16;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             STANDALONE_INTERNAL_CLK_RATE_NAME => {
                 let mut params = self.0.clone();
@@ -614,15 +618,15 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&rate| params.internal_rate = rate)?;
-                StandaloneSectionProtocol::update_standalone_params(
+                let res = StandaloneSectionProtocol::update_standalone_params(
                     req,
                     node,
                     &sections,
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -660,14 +664,16 @@ where
             .iter_mut()
             .for_each(|coefs| coefs.resize_with(caps.mixer.input_count as usize, Default::default));
 
-        MixerSectionProtocol::cache_mixer_whole_coefficients(
+        let res = MixerSectionProtocol::cache_mixer_whole_coefficients(
             req,
             node,
             sections,
             caps,
             &mut self.0,
             timeout_ms,
-        )
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(
@@ -732,7 +738,7 @@ where
                             .zip(elem_value.int())
                             .for_each(|(coef, &val)| *coef = val as u16);
                     })?;
-                MixerSectionProtocol::update_mixer_partial_coefficients(
+                let res = MixerSectionProtocol::update_mixer_partial_coefficients(
                     req,
                     node,
                     sections,
@@ -740,8 +746,9 @@ where
                     &params,
                     &mut self.0,
                     timeout_ms,
-                )
-                .map(|_| true)
+                );
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -768,7 +775,7 @@ where
         rate_mode: RateMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_tcd22xx_state(
+        let res = T::cache_tcd22xx_state(
             req,
             node,
             sections,
@@ -776,8 +783,10 @@ where
             rate_mode,
             &mut self.1,
             timeout_ms,
-        )?;
-        CurrentConfigSectionProtocol::cache_current_config_router_entries(
+        );
+        debug!(params = ?self.1, ?res);
+        res?;
+        let res = CurrentConfigSectionProtocol::cache_current_config_router_entries(
             req,
             node,
             sections,
@@ -785,8 +794,10 @@ where
             rate_mode,
             &mut self.0,
             timeout_ms,
-        )?;
-        T::update_router_entries(
+        );
+        debug!(params = ?self.0, ?res);
+        res?;
+        let res = T::update_router_entries(
             node,
             req,
             sections,
@@ -795,7 +806,9 @@ where
             &self.1,
             &mut self.0,
             timeout_ms,
-        )
+        );
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(
@@ -1004,7 +1017,7 @@ where
 
         let rate_mode = RateMode::try_from(current_rate).unwrap();
 
-        T::update_router_entries(
+        let res = T::update_router_entries(
             node,
             req,
             sections,
@@ -1013,8 +1026,9 @@ where
             &self.1,
             &mut entries,
             timeout_ms,
-        )
-        .map(|_| self.0 = entries)?;
+        );
+        debug!(params = ?entries, ?res);
+        res.map(|_| self.0 = entries)?;
 
         Ok(true)
     }
@@ -1057,14 +1071,16 @@ where
     ) -> Result<(), Error> {
         self.peak_entries
             .resize_with(caps.router.maximum_entry_count as usize, Default::default);
-        PeakSectionProtocol::cache_peak_whole_entries(
+        let res = PeakSectionProtocol::cache_peak_whole_entries(
             req,
             node,
             sections,
             &caps,
             &mut self.peak_entries,
             timeout_ms,
-        )?;
+        );
+        debug!(params = ?self.peak_entries, ?res);
+        res?;
 
         self.real_meter
             .resize_with(real_blk_dsts.len(), Default::default);
@@ -1098,16 +1114,16 @@ where
 
         self.mixer_saturation
             .resize_with(mixer_blk_dsts.len(), Default::default);
-        MixerSectionProtocol::cache_mixer_whole_saturation(
+        let res = MixerSectionProtocol::cache_mixer_whole_saturation(
             req,
             node,
             sections,
             caps,
             &mut self.mixer_saturation,
             timeout_ms,
-        )?;
-
-        Ok(())
+        );
+        debug!(params = ?self.mixer_saturation, ?res);
+        res
     }
 
     fn load(
