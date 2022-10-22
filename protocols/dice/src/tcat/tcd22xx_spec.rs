@@ -289,22 +289,32 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let rate_mode = state.rate_mode;
-        let real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
+        state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
 
-        let (tx_entries, rx_entries) =
-            CurrentConfigSectionProtocol::read_current_stream_format_entries(
-                req, node, sections, caps, rate_mode, timeout_ms,
-            )?;
-        let stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
+        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
+        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            (&mut tx_entries, &mut rx_entries),
+            timeout_ms,
+        )?;
+        state.stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
 
-        let mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
+        state.mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
 
-        state.real_blk_pair = real_blk_pair;
-        state.stream_blk_pair = stream_blk_pair;
-        state.mixer_blk_pair = mixer_blk_pair;
-
-        let entries = CurrentConfigSectionProtocol::read_current_router_entries(
-            req, node, sections, caps, rate_mode, timeout_ms,
+        let mut entries = Vec::with_capacity(caps.router.maximum_entry_count as usize);
+        CurrentConfigSectionProtocol::cache_current_config_router_entries(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            &mut entries,
+            timeout_ms,
         )?;
         Self::update_router_entries(node, req, sections, caps, state, entries, timeout_ms)
     }
