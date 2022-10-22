@@ -17,7 +17,7 @@ use {
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -44,7 +44,7 @@ where
 
 impl<T> Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -123,6 +123,9 @@ where
         self.standalone_ctls
             .cache(req, node, sections, timeout_ms)?;
 
+        self.mixer_ctls
+            .cache(req, node, sections, &self.caps, timeout_ms)?;
+
         self.meter_ctls.cache(
             req,
             node,
@@ -146,7 +149,7 @@ where
         )?;
 
         self.mixer_ctls
-            .load(card_cntr, &self.mixer_blk_pair)
+            .load(card_cntr, (&self.mixer_blk_pair.0, &self.mixer_blk_pair.1))
             .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         self.router_ctls
@@ -178,10 +181,7 @@ where
             &self.supported_rates,
         )? {
             Ok(true)
-        } else if self
-            .mixer_ctls
-            .read(elem_id, elem_value, &self.state.mixer_cache)?
-        {
+        } else if self.mixer_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.router_ctls.read(
             elem_id,
@@ -220,14 +220,7 @@ where
         )? {
             Ok(true)
         } else if self.mixer_ctls.write(
-            req,
-            node,
-            sections,
-            &self.caps,
-            &mut self.state,
-            elem_id,
-            elem_value,
-            timeout_ms,
+            req, node, sections, &self.caps, elem_id, elem_value, timeout_ms,
         )? {
             Ok(true)
         } else if self.router_ctls.write(
@@ -288,6 +281,9 @@ where
                 timeout_ms,
             )?;
             self.current_rate = global_params.current_rate;
+
+            self.mixer_ctls
+                .cache(req, node, sections, &self.caps, timeout_ms)?;
         }
         Ok(())
     }
@@ -298,7 +294,7 @@ struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>);
 
 impl<T> StandaloneCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const ADAT_MODES: &'static [AdatParam] = &[
         AdatParam::Normal,
@@ -641,11 +637,11 @@ where
 }
 
 #[derive(Default, Debug)]
-struct MixerCtls<T>(PhantomData<T>);
+struct MixerCtls<T>(Vec<Vec<u16>>, PhantomData<T>);
 
 impl<T> MixerCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
@@ -657,12 +653,35 @@ where
         mute_avail: false,
     };
 
+    fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.0
+            .resize_with(caps.mixer.output_count as usize, Default::default);
+        self.0
+            .iter_mut()
+            .for_each(|coefs| coefs.resize_with(caps.mixer.input_count as usize, Default::default));
+
+        MixerSectionProtocol::cache_mixer_whole_coefficients(
+            req,
+            node,
+            sections,
+            caps,
+            &mut self.0,
+            timeout_ms,
+        )
+    }
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        (mixer_blk_srcs, mixer_blk_dsts): &(Vec<SrcBlk>, Vec<DstBlk>),
+        (mixer_blk_srcs, mixer_blk_dsts): (&[SrcBlk], &[DstBlk]),
     ) -> Result<Vec<ElemId>, Error> {
-        eprintln!("{:?} {:?}", mixer_blk_srcs, mixer_blk_dsts);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
         card_cntr.add_int_elems(
             &elem_id,
@@ -676,20 +695,17 @@ where
         )
     }
 
-    fn read(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        mixer_cache: &[Vec<i32>],
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
                 let dst_ch = elem_id.index() as usize;
-                mixer_cache
+                let vals: Vec<i32> = self
+                    .0
                     .iter()
                     .nth(dst_ch)
-                    .map(|coefs| elem_value.set_int(coefs))
+                    .map(|coefs| coefs.iter().map(|&coef| coef as i32).collect())
                     .unwrap();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -702,7 +718,6 @@ where
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
-        state: &mut Tcd22xxState,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -710,7 +725,7 @@ where
         match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
                 let dst_ch = elem_id.index() as usize;
-                let mut params = state.mixer_cache.clone();
+                let mut params = self.0.clone();
                 params
                     .iter_mut()
                     .nth(dst_ch)
@@ -722,10 +737,18 @@ where
                         coefs
                             .iter_mut()
                             .zip(elem_value.int())
-                            .for_each(|(coef, &val)| *coef = val);
+                            .for_each(|(coef, &val)| *coef = val as u16);
                     })?;
-                T::update_mixer_coef(node, req, sections, caps, state, &params, timeout_ms)
-                    .map(|_| true)
+                MixerSectionProtocol::update_mixer_partial_coefficients(
+                    req,
+                    node,
+                    sections,
+                    caps,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -735,11 +758,11 @@ where
 #[derive(Default, Debug)]
 struct RouterCtls<T>(PhantomData<T>)
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation;
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation;
 
 impl<T> RouterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const NONE_SRC_LABEL: &'static str = "None";
 
@@ -958,20 +981,20 @@ where
 #[derive(Default, Debug)]
 struct MeterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     real_meter: Vec<i32>,
     stream_meter: Vec<i32>,
     mixer_meter: Vec<i32>,
 
-    out_sat: Vec<bool>,
+    mixer_saturation: Vec<bool>,
 
     _phantom: PhantomData<T>,
 }
 
 impl<T> MeterCtls<T>
 where
-    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation + Tcd22xxMixerOperation,
+    T: Tcd22xxSpecOperation + Tcd22xxRouterOperation,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
@@ -1016,8 +1039,16 @@ where
                     .unwrap_or(0);
             });
 
-        self.out_sat =
-            MixerSectionProtocol::read_saturation(req, node, sections, &caps, timeout_ms)?;
+        self.mixer_saturation
+            .resize_with(mixer_blk_dsts.len(), Default::default);
+        MixerSectionProtocol::cache_mixer_whole_saturation(
+            req,
+            node,
+            sections,
+            caps,
+            &mut self.mixer_saturation,
+            timeout_ms,
+        )?;
 
         Ok(())
     }
@@ -1040,7 +1071,7 @@ where
         Self::add_an_elem_for_meter(card_cntr, MIXER_INPUT_METER_NAME, mixer_blk_dsts)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_SATURATION_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SATURATION_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, mixer_blk_dsts.len(), false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
@@ -1080,8 +1111,8 @@ where
                 elem_value.set_int(&self.mixer_meter);
                 Ok(true)
             }
-            INPUT_SATURATION_NAME => {
-                elem_value.set_bool(&self.out_sat);
+            MIXER_SATURATION_NAME => {
+                elem_value.set_bool(&self.mixer_saturation);
                 Ok(true)
             }
             _ => Ok(false),
@@ -1092,7 +1123,7 @@ where
 const OUT_METER_NAME: &str = "output-source-meter";
 const STREAM_TX_METER_NAME: &str = "stream-source-meter";
 const MIXER_INPUT_METER_NAME: &str = "mixer-source-meter";
-const INPUT_SATURATION_NAME: &str = "mixer-out-saturation";
+const MIXER_SATURATION_NAME: &str = "mixer-out-saturation";
 
 const ROUTER_OUT_SRC_NAME: &str = "output-source";
 const ROUTER_CAP_SRC_NAME: &str = "stream-source";
