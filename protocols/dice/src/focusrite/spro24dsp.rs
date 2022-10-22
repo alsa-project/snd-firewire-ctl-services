@@ -290,7 +290,7 @@ impl SaffireproSwNoticeOperation for SPro24DspProtocol {
     const SW_NOTICE_OFFSET: usize = 0x05ec;
 }
 
-impl SaffireproOutGroupOperation for SPro24DspProtocol {
+impl SaffireproOutGroupSpecification for SPro24DspProtocol {
     const OUT_GROUP_STATE_OFFSET: usize = 0x000c;
 
     const ENTRY_COUNT: usize = 6;
@@ -300,7 +300,7 @@ impl SaffireproOutGroupOperation for SPro24DspProtocol {
     const DIM_MUTE_NOTICE: u32 = 0x00000002;
 }
 
-impl SaffireproInputOperation for SPro24DspProtocol {
+impl SaffireproInputSpecification for SPro24DspProtocol {
     const INPUT_PARAMS_OFFSET: usize = 0x0058;
 }
 

@@ -194,7 +194,7 @@ impl SaffireproSwNoticeOperation for SPro40Protocol {
 const SRC_SW_NOTICE: u32 = 0x00000001;
 const DIM_MUTE_SW_NOTICE: u32 = 0x00000002;
 
-impl SaffireproOutGroupOperation for SPro40Protocol {
+impl SaffireproOutGroupSpecification for SPro40Protocol {
     const OUT_GROUP_STATE_OFFSET: usize = 0x000c;
 
     const ENTRY_COUNT: usize = 10;
@@ -204,7 +204,7 @@ impl SaffireproOutGroupOperation for SPro40Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
-impl SaffireproIoParamsOperation for SPro40Protocol {
+impl SaffireproIoParamsSpecification for SPro40Protocol {
     const AESEBU_IS_SUPPORTED: bool = false;
     const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool = false;
 }
