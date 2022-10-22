@@ -24,7 +24,7 @@ where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -51,7 +51,7 @@ where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -97,7 +97,7 @@ where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -184,7 +184,7 @@ where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -243,7 +243,7 @@ where
     T: Tcd22xxSpecOperation
         + Tcd22xxRouterOperation
         + Tcd22xxMixerOperation
-        + PfireSpecificOperation
+        + PfireSpecificSpecification
         + TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
@@ -291,9 +291,9 @@ where
 }
 
 #[derive(Default, Debug)]
-pub struct PfireSpecificCtl<T: PfireSpecificOperation>(PfireSpecificParams, PhantomData<T>)
+pub struct PfireSpecificCtl<T: PfireSpecificSpecification>(PfireSpecificParams, PhantomData<T>)
 where
-    T: PfireSpecificOperation
+    T: PfireSpecificSpecification
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>;
 
@@ -317,7 +317,7 @@ const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
 impl<T> PfireSpecificCtl<T>
 where
-    T: PfireSpecificOperation
+    T: PfireSpecificSpecification
         + TcatApplSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
