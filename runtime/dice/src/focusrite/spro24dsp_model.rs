@@ -341,7 +341,7 @@ impl CompressorCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = SPro24DspProtocol::cache_whole_comp_params(
+        let res = SPro24DspProtocol::cache_appl_whole_params(
             req,
             node,
             sections,
@@ -455,7 +455,7 @@ impl CompressorCtl {
             COMPRESSOR_OUTPUT_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.output);
-                let res = SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -469,7 +469,7 @@ impl CompressorCtl {
             COMPRESSOR_THRESHOLD_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.threshold);
-                let res = SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -483,7 +483,7 @@ impl CompressorCtl {
             COMPRESSOR_RATIO_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.ratio);
-                let res = SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -497,7 +497,7 @@ impl CompressorCtl {
             COMPRESSOR_ATTACK_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.attack);
-                let res = SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -511,7 +511,7 @@ impl CompressorCtl {
             COMPRESSOR_RELEASE_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.release);
-                let res = SPro24DspProtocol::update_partial_comp_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -540,8 +540,13 @@ impl EqualizerCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res =
-            SPro24DspProtocol::cache_whole_eq_params(req, node, sections, &mut self.0, timeout_ms);
+        let res = SPro24DspProtocol::cache_appl_whole_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        );
         debug!(params = ?self.0, ?res);
         res
     }
@@ -586,7 +591,7 @@ impl EqualizerCtl {
             EQUALIZER_OUTPUT_NAME => {
                 let mut params = self.0.clone();
                 convert_to_f32_array(elem_value, &mut params.output);
-                let res = SPro24DspProtocol::update_partial_eq_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -618,7 +623,7 @@ impl ReverbCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = SPro24DspProtocol::cache_whole_reverb_params(
+        let res = SPro24DspProtocol::cache_appl_whole_params(
             req,
             node,
             sections,
@@ -713,7 +718,7 @@ impl ReverbCtl {
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.size = vals[0];
-                let res = SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -729,7 +734,7 @@ impl ReverbCtl {
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.air = vals[0];
-                let res = SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -744,7 +749,7 @@ impl ReverbCtl {
                 let val = elem_value.boolean()[0];
                 let mut params = self.0.clone();
                 params.enabled = val;
-                let res = SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -760,7 +765,7 @@ impl ReverbCtl {
                 convert_to_f32_array(elem_value, &mut vals);
                 let mut params = self.0.clone();
                 params.pre_filter = vals[0];
-                let res = SPro24DspProtocol::update_partial_reverb_params(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -794,8 +799,13 @@ impl EffectGeneralCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res =
-            SPro24DspProtocol::cache_effect_general(req, node, sections, &mut self.0, timeout_ms);
+        let res = SPro24DspProtocol::cache_appl_whole_params(
+            req,
+            node,
+            sections,
+            &mut self.0,
+            timeout_ms,
+        );
         debug!(params = ?self.0, ?res);
         res
     }
@@ -863,7 +873,7 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .for_each(|(order, &val)| *order = val > 0);
-                let res = SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -881,7 +891,7 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enable, val)| *enable = val);
-                let res = SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -899,7 +909,7 @@ impl EffectGeneralCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enable, val)| *enable = val);
-                let res = SPro24DspProtocol::update_effect_general(
+                let res = SPro24DspProtocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
