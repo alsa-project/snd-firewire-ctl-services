@@ -297,6 +297,44 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
 
         Ok(())
     }
+
+    /// Load configuration from on-board flash memory.
+    fn load_configuration(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        CmdSectionProtocol::initiate(
+            req,
+            node,
+            sections,
+            caps,
+            Opcode::LoadConfigFromFlash,
+            timeout_ms,
+        )
+        .map(|_| ())
+    }
+
+    /// Store configuration to on-board flash memory.
+    fn store_configuration(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        CmdSectionProtocol::initiate(
+            req,
+            node,
+            sections,
+            caps,
+            Opcode::StoreConfigToFlash,
+            timeout_ms,
+        )
+        .map(|_| ())
+    }
 }
 
 impl<O: Tcd22xxSpecification> Tcd22xxOperation for O {}
