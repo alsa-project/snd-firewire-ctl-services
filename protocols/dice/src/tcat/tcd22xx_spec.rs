@@ -219,6 +219,35 @@ pub trait Tcd22xxSpecification {
 }
 
 pub trait Tcd22xxOperation: Tcd22xxSpecification {
+    fn cache_tcd22xx_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        rate_mode: RateMode,
+        state: &mut Tcd22xxState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
+
+        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
+        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
+        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            (&mut tx_entries, &mut rx_entries),
+            timeout_ms,
+        )?;
+        state.stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+
+        state.mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
+
+        Ok(())
+    }
+
     fn update_router_entries(
         node: &mut FwNode,
         req: &mut FwReq,
@@ -279,22 +308,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         entries: &mut Vec<RouterEntry>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
-
-        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
-        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
-        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
-            req,
-            node,
-            sections,
-            caps,
-            rate_mode,
-            (&mut tx_entries, &mut rx_entries),
-            timeout_ms,
-        )?;
-        state.stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
-
-        state.mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
+        Self::cache_tcd22xx_state(req, node, sections, caps, rate_mode, state, timeout_ms)?;
 
         CurrentConfigSectionProtocol::cache_current_config_router_entries(
             req, node, sections, caps, rate_mode, entries, timeout_ms,
