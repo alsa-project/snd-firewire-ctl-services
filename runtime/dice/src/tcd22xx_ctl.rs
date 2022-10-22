@@ -11,7 +11,7 @@ use {
         },
         tcd22xx_spec::*,
     },
-    std::marker::PhantomData,
+    std::{convert::TryFrom, marker::PhantomData},
 };
 
 #[derive(Default, Debug)]
@@ -236,6 +236,7 @@ where
             node,
             sections,
             &self.caps,
+            self.current_rate,
             elem_id,
             elem_value,
             &mut self.state,
@@ -892,6 +893,7 @@ where
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
+        current_rate: u32,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         state: &mut Tcd22xxState,
@@ -906,6 +908,7 @@ where
                 node,
                 sections,
                 caps,
+                current_rate,
                 elem_value,
                 state,
                 &real_blk_pair.1,
@@ -917,6 +920,7 @@ where
                 node,
                 sections,
                 caps,
+                current_rate,
                 elem_value,
                 state,
                 &stream_blk_pair.1,
@@ -928,6 +932,7 @@ where
                 node,
                 sections,
                 caps,
+                current_rate,
                 elem_value,
                 state,
                 &mixer_blk_pair.1,
@@ -943,6 +948,7 @@ where
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
+        current_rate: u32,
         elem_value: &ElemValue,
         state: &mut Tcd22xxState,
         dsts: &[DstBlk],
@@ -981,8 +987,12 @@ where
                 }
             });
 
-        T::update_router_entries(node, req, sections, caps, state, entries, timeout_ms)
-            .map(|_| true)
+        let rate_mode = RateMode::try_from(current_rate).unwrap();
+
+        T::update_router_entries(
+            node, req, sections, caps, rate_mode, state, entries, timeout_ms,
+        )
+        .map(|_| true)
     }
 }
 

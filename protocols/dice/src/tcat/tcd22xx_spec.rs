@@ -10,7 +10,6 @@ use super::{
 pub struct Tcd22xxState {
     pub router_entries: Vec<RouterEntry>,
 
-    rate_mode: RateMode,
     real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
@@ -232,6 +231,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
+        rate_mode: RateMode,
         state: &mut Tcd22xxState,
         entries: Vec<RouterEntry>,
         timeout_ms: u32,
@@ -262,7 +262,6 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         }
 
         if entries != state.router_entries {
-            let rate_mode = state.rate_mode;
             RouterSectionProtocol::write_router_whole_entries(
                 req, node, sections, caps, &entries, timeout_ms,
             )?;
@@ -285,10 +284,10 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
+        rate_mode: RateMode,
         state: &mut Tcd22xxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let rate_mode = state.rate_mode;
         state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
 
         let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
@@ -316,7 +315,9 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
             &mut entries,
             timeout_ms,
         )?;
-        Self::update_router_entries(node, req, sections, caps, state, entries, timeout_ms)
+        Self::update_router_entries(
+            node, req, sections, caps, rate_mode, state, entries, timeout_ms,
+        )
     }
 }
 
@@ -332,8 +333,7 @@ pub trait Tcd22xxStateOperation: Tcd22xxOperation {
         rate_mode: RateMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.rate_mode = rate_mode;
-        Self::cache_router_entries(node, req, sections, caps, state, timeout_ms)?;
+        Self::cache_router_entries(node, req, sections, caps, rate_mode, state, timeout_ms)?;
         Ok(())
     }
 }
