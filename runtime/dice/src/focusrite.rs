@@ -10,7 +10,10 @@ pub mod spro40_model;
 
 use {
     super::{tcd22xx_ctl::*, *},
-    protocols::{focusrite::*, tcat::extension::*},
+    protocols::{
+        focusrite::*,
+        tcat::extension::{appl_section::*, *},
+    },
     std::marker::PhantomData,
 };
 
@@ -25,9 +28,18 @@ const MUTE_HWCTL_NAME: &str = "output-group-mute-hwctl";
 #[derive(Debug)]
 pub struct OutGroupCtl<T>(OutGroupState, Vec<ElemId>, PhantomData<T>)
 where
-    T: SaffireproOutGroupOperation;
+    T: SaffireproOutGroupOperation
+        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatApplSectionNotifiedParamsOperation<OutGroupState>;
 
-impl<T: SaffireproOutGroupOperation> Default for OutGroupCtl<T> {
+impl<T> Default for OutGroupCtl<T>
+where
+    T: SaffireproOutGroupOperation
+        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
+{
     fn default() -> Self {
         Self(
             T::create_out_group_state(),
@@ -37,7 +49,13 @@ impl<T: SaffireproOutGroupOperation> Default for OutGroupCtl<T> {
     }
 }
 
-impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
+impl<T> OutGroupCtl<T>
+where
+    T: SaffireproOutGroupOperation
+        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
+{
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0x7f;
     const LEVEL_STEP: i32 = 0x01;
@@ -49,7 +67,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_whole_out_group_state(req, node, sections, &mut self.0, timeout_ms);
+        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -159,7 +177,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as i8);
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -177,7 +195,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_mute, val)| *vol_mute = val);
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -195,7 +213,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_hwctl, val)| *vol_hwctl = val);
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -209,7 +227,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
             MUTE_NAME => {
                 let mut params = self.0.clone();
                 params.mute_enabled = elem_value.boolean()[0];
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -227,7 +245,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(mute_hwctl, val)| *mute_hwctl = val);
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -241,7 +259,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
             DIM_NAME => {
                 let mut params = self.0.clone();
                 params.dim_enabled = elem_value.boolean()[0];
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -259,7 +277,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(dim_hwctl, val)| *dim_hwctl = val);
-                let res = T::update_partial_out_group_state(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -282,7 +300,7 @@ impl<T: SaffireproOutGroupOperation> OutGroupCtl<T> {
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_notified_params(req, node, sections, msg, &mut self.0, timeout_ms)
+        T::cache_appl_notified_params(req, node, sections, &mut self.0, msg, timeout_ms)
     }
 }
 
@@ -306,9 +324,16 @@ fn line_input_level_to_str(level: &SaffireproLineInputLevel) -> &'static str {
 #[derive(Default, Debug)]
 pub struct SaffireproInputCtl<T>(SaffireproInputParams, PhantomData<T>)
 where
-    T: SaffireproInputOperation;
+    T: SaffireproInputOperation
+        + TcatApplSectionParamsOperation<SaffireproInputParams>
+        + TcatApplSectionMutableParamsOperation<SaffireproInputParams>;
 
-impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
+impl<T> SaffireproInputCtl<T>
+where
+    T: SaffireproInputOperation
+        + TcatApplSectionParamsOperation<SaffireproInputParams>
+        + TcatApplSectionMutableParamsOperation<SaffireproInputParams>,
+{
     const MIC_LEVELS: [SaffireproMicInputLevel; 2] = [
         SaffireproMicInputLevel::Line,
         SaffireproMicInputLevel::Instrument,
@@ -326,7 +351,7 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_whole_input_params(req, node, sections, &mut self.0, timeout_ms);
+        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -408,7 +433,7 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partial_input_params(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -436,7 +461,7 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partial_input_params(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -455,7 +480,9 @@ impl<T: SaffireproInputOperation> SaffireproInputCtl<T> {
 #[derive(Default, Debug)]
 pub struct IoParamsCtl<T>(SaffireproIoParams, PhantomData<T>)
 where
-    T: SaffireproIoParamsOperation;
+    T: SaffireproIoParamsOperation
+        + TcatApplSectionParamsOperation<SaffireproIoParams>
+        + TcatApplSectionMutableParamsOperation<SaffireproIoParams>;
 
 fn optical_out_iface_mode_to_str(mode: &OpticalOutIfaceMode) -> &'static str {
     match mode {
@@ -469,7 +496,12 @@ const ANALOG_OUT_0_1_PAD_NAME: &str = "analog-output-1/2-pad";
 const OPTICAL_OUT_IFACE_MODE_NAME: &str = "optical-output-interface-mode";
 const MIC_AMP_TRANSFORMER_NAME: &str = "mic-amp-transformer";
 
-impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
+impl<T> IoParamsCtl<T>
+where
+    T: SaffireproIoParamsOperation
+        + TcatApplSectionParamsOperation<SaffireproIoParams>
+        + TcatApplSectionMutableParamsOperation<SaffireproIoParams>,
+{
     const OPTICAL_OUT_IFACE_MODES: [OpticalOutIfaceMode; 3] = [
         OpticalOutIfaceMode::Adat,
         OpticalOutIfaceMode::Spdif,
@@ -483,7 +515,7 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_whole_io_params(req, node, sections, &mut self.0, timeout_ms);
+        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -545,7 +577,7 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
             ANALOG_OUT_0_1_PAD_NAME => {
                 let mut params = self.0.clone();
                 params.analog_out_0_1_pad = elem_value.boolean()[0];
-                let res = T::update_partial_io_params(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -568,7 +600,7 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_out_iface_mode = mode)?;
-                let res = T::update_partial_io_params(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -586,7 +618,7 @@ impl<T: SaffireproIoParamsOperation> IoParamsCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(transformer, val)| *transformer = val);
-                let res = T::update_partial_io_params(
+                let res = T::update_appl_partial_params(
                     req,
                     node,
                     sections,

@@ -377,7 +377,7 @@ impl SpecificCtl {
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = LiquidS56Protocol::cache_whole_specific_params(
+        let res = LiquidS56Protocol::cache_appl_whole_params(
             req,
             node,
             sections,
@@ -542,7 +542,7 @@ impl SpecificCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -570,7 +570,7 @@ impl SpecificCtl {
                             })
                             .map(|&t| *emulation_type = t)
                     })?;
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -588,7 +588,7 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(harmonics, &val)| *harmonics = val as u8);
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -606,7 +606,7 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(polarity, val)| *polarity = val);
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -624,7 +624,7 @@ impl SpecificCtl {
                 params.led_states.adat2 = vals[1];
                 params.led_states.spdif = vals[2];
                 params.led_states.midi_in = vals[3];
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
@@ -653,7 +653,7 @@ impl SpecificCtl {
                             })
                             .map(|&t| *target = t)
                     })?;
-                let res = LiquidS56Protocol::update_partial_specific_params(
+                let res = LiquidS56Protocol::update_appl_partial_params(
                     req,
                     node,
                     sections,
