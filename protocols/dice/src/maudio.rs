@@ -413,13 +413,13 @@ fn serialize(params: &PfireSpecificParams, raw: &mut [u8]) -> Result<(), String>
     if params.opt_iface_b_mode == OptIfaceMode::Spdif {
         val |= OPT_IFACE_B_IS_SPDIF_FLAG;
     }
-    val.build_quadlet(&mut raw[..4]);
+    serialize_u32(&val, &mut raw[..4]);
 
     let mut val = 0u32;
     if params.standalone_mode == StandaloneConverterMode::AdOnly {
         val |= STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
     }
-    val.build_quadlet(&mut raw[4..8]);
+    serialize_u32(&val, &mut raw[4..8]);
 
     Ok(())
 }
@@ -428,7 +428,7 @@ fn deserialize(params: &mut PfireSpecificParams, raw: &[u8]) -> Result<(), Strin
     assert!(raw.len() >= MIN_SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, &raw[..4]);
     params
         .knob_assigns
         .iter_mut()
@@ -441,7 +441,7 @@ fn deserialize(params: &mut PfireSpecificParams, raw: &[u8]) -> Result<(), Strin
         OptIfaceMode::Adat
     };
 
-    val.parse_quadlet(&raw[4..8]);
+    deserialize_u32(&mut val, &raw[4..8]);
     params.standalone_mode = if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
         StandaloneConverterMode::AdOnly
     } else {
