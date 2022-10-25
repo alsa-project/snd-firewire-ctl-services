@@ -418,4 +418,23 @@ impl DiceModel {
             }
         }
     }
+
+    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        match &mut self.model {
+            Model::Extension(m) => m.store_configuration(node),
+            Model::MaudioPfire2626(m) => m.store_configuration(node),
+            Model::MaudioPfire610(m) => m.store_configuration(node),
+            Model::AvidMbox3(m) => m.store_configuration(node),
+            Model::LoudBlackbird(m) => m.store_configuration(node),
+            Model::FocusriteSPro40(m) => m.store_configuration(node),
+            Model::FocusriteLiquidS56(m) => m.store_configuration(node),
+            Model::FocusriteSPro24(m) => m.store_configuration(node),
+            Model::FocusriteSPro24Dsp(m) => m.store_configuration(node),
+            Model::FocusriteSPro14(m) => m.store_configuration(node),
+            Model::FocusriteSPro26(m) => m.store_configuration(node),
+            Model::PresonusFStudioProject(m) => m.store_configuration(node),
+            Model::PresonusFStudioMobile(m) => m.store_configuration(node),
+            _ => Ok(()),
+        }
+    }
 }

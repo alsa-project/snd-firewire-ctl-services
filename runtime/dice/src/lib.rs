@@ -123,7 +123,11 @@ impl RuntimeOperation<u32> for DiceRuntime {
             };
 
             match ev {
-                Event::Shutdown => break,
+                Event::Shutdown => {
+                    let _enter = debug_span!("shutdown").entered();
+                    self.model.store_configuration(&mut self.unit.1)?;
+                    break;
+                }
                 Event::Disconnected => break,
                 Event::BusReset(generation) => {
                     debug!("IEEE 1394 bus is updated: {}", generation);

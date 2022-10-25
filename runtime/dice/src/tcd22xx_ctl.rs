@@ -282,6 +282,18 @@ where
         }
         Ok(())
     }
+
+    pub fn store_configuration(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let res = T::store_configuration(req, node, sections, &self.caps, timeout_ms);
+        debug!(?res);
+        res
+    }
 }
 
 #[derive(Default, Debug)]
