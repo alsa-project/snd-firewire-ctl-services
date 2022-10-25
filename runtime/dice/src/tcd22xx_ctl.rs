@@ -849,7 +849,7 @@ where
 
     /// Label for source block.
     fn src_blk_label(src_blk: &SrcBlk) -> String {
-        T::INPUTS
+        let (name, ch) = T::INPUTS
             .iter()
             .find(|entry| {
                 entry.id == src_blk.id
@@ -857,7 +857,7 @@ where
                     && src_blk.ch < entry.offset + entry.count
                     && entry.label.is_some()
             })
-            .map(|entry| format!("{}-{}", entry.label.unwrap(), src_blk.ch - entry.offset))
+            .map(|entry| (entry.label.unwrap(), src_blk.ch - entry.offset))
             .unwrap_or_else(|| {
                 let name = match src_blk.id {
                     SrcBlkId::Aes => "S/PDIF",
@@ -869,13 +869,14 @@ where
                     SrcBlkId::Avs1 => "Stream-B",
                     _ => "Unknown",
                 };
-                format!("{}-{}", name, src_blk.ch)
-            })
+                (name, src_blk.ch)
+            });
+        format!("{}-{}", name, ch + 1)
     }
 
     /// Label for destination block.
     fn dst_blk_label(dst_blk: DstBlk) -> String {
-        T::OUTPUTS
+        let (name, ch) = T::OUTPUTS
             .iter()
             .find(|entry| {
                 entry.id == dst_blk.id
@@ -883,7 +884,7 @@ where
                     && dst_blk.ch < entry.offset + entry.count
                     && entry.label.is_some()
             })
-            .map(|entry| format!("{}-{}", entry.label.unwrap(), dst_blk.ch - entry.offset))
+            .map(|entry| (entry.label.unwrap(), dst_blk.ch - entry.offset))
             .unwrap_or_else(|| {
                 let name = match dst_blk.id {
                     DstBlkId::Aes => "S/PDIF",
@@ -896,8 +897,9 @@ where
                     DstBlkId::Avs1 => "Stream-B",
                     _ => "Unknown",
                 };
-                format!("{}-{}", name, dst_blk.ch)
-            })
+                (name, dst_blk.ch)
+            });
+        format!("{}-{}", name, ch + 1)
     }
 
     fn add_an_elem_for_src(
