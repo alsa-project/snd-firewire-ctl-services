@@ -308,8 +308,8 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
 
     /// Update router entries.
     fn update_router_entries(
-        node: &mut FwNode,
         req: &mut FwReq,
+        node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
