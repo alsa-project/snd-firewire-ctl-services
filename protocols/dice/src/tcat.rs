@@ -460,6 +460,57 @@ pub struct Iec60958Param {
     pub enable: bool,
 }
 
+/// The maximum number of IEC 60958 channels for stream format entry.
+pub const IEC60958_CHANNELS: usize = 32;
+
+fn serialize_iec60958_params(
+    params: &[Iec60958Param; IEC60958_CHANNELS],
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= IEC60958_CHANNELS / 8 * 2);
+
+    let (caps, enables) =
+        params
+            .iter()
+            .enumerate()
+            .fold((0u32, 0u32), |(mut caps, mut enables), (i, params)| {
+                if params.cap {
+                    caps |= 1 << i;
+                }
+                if params.enable {
+                    enables |= 1 << i;
+                }
+                (caps, enables)
+            });
+
+    raw[..4].copy_from_slice(&caps.to_be_bytes());
+    raw[4..8].copy_from_slice(&enables.to_be_bytes());
+
+    Ok(())
+}
+
+fn deserialize_iec60958_params(
+    params: &mut [Iec60958Param; IEC60958_CHANNELS],
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= IEC60958_CHANNELS / 8 * 2);
+
+    let mut quadlet = [0; 4];
+
+    quadlet.copy_from_slice(&raw[..4]);
+    let caps = u32::from_be_bytes(quadlet);
+
+    quadlet.copy_from_slice(&raw[4..8]);
+    let enables = u32::from_be_bytes(quadlet);
+
+    params.iter_mut().enumerate().for_each(|(i, mut param)| {
+        param.cap = (1 << i) & caps > 0;
+        param.enable = (1 << i) & enables > 0;
+    });
+
+    Ok(())
+}
+
 const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
 const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
 const NOTIFY_LOCK_CHG: u32 = 0x00000010;
