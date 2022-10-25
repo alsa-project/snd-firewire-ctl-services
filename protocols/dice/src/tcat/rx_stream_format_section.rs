@@ -29,11 +29,11 @@ const MIN_SIZE: usize = 272;
 fn serialize_rx_stream_entry(entry: &RxStreamFormatEntry, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= MIN_SIZE);
 
-    (entry.iso_channel as i32).build_quadlet(&mut raw[..4]);
+    serialize_i32(&(entry.iso_channel as i32), &mut raw[..4]);
 
-    entry.start.build_quadlet(&mut raw[4..8]);
-    entry.pcm.build_quadlet(&mut raw[8..12]);
-    entry.midi.build_quadlet(&mut raw[12..16]);
+    serialize_u32(&entry.start, &mut raw[4..8]);
+    serialize_u32(&entry.pcm, &mut raw[8..12]);
+    serialize_u32(&entry.midi, &mut raw[12..16]);
 
     raw[16..272].copy_from_slice(&mut build_labels(&entry.labels, STREAM_NAMES_SIZE));
 
@@ -48,12 +48,12 @@ fn deserialize_rx_stream_entry(entry: &mut RxStreamFormatEntry, raw: &[u8]) -> R
     assert!(raw.len() >= MIN_SIZE);
 
     let mut val = 0i32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_i32(&mut val, &raw[..4]);
     entry.iso_channel = val as i8;
 
-    entry.start.parse_quadlet(&raw[4..8]);
-    entry.pcm.parse_quadlet(&raw[8..12]);
-    entry.midi.parse_quadlet(&raw[12..16]);
+    deserialize_u32(&mut entry.start, &raw[4..8]);
+    deserialize_u32(&mut entry.pcm, &raw[8..12]);
+    deserialize_u32(&mut entry.midi, &raw[12..16]);
 
     entry.labels =
         parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
@@ -78,7 +78,7 @@ impl<O: TcatOperation> TcatSectionSerdes<RxStreamFormatParameters> for O {
         let mut val = 0u32;
 
         // The number of streams is read-only.
-        val.parse_quadlet(&raw[..4]);
+        deserialize_u32(&mut val, &raw[..4]);
         let count = val as usize;
 
         if count != params.0.len() {
@@ -91,7 +91,7 @@ impl<O: TcatOperation> TcatSectionSerdes<RxStreamFormatParameters> for O {
         }
 
         // The size of stream format entry is read-only as well.
-        val.parse_quadlet(&raw[4..8]);
+        deserialize_u32(&mut val, &raw[4..8]);
         let size = 4 * val as usize;
 
         let expected = 8 + size * count;
@@ -112,10 +112,10 @@ impl<O: TcatOperation> TcatSectionSerdes<RxStreamFormatParameters> for O {
 
     fn deserialize(params: &mut RxStreamFormatParameters, raw: &[u8]) -> Result<(), String> {
         let mut val = 0u32;
-        val.parse_quadlet(&raw[..4]);
+        deserialize_u32(&mut val, &raw[..4]);
         let count = val as usize;
 
-        val.parse_quadlet(&raw[4..8]);
+        deserialize_u32(&mut val, &raw[4..8]);
         let size = 4 * val as usize;
 
         let expected = 8 + size * count;

@@ -214,7 +214,7 @@ fn serialize_router_entry(entry: &RouterEntry, raw: &mut [u8]) -> Result<(), Str
     let val = (((entry.peak as u32) << RouterEntry::PEAK_SHIFT) & RouterEntry::PEAK_MASK)
         | (((src_val as u32) << RouterEntry::SRC_SHIFT) & RouterEntry::SRC_MASK)
         | (((dst_val as u32) << RouterEntry::DST_SHIFT) & RouterEntry::DST_MASK);
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -223,7 +223,7 @@ fn deserialize_router_entry(entry: &mut RouterEntry, raw: &[u8]) -> Result<(), S
     assert!(raw.len() >= RouterEntry::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, &raw);
 
     let dst_val = ((val & RouterEntry::DST_MASK) >> RouterEntry::DST_SHIFT) as u8;
     deserialize_dst_blk(&mut entry.dst, &dst_val)?;

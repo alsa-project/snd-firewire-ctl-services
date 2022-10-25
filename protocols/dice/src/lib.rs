@@ -18,6 +18,76 @@ use {
     hinawa::{FwNode, FwReq},
 };
 
+fn serialize_bool(val: &bool, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    raw[..4].copy_from_slice(&(*val as u32).to_be_bytes())
+}
+
+fn deserialize_bool(val: &mut bool, raw: &[u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    *val = u32::from_be_bytes(quadlet) > 0;
+}
+
+fn serialize_i32(val: &i32, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    raw[..4].copy_from_slice(&val.to_be_bytes())
+}
+
+fn deserialize_i32(val: &mut i32, raw: &[u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    *val = i32::from_be_bytes(quadlet);
+}
+
+fn serialize_u32(val: &u32, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    raw[..4].copy_from_slice(&val.to_be_bytes())
+}
+
+fn deserialize_u32(val: &mut u32, raw: &[u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw[..4]);
+    *val = u32::from_be_bytes(quadlet);
+}
+
+fn serialize_u8(val: &u8, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    serialize_u32(&(*val as u32), raw);
+}
+
+fn deserialize_u8(val: &mut u8, raw: &[u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut v = 0u32;
+    deserialize_u32(&mut v, raw);
+    *val = v as u8;
+}
+
+fn serialize_usize(val: &usize, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    serialize_u32(&(*val as u32), raw);
+}
+
+fn deserialize_usize(val: &mut usize, raw: &[u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut v = 0u32;
+    deserialize_u32(&mut v, raw);
+    *val = v as usize;
+}
+
 const QUADLET_SIZE: usize = 4;
 
 /// For conversion between quadlet-aligned byte array and computed value.

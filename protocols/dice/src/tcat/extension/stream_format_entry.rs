@@ -11,8 +11,8 @@ impl FormatEntry {
 fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= FormatEntry::SIZE);
 
-    entry.pcm_count.build_quadlet(&mut raw[..4]);
-    entry.midi_count.build_quadlet(&mut raw[4..8]);
+    serialize_u8(&entry.pcm_count, &mut raw[..4]);
+    serialize_u8(&entry.midi_count, &mut raw[4..8]);
 
     raw[8..264].copy_from_slice(&build_labels(&entry.labels, FormatEntry::NAMES_MAX_SIZE));
 
@@ -22,7 +22,7 @@ fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<
         .enumerate()
         .filter(|(_, &enabled)| enabled)
         .fold(0 as u32, |val, (i, _)| val | (1 << i));
-    raw[264..268].copy_from_slice(&val.to_be_bytes());
+    serialize_u32(&val, &mut raw[264..268]);
 
     Ok(())
 }
@@ -30,13 +30,13 @@ fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<
 fn deserialize_stream_format_entry(entry: &mut FormatEntry, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= FormatEntry::SIZE);
 
-    entry.pcm_count.parse_quadlet(&raw[..4]);
-    entry.midi_count.parse_quadlet(&raw[4..8]);
+    deserialize_u8(&mut entry.pcm_count, &raw[..4]);
+    deserialize_u8(&mut entry.midi_count, &raw[4..8]);
     entry.labels = parse_labels(&raw[8..264])
         .map_err(|e| format!("Fail to parse label of stream channel {}", e))?;
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[264..268]);
+    deserialize_u32(&mut val, &raw[264..268]);
 
     entry
         .enable_ac3
@@ -60,11 +60,8 @@ pub(crate) fn serialize_stream_format_entries(
 ) -> Result<(), String> {
     assert!(raw.len() >= calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len()));
 
-    let tx_entry_count = tx_entries.len() as u32;
-    tx_entry_count.build_quadlet(&mut raw[..4]);
-
-    let rx_entry_count = rx_entries.len() as u32;
-    rx_entry_count.build_quadlet(&mut raw[4..8]);
+    serialize_usize(&tx_entries.len(), &mut raw[..4]);
+    serialize_usize(&rx_entries.len(), &mut raw[4..8]);
 
     tx_entries
         .iter()
@@ -82,14 +79,14 @@ pub(crate) fn deserialize_stream_format_entries(
 ) -> Result<(), String> {
     assert!(raw.len() >= calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len()));
 
-    let mut tx_entry_count = 0u32;
-    tx_entry_count.parse_quadlet(&raw[..4]);
+    let mut tx_entry_count = 0usize;
+    deserialize_usize(&mut tx_entry_count, &raw[..4]);
 
-    let mut rx_entry_count = 0u32;
-    rx_entry_count.parse_quadlet(&raw[4..8]);
+    let mut rx_entry_count = 0usize;
+    deserialize_usize(&mut rx_entry_count, &raw[4..8]);
 
-    tx_entries.resize_with(tx_entry_count as usize, Default::default);
-    rx_entries.resize_with(rx_entry_count as usize, Default::default);
+    tx_entries.resize_with(tx_entry_count, Default::default);
+    rx_entries.resize_with(rx_entry_count, Default::default);
 
     tx_entries
         .iter_mut()

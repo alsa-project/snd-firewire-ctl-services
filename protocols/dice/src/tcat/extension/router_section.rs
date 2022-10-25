@@ -30,7 +30,7 @@ impl RouterSectionProtocol {
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))?;
 
         let mut val = 0u32;
-        val.parse_quadlet(&raw[..4]);
+        deserialize_u32(&mut val, &raw[..4]);
         entries.resize_with(val as usize, Default::default);
 
         deserialize_router_entries(entries, &mut raw[4..])
@@ -58,7 +58,7 @@ impl RouterSectionProtocol {
         let size = 4 + calculate_router_entries_size(entries.len() as usize);
         let mut raw = vec![0u8; size];
 
-        (entries.len() as u32).build_quadlet(&mut raw[..4]);
+        serialize_u32(&(entries.len() as u32), &mut raw[..4]);
         serialize_router_entries(entries, &mut raw[4..])
             .map_err(|cause| Error::new(ProtocolExtensionError::Router, &cause))?;
 

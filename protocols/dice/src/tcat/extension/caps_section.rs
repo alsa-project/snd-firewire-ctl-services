@@ -47,7 +47,7 @@ fn serialize_router_caps(params: &RouterCaps, raw: &mut [u8]) -> Result<(), Stri
     }
     val |= (params.maximum_entry_count as u32) << RouterCaps::MAX_ENTYR_COUNT_SHIFT;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, &mut raw[..4]);
 
     Ok(())
 }
@@ -56,7 +56,7 @@ fn deserialize_router_caps(params: &mut RouterCaps, raw: &[u8]) -> Result<(), St
     assert!(raw.len() >= RouterCaps::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, &raw[..4]);
 
     params.is_exposed = val & RouterCaps::IS_EXPOSED_FLAG > 0;
     params.is_readonly = val & RouterCaps::IS_READONLY_FLAG > 0;
@@ -126,7 +126,7 @@ fn serialize_mixer_caps(params: &MixerCaps, raw: &mut [u8]) -> Result<(), String
     val |= (params.input_count as u32) << 16;
     val |= (params.output_count as u32) << 24;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, &mut raw[..4]);
 
     Ok(())
 }
@@ -135,7 +135,7 @@ fn deserialize_mixer_caps(params: &mut MixerCaps, raw: &[u8]) -> Result<(), Stri
     assert!(raw.len() >= MixerCaps::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, &raw[..4]);
 
     params.is_exposed = val & MixerCaps::IS_EXPOSED_FLAG > 0;
     params.is_readonly = val & MixerCaps::IS_READONLY_FLAG > 0;
@@ -238,7 +238,7 @@ fn serialize_general_caps(params: &GeneralCaps, raw: &mut [u8]) -> Result<(), St
     };
     val |= (v as u32) << GeneralCaps::ASIC_TYPE_SHIFT;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, &mut raw[..4]);
 
     Ok(())
 }
@@ -247,7 +247,7 @@ fn deserialize_general_caps(params: &mut GeneralCaps, raw: &[u8]) -> Result<(), 
     assert!(raw.len() >= GeneralCaps::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, &raw[..4]);
 
     params.dynamic_stream_format = val & GeneralCaps::DYNAMIC_STREAM_CONF_FLAG > 0;
     params.storage_avail = val & GeneralCaps::STORAGE_AVAIL_FLAG > 0;
