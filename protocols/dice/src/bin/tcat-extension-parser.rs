@@ -309,9 +309,9 @@ fn print_standalone_config(
         clock_source_to_string(&params.clock_source)
     );
     println!("  AES high rate: {}", params.aes_high_rate);
-    println!("  ADAT mode: {}", params.adat_mode);
+    println!("  ADAT mode: {:?}", params.adat_mode);
     println!(
-        "  Word clock params: {}, {} / {}",
+        "  Word clock params: {:?}, {} / {}",
         params.word_clock_param.mode,
         params.word_clock_param.rate.numerator,
         params.word_clock_param.rate.denominator
