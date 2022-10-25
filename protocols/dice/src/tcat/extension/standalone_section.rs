@@ -29,41 +29,6 @@ impl Default for AdatParam {
     }
 }
 
-impl std::fmt::Display for AdatParam {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let label = match self {
-            AdatParam::Normal => "normal",
-            AdatParam::SMUX2 => "S/MUX-2",
-            AdatParam::SMUX4 => "S/MUX-4",
-            AdatParam::Auto => "auto",
-        };
-        write!(f, "{}", label)
-    }
-}
-
-impl From<[u8; 4]> for AdatParam {
-    fn from(raw: [u8; 4]) -> Self {
-        match u32::from_be_bytes(raw) & 0x03 {
-            0x01 => AdatParam::SMUX2,
-            0x02 => AdatParam::SMUX4,
-            0x03 => AdatParam::Auto,
-            _ => AdatParam::Normal,
-        }
-    }
-}
-
-impl From<AdatParam> for [u8; 4] {
-    fn from(param: AdatParam) -> Self {
-        let val = match param {
-            AdatParam::Normal => 0x00,
-            AdatParam::SMUX2 => 0x01,
-            AdatParam::SMUX4 => 0x02,
-            AdatParam::Auto => 0x03,
-        };
-        (val as u32).to_be_bytes()
-    }
-}
-
 /// Mode of word clock input/output.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum WordClockMode {
@@ -79,18 +44,6 @@ impl Default for WordClockMode {
     }
 }
 
-impl std::fmt::Display for WordClockMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let label = match self {
-            WordClockMode::Normal => "normal",
-            WordClockMode::Low => "low",
-            WordClockMode::Middle => "middle",
-            WordClockMode::High => "high",
-        };
-        write!(f, "{}", label)
-    }
-}
-
 /// Rate of word clock input/output by enumerator and denominator.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WordClockRate {
@@ -103,44 +56,6 @@ pub struct WordClockRate {
 pub struct WordClockParam {
     pub mode: WordClockMode,
     pub rate: WordClockRate,
-}
-
-impl From<[u8; 4]> for WordClockParam {
-    fn from(raw: [u8; 4]) -> Self {
-        let val = u32::from_be_bytes(raw);
-
-        let mode = match val & 0x03 {
-            0x01 => WordClockMode::Low,
-            0x02 => WordClockMode::Middle,
-            0x03 => WordClockMode::High,
-            _ => WordClockMode::Normal,
-        };
-
-        let numerator = 1 + ((val >> 4) & 0x0fff) as u16;
-        let denominator = 1 + ((val >> 16) & 0xffff) as u16;
-
-        WordClockParam {
-            mode,
-            rate: WordClockRate {
-                numerator,
-                denominator,
-            },
-        }
-    }
-}
-
-impl From<WordClockParam> for [u8; 4] {
-    fn from(param: WordClockParam) -> Self {
-        let mut val = match param.mode {
-            WordClockMode::Normal => 0x00,
-            WordClockMode::Low => 0x01,
-            WordClockMode::Middle => 0x02,
-            WordClockMode::High => 0x03,
-        };
-        val |= ((param.rate.numerator as u32) - 1) << 4;
-        val |= ((param.rate.denominator as u32) - 1) << 16;
-        val.to_be_bytes()
-    }
 }
 
 /// Parameters in standalone configuration section.
