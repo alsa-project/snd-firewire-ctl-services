@@ -164,59 +164,6 @@ pub trait Tcd22xxSpecification {
         (src_blk_list, dst_blk_list)
     }
 
-    /// Label for source block.
-    fn src_blk_label(src_blk: &SrcBlk) -> String {
-        Self::INPUTS
-            .iter()
-            .find(|entry| {
-                entry.id == src_blk.id
-                    && src_blk.ch >= entry.offset
-                    && src_blk.ch < entry.offset + entry.count
-                    && entry.label.is_some()
-            })
-            .map(|entry| format!("{}-{}", entry.label.unwrap(), src_blk.ch - entry.offset))
-            .unwrap_or_else(|| {
-                let name = match src_blk.id {
-                    SrcBlkId::Aes => "S/PDIF",
-                    SrcBlkId::Adat => "ADAT",
-                    SrcBlkId::Mixer => "Mixer",
-                    SrcBlkId::Ins0 => "Analog-A",
-                    SrcBlkId::Ins1 => "Analog-B",
-                    SrcBlkId::Avs0 => "Stream-A",
-                    SrcBlkId::Avs1 => "Stream-B",
-                    _ => "Unknown",
-                };
-                format!("{}-{}", name, src_blk.ch)
-            })
-    }
-
-    /// Label for destination block.
-    fn dst_blk_label(dst_blk: DstBlk) -> String {
-        Self::OUTPUTS
-            .iter()
-            .find(|entry| {
-                entry.id == dst_blk.id
-                    && dst_blk.ch >= entry.offset
-                    && dst_blk.ch < entry.offset + entry.count
-                    && entry.label.is_some()
-            })
-            .map(|entry| format!("{}-{}", entry.label.unwrap(), dst_blk.ch - entry.offset))
-            .unwrap_or_else(|| {
-                let name = match dst_blk.id {
-                    DstBlkId::Aes => "S/PDIF",
-                    DstBlkId::Adat => "ADAT",
-                    DstBlkId::MixerTx0 => "Mixer-A",
-                    DstBlkId::MixerTx1 => "Mixer-B",
-                    DstBlkId::Ins0 => "Analog-A",
-                    DstBlkId::Ins1 => "Analog-B",
-                    DstBlkId::Avs0 => "Stream-A",
-                    DstBlkId::Avs1 => "Stream-B",
-                    _ => "Unknown",
-                };
-                format!("{}-{}", name, dst_blk.ch)
-            })
-    }
-
     /// Refine router entries by defined descriptors.
     fn refine_router_entries(
         entries: &mut Vec<RouterEntry>,
