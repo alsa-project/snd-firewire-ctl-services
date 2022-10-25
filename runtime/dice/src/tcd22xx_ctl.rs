@@ -825,6 +825,7 @@ where
             ROUTER_OUT_SRC_NAME,
             &real_blk_pair.1,
             &[&real_blk_pair.0, &stream_blk_pair.0, &mixer_blk_pair.0],
+            &stream_blk_pair,
         )
         .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
@@ -833,6 +834,7 @@ where
             ROUTER_CAP_SRC_NAME,
             &stream_blk_pair.1,
             &[&real_blk_pair.0, &mixer_blk_pair.0],
+            &stream_blk_pair,
         )
         .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
@@ -841,6 +843,7 @@ where
             ROUTER_MIXER_SRC_NAME,
             &mixer_blk_pair.1,
             &[&real_blk_pair.0, &stream_blk_pair.0],
+            &stream_blk_pair,
         )
         .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
@@ -848,7 +851,7 @@ where
     }
 
     /// Label for source block.
-    fn src_blk_label(src_blk: &SrcBlk) -> String {
+    fn src_blk_label(src_blk: &SrcBlk, stream_blocks: &[SrcBlk]) -> String {
         let (name, ch) = T::INPUTS
             .iter()
             .find(|entry| {
@@ -865,7 +868,11 @@ where
                     SrcBlkId::Mixer => "Mixer",
                     SrcBlkId::Ins0 => "Analog-A",
                     SrcBlkId::Ins1 => "Analog-B",
-                    SrcBlkId::Avs0 => "Stream-A",
+                    SrcBlkId::Avs0 => stream_blocks
+                        .iter()
+                        .find(|block| block.id == SrcBlkId::Avs1)
+                        .map(|_| "Stream-A")
+                        .unwrap_or("Stream"),
                     SrcBlkId::Avs1 => "Stream-B",
                     _ => "Unknown",
                 };
@@ -875,7 +882,7 @@ where
     }
 
     /// Label for destination block.
-    fn dst_blk_label(dst_blk: DstBlk) -> String {
+    fn dst_blk_label(dst_blk: DstBlk, stream_blocks: &[DstBlk]) -> String {
         let (name, ch) = T::OUTPUTS
             .iter()
             .find(|entry| {
@@ -893,7 +900,11 @@ where
                     DstBlkId::MixerTx1 => "Mixer-B",
                     DstBlkId::Ins0 => "Analog-A",
                     DstBlkId::Ins1 => "Analog-B",
-                    DstBlkId::Avs0 => "Stream-A",
+                    DstBlkId::Avs0 => stream_blocks
+                        .iter()
+                        .find(|block| block.id == DstBlkId::Avs1)
+                        .map(|_| "Stream-A")
+                        .unwrap_or("Stream"),
                     DstBlkId::Avs1 => "Stream-B",
                     _ => "Unknown",
                 };
@@ -907,13 +918,17 @@ where
         label: &str,
         dsts: &[DstBlk],
         srcs: &[&[SrcBlk]],
+        stream_blk_pair: &(Vec<SrcBlk>, Vec<DstBlk>),
     ) -> Result<Vec<ElemId>, Error> {
-        let targets: Vec<String> = dsts.iter().map(|&dst| Self::dst_blk_label(dst)).collect();
+        let targets: Vec<String> = dsts
+            .iter()
+            .map(|&dst| Self::dst_blk_label(dst, &stream_blk_pair.1))
+            .collect();
 
         let mut sources: Vec<String> = srcs
             .iter()
             .flat_map(|srcs| *srcs)
-            .map(|src| Self::src_blk_label(src))
+            .map(|src| Self::src_blk_label(src, &stream_blk_pair.0))
             .collect();
         sources.insert(0, Self::NONE_SRC_LABEL.to_string());
 
