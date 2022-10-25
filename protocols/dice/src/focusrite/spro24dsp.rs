@@ -628,7 +628,7 @@ fn serialize_effect_general_params(
         val |= (flags as u32) << (16 * i);
     });
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -640,7 +640,7 @@ fn deserialize_effect_general_params(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     (0..2).for_each(|i| {
         let flags = (val >> (i * 16)) as u16;
         params.eq_after_comp[i] = flags & CH_STRIP_FLAG_EQ_AFTER_COMP > 0;
