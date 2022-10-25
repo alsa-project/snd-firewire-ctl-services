@@ -299,25 +299,19 @@ impl TcKonnektSegmentSerdes<K24dMixerState> for K24dProtocol {
 
     fn serialize(params: &K24dMixerState, raw: &mut [u8]) -> Result<(), String> {
         serialize_mixer_state::<K24dProtocol>(&params.mixer, raw)?;
-
         serialize_reverb_return(&params.reverb_return, &mut raw[316..328])?;
-        params
-            .use_ch_strip_as_plugin
-            .build_quadlet(&mut raw[328..332]);
-        params
-            .use_reverb_at_mid_rate
-            .build_quadlet(&mut raw[332..336]);
-        params.enabled.build_quadlet(&mut raw[340..344]);
+        serialize_bool(&params.use_ch_strip_as_plugin, &mut raw[328..332]);
+        serialize_bool(&params.use_reverb_at_mid_rate, &mut raw[332..336]);
+        serialize_bool(&params.enabled, &mut raw[340..344]);
         Ok(())
     }
 
     fn deserialize(params: &mut K24dMixerState, raw: &[u8]) -> Result<(), String> {
         deserialize_mixer_state::<K24dProtocol>(&mut params.mixer, raw)?;
-
         deserialize_reverb_return(&mut params.reverb_return, &raw[316..328])?;
-        params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
-        params.use_reverb_at_mid_rate.parse_quadlet(&raw[332..336]);
-        params.enabled.parse_quadlet(&raw[340..344]);
+        deserialize_bool(&mut params.use_ch_strip_as_plugin, &raw[328..332]);
+        deserialize_bool(&mut params.use_reverb_at_mid_rate, &raw[332..336]);
+        deserialize_bool(&mut params.enabled, &raw[340..344]);
         Ok(())
     }
 }

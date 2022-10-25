@@ -177,14 +177,10 @@ impl TcKonnektSegmentSerdes<DesktopHwState> for Desktopk6Protocol {
 
     fn serialize(params: &DesktopHwState, raw: &mut [u8]) -> Result<(), String> {
         serialize_meter_target(&params.meter_target, &mut raw[..4])?;
-        params.mixer_output_monaural.build_quadlet(&mut raw[4..8]);
-        params.knob_assign_to_hp.build_quadlet(&mut raw[8..12]);
-        params
-            .mixer_output_dim_enabled
-            .build_quadlet(&mut raw[12..16]);
-        params
-            .mixer_output_dim_volume
-            .build_quadlet(&mut raw[16..20]);
+        serialize_bool(&params.mixer_output_monaural, &mut raw[4..8]);
+        serialize_bool(&params.knob_assign_to_hp, &mut raw[8..12]);
+        serialize_bool(&params.mixer_output_dim_enabled, &mut raw[12..16]);
+        serialize_i32(&params.mixer_output_dim_volume, &mut raw[16..20]);
         serialize_input_scene(&params.input_scene, &mut raw[20..24])?;
 
         let mut val = 0;
@@ -194,31 +190,31 @@ impl TcKonnektSegmentSerdes<DesktopHwState> for Desktopk6Protocol {
         if params.reverb_to_hp {
             val |= DesktopHwState::REVERB_TO_HP_MASK;
         }
-        val.build_quadlet(&mut raw[28..32]);
+        serialize_u32(&val, &mut raw[28..32]);
 
-        params.master_knob_backlight.build_quadlet(&mut raw[32..36]);
-        params.mic_0_phantom.build_quadlet(&mut raw[52..56]);
-        params.mic_0_boost.build_quadlet(&mut raw[56..60]);
+        serialize_bool(&params.master_knob_backlight, &mut raw[32..36]);
+        serialize_bool(&params.mic_0_phantom, &mut raw[52..56]);
+        serialize_bool(&params.mic_0_boost, &mut raw[56..60]);
 
         Ok(())
     }
 
     fn deserialize(params: &mut DesktopHwState, raw: &[u8]) -> Result<(), String> {
         deserialize_meter_target(&mut params.meter_target, &raw[..4])?;
-        params.mixer_output_monaural.parse_quadlet(&raw[4..8]);
-        params.knob_assign_to_hp.parse_quadlet(&raw[8..12]);
-        params.mixer_output_dim_enabled.parse_quadlet(&raw[12..16]);
-        params.mixer_output_dim_volume.parse_quadlet(&raw[16..20]);
+        deserialize_bool(&mut params.mixer_output_monaural, &raw[4..8]);
+        deserialize_bool(&mut params.knob_assign_to_hp, &raw[8..12]);
+        deserialize_bool(&mut params.mixer_output_dim_enabled, &raw[12..16]);
+        deserialize_i32(&mut params.mixer_output_dim_volume, &raw[16..20]);
         deserialize_input_scene(&mut params.input_scene, &raw[20..24])?;
 
         let mut val = 0;
-        val.parse_quadlet(&raw[28..32]);
+        deserialize_u32(&mut val, &raw[28..32]);
         params.reverb_to_master = val & DesktopHwState::REVERB_TO_MAIN_MASK > 0;
         params.reverb_to_hp = val & DesktopHwState::REVERB_TO_HP_MASK > 0;
 
-        params.master_knob_backlight.parse_quadlet(&raw[32..36]);
-        params.mic_0_phantom.parse_quadlet(&raw[52..56]);
-        params.mic_0_boost.parse_quadlet(&raw[56..60]);
+        deserialize_bool(&mut params.master_knob_backlight, &raw[32..36]);
+        deserialize_bool(&mut params.mic_0_phantom, &raw[52..56]);
+        deserialize_bool(&mut params.mic_0_boost, &raw[56..60]);
 
         Ok(())
     }
@@ -272,22 +268,31 @@ impl Default for DesktopHpSrc {
     }
 }
 
-impl From<u32> for DesktopHpSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            0x05 => Self::Stream23,
-            _ => Self::Mixer01,
-        }
-    }
+fn serialize_hp_src(src: &DesktopHpSrc, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = match src {
+        DesktopHpSrc::Stream23 => 0x05,
+        DesktopHpSrc::Mixer01 => 0x0b,
+    };
+
+    serialize_u32(&val, raw);
+
+    Ok(())
 }
 
-impl From<DesktopHpSrc> for u32 {
-    fn from(src: DesktopHpSrc) -> Self {
-        match src {
-            DesktopHpSrc::Stream23 => 0x05,
-            DesktopHpSrc::Mixer01 => 0x0b,
-        }
-    }
+fn deserialize_hp_src(src: &mut DesktopHpSrc, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    *src = match val {
+        0x05 => DesktopHpSrc::Stream23,
+        _ => DesktopHpSrc::Mixer01,
+    };
+
+    Ok(())
 }
 
 /// State of mixer.
@@ -325,49 +330,47 @@ impl TcKonnektSegmentSerdes<DesktopMixerState> for Desktopk6Protocol {
     const SIZE: usize = 688;
 
     fn serialize(params: &DesktopMixerState, raw: &mut [u8]) -> Result<(), String> {
-        params.mic_inst_level[0].build_quadlet(&mut raw[12..16]);
-        params.mic_inst_pan[0].build_quadlet(&mut raw[16..20]);
-        params.mic_inst_send[0].build_quadlet(&mut raw[20..24]);
-        params.mic_inst_level[1].build_quadlet(&mut raw[28..32]);
-        params.mic_inst_pan[1].build_quadlet(&mut raw[32..36]);
-        params.mic_inst_send[1].build_quadlet(&mut raw[40..44]);
+        serialize_i32(&params.mic_inst_level[0], &mut raw[12..16]);
+        serialize_i32(&params.mic_inst_pan[0], &mut raw[16..20]);
+        serialize_i32(&params.mic_inst_send[0], &mut raw[20..24]);
+        serialize_i32(&params.mic_inst_level[1], &mut raw[28..32]);
+        serialize_i32(&params.mic_inst_pan[1], &mut raw[32..36]);
+        serialize_i32(&params.mic_inst_send[1], &mut raw[40..44]);
 
-        params.dual_inst_level[0].build_quadlet(&mut raw[228..232]);
-        params.dual_inst_pan[0].build_quadlet(&mut raw[232..236]);
-        params.dual_inst_send[0].build_quadlet(&mut raw[240..244]);
-        params.dual_inst_level[1].build_quadlet(&mut raw[248..252]);
-        params.dual_inst_pan[1].build_quadlet(&mut raw[252..256]);
-        params.dual_inst_send[1].build_quadlet(&mut raw[260..264]);
+        serialize_i32(&params.dual_inst_level[0], &mut raw[228..232]);
+        serialize_i32(&params.dual_inst_pan[0], &mut raw[232..236]);
+        serialize_i32(&params.dual_inst_send[0], &mut raw[240..244]);
+        serialize_i32(&params.dual_inst_level[1], &mut raw[248..252]);
+        serialize_i32(&params.dual_inst_pan[1], &mut raw[252..256]);
+        serialize_i32(&params.dual_inst_send[1], &mut raw[260..264]);
 
-        params.stereo_in_level.build_quadlet(&mut raw[444..448]);
-        params.stereo_in_pan.build_quadlet(&mut raw[448..452]);
-        params.stereo_in_send.build_quadlet(&mut raw[452..456]);
+        serialize_i32(&params.stereo_in_level, &mut raw[444..448]);
+        serialize_i32(&params.stereo_in_pan, &mut raw[448..452]);
+        serialize_i32(&params.stereo_in_send, &mut raw[452..456]);
 
-        params.hp_src.build_quadlet(&mut raw[648..652]);
-        Ok(())
+        serialize_hp_src(&params.hp_src, &mut raw[648..652])
     }
 
     fn deserialize(params: &mut DesktopMixerState, raw: &[u8]) -> Result<(), String> {
-        params.mic_inst_level[0].parse_quadlet(&raw[12..16]);
-        params.mic_inst_pan[0].parse_quadlet(&raw[16..20]);
-        params.mic_inst_send[0].parse_quadlet(&raw[20..24]);
-        params.mic_inst_level[1].parse_quadlet(&raw[28..32]);
-        params.mic_inst_pan[1].parse_quadlet(&raw[32..36]);
-        params.mic_inst_send[1].parse_quadlet(&raw[40..44]);
+        deserialize_i32(&mut params.mic_inst_level[0], &raw[12..16]);
+        deserialize_i32(&mut params.mic_inst_pan[0], &raw[16..20]);
+        deserialize_i32(&mut params.mic_inst_send[0], &raw[20..24]);
+        deserialize_i32(&mut params.mic_inst_level[1], &raw[28..32]);
+        deserialize_i32(&mut params.mic_inst_pan[1], &raw[32..36]);
+        deserialize_i32(&mut params.mic_inst_send[1], &raw[40..44]);
 
-        params.dual_inst_level[0].parse_quadlet(&raw[228..232]);
-        params.dual_inst_pan[0].parse_quadlet(&raw[232..236]);
-        params.dual_inst_send[0].parse_quadlet(&raw[240..244]);
-        params.dual_inst_level[1].parse_quadlet(&raw[248..252]);
-        params.dual_inst_pan[1].parse_quadlet(&raw[252..256]);
-        params.dual_inst_send[1].parse_quadlet(&raw[260..264]);
+        deserialize_i32(&mut params.dual_inst_level[0], &raw[228..232]);
+        deserialize_i32(&mut params.dual_inst_pan[0], &raw[232..236]);
+        deserialize_i32(&mut params.dual_inst_send[0], &raw[240..244]);
+        deserialize_i32(&mut params.dual_inst_level[1], &raw[248..252]);
+        deserialize_i32(&mut params.dual_inst_pan[1], &raw[252..256]);
+        deserialize_i32(&mut params.dual_inst_send[1], &raw[260..264]);
 
-        params.stereo_in_level.parse_quadlet(&raw[444..448]);
-        params.stereo_in_pan.parse_quadlet(&raw[448..452]);
-        params.stereo_in_send.parse_quadlet(&raw[452..456]);
+        deserialize_i32(&mut params.stereo_in_level, &raw[444..448]);
+        deserialize_i32(&mut params.stereo_in_pan, &raw[448..452]);
+        deserialize_i32(&mut params.stereo_in_send, &raw[452..456]);
 
-        params.hp_src.parse_quadlet(&raw[648..652]);
-        Ok(())
+        deserialize_hp_src(&mut params.hp_src, &raw[648..652])
     }
 }
 
@@ -402,23 +405,23 @@ impl TcKonnektSegmentSerdes<DesktopPanel> for Desktopk6Protocol {
     const SIZE: usize = 64;
 
     fn serialize(params: &DesktopPanel, raw: &mut [u8]) -> Result<(), String> {
-        params.panel_button_count.build_quadlet(&mut raw[..4]);
-        params.main_knob_value.build_quadlet(&mut raw[4..8]);
-        params.phone_knob_value.build_quadlet(&mut raw[8..12]);
-        params.mix_knob_value.build_quadlet(&mut raw[12..16]);
-        params.reverb_led_on.build_quadlet(&mut raw[16..20]);
-        params.reverb_knob_value.build_quadlet(&mut raw[24..28]);
+        serialize_u32(&params.panel_button_count, &mut raw[..4]);
+        serialize_i32(&params.main_knob_value, &mut raw[4..8]);
+        serialize_i32(&params.phone_knob_value, &mut raw[8..12]);
+        serialize_u32(&params.mix_knob_value, &mut raw[12..16]);
+        serialize_bool(&params.reverb_led_on, &mut raw[16..20]);
+        serialize_i32(&params.reverb_knob_value, &mut raw[24..28]);
         serialize_fw_led_state(&params.firewire_led, &mut raw[36..40])?;
         Ok(())
     }
 
     fn deserialize(params: &mut DesktopPanel, raw: &[u8]) -> Result<(), String> {
-        params.panel_button_count.parse_quadlet(&raw[..4]);
-        params.main_knob_value.parse_quadlet(&raw[4..8]);
-        params.phone_knob_value.parse_quadlet(&raw[8..12]);
-        params.mix_knob_value.parse_quadlet(&raw[12..16]);
-        params.reverb_led_on.parse_quadlet(&raw[16..20]);
-        params.reverb_knob_value.parse_quadlet(&raw[24..28]);
+        deserialize_u32(&mut params.panel_button_count, &raw[..4]);
+        deserialize_i32(&mut params.main_knob_value, &raw[4..8]);
+        deserialize_i32(&mut params.phone_knob_value, &raw[8..12]);
+        deserialize_u32(&mut params.mix_knob_value, &raw[12..16]);
+        deserialize_bool(&mut params.reverb_led_on, &raw[16..20]);
+        deserialize_i32(&mut params.reverb_knob_value, &raw[24..28]);
         deserialize_fw_led_state(&mut params.firewire_led, &raw[36..40])?;
         Ok(())
     }
@@ -444,16 +447,22 @@ impl TcKonnektSegmentSerdes<DesktopMeter> for Desktopk6Protocol {
     const SIZE: usize = 92;
 
     fn serialize(params: &DesktopMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.analog_inputs.build_quadlet_block(&mut raw[..8]);
-        params.mixer_outputs.build_quadlet_block(&mut raw[40..48]);
-        params.stream_inputs.build_quadlet_block(&mut raw[48..56]);
+        serialize_i32(&params.analog_inputs[0], &mut raw[..4]);
+        serialize_i32(&params.analog_inputs[1], &mut raw[4..8]);
+        serialize_i32(&params.mixer_outputs[0], &mut raw[40..44]);
+        serialize_i32(&params.mixer_outputs[1], &mut raw[44..48]);
+        serialize_i32(&params.stream_inputs[0], &mut raw[48..52]);
+        serialize_i32(&params.stream_inputs[1], &mut raw[52..56]);
         Ok(())
     }
 
     fn deserialize(params: &mut DesktopMeter, raw: &[u8]) -> Result<(), String> {
-        params.analog_inputs.parse_quadlet_block(&raw[..8]);
-        params.mixer_outputs.parse_quadlet_block(&raw[40..48]);
-        params.stream_inputs.parse_quadlet_block(&raw[48..56]);
+        deserialize_i32(&mut params.analog_inputs[0], &raw[..4]);
+        deserialize_i32(&mut params.analog_inputs[1], &raw[4..8]);
+        deserialize_i32(&mut params.mixer_outputs[0], &raw[40..44]);
+        deserialize_i32(&mut params.mixer_outputs[1], &raw[44..48]);
+        deserialize_i32(&mut params.stream_inputs[0], &raw[48..52]);
+        deserialize_i32(&mut params.stream_inputs[1], &raw[52..56]);
         Ok(())
     }
 }

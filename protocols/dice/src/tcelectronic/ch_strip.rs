@@ -163,42 +163,42 @@ pub(crate) fn serialize_ch_strip_states(
         let pos = calculate_ch_strip_state_segment_pos(i);
         let r = &mut raw[pos..(pos + ChStripState::SIZE)];
 
-        s.comp.input_gain.build_quadlet(&mut r[..4]);
+        serialize_u32(&s.comp.input_gain, &mut r[..4]);
         serialize_src_type(&s.src_type, &mut r[4..8])?;
-        s.comp.full_band_enabled.build_quadlet(&mut r[8..12]);
-        s.deesser.ratio.build_quadlet(&mut r[12..16]);
-        s.deesser.bypass.build_quadlet(&mut r[16..20]);
-        s.eq[0].enabled.build_quadlet(&mut r[20..24]);
-        s.eq[0].bandwidth.build_quadlet(&mut r[24..28]);
-        s.eq[0].gain.build_quadlet(&mut r[28..32]);
+        serialize_bool(&s.comp.full_band_enabled, &mut r[8..12]);
+        serialize_u32(&s.deesser.ratio, &mut r[12..16]);
+        serialize_bool(&s.deesser.bypass, &mut r[16..20]);
+        serialize_bool(&s.eq[0].enabled, &mut r[20..24]);
+        serialize_u32(&s.eq[0].bandwidth, &mut r[24..28]);
+        serialize_u32(&s.eq[0].gain, &mut r[28..32]);
         // blank
-        s.eq[0].freq.build_quadlet(&mut r[36..40]);
-        s.eq[1].enabled.build_quadlet(&mut r[40..44]);
-        s.eq[1].bandwidth.build_quadlet(&mut r[44..48]);
-        s.eq[1].gain.build_quadlet(&mut r[48..52]);
+        serialize_u32(&s.eq[0].freq, &mut r[36..40]);
+        serialize_bool(&s.eq[1].enabled, &mut r[40..44]);
+        serialize_u32(&s.eq[1].bandwidth, &mut r[44..48]);
+        serialize_u32(&s.eq[1].gain, &mut r[48..52]);
         // blank
-        s.eq[1].freq.build_quadlet(&mut r[56..60]);
-        s.eq[2].enabled.build_quadlet(&mut r[60..64]);
-        s.eq[2].bandwidth.build_quadlet(&mut r[64..68]);
-        s.eq[2].gain.build_quadlet(&mut r[68..72]);
+        serialize_u32(&s.eq[1].freq, &mut r[56..60]);
+        serialize_bool(&s.eq[2].enabled, &mut r[60..64]);
+        serialize_u32(&s.eq[2].bandwidth, &mut r[64..68]);
+        serialize_u32(&s.eq[2].gain, &mut r[68..72]);
         // blank
-        s.eq[2].freq.build_quadlet(&mut r[76..80]);
-        s.eq[3].enabled.build_quadlet(&mut r[80..84]);
-        s.eq[3].bandwidth.build_quadlet(&mut r[84..88]);
-        s.eq[3].gain.build_quadlet(&mut r[88..92]);
+        serialize_u32(&s.eq[2].freq, &mut r[76..80]);
+        serialize_bool(&s.eq[3].enabled, &mut r[80..84]);
+        serialize_u32(&s.eq[3].bandwidth, &mut r[84..88]);
+        serialize_u32(&s.eq[3].gain, &mut r[88..92]);
         // blank
-        s.eq[3].freq.build_quadlet(&mut r[96..100]);
-        s.eq_bypass.build_quadlet(&mut r[100..104]);
-        s.comp.ctl[0].build_quadlet(&mut r[104..108]);
-        s.comp.level[0].build_quadlet(&mut r[108..112]);
-        s.comp.ctl[1].build_quadlet(&mut r[112..116]);
-        s.comp.level[1].build_quadlet(&mut r[116..120]);
-        s.comp.ctl[2].build_quadlet(&mut r[120..124]);
-        s.comp.level[2].build_quadlet(&mut r[124..128]);
-        s.limitter_bypass.build_quadlet(&mut r[128..132]);
-        s.comp.make_up_gain.build_quadlet(&mut r[132..136]);
-        s.limitter.threshold.build_quadlet(&mut r[136..140]);
-        s.bypass.build_quadlet(&mut r[140..]);
+        serialize_u32(&s.eq[3].freq, &mut r[96..100]);
+        serialize_bool(&s.eq_bypass, &mut r[100..104]);
+        serialize_u32(&s.comp.ctl[0], &mut r[104..108]);
+        serialize_u32(&s.comp.level[0], &mut r[108..112]);
+        serialize_u32(&s.comp.ctl[1], &mut r[112..116]);
+        serialize_u32(&s.comp.level[1], &mut r[116..120]);
+        serialize_u32(&s.comp.ctl[2], &mut r[120..124]);
+        serialize_u32(&s.comp.level[2], &mut r[124..128]);
+        serialize_bool(&s.limitter_bypass, &mut r[128..132]);
+        serialize_u32(&s.comp.make_up_gain, &mut r[132..136]);
+        serialize_u32(&s.limitter.threshold, &mut r[136..140]);
+        serialize_bool(&s.bypass, &mut r[140..]);
 
         Ok(())
     })
@@ -214,42 +214,42 @@ pub(crate) fn deserialize_ch_strip_states(
         let pos = calculate_ch_strip_state_segment_pos(i);
         let r = &raw[pos..(pos + ChStripState::SIZE)];
 
-        s.comp.input_gain.parse_quadlet(&r[..4]);
+        deserialize_u32(&mut s.comp.input_gain, &r[..4]);
         deserialize_src_type(&mut s.src_type, &r[4..8])?;
-        s.comp.full_band_enabled.parse_quadlet(&r[8..12]);
-        s.deesser.ratio.parse_quadlet(&r[12..16]);
-        s.deesser.bypass.parse_quadlet(&r[16..20]);
-        s.eq[0].enabled.parse_quadlet(&r[20..24]);
-        s.eq[0].bandwidth.parse_quadlet(&r[24..28]);
-        s.eq[0].gain.parse_quadlet(&r[28..32]);
+        deserialize_bool(&mut s.comp.full_band_enabled, &r[8..12]);
+        deserialize_u32(&mut s.deesser.ratio, &r[12..16]);
+        deserialize_bool(&mut s.deesser.bypass, &r[16..20]);
+        deserialize_bool(&mut s.eq[0].enabled, &r[20..24]);
+        deserialize_u32(&mut s.eq[0].bandwidth, &r[24..28]);
+        deserialize_u32(&mut s.eq[0].gain, &r[28..32]);
         // blank
-        s.eq[0].freq.parse_quadlet(&r[36..40]);
-        s.eq[1].enabled.parse_quadlet(&r[40..44]);
-        s.eq[1].bandwidth.parse_quadlet(&r[44..48]);
-        s.eq[1].gain.parse_quadlet(&r[48..52]);
+        deserialize_u32(&mut s.eq[0].freq, &r[36..40]);
+        deserialize_bool(&mut s.eq[1].enabled, &r[40..44]);
+        deserialize_u32(&mut s.eq[1].bandwidth, &r[44..48]);
+        deserialize_u32(&mut s.eq[1].gain, &r[48..52]);
         // blank
-        s.eq[1].freq.parse_quadlet(&r[56..60]);
-        s.eq[2].enabled.parse_quadlet(&r[60..64]);
-        s.eq[2].bandwidth.parse_quadlet(&r[64..68]);
-        s.eq[2].gain.parse_quadlet(&r[68..72]);
+        deserialize_u32(&mut s.eq[1].freq, &r[56..60]);
+        deserialize_bool(&mut s.eq[2].enabled, &r[60..64]);
+        deserialize_u32(&mut s.eq[2].bandwidth, &r[64..68]);
+        deserialize_u32(&mut s.eq[2].gain, &r[68..72]);
         // blank
-        s.eq[2].freq.parse_quadlet(&r[76..80]);
-        s.eq[3].enabled.parse_quadlet(&r[80..84]);
-        s.eq[3].bandwidth.parse_quadlet(&r[84..88]);
-        s.eq[3].gain.parse_quadlet(&r[88..92]);
+        deserialize_u32(&mut s.eq[2].freq, &r[76..80]);
+        deserialize_bool(&mut s.eq[3].enabled, &r[80..84]);
+        deserialize_u32(&mut s.eq[3].bandwidth, &r[84..88]);
+        deserialize_u32(&mut s.eq[3].gain, &r[88..92]);
         // blank
-        s.eq[3].freq.parse_quadlet(&r[96..100]);
-        s.eq_bypass.parse_quadlet(&r[100..104]);
-        s.comp.ctl[0].parse_quadlet(&r[104..108]);
-        s.comp.level[0].parse_quadlet(&r[108..112]);
-        s.comp.ctl[1].parse_quadlet(&r[112..116]);
-        s.comp.level[1].parse_quadlet(&r[116..120]);
-        s.comp.ctl[2].parse_quadlet(&r[120..124]);
-        s.comp.level[2].parse_quadlet(&r[124..128]);
-        s.limitter_bypass.parse_quadlet(&r[128..132]);
-        s.comp.make_up_gain.parse_quadlet(&r[132..136]);
-        s.limitter.threshold.parse_quadlet(&r[136..140]);
-        s.bypass.parse_quadlet(&r[140..]);
+        deserialize_u32(&mut s.eq[3].freq, &r[96..100]);
+        deserialize_bool(&mut s.eq_bypass, &r[100..104]);
+        deserialize_u32(&mut s.comp.ctl[0], &r[104..108]);
+        deserialize_u32(&mut s.comp.level[0], &r[108..112]);
+        deserialize_u32(&mut s.comp.ctl[1], &r[112..116]);
+        deserialize_u32(&mut s.comp.level[1], &r[116..120]);
+        deserialize_u32(&mut s.comp.ctl[2], &r[120..124]);
+        deserialize_u32(&mut s.comp.level[2], &r[124..128]);
+        deserialize_bool(&mut s.limitter_bypass, &r[128..132]);
+        deserialize_u32(&mut s.comp.make_up_gain, &r[132..136]);
+        deserialize_u32(&mut s.limitter.threshold, &r[136..140]);
+        deserialize_bool(&mut s.bypass, &r[140..]);
 
         Ok(())
     })
@@ -290,12 +290,12 @@ pub(crate) fn serialize_ch_strip_meters(
         let pos = calculate_ch_strip_meter_segment_pos(i);
         let r = &mut raw[pos..(pos + ChStripMeter::SIZE)];
 
-        m.input.build_quadlet(&mut r[..4]);
-        m.limit.build_quadlet(&mut r[4..8]);
-        m.output.build_quadlet(&mut r[8..12]);
-        m.gains[0].build_quadlet(&mut r[20..24]);
-        m.gains[1].build_quadlet(&mut r[16..20]);
-        m.gains[2].build_quadlet(&mut r[12..16]);
+        serialize_i32(&m.input, &mut r[..4]);
+        serialize_i32(&m.limit, &mut r[4..8]);
+        serialize_i32(&m.output, &mut r[8..12]);
+        serialize_i32(&m.gains[0], &mut r[20..24]);
+        serialize_i32(&m.gains[1], &mut r[16..20]);
+        serialize_i32(&m.gains[2], &mut r[12..16]);
 
         Ok(())
     })
@@ -311,12 +311,12 @@ pub(crate) fn deserialize_ch_strip_meters(
         let pos = calculate_ch_strip_meter_segment_pos(i);
         let r = &raw[pos..(pos + ChStripMeter::SIZE)];
 
-        m.input.parse_quadlet(&r[..4]);
-        m.limit.parse_quadlet(&r[4..8]);
-        m.output.parse_quadlet(&r[8..12]);
-        m.gains[0].parse_quadlet(&r[20..24]);
-        m.gains[1].parse_quadlet(&r[16..20]);
-        m.gains[2].parse_quadlet(&r[12..16]);
+        deserialize_i32(&mut m.input, &r[..4]);
+        deserialize_i32(&mut m.limit, &r[4..8]);
+        deserialize_i32(&mut m.output, &r[8..12]);
+        deserialize_i32(&mut m.gains[0], &r[20..24]);
+        deserialize_i32(&mut m.gains[1], &r[16..20]);
+        deserialize_i32(&mut m.gains[2], &r[12..16]);
 
         Ok(())
     })

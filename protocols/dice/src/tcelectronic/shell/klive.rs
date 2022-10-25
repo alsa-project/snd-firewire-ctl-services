@@ -359,36 +359,45 @@ impl Default for ChStripSrc {
     }
 }
 
-impl From<u32> for ChStripSrc {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => Self::Stream01,
-            4 => Self::Analog01,
-            5 => Self::Analog23,
-            6 => Self::Digital01,
-            7 => Self::Digital23,
-            8 => Self::Digital45,
-            9 => Self::Digital67,
-            10 => Self::MixerOutput,
-            _ => Self::None,
-        }
-    }
+fn serialize_ch_strip_src(src: &ChStripSrc, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = match src {
+        ChStripSrc::Stream01 => 0,
+        ChStripSrc::Analog01 => 4,
+        ChStripSrc::Analog23 => 5,
+        ChStripSrc::Digital01 => 6,
+        ChStripSrc::Digital23 => 7,
+        ChStripSrc::Digital45 => 8,
+        ChStripSrc::Digital67 => 9,
+        ChStripSrc::MixerOutput => 10,
+        ChStripSrc::None => 11,
+    };
+
+    serialize_u32(&val, raw);
+
+    Ok(())
 }
 
-impl From<ChStripSrc> for u32 {
-    fn from(src: ChStripSrc) -> Self {
-        match src {
-            ChStripSrc::Stream01 => 0,
-            ChStripSrc::Analog01 => 4,
-            ChStripSrc::Analog23 => 5,
-            ChStripSrc::Digital01 => 6,
-            ChStripSrc::Digital23 => 7,
-            ChStripSrc::Digital45 => 8,
-            ChStripSrc::Digital67 => 9,
-            ChStripSrc::MixerOutput => 10,
-            ChStripSrc::None => 11,
-        }
-    }
+fn deserialize_ch_strip_src(src: &mut ChStripSrc, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    *src = match val {
+        0 => ChStripSrc::Stream01,
+        4 => ChStripSrc::Analog01,
+        5 => ChStripSrc::Analog23,
+        6 => ChStripSrc::Digital01,
+        7 => ChStripSrc::Digital23,
+        8 => ChStripSrc::Digital45,
+        9 => ChStripSrc::Digital67,
+        10 => ChStripSrc::MixerOutput,
+        _ => ChStripSrc::None,
+    };
+
+    Ok(())
 }
 
 /// The type of channel strip effect.
@@ -480,29 +489,23 @@ impl TcKonnektSegmentSerdes<KliveMixerState> for KliveProtocol {
 
     fn serialize(params: &KliveMixerState, raw: &mut [u8]) -> Result<(), String> {
         serialize_mixer_state::<KliveProtocol>(&params.mixer, raw)?;
-
         serialize_reverb_return(&params.reverb_return, &mut raw[316..328])?;
-        params
-            .use_ch_strip_as_plugin
-            .build_quadlet(&mut raw[328..332]);
-        params.ch_strip_src.build_quadlet(&mut raw[332..336]);
+        serialize_bool(&params.use_ch_strip_as_plugin, &mut raw[328..332]);
+        serialize_ch_strip_src(&params.ch_strip_src, &mut raw[332..336])?;
         serialize_ch_strip_mode(&params.ch_strip_mode, &mut raw[336..340])?;
-        params
-            .use_reverb_at_mid_rate
-            .build_quadlet(&mut raw[340..344]);
-        params.enabled.build_quadlet(&mut raw[344..348]);
+        serialize_bool(&params.use_reverb_at_mid_rate, &mut raw[340..344]);
+        serialize_bool(&params.enabled, &mut raw[344..348]);
         Ok(())
     }
 
     fn deserialize(params: &mut KliveMixerState, raw: &[u8]) -> Result<(), String> {
         deserialize_mixer_state::<KliveProtocol>(&mut params.mixer, raw)?;
-
         deserialize_reverb_return(&mut params.reverb_return, &raw[316..328])?;
-        params.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
-        params.ch_strip_src.parse_quadlet(&raw[332..336]);
+        deserialize_bool(&mut params.use_ch_strip_as_plugin, &raw[328..332]);
+        deserialize_ch_strip_src(&mut params.ch_strip_src, &raw[332..336])?;
         deserialize_ch_strip_mode(&mut params.ch_strip_mode, &raw[336..340])?;
-        params.use_reverb_at_mid_rate.parse_quadlet(&raw[340..344]);
-        params.enabled.parse_quadlet(&raw[344..348]);
+        deserialize_bool(&mut params.use_reverb_at_mid_rate, &raw[340..344]);
+        deserialize_bool(&mut params.enabled, &raw[344..348]);
         Ok(())
     }
 }

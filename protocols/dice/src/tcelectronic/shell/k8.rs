@@ -220,13 +220,13 @@ impl TcKonnektSegmentSerdes<K8MixerState> for K8Protocol {
 
     fn serialize(params: &K8MixerState, raw: &mut [u8]) -> Result<(), String> {
         serialize_mixer_state::<K8Protocol>(&params.mixer, raw)?;
-        params.enabled.build_quadlet(&mut raw[340..344]);
+        serialize_bool(&params.enabled, &mut raw[340..344]);
         Ok(())
     }
 
     fn deserialize(params: &mut K8MixerState, raw: &[u8]) -> Result<(), String> {
         deserialize_mixer_state::<K8Protocol>(&mut params.mixer, raw)?;
-        params.enabled.parse_quadlet(&raw[340..344]);
+        deserialize_bool(&mut params.enabled, &raw[340..344]);
         Ok(())
     }
 }
@@ -253,13 +253,13 @@ impl TcKonnektSegmentSerdes<K8HwState> for K8Protocol {
 
     fn serialize(params: &K8HwState, raw: &mut [u8]) -> Result<(), String> {
         serialize_hw_state(&params.hw_state, raw)?;
-        params.aux_input_enabled.build_quadlet(&mut raw[8..12]);
+        serialize_bool(&params.aux_input_enabled, &mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut K8HwState, raw: &[u8]) -> Result<(), String> {
         deserialize_hw_state(&mut params.hw_state, raw)?;
-        params.aux_input_enabled.parse_quadlet(&raw[8..12]);
+        deserialize_bool(&mut params.aux_input_enabled, &raw[8..12]);
         Ok(())
     }
 }

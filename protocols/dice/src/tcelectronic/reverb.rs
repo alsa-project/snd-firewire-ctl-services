@@ -102,21 +102,21 @@ impl ReverbState {
 pub(crate) fn serialize_reverb_state(state: &ReverbState, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= ReverbState::SIZE);
 
-    state.input_level.build_quadlet(&mut raw[..4]);
-    state.bypass.build_quadlet(&mut raw[4..8]);
-    state.kill_wet.build_quadlet(&mut raw[8..12]);
-    state.kill_dry.build_quadlet(&mut raw[12..16]);
-    state.output_level.build_quadlet(&mut raw[16..20]);
-    state.time_decay.build_quadlet(&mut raw[20..24]);
-    state.time_pre_decay.build_quadlet(&mut raw[24..28]);
+    serialize_i32(&state.input_level, &mut raw[..4]);
+    serialize_bool(&state.bypass, &mut raw[4..8]);
+    serialize_bool(&state.kill_wet, &mut raw[8..12]);
+    serialize_bool(&state.kill_dry, &mut raw[12..16]);
+    serialize_i32(&state.output_level, &mut raw[16..20]);
+    serialize_i32(&state.time_decay, &mut raw[20..24]);
+    serialize_i32(&state.time_pre_decay, &mut raw[24..28]);
     // blank
-    state.color_low.build_quadlet(&mut raw[32..36]);
-    state.color_high.build_quadlet(&mut raw[36..40]);
-    state.color_high_factor.build_quadlet(&mut raw[40..44]);
-    state.mod_rate.build_quadlet(&mut raw[44..48]);
-    state.mod_depth.build_quadlet(&mut raw[48..52]);
-    state.level_early.build_quadlet(&mut raw[52..56]);
-    state.level_dry.build_quadlet(&mut raw[60..64]);
+    serialize_i32(&state.color_low, &mut raw[32..36]);
+    serialize_i32(&state.color_high, &mut raw[36..40]);
+    serialize_i32(&state.color_high_factor, &mut raw[40..44]);
+    serialize_i32(&state.mod_rate, &mut raw[44..48]);
+    serialize_i32(&state.mod_depth, &mut raw[48..52]);
+    serialize_i32(&state.level_early, &mut raw[52..56]);
+    serialize_i32(&state.level_dry, &mut raw[60..64]);
     serialize_algorithm(&state.algorithm, &mut raw[64..])?;
 
     Ok(())
@@ -125,21 +125,21 @@ pub(crate) fn serialize_reverb_state(state: &ReverbState, raw: &mut [u8]) -> Res
 pub(crate) fn deserialize_reverb_state(state: &mut ReverbState, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= ReverbState::SIZE);
 
-    state.input_level.parse_quadlet(&raw[..4]);
-    state.bypass.parse_quadlet(&raw[4..8]);
-    state.kill_wet.parse_quadlet(&raw[8..12]);
-    state.kill_dry.parse_quadlet(&raw[12..16]);
-    state.output_level.parse_quadlet(&raw[16..20]);
-    state.time_decay.parse_quadlet(&raw[20..24]);
-    state.time_pre_decay.parse_quadlet(&raw[24..28]);
+    deserialize_i32(&mut state.input_level, &raw[..4]);
+    deserialize_bool(&mut state.bypass, &raw[4..8]);
+    deserialize_bool(&mut state.kill_wet, &raw[8..12]);
+    deserialize_bool(&mut state.kill_dry, &raw[12..16]);
+    deserialize_i32(&mut state.output_level, &raw[16..20]);
+    deserialize_i32(&mut state.time_decay, &raw[20..24]);
+    deserialize_i32(&mut state.time_pre_decay, &raw[24..28]);
     // blank
-    state.color_low.parse_quadlet(&raw[32..36]);
-    state.color_high.parse_quadlet(&raw[36..40]);
-    state.color_high_factor.parse_quadlet(&raw[40..44]);
-    state.mod_rate.parse_quadlet(&raw[44..48]);
-    state.mod_depth.parse_quadlet(&raw[48..52]);
-    state.level_early.parse_quadlet(&raw[52..56]);
-    state.level_dry.parse_quadlet(&raw[60..64]);
+    deserialize_i32(&mut state.color_low, &raw[32..36]);
+    deserialize_i32(&mut state.color_high, &raw[36..40]);
+    deserialize_i32(&mut state.color_high_factor, &raw[40..44]);
+    deserialize_i32(&mut state.mod_rate, &raw[44..48]);
+    deserialize_i32(&mut state.mod_depth, &raw[48..52]);
+    deserialize_i32(&mut state.level_early, &raw[52..56]);
+    deserialize_i32(&mut state.level_dry, &raw[60..64]);
     deserialize_algorithm(&mut state.algorithm, &raw[64..])?;
 
     Ok(())
@@ -161,8 +161,10 @@ impl ReverbMeter {
 pub(crate) fn serialize_reverb_meter(meter: &ReverbMeter, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= ReverbMeter::SIZE);
 
-    meter.outputs.build_quadlet_block(&mut raw[..8]);
-    meter.inputs.build_quadlet_block(&mut raw[8..16]);
+    serialize_i32(&meter.outputs[0], &mut raw[..4]);
+    serialize_i32(&meter.outputs[1], &mut raw[4..8]);
+    serialize_i32(&meter.inputs[0], &mut raw[8..12]);
+    serialize_i32(&meter.inputs[1], &mut raw[12..16]);
 
     Ok(())
 }
@@ -170,8 +172,10 @@ pub(crate) fn serialize_reverb_meter(meter: &ReverbMeter, raw: &mut [u8]) -> Res
 pub(crate) fn deserialize_reverb_meter(meter: &mut ReverbMeter, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= ReverbMeter::SIZE);
 
-    meter.outputs.parse_quadlet_block(&raw[..8]);
-    meter.inputs.parse_quadlet_block(&raw[8..16]);
+    deserialize_i32(&mut meter.outputs[0], &raw[..4]);
+    deserialize_i32(&mut meter.outputs[1], &raw[4..8]);
+    deserialize_i32(&mut meter.inputs[0], &raw[8..12]);
+    deserialize_i32(&mut meter.inputs[1], &raw[12..16]);
 
     Ok(())
 }

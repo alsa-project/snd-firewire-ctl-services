@@ -157,9 +157,7 @@ fn serialize_position<T: Eq + std::fmt::Debug>(
         .iter()
         .position(|t| entry.eq(t))
         .ok_or_else(|| format!("{} {:?} is not supported", label, entry))
-        .map(|pos| {
-            (pos as u32).build_quadlet(raw);
-        })
+        .map(|pos| serialize_usize(&pos, raw))
 }
 
 fn deserialize_position<T: Copy + Eq + std::fmt::Debug>(
@@ -170,8 +168,8 @@ fn deserialize_position<T: Copy + Eq + std::fmt::Debug>(
 ) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    let mut val = 0u32;
-    val.parse_quadlet(raw);
+    let mut val = 0usize;
+    deserialize_usize(&mut val, raw);
 
     entries
         .iter()
@@ -241,13 +239,14 @@ fn serialize_standalone_clock_rate(
 ) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match rate {
+    let val = match rate {
         TcKonnektStandaloneClockRate::R96000 => 4,
         TcKonnektStandaloneClockRate::R88200 => 3,
         TcKonnektStandaloneClockRate::R48000 => 2,
         TcKonnektStandaloneClockRate::R44100 => 1,
-    }
-    .build_quadlet(raw);
+    };
+
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -259,7 +258,7 @@ fn deserialize_standalone_clock_rate(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *rate = match val {
         4 => TcKonnektStandaloneClockRate::R96000,
@@ -304,12 +303,12 @@ impl TcKonnektMidiSender {
 fn serialize_midi_sender(sender: &TcKonnektMidiSender, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= TcKonnektMidiSender::SIZE);
 
-    sender.normal.ch.build_quadlet(&mut raw[..4]);
-    sender.normal.cc.build_quadlet(&mut raw[4..8]);
-    sender.pushed.ch.build_quadlet(&mut raw[12..16]);
-    sender.pushed.cc.build_quadlet(&mut raw[16..20]);
-    sender.send_to_port.build_quadlet(&mut raw[24..28]);
-    sender.send_to_stream.build_quadlet(&mut raw[28..32]);
+    serialize_u8(&sender.normal.ch, &mut raw[..4]);
+    serialize_u8(&sender.normal.cc, &mut raw[4..8]);
+    serialize_u8(&sender.pushed.ch, &mut raw[12..16]);
+    serialize_u8(&sender.pushed.cc, &mut raw[16..20]);
+    serialize_bool(&sender.send_to_port, &mut raw[24..28]);
+    serialize_bool(&sender.send_to_stream, &mut raw[28..32]);
 
     Ok(())
 }
@@ -317,12 +316,12 @@ fn serialize_midi_sender(sender: &TcKonnektMidiSender, raw: &mut [u8]) -> Result
 fn deserialize_midi_sender(sender: &mut TcKonnektMidiSender, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= TcKonnektMidiSender::SIZE);
 
-    sender.normal.ch.parse_quadlet(&raw[..4]);
-    sender.normal.cc.parse_quadlet(&raw[4..8]);
-    sender.pushed.ch.parse_quadlet(&raw[12..16]);
-    sender.pushed.cc.parse_quadlet(&raw[16..20]);
-    sender.send_to_port.parse_quadlet(&raw[24..28]);
-    sender.send_to_stream.parse_quadlet(&raw[28..32]);
+    deserialize_u8(&mut sender.normal.ch, &raw[..4]);
+    deserialize_u8(&mut sender.normal.cc, &raw[4..8]);
+    deserialize_u8(&mut sender.pushed.ch, &raw[12..16]);
+    deserialize_u8(&mut sender.pushed.cc, &raw[16..20]);
+    deserialize_bool(&mut sender.send_to_port, &raw[24..28]);
+    deserialize_bool(&mut sender.send_to_stream, &raw[28..32]);
 
     Ok(())
 }

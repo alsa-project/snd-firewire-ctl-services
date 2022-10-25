@@ -174,13 +174,13 @@ impl TcKonnektSegmentSerdes<ItwinKnob> for ItwinProtocol {
 
     fn serialize(params: &ItwinKnob, raw: &mut [u8]) -> Result<(), String> {
         serialize_knob0_target::<ItwinProtocol>(&params.target, &mut raw[..4])?;
-        params.clock_recovery.build_quadlet(&mut raw[8..12]);
+        serialize_bool(&params.clock_recovery, &mut raw[8..12]);
         Ok(())
     }
 
     fn deserialize(params: &mut ItwinKnob, raw: &[u8]) -> Result<(), String> {
         deserialize_knob0_target::<ItwinProtocol>(&mut params.target, &raw[..4])?;
-        params.clock_recovery.parse_quadlet(&raw[8..12]);
+        deserialize_bool(&mut params.clock_recovery, &raw[8..12]);
         Ok(())
     }
 }
@@ -397,16 +397,16 @@ impl TcKonnektSegmentSerdes<ItwinMixerState> for ItwinProtocol {
     fn serialize(params: &ItwinMixerState, raw: &mut [u8]) -> Result<(), String> {
         serialize_mixer_state::<ItwinProtocol>(&params.mixer, raw)?;
 
-        params.stream_mix_balance.build_quadlet(&mut raw[348..352]);
-        params.enabled.build_quadlet(&mut raw[352..356]);
+        serialize_u32(&params.stream_mix_balance, &mut raw[348..352]);
+        serialize_bool(&params.enabled, &mut raw[352..356]);
         Ok(())
     }
 
     fn deserialize(params: &mut ItwinMixerState, raw: &[u8]) -> Result<(), String> {
         deserialize_mixer_state::<ItwinProtocol>(&mut params.mixer, raw)?;
 
-        params.stream_mix_balance.parse_quadlet(&raw[348..352]);
-        params.enabled.parse_quadlet(&raw[352..356]);
+        deserialize_u32(&mut params.stream_mix_balance, &raw[348..352]);
+        deserialize_bool(&mut params.enabled, &raw[352..356]);
         Ok(())
     }
 }
