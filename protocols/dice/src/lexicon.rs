@@ -254,7 +254,7 @@ fn serialize_meter_entry(entry: &IonixMeterEntry, raw: &mut [u8]) -> Result<(), 
     let val = ((entry.level as u32) << 16)
         | ((u8::from(entry.src) as u32) << 8)
         | (u8::from(entry.dst) as u32);
-    val.build_quadlet(&mut raw[..4]);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -263,7 +263,7 @@ fn deserialize_meter_entry(entry: &mut IonixMeterEntry, raw: &[u8]) -> Result<()
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, raw);
 
     entry.level = ((val & 0xffff0000) >> 16) as i16;
     entry.src = SrcBlk::from(((val & 0x0000ff00) >> 8) as u8);
@@ -508,9 +508,9 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMixerParameters> for O {
                     .chain(src.spdif_inputs.iter())
                     .chain(src.analog_inputs.iter())
                     .enumerate()
-                    .for_each(|(j, &gain)| {
+                    .for_each(|(j, gain)| {
                         let pos = *offset + i * 0x48 + j * 4;
-                        raw[pos..(pos + 4)].copy_from_slice(&(gain as i32).to_be_bytes());
+                        serialize_i16(gain, &mut raw[pos..(pos + 4)]);
                     });
             });
         });
@@ -519,7 +519,6 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMixerParameters> for O {
     }
 
     fn deserialize_params(params: &mut IonixMixerParameters, raw: &[u8]) -> Result<(), String> {
-        let mut quadlet = [0; 4];
         [
             (&mut params.bus_sources[..], 0x0000),
             (&mut params.main_sources[..], 0x02d0),
@@ -535,8 +534,7 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMixerParameters> for O {
                     .enumerate()
                     .for_each(|(j, gain)| {
                         let pos = *offset + i * 0x48 + j * 4;
-                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                        *gain = u32::from_be_bytes(quadlet) as i16;
+                        deserialize_i16(gain, &raw[pos..(pos + 4)]);
                     });
             });
         });

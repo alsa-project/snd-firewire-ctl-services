@@ -56,6 +56,16 @@ fn deserialize_i8(val: &mut i8, raw: &[u8]) {
     *val = v as i8;
 }
 
+fn serialize_i16(val: &i16, raw: &mut [u8]) {
+    serialize_i32(&(*val as i32), raw)
+}
+
+fn deserialize_i16(val: &mut i16, raw: &[u8]) {
+    let mut v = 0i32;
+    deserialize_i32(&mut v, raw);
+    *val = v as i16;
+}
+
 fn serialize_u32(val: &u32, raw: &mut [u8]) {
     assert!(raw.len() >= 4);
 
