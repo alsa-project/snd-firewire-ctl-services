@@ -397,7 +397,7 @@ fn serialize_output_source(src: &OutputSrc, raw: &mut [u8]) -> Result<(), String
         OutputSrc::MixerOut(val) => *val + 0x24,
     }) as u32;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -405,9 +405,8 @@ fn serialize_output_source(src: &OutputSrc, raw: &mut [u8]) -> Result<(), String
 fn deserialize_output_source(src: &mut OutputSrc, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    let mut quadlet = [0; 4];
-    quadlet.copy_from_slice(&raw[..4]);
-    let val = u32::from_be_bytes(quadlet) as usize;
+    let mut val = 0usize;
+    deserialize_usize(&mut val, raw);
 
     *src = match val {
         0x00..=0x07 => OutputSrc::Analog(val),
@@ -476,16 +475,14 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
 
     fn serialize_params(params: &OutputParameters, raw: &mut [u8]) -> Result<(), String> {
         params.pairs.iter().enumerate().try_for_each(|(i, pair)| {
-            pair.volumes.iter().enumerate().for_each(|(j, &vol)| {
+            pair.volumes.iter().enumerate().for_each(|(j, vol)| {
                 let pos = 4 * 3 * (i * 2 + j);
-                let val = vol as u32;
-                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+                serialize_u8(vol, &mut raw[pos..(pos + 4)]);
             });
 
-            pair.mutes.iter().enumerate().for_each(|(j, &mute)| {
+            pair.mutes.iter().enumerate().for_each(|(j, mute)| {
                 let pos = 4 * (3 * (i * 2 + j) + 2);
-                let val = mute as u32;
-                raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+                serialize_bool(mute, &mut raw[pos..(pos + 4)]);
             });
 
             let pos = 216 + 4 * i;
@@ -497,8 +494,7 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
         serialize_assign_target(&params.headphone_assigns[1], &mut raw[296..300])?;
         serialize_assign_target(&params.headphone_assigns[2], &mut raw[300..304])?;
 
-        let val = params.bnc_terminate as u32;
-        raw[304..308].copy_from_slice(&val.to_be_bytes());
+        serialize_bool(&params.bnc_terminate, &mut raw[304..308]);
 
         let mut val = 0u32;
         params
@@ -509,14 +505,12 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
-        raw[308..312].copy_from_slice(&val.to_be_bytes());
+        serialize_u32(&val, &mut raw[308..312]);
 
         Ok(())
     }
 
     fn deserialize_params(params: &mut OutputParameters, raw: &[u8]) -> Result<(), String> {
-        let mut quadlet = [0; 4];
-
         params
             .pairs
             .iter_mut()
@@ -524,14 +518,12 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
             .try_for_each(|(i, pair)| {
                 pair.volumes.iter_mut().enumerate().for_each(|(j, vol)| {
                     let pos = 4 * 3 * (i * 2 + j);
-                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                    *vol = u32::from_be_bytes(quadlet) as u8;
+                    deserialize_u8(vol, &raw[pos..(pos + 4)]);
                 });
 
                 pair.mutes.iter_mut().enumerate().for_each(|(j, mute)| {
                     let pos = 4 * (3 * (i * 2 + j) + 2);
-                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                    *mute = u32::from_be_bytes(quadlet) > 0;
+                    deserialize_bool(mute, &raw[pos..(pos + 4)]);
                 });
 
                 let pos = 216 + 4 * i;
@@ -543,11 +535,10 @@ impl FStudioParametersSerdes<OutputParameters> for FStudioProtocol {
         deserialize_assign_target(&mut params.headphone_assigns[1], &raw[296..300])?;
         deserialize_assign_target(&mut params.headphone_assigns[2], &raw[300..304])?;
 
-        quadlet.copy_from_slice(&raw[304..308]);
-        params.bnc_terminate = u32::from_be_bytes(quadlet) > 0;
+        deserialize_bool(&mut params.bnc_terminate, &raw[304..308]);
 
-        quadlet.copy_from_slice(&raw[308..312]);
-        let val = u32::from_be_bytes(quadlet);
+        let mut val = 0u32;
+        deserialize_u32(&mut val, &raw[308..312]);
         params.pairs.iter_mut().enumerate().for_each(|(i, pair)| {
             pair.link = (val & (1 << i)) > 0;
         });
@@ -603,7 +594,7 @@ fn serialize_assign_target(target: &AssignTarget, raw: &mut [u8]) -> Result<(), 
         AssignTarget::Spdif01 => 0x10,
     };
 
-    raw[..4].copy_from_slice(&val.to_be_bytes());
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -611,9 +602,8 @@ fn serialize_assign_target(target: &AssignTarget, raw: &mut [u8]) -> Result<(), 
 fn deserialize_assign_target(target: &mut AssignTarget, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    let mut quadlet = [0; 4];
-    quadlet.copy_from_slice(&raw[..4]);
-    let val = u32::from_be_bytes(quadlet);
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
 
     *target = match val {
         0x00 => AssignTarget::Analog01,
@@ -654,7 +644,7 @@ fn serialize_expansion_mode(mode: &ExpansionMode, raw: &mut [u8]) -> Result<(), 
         ExpansionMode::AdatB0_7 => 1,
     };
 
-    raw.copy_from_slice(&val.to_be_bytes());
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -662,10 +652,9 @@ fn serialize_expansion_mode(mode: &ExpansionMode, raw: &mut [u8]) -> Result<(), 
 fn deserialize_expansion_mode(mode: &mut ExpansionMode, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    let mut quadlet = [0; 4];
-    quadlet.copy_from_slice(&raw[..4]);
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
 
-    let val = u32::from_be_bytes(quadlet);
     *mode = match val {
         0 => ExpansionMode::StreamB0_7,
         1 => ExpansionMode::AdatB0_7,
@@ -691,23 +680,12 @@ pub struct MixerSourcePair {
 fn serialize_mixer_source_pair(pair: &MixerSourcePair, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 24);
 
-    let val = pair.gains[0] as u32;
-    raw[..4].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.balances[0] as u32;
-    raw[4..8].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.mutes[0] as u32;
-    raw[8..12].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.gains[1] as u32;
-    raw[12..16].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.balances[1] as u32;
-    raw[16..20].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.mutes[1] as u32;
-    raw[20..24].copy_from_slice(&val.to_be_bytes());
+    serialize_u8(&pair.gains[0], &mut raw[..4]);
+    serialize_u8(&pair.balances[0], &mut raw[4..8]);
+    serialize_bool(&pair.mutes[0], &mut raw[8..12]);
+    serialize_u8(&pair.gains[1], &mut raw[12..16]);
+    serialize_u8(&pair.balances[1], &mut raw[16..20]);
+    serialize_bool(&pair.mutes[1], &mut raw[20..24]);
 
     Ok(())
 }
@@ -715,25 +693,12 @@ fn serialize_mixer_source_pair(pair: &MixerSourcePair, raw: &mut [u8]) -> Result
 fn deserialize_mixer_source_pair(pair: &mut MixerSourcePair, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 24);
 
-    let mut quadlet = [0; 4];
-
-    quadlet.copy_from_slice(&raw[..4]);
-    pair.gains[0] = u32::from_be_bytes(quadlet) as u8;
-
-    quadlet.copy_from_slice(&raw[4..8]);
-    pair.balances[0] = u32::from_be_bytes(quadlet) as u8;
-
-    quadlet.copy_from_slice(&raw[8..12]);
-    pair.mutes[0] = u32::from_be_bytes(quadlet) > 0;
-
-    quadlet.copy_from_slice(&raw[12..16]);
-    pair.gains[1] = u32::from_be_bytes(quadlet) as u8;
-
-    quadlet.copy_from_slice(&raw[16..20]);
-    pair.balances[1] = u32::from_be_bytes(quadlet) as u8;
-
-    quadlet.copy_from_slice(&raw[20..24]);
-    pair.mutes[1] = u32::from_be_bytes(quadlet) > 0;
+    deserialize_u8(&mut pair.gains[0], &raw[..4]);
+    deserialize_u8(&mut pair.balances[0], &raw[4..8]);
+    deserialize_bool(&mut pair.mutes[0], &raw[8..12]);
+    deserialize_u8(&mut pair.gains[1], &raw[12..16]);
+    deserialize_u8(&mut pair.balances[1], &raw[16..20]);
+    deserialize_bool(&mut pair.mutes[1], &raw[20..24]);
 
     Ok(())
 }
@@ -766,11 +731,8 @@ pub struct MixerOutputPair {
 fn serialize_mixer_output_pair(pair: &MixerOutputPair, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 12);
 
-    let val = pair.volume as u32;
-    raw[..4].copy_from_slice(&val.to_be_bytes());
-
-    let val = pair.mute as u32;
-    raw[8..12].copy_from_slice(&val.to_be_bytes());
+    serialize_u8(&pair.volume, &mut raw[..4]);
+    serialize_bool(&pair.mute, &mut raw[8..12]);
 
     Ok(())
 }
@@ -778,13 +740,8 @@ fn serialize_mixer_output_pair(pair: &MixerOutputPair, raw: &mut [u8]) -> Result
 fn deserialize_mixer_output_pair(pair: &mut MixerOutputPair, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 12);
 
-    let mut quadlet = [0; 4];
-
-    quadlet.copy_from_slice(&raw[..4]);
-    pair.volume = u32::from_be_bytes(quadlet) as u8;
-
-    quadlet.copy_from_slice(&raw[8..12]);
-    pair.mute = u32::from_be_bytes(quadlet) > 0;
+    deserialize_u8(&mut pair.volume, &raw[..4]);
+    deserialize_bool(&mut pair.mute, &raw[8..12]);
 
     Ok(())
 }
@@ -895,7 +852,7 @@ impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
                 .for_each(|(j, _)| val |= 1 << (16 + j));
 
             let pos = 4 * (3 * 9 * 36 + 3 * 9 + 1 + i);
-            raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+            serialize_u32(&val, &mut raw[pos..(pos + 4)]);
         });
 
         Ok(())
@@ -946,11 +903,10 @@ impl FStudioParametersSerdes<MixerParameters> for FStudioProtocol {
         let pos = 4 * (3 * 9 * 36 + 3 * 9);
         deserialize_expansion_mode(&mut params.expansion_mode, &raw[pos..(pos + 4)])?;
 
-        let mut quadlet = [0; 4];
         params.sources.iter_mut().enumerate().for_each(|(i, srcs)| {
             let pos = 4 * (3 * 9 * 36 + 3 * 9 + 1 + i);
-            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-            let val = u32::from_be_bytes(quadlet);
+            let mut val = 0u32;
+            deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
 
             srcs.analog_pairs
                 .iter_mut()
