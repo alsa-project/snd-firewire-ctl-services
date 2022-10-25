@@ -9,7 +9,7 @@ use super::{utils::*, *};
 
 /// Entry for stream format in stream received by the node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct RxStreamEntry {
+pub struct RxStreamFormatEntry {
     /// The channel number for isochronous packet stream.
     pub iso_channel: i8,
     /// The start position of data channels from the beginning of payload in quadlet count.
@@ -24,73 +24,54 @@ pub struct RxStreamEntry {
     pub iec60958: [Iec60958Param; IEC60958_CHANNELS],
 }
 
-impl TryFrom<&[u8]> for RxStreamEntry {
-    type Error = String;
+const MIN_SIZE: usize = 272;
 
-    fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        let iso_channel = i32::from_be_bytes(quadlet) as i8;
+fn serialize_rx_stream_entry(entry: &RxStreamFormatEntry, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= MIN_SIZE);
 
-        quadlet.copy_from_slice(&raw[4..8]);
-        let start = u32::from_be_bytes(quadlet);
+    (entry.iso_channel as i32).build_quadlet(&mut raw[..4]);
 
-        quadlet.copy_from_slice(&raw[8..12]);
-        let pcm = u32::from_be_bytes(quadlet);
+    entry.start.build_quadlet(&mut raw[4..8]);
+    entry.pcm.build_quadlet(&mut raw[8..12]);
+    entry.midi.build_quadlet(&mut raw[12..16]);
 
-        quadlet.copy_from_slice(&raw[12..16]);
-        let midi = u32::from_be_bytes(quadlet);
+    raw[16..272].copy_from_slice(&mut build_labels(&entry.labels, STREAM_NAMES_SIZE));
 
-        let labels =
-            parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
-
-        let iec60958 = if raw.len() > 272 {
-            parse_iec60958_params(&raw[272..280])
-        } else {
-            // NOTE: it's not supported by old version of firmware.
-            [Iec60958Param::default(); IEC60958_CHANNELS]
-        };
-
-        let entry = RxStreamEntry {
-            iso_channel,
-            start,
-            pcm,
-            midi,
-            labels,
-            iec60958,
-        };
-
-        Ok(entry)
+    // NOTE: it's not supported by old version of firmware.
+    if raw.len() >= 272 {
+        raw[272..280].copy_from_slice(&build_iec60958_params(&entry.iec60958));
     }
+
+    Ok(())
 }
 
-impl From<&RxStreamEntry> for Vec<u8> {
-    fn from(entry: &RxStreamEntry) -> Self {
-        let mut raw = Vec::new();
+fn deserialize_rx_stream_entry(entry: &mut RxStreamFormatEntry, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= MIN_SIZE);
 
-        let val = entry.iso_channel as i32;
-        raw.extend_from_slice(&val.to_be_bytes());
+    let mut val = 0i32;
+    val.parse_quadlet(&raw[..4]);
+    entry.iso_channel = val as i8;
 
-        let mut val = entry.start;
-        raw.extend_from_slice(&val.to_be_bytes());
+    entry.start.parse_quadlet(&raw[4..8]);
+    entry.pcm.parse_quadlet(&raw[8..12]);
+    entry.midi.parse_quadlet(&raw[12..16]);
 
-        val = entry.pcm;
-        raw.extend_from_slice(&val.to_be_bytes());
+    entry.labels =
+        parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
 
-        val = entry.midi;
-        raw.extend_from_slice(&val.to_be_bytes());
+    // NOTE: it's not supported by old version of firmware.
+    entry.iec60958 = if raw.len() >= MIN_SIZE {
+        parse_iec60958_params(&raw[272..280])
+    } else {
+        [Iec60958Param::default(); IEC60958_CHANNELS]
+    };
 
-        raw.append(&mut build_labels(&entry.labels, STREAM_NAMES_SIZE));
-
-        raw.append(&mut build_iec60958_params(&entry.iec60958));
-
-        raw
-    }
+    Ok(())
 }
 
 /// Parameters for format of receive streams.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct RxStreamFormatParameters(pub Vec<RxStreamEntry>);
+pub struct RxStreamFormatParameters(pub Vec<RxStreamFormatEntry>);
 
 impl<O: TcatOperation> TcatSectionSerdes<RxStreamFormatParameters> for O {
     const MIN_SIZE: usize = 8;
@@ -98,68 +79,65 @@ impl<O: TcatOperation> TcatSectionSerdes<RxStreamFormatParameters> for O {
     const ERROR_TYPE: GeneralProtocolError = GeneralProtocolError::RxStreamFormat;
 
     fn serialize(params: &RxStreamFormatParameters, raw: &mut [u8]) -> Result<(), String> {
+        let mut val = 0u32;
+
         // The number of streams is read-only.
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        let count = u32::from_be_bytes(quadlet) as usize;
+        val.parse_quadlet(&raw[..4]);
+        let count = val as usize;
 
         if count != params.0.len() {
-            Err(format!(
+            let msg = format!(
                 "The count of entries should be {}, actually {}",
                 count,
-                params.0.len(),
-            ))?;
+                params.0.len()
+            );
+            Err(msg)?;
         }
 
         // The size of stream format entry is read-only as well.
-        quadlet.copy_from_slice(&raw[4..8]);
-        let size = 4 * u32::from_be_bytes(quadlet) as usize;
+        val.parse_quadlet(&raw[4..8]);
+        let size = 4 * val as usize;
 
-        let mut entries = Vec::new();
-        params.0.iter().try_for_each(|entry| {
-            let mut data = Vec::from(entry);
-            if data.len() > size {
-                Err(format!(
-                    "The size of interpreted entry should be less than {}, actually {}",
-                    size,
-                    data.len()
-                ))
-            } else {
-                if data.len() < size {
-                    data.resize(size, 0);
-                }
-                entries.push(data);
-                Ok(())
-            }
-        })?;
+        let expected = 8 + size * count;
+        if raw.len() < expected {
+            let msg = format!(
+                "The size of buffer should be greater than {}, actually {}",
+                expected,
+                raw.len()
+            );
+            Err(msg)?;
+        }
 
-        entries.iter_mut().enumerate().try_for_each(|(i, entry)| {
-            let pos = 8 + i * size;
-            raw[pos..(pos + size)].copy_from_slice(entry);
-            Ok(())
+        params.0.iter().enumerate().try_for_each(|(i, entry)| {
+            let pos = 8 + size * i;
+            serialize_rx_stream_entry(entry, &mut raw[pos..(pos + size)])
         })
     }
 
     fn deserialize(params: &mut RxStreamFormatParameters, raw: &[u8]) -> Result<(), String> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        let count = u32::from_be_bytes(quadlet) as usize;
+        let mut val = 0u32;
+        val.parse_quadlet(&raw[..4]);
+        let count = val as usize;
 
-        quadlet.copy_from_slice(&raw[4..8]);
-        let size = 4 * u32::from_be_bytes(quadlet) as usize;
+        val.parse_quadlet(&raw[4..8]);
+        let size = 4 * val as usize;
 
-        let mut entries = Vec::new();
-        (0..count)
-            .try_for_each(|i| {
-                let pos = 8 + i * size;
-                if raw[pos..].len() < size {
-                    Err(format!("Expected {}, actually {}", size, raw[pos..].len()))
-                } else {
-                    RxStreamEntry::try_from(&raw[pos..(pos + size)])
-                        .map(|entry| entries.push(entry))
-                }
-            })
-            .map(|_| params.0 = entries)
+        let expected = 8 + size * count;
+        if raw.len() < expected {
+            let msg = format!(
+                "The size of buffer should be greater than {}, actually {}",
+                expected,
+                raw.len()
+            );
+            Err(msg)?;
+        }
+
+        params.0.resize_with(count, Default::default);
+
+        params.0.iter_mut().enumerate().try_for_each(|(i, entry)| {
+            let pos = 8 + size * i;
+            deserialize_rx_stream_entry(entry, &raw[pos..(pos + size)])
+        })
     }
 }
 
@@ -180,37 +158,29 @@ impl<O: TcatSectionOperation<RxStreamFormatParameters>>
 mod test {
     use super::*;
 
-    struct Protocol;
-
-    impl TcatOperation for Protocol {}
-
     #[test]
-    fn rx_stream_format_params_serdes() {
-        let params = RxStreamFormatParameters(vec![
-            RxStreamEntry {
-                iso_channel: 32,
-                start: 4,
-                pcm: 4,
-                midi: 2,
-                labels: vec![
-                    "a".to_string(),
-                    "b".to_string(),
-                    "c".to_string(),
-                    "d".to_string(),
-                ],
-                iec60958: [Iec60958Param {
-                    cap: true,
-                    enable: false,
-                }; IEC60958_CHANNELS],
-            };
-            4
-        ]);
+    fn rx_stream_format_entry_serdes() {
+        let params = RxStreamFormatEntry {
+            iso_channel: 32,
+            start: 4,
+            pcm: 4,
+            midi: 2,
+            labels: vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string(),
+            ],
+            iec60958: [Iec60958Param {
+                cap: true,
+                enable: false,
+            }; IEC60958_CHANNELS],
+        };
         let mut raw = [0u8; 2048];
-        raw[..4].copy_from_slice(&4u32.to_be_bytes());
-        raw[4..8].copy_from_slice(&80u32.to_be_bytes());
-        Protocol::serialize(&params, &mut raw).unwrap();
-        let mut p = RxStreamFormatParameters(vec![Default::default(); 4]);
-        Protocol::deserialize(&mut p, &raw).unwrap();
+        serialize_rx_stream_entry(&params, &mut raw).unwrap();
+
+        let mut p = RxStreamFormatEntry::default();
+        deserialize_rx_stream_entry(&mut p, &raw).unwrap();
 
         assert_eq!(params, p);
     }
