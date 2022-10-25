@@ -631,7 +631,7 @@ impl<O: IofwMeterSpecification> AlesisParametersSerdes<IofwMeterParams> for O {
             levels.iter_mut().enumerate().for_each(|(i, level)| {
                 let pos = *offset + i * 4;
                 let mut val = 0i32;
-                val.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_i32(&mut val, &raw[pos..(pos + 4)]);
                 *level = ((val & 0x00ffff00) >> 8) as i16;
             });
         });
@@ -644,7 +644,7 @@ impl<O: IofwMeterSpecification> AlesisParametersSerdes<IofwMeterParams> for O {
             .for_each(|(i, level)| {
                 let pos = 96 + (7 - i) * 4;
                 let mut val = 0i32;
-                val.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_i32(&mut val, &raw[pos..(pos + 4)]);
                 *level = ((val & 0x00ffff00) >> 8) as i16;
             });
 
@@ -692,7 +692,7 @@ fn serialize_nominal_signal_levels(
         .filter(|(_, &level)| level == NominalSignalLevel::Professional)
         .fold(0u32, |val, (i, _)| val | (1 << i));
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -704,7 +704,7 @@ fn deserialize_nominal_signal_levels(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     levels.iter_mut().enumerate().for_each(|(i, level)| {
         *level = if val & (1 << i) > 0 {
@@ -735,11 +735,11 @@ impl Default for DigitalB67Src {
 fn serialize_digital_b67_src(src: &DigitalB67Src, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match src {
+    let val = match src {
         DigitalB67Src::Spdif12 => 0,
         DigitalB67Src::Adat67 => 1,
-    }
-    .build_quadlet(raw);
+    };
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -748,7 +748,7 @@ fn deserialize_digital_b67_src(src: &mut DigitalB67Src, raw: &[u8]) -> Result<()
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *src = match val {
         0 => DigitalB67Src::Spdif12,
@@ -781,13 +781,13 @@ impl Default for MixerOutPair {
 fn serialize_mixer_out_pair(pair: &MixerOutPair, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match pair {
+    let val = match pair {
         MixerOutPair::Mixer01 => 0,
         MixerOutPair::Mixer23 => 1,
         MixerOutPair::Mixer45 => 2,
         MixerOutPair::Mixer67 => 3,
-    }
-    .build_quadlet(raw);
+    };
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -796,7 +796,7 @@ fn deserialize_mixer_out_pair(pair: &mut MixerOutPair, raw: &[u8]) -> Result<(),
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *pair = match val {
         0 => MixerOutPair::Mixer01,
@@ -929,7 +929,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                     .for_each(|(j, gain)| {
                         let mixer_index = i * 2;
                         let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
-                        gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                        serialize_i32(gain, &mut raw[pos..(pos + 4)]);
                     });
 
                 pairs
@@ -939,7 +939,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                     .for_each(|(j, gain)| {
                         let mixer_index = i * 2 + 1;
                         let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
-                        gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                        serialize_i32(gain, &mut raw[pos..(pos + 4)]);
                     });
 
                 pairs
@@ -964,13 +964,13 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
             });
 
             let pos = 0x0420 + 4 * i;
-            mutes_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+            serialize_u32(&mutes_val, &mut raw[pos..(pos + 4)]);
 
             let pos = 0x0434 + 4 * i;
-            solos_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+            serialize_u32(&solos_val, &mut raw[pos..(pos + 4)]);
 
             let pos = 0x0444 + 4 * i;
-            links_val.build_quadlet(&mut raw[pos..(pos + 4)]);
+            serialize_u32(&links_val, &mut raw[pos..(pos + 4)]);
 
             [
                 &srcs.stream_inputs_to_left[..],
@@ -982,7 +982,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                 gains.iter().enumerate().for_each(|(k, gain)| {
                     let mixer_index = i * 2 + j;
                     let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + 8 + k);
-                    gain.build_quadlet(&mut raw[pos..(pos + 4)]);
+                    serialize_i32(gain, &mut raw[pos..(pos + 4)]);
                 });
             });
         });
@@ -994,7 +994,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
             .enumerate()
             .for_each(|(i, vol)| {
                 let pos = 0x400 + 4 * i;
-                vol.build_quadlet(&mut raw[pos..(pos + 4)]);
+                serialize_u32(vol, &mut raw[pos..(pos + 4)]);
             });
 
         let mut val = 0u32;
@@ -1005,10 +1005,10 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
             .enumerate()
             .filter(|(_, &mute)| mute)
             .for_each(|(i, _)| val |= 1 << i);
-        val.build_quadlet(&mut raw[0x430..0x434]);
+        serialize_u32(&val, &mut raw[0x430..0x434]);
 
-        params.blend_knob.build_quadlet(&mut raw[0x454..0x458]);
-        params.master_knob.build_quadlet(&mut raw[0x458..0x45c]);
+        serialize_u32(&params.blend_knob, &mut raw[0x454..0x458]);
+        serialize_u32(&params.master_knob, &mut raw[0x458..0x45c]);
 
         Ok(())
     }
@@ -1023,15 +1023,15 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
 
                 let pos = 0x0420 + 4 * i;
                 let mut mutes_val = 0u32;
-                mutes_val.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_u32(&mut mutes_val, &raw[pos..(pos + 4)]);
 
                 let pos = 0x0434 + 4 * i;
                 let mut solos_val = 0u32;
-                solos_val.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_u32(&mut solos_val, &raw[pos..(pos + 4)]);
 
                 let pos = 0x0444 + 4 * i;
                 let mut links_val = 0u32;
-                links_val.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_u32(&mut links_val, &raw[pos..(pos + 4)]);
 
                 [
                     (&mut srcs.monitor_pair.analog_input_pairs[..], 0),
@@ -1050,7 +1050,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                         .for_each(|(j, gain)| {
                             let mixer_index = i * 2;
                             let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
-                            gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                            deserialize_i32(gain, &raw[pos..(pos + 4)]);
                         });
 
                     pairs
@@ -1060,7 +1060,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                         .for_each(|(j, gain)| {
                             let mixer_index = i * 2 + 1;
                             let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + *offset + j);
-                            gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                            deserialize_i32(gain, &raw[pos..(pos + 4)]);
                         });
 
                     pairs
@@ -1091,7 +1091,7 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
                     gains.iter_mut().enumerate().for_each(|(k, gain)| {
                         let mixer_index = i * 2 + j;
                         let pos = 4 * (mixer_index * (8 + 8 + 8 + 8) + 8 + k);
-                        gain.parse_quadlet(&raw[pos..(pos + 4)]);
+                        deserialize_i32(gain, &raw[pos..(pos + 4)]);
                     });
                 });
             });
@@ -1103,11 +1103,11 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
             .enumerate()
             .for_each(|(i, vol)| {
                 let pos = 0x400 + 4 * i;
-                vol.parse_quadlet(&raw[pos..(pos + 4)]);
+                deserialize_u32(vol, &raw[pos..(pos + 4)]);
             });
 
         let mut val = 0u32;
-        val.parse_quadlet(&raw[0x430..0x434]);
+        deserialize_u32(&mut val, &raw[0x430..0x434]);
         params
             .mixer_pairs
             .iter_mut()
@@ -1115,8 +1115,8 @@ impl<O: IofwMixerSpecification> AlesisParametersSerdes<IofwMixerParams> for O {
             .enumerate()
             .for_each(|(i, mute)| *mute = val & (1 << i) > 0);
 
-        params.blend_knob.parse_quadlet(&raw[0x454..0x458]);
-        params.master_knob.parse_quadlet(&raw[0x458..0x45c]);
+        deserialize_u32(&mut params.blend_knob, &raw[0x454..0x458]);
+        deserialize_u32(&mut params.master_knob, &raw[0x458..0x45c]);
 
         Ok(())
     }
