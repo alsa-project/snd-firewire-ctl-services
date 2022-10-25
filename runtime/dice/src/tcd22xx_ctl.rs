@@ -847,18 +847,71 @@ where
         Ok(notified_elem_id_list)
     }
 
+    /// Label for source block.
+    fn src_blk_label(src_blk: &SrcBlk) -> String {
+        T::INPUTS
+            .iter()
+            .find(|entry| {
+                entry.id == src_blk.id
+                    && src_blk.ch >= entry.offset
+                    && src_blk.ch < entry.offset + entry.count
+                    && entry.label.is_some()
+            })
+            .map(|entry| format!("{}-{}", entry.label.unwrap(), src_blk.ch - entry.offset))
+            .unwrap_or_else(|| {
+                let name = match src_blk.id {
+                    SrcBlkId::Aes => "S/PDIF",
+                    SrcBlkId::Adat => "ADAT",
+                    SrcBlkId::Mixer => "Mixer",
+                    SrcBlkId::Ins0 => "Analog-A",
+                    SrcBlkId::Ins1 => "Analog-B",
+                    SrcBlkId::Avs0 => "Stream-A",
+                    SrcBlkId::Avs1 => "Stream-B",
+                    _ => "Unknown",
+                };
+                format!("{}-{}", name, src_blk.ch)
+            })
+    }
+
+    /// Label for destination block.
+    fn dst_blk_label(dst_blk: DstBlk) -> String {
+        T::OUTPUTS
+            .iter()
+            .find(|entry| {
+                entry.id == dst_blk.id
+                    && dst_blk.ch >= entry.offset
+                    && dst_blk.ch < entry.offset + entry.count
+                    && entry.label.is_some()
+            })
+            .map(|entry| format!("{}-{}", entry.label.unwrap(), dst_blk.ch - entry.offset))
+            .unwrap_or_else(|| {
+                let name = match dst_blk.id {
+                    DstBlkId::Aes => "S/PDIF",
+                    DstBlkId::Adat => "ADAT",
+                    DstBlkId::MixerTx0 => "Mixer-A",
+                    DstBlkId::MixerTx1 => "Mixer-B",
+                    DstBlkId::Ins0 => "Analog-A",
+                    DstBlkId::Ins1 => "Analog-B",
+                    DstBlkId::Avs0 => "Stream-A",
+                    DstBlkId::Avs1 => "Stream-B",
+                    _ => "Unknown",
+                };
+                format!("{}-{}", name, dst_blk.ch)
+            })
+    }
+
     fn add_an_elem_for_src(
         card_cntr: &mut CardCntr,
         label: &str,
         dsts: &[DstBlk],
         srcs: &[&[SrcBlk]],
     ) -> Result<Vec<ElemId>, Error> {
-        let targets: Vec<String> = dsts.iter().map(|&dst| T::dst_blk_label(dst)).collect();
+        let targets: Vec<String> = dsts.iter().map(|&dst| Self::dst_blk_label(dst)).collect();
 
         let mut sources: Vec<String> = srcs
             .iter()
             .flat_map(|srcs| *srcs)
-            .map(|src| T::src_blk_label(src))
+            .map(|src| Self::src_blk_label(src))
             .collect();
         sources.insert(0, Self::NONE_SRC_LABEL.to_string());
 
