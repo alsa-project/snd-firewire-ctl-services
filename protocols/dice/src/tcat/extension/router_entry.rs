@@ -62,22 +62,6 @@ fn deserialize_dst_blk(dst: &mut DstBlk, val: &u8) -> Result<(), String> {
     Ok(())
 }
 
-impl From<u8> for DstBlk {
-    fn from(val: u8) -> Self {
-        let mut dst = DstBlk::default();
-        deserialize_dst_blk(&mut dst, &val).unwrap();
-        dst
-    }
-}
-
-impl From<DstBlk> for u8 {
-    fn from(blk: DstBlk) -> Self {
-        let mut val = 0u8;
-        serialize_dst_blk(&blk, &mut val).unwrap();
-        val
-    }
-}
-
 impl Ord for DstBlk {
     fn cmp(&self, other: &Self) -> Ordering {
         let mut lval = 0u8;
@@ -153,22 +137,6 @@ fn deserialize_src_blk(src: &mut SrcBlk, val: &u8) -> Result<(), String> {
     src.ch = (*val & SrcBlk::CH_MASK) >> SrcBlk::CH_SHIFT;
 
     Ok(())
-}
-
-impl From<u8> for SrcBlk {
-    fn from(val: u8) -> Self {
-        let mut src = SrcBlk::default();
-        deserialize_src_blk(&mut src, &val).unwrap();
-        src
-    }
-}
-
-impl From<SrcBlk> for u8 {
-    fn from(src: SrcBlk) -> Self {
-        let mut val = 0u8;
-        serialize_src_blk(&src, &mut val).unwrap();
-        val
-    }
 }
 
 impl Ord for SrcBlk {
@@ -266,23 +234,35 @@ pub(crate) fn deserialize_router_entries(
 
 #[cfg(test)]
 mod test {
-    use super::{DstBlk, DstBlkId, SrcBlk, SrcBlkId};
+    use super::*;
 
     #[test]
-    fn dst_blk_from() {
-        let blk = DstBlk {
-            id: DstBlkId::ArmApbAudio,
-            ch: 0x04,
+    fn dst_blk_serdes() {
+        let params = DstBlk {
+            id: DstBlkId::Ins1,
+            ch: 10,
         };
-        assert_eq!(blk, DstBlk::from(u8::from(blk)));
+        let mut val = 0;
+        serialize_dst_blk(&params, &mut val).unwrap();
+
+        let mut p = DstBlk::default();
+        deserialize_dst_blk(&mut p, &val).unwrap();
+
+        assert_eq!(params, p);
     }
 
     #[test]
-    fn src_blk_from() {
-        let blk = SrcBlk {
-            id: SrcBlkId::ArmAprAudio,
-            ch: 0x04,
+    fn src_blk_serdes() {
+        let params = SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 10,
         };
-        assert_eq!(blk, SrcBlk::from(u8::from(blk)));
+        let mut val = 0;
+        serialize_src_blk(&params, &mut val).unwrap();
+
+        let mut p = SrcBlk::default();
+        deserialize_src_blk(&mut p, &val).unwrap();
+
+        assert_eq!(params, p);
     }
 }
