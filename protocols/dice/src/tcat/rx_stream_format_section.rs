@@ -5,7 +5,7 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for Rx stream
 //! format section in general protocol defined by TCAT for ASICs of DICE.
-use super::{utils::*, *};
+use super::*;
 
 /// Entry for stream format in stream received by the node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]

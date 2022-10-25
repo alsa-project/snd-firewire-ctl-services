@@ -22,7 +22,7 @@ mod stream_format_entry;
 pub mod stream_format_section;
 
 use {
-    super::{global_section::ClockRate, utils::*, *},
+    super::{global_section::ClockRate, *},
     std::cmp::Ordering,
 };
 

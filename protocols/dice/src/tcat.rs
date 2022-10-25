@@ -27,8 +27,6 @@ use {
     std::{convert::TryFrom, fmt::Debug},
 };
 
-mod utils;
-
 pub use {
     ext_sync_section::ExtendedSyncParameters,
     global_section::{GlobalParameters, TcatGlobalSectionSpecification},
@@ -510,6 +508,73 @@ fn deserialize_iec60958_params(
 
     Ok(())
 }
+
+fn from_ne(raw: &mut [u8]) {
+    let mut quadlet = [0; 4];
+    (0..raw.len()).step_by(4).for_each(|pos| {
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        raw[pos..(pos + 4)].copy_from_slice(&u32::from_ne_bytes(quadlet).to_be_bytes());
+    });
+}
+
+fn to_ne(raw: &mut [u8]) {
+    let mut quadlet = [0; 4];
+    (0..raw.len()).step_by(4).for_each(|pos| {
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        raw[pos..(pos + 4)].copy_from_slice(&u32::from_be_bytes(quadlet).to_ne_bytes());
+    });
+}
+
+fn build_label<T: AsRef<str>>(name: T, len: usize) -> Vec<u8> {
+    let mut raw = name.as_ref().as_bytes().to_vec();
+    raw.resize(len, 0x00);
+    from_ne(&mut raw);
+    raw
+}
+
+fn build_labels<T: AsRef<str>>(labels: &[T], len: usize) -> Vec<u8> {
+    let mut raw = Vec::with_capacity(len);
+    labels.iter().for_each(|label| {
+        raw.extend_from_slice(&label.as_ref().as_bytes());
+        raw.push('\\' as u8);
+    });
+    raw.push('\\' as u8);
+    raw.resize(len, 0x00);
+    from_ne(&mut raw);
+
+    raw
+}
+
+fn parse_label(raw: &[u8]) -> Result<String, std::str::Utf8Error> {
+    let mut raw = raw.to_vec();
+    to_ne(&mut raw);
+
+    raw.push(0x00);
+    std::str::from_utf8(&raw).map(|text| {
+        if let Some(pos) = text.find('\0') {
+            text[..pos].to_string()
+        } else {
+            String::new()
+        }
+    })
+}
+
+fn parse_labels(raw: &[u8]) -> Result<Vec<String>, std::str::Utf8Error> {
+    let mut raw = raw.to_vec();
+    to_ne(&mut raw);
+
+    let mut labels = Vec::new();
+    raw.split(|&b| b == '\\' as u8)
+        .filter(|chunk| chunk.len() > 0 && chunk[0] != '\0' as u8)
+        .fuse()
+        .try_for_each(|chunk| {
+            std::str::from_utf8(&chunk).map(|label| labels.push(label.to_string()))
+        })?;
+
+    Ok(labels)
+}
+
+const STREAM_NAMES_SIZE: usize = 256;
 
 const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
 const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
