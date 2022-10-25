@@ -5,7 +5,7 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for global section
 //! in general protocol defined by TCAT for ASICs of DICE.
-use super::{utils::*, *};
+use super::*;
 
 /// Nominal sampling rate.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
