@@ -33,7 +33,7 @@ pub trait SaffireproSwNoticeOperation: TcatExtensionOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        notice.build_quadlet(&mut raw);
+        serialize_u32(&notice, &mut raw);
         Self::write_extension(
             req,
             node,
@@ -80,17 +80,14 @@ const OUT_GROUP_STATE_SIZE: usize = 0x50;
 fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= OUT_GROUP_STATE_SIZE);
 
-    let val = state.mute_enabled as u32;
-    val.build_quadlet(&mut raw[0x00..0x04]);
-
-    let val = state.dim_enabled as u32;
-    val.build_quadlet(&mut raw[0x04..0x08]);
+    serialize_bool(&state.mute_enabled, &mut raw[0x00..0x04]);
+    serialize_bool(&state.dim_enabled, &mut raw[0x04..0x08]);
 
     (0..(state.vols.len() / 2)).for_each(|i| {
         let mut val = state.vols[2 * i] as u32;
         val |= (state.vols[2 * i + 1] as u32) << 8;
         let pos = 0x08 + i * 4;
-        val.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u32(&val, &mut raw[pos..(pos + 4)]);
     });
 
     (0..(state.vol_hwctls.len() / 2)).for_each(|i| {
@@ -110,7 +107,7 @@ fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<()
             .for_each(|(i, _)| val |= 1 << (i + 2));
 
         let pos = 0x1c + i * 4;
-        val.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u32(&val, &mut raw[pos..(pos + 4)]);
     });
 
     let mut val = 0u32;
@@ -126,10 +123,9 @@ fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<()
         .enumerate()
         .filter(|(_, &assigned)| assigned)
         .for_each(|(i, _)| val |= 1 << i);
-    val.build_quadlet(&mut raw[0x30..0x34]);
+    serialize_u32(&val, &mut raw[0x30..0x34]);
 
-    let val = state.hw_knob_value as u32;
-    val.build_quadlet(&mut raw[0x48..0x4c]);
+    serialize_i8(&state.hw_knob_value, &mut raw[0x48..0x4c]);
 
     Ok(())
 }
@@ -137,24 +133,21 @@ fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<()
 fn deserialize_out_group_state(state: &mut OutGroupState, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= OUT_GROUP_STATE_SIZE);
 
-    let mut val = 0u32;
-
-    val.parse_quadlet(&raw[0x00..0x04]);
-    state.mute_enabled = val > 0;
-
-    val.parse_quadlet(&raw[0x04..0x08]);
-    state.dim_enabled = val > 0;
+    deserialize_bool(&mut state.mute_enabled, &raw[0x00..0x04]);
+    deserialize_bool(&mut state.dim_enabled, &raw[0x04..0x08]);
 
     (0..(state.vols.len() / 2)).for_each(|i| {
         let pos = 0x08 + i * 4;
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
+        let mut val = 0u32;
+        deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
         state.vols[2 * i] = (val & 0x000000ff) as i8;
         state.vols[2 * i + 1] = ((val & 0x0000ff00) >> 8) as i8;
     });
 
     (0..(state.vol_hwctls.len() / 2)).for_each(|i| {
         let pos = 0x1c + i * 4;
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
+        let mut val = 0u32;
+        deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
         let idx = i * 2;
 
         state.vol_hwctls[idx..(idx + 2)]
@@ -170,7 +163,8 @@ fn deserialize_out_group_state(state: &mut OutGroupState, raw: &[u8]) -> Result<
             });
     });
 
-    val.parse_quadlet(&raw[0x30..0x34]);
+    let mut val = 0u32;
+    deserialize_u32(&mut val, &raw[0x30..0x34]);
     state
         .dim_hwctls
         .iter_mut()
@@ -182,8 +176,7 @@ fn deserialize_out_group_state(state: &mut OutGroupState, raw: &[u8]) -> Result<
         .enumerate()
         .for_each(|(i, assign)| *assign = val & (1 << i) > 0);
 
-    val.parse_quadlet(&raw[0x48..0x4c]);
-    state.hw_knob_value = val as i8;
+    deserialize_i8(&mut state.hw_knob_value, &raw[0x48..0x4c]);
 
     Ok(())
 }
@@ -378,7 +371,7 @@ fn serialize_input_params(params: &SaffireproInputParams, raw: &mut [u8]) -> Res
             val |= (MIC_INPUT_LEVEL_INSTRUMENT_FLAG as u32) << (16 * i);
         };
     });
-    val.build_quadlet(&mut raw[..4]);
+    serialize_u32(&val, &mut raw[..4]);
 
     let mut val = 0u32;
     params
@@ -390,7 +383,7 @@ fn serialize_input_params(params: &SaffireproInputParams, raw: &mut [u8]) -> Res
                 val |= (LINE_INPUT_LEVEL_HIGH_FLAG as u32) << (16 * i);
             }
         });
-    val.build_quadlet(&mut raw[4..8]);
+    serialize_u32(&val, &mut raw[4..8]);
 
     Ok(())
 }
@@ -400,7 +393,7 @@ fn deserialize_input_params(params: &mut SaffireproInputParams, raw: &[u8]) -> R
 
     let mut val = 0u32;
 
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, &raw[..4]);
     params
         .mic_levels
         .iter_mut()
@@ -414,7 +407,7 @@ fn deserialize_input_params(params: &mut SaffireproInputParams, raw: &[u8]) -> R
             };
         });
 
-    val.parse_quadlet(&raw[4..8]);
+    deserialize_u32(&mut val, &raw[4..8]);
     params
         .line_levels
         .iter_mut()
@@ -546,7 +539,7 @@ fn serialize_optical_out_iface_mode(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !OPTICAL_OUT_IFACE_MODE_MASK;
 
     let v = match mode {
@@ -562,7 +555,7 @@ fn serialize_optical_out_iface_mode(
     };
     val |= v;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -575,7 +568,7 @@ fn deserialize_optical_out_iface_mode(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= OPTICAL_OUT_IFACE_MODE_MASK;
 
     *mode = match val {
@@ -604,7 +597,7 @@ fn serialize_mic_amp_transformers(transformers: &[bool; 2], raw: &mut [u8]) -> R
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !(MIC_AMP_TRANSFORMER_CH0_FLAG | MIC_AMP_TRANSFORMER_CH1_FLAG);
 
     transformers
@@ -613,7 +606,7 @@ fn serialize_mic_amp_transformers(transformers: &[bool; 2], raw: &mut [u8]) -> R
         .filter(|(&enabled, _)| enabled)
         .for_each(|(_, flag)| val |= flag);
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -625,7 +618,7 @@ fn deserialize_mic_amp_transformers(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= MIC_AMP_TRANSFORMER_CH0_FLAG | MIC_AMP_TRANSFORMER_CH1_FLAG;
 
     transformers
@@ -657,7 +650,7 @@ fn serialize_io_params(
 ) -> Result<(), String> {
     assert!(raw.len() >= IO_PARAMS_SIZE);
 
-    params.analog_out_0_1_pad.build_quadlet(&mut raw[..4]);
+    serialize_bool(&params.analog_out_0_1_pad, &mut raw[..4]);
     serialize_optical_out_iface_mode(
         &params.opt_out_iface_mode,
         aesebu_is_supported,
@@ -675,7 +668,7 @@ fn deserialize_io_params(
 ) -> Result<(), String> {
     assert!(raw.len() >= IO_PARAMS_SIZE);
 
-    params.analog_out_0_1_pad.parse_quadlet(&raw[..4]);
+    deserialize_bool(&mut params.analog_out_0_1_pad, &raw[..4]);
     deserialize_optical_out_iface_mode(
         &mut params.opt_out_iface_mode,
         aesebu_is_supported,
@@ -759,9 +752,9 @@ where
 
         if new[0x1c..0x20] != old[0x1c..0x20] {
             let mut n = 0u32;
-            n.parse_quadlet(&new[0x1c..0x20]);
+            deserialize_u32(&mut n, &new[0x1c..0x20]);
             let mut o = 0u32;
-            o.parse_quadlet(&old[0x1c..0x20]);
+            deserialize_u32(&mut o, &old[0x1c..0x20]);
 
             if (n ^ o) & 0x00000003 > 0 {
                 Self::write_sw_notice(req, node, sections, 0x00000004, timeout_ms)?;

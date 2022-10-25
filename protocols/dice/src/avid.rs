@@ -730,7 +730,7 @@ fn deserialize(params: &mut Mbox3SpecificParams, raw: &[u8]) -> Result<(), Strin
     deserialize_mono_led_state(&mut params.mono_led, &raw[0x14..0x18])?;
     deserialize_spkr_led_state(&mut params.spkr_led, &raw[0x14..0x18])?;
     deserialize_bool(&mut params.dim_led, &raw[0x1c..0x20]);
-    deserialize_u8(&mut params.duration_hold ,&raw[0x20..0x24]);
+    deserialize_u8(&mut params.duration_hold, &raw[0x20..0x24]);
     deserialize_phantom_powering(&mut params.phantom_powering, &raw[0x24..0x28])?;
     deserialize_hpf_enables(&mut params.hpf_enables, &raw[0x24..0x28])?;
     deserialize_output_trims(&mut params.output_trims, &raw[0x28..0x40])?;

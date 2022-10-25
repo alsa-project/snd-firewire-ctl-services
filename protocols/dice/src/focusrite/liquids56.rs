@@ -390,7 +390,7 @@ fn serialize_mic_amp_emulation_types(
         .enumerate()
         .for_each(|(i, emulation_type)| {
             let pos = i * 4;
-            match emulation_type {
+            let val = match emulation_type {
                 MicAmpEmulationType::Flat => MicAmpEmulationType::FLAT_VALUE,
                 MicAmpEmulationType::Trany1h => MicAmpEmulationType::TRANY1H_VALUE,
                 MicAmpEmulationType::Silver2 => MicAmpEmulationType::SILVER2_VALUE,
@@ -402,8 +402,8 @@ fn serialize_mic_amp_emulation_types(
                 MicAmpEmulationType::Deutsch72 => MicAmpEmulationType::DEUTSCH72_VALUE,
                 MicAmpEmulationType::Stellar1b => MicAmpEmulationType::STELLAR1B_VALUE,
                 MicAmpEmulationType::NewAge => MicAmpEmulationType::NEWAGE_VALUE,
-            }
-            .build_quadlet(&mut raw[pos..(pos + 4)]);
+            };
+            serialize_u32(&val, &mut raw[pos..(pos + 4)]);
         });
 
     Ok(())
@@ -422,7 +422,7 @@ fn deserialize_mic_amp_emulation_types(
         .enumerate()
         .try_for_each(|(i, emulation_type)| {
             let pos = i * 4;
-            val.parse_quadlet(&raw[pos..(pos + 4)]);
+            deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
 
             *emulation_type = match val {
                 MicAmpEmulationType::FLAT_VALUE => MicAmpEmulationType::Flat,
@@ -449,10 +449,9 @@ fn deserialize_mic_amp_emulation_types(
 fn serialize_mic_amp_harmonics(harmonics: &[u8; 2], raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 8);
 
-    harmonics.iter().enumerate().for_each(|(i, &h)| {
+    harmonics.iter().enumerate().for_each(|(i, h)| {
         let pos = i * 4;
-        let val = h as u32;
-        val.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u8(h, &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -461,12 +460,9 @@ fn serialize_mic_amp_harmonics(harmonics: &[u8; 2], raw: &mut [u8]) -> Result<()
 fn deserialize_mic_amp_harmonics(harmonics: &mut [u8; 2], raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 8);
 
-    let mut val = 0u32;
-
     harmonics.iter_mut().enumerate().for_each(|(i, h)| {
         let pos = i * 4;
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
-        *h = val as u8;
+        deserialize_u8(h, &raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -475,9 +471,9 @@ fn deserialize_mic_amp_harmonics(harmonics: &mut [u8; 2], raw: &[u8]) -> Result<
 fn serialize_mic_amp_polarities(polarities: &[bool; 2], raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 8);
 
-    polarities.iter().enumerate().for_each(|(i, &polarity)| {
+    polarities.iter().enumerate().for_each(|(i, polarity)| {
         let pos = i * 4;
-        (polarity as u32).build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_bool(polarity, &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -486,12 +482,9 @@ fn serialize_mic_amp_polarities(polarities: &[bool; 2], raw: &mut [u8]) -> Resul
 fn deserialize_mic_amp_polarities(polarities: &mut [bool; 2], raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 8);
 
-    let mut val = 0u32;
-
     polarities.iter_mut().enumerate().for_each(|(i, polarity)| {
         let pos = i * 4;
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
-        *polarity = val > 0;
+        deserialize_bool(polarity, &raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -537,7 +530,7 @@ fn serialize_analog_input_levels(
                 };
                 val |= (v as u32) << (j * 8);
             });
-        val.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u32(&val, &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -552,7 +545,7 @@ fn deserialize_analog_input_levels(
     let mut val = 0u32;
 
     (0..levels.len()).step_by(4).try_for_each(|pos| {
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
+        deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
 
         levels[pos..(pos + 4)]
             .iter_mut()
@@ -605,7 +598,7 @@ fn serialize_led_state(state: &LedState, raw: &mut [u8]) -> Result<(), String> {
     .filter(|(&on, _)| on)
     .for_each(|(_, flag)| val |= *flag);
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -614,7 +607,7 @@ fn deserialize_led_state(state: &mut LedState, raw: &[u8]) -> Result<(), String>
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw);
+    deserialize_u32(&mut val, raw);
 
     [
         (&mut state.adat1, LedState::ADAT1_FLAG),
@@ -714,7 +707,7 @@ fn serialize_meter_display_targets(
                 val |= (pos as u32) << (j * 8);
             });
 
-        val.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u32(&val, &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -729,7 +722,7 @@ fn deserialize_meter_display_targets(
     let mut val = 0u32;
 
     (0..targets.len()).step_by(4).try_for_each(|pos| {
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
+        deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
 
         targets[pos..(pos + 4)]
             .iter_mut()
