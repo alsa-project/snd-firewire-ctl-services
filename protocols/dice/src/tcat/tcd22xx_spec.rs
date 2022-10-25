@@ -8,13 +8,9 @@ use super::{
     *,
 };
 
-/// State of TCD22xx for combination of destination and source block.
+/// Available source and destination blocks of TCD22xx.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct Tcd22xxState {
-    real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-}
+pub struct Tcd22xxAvailableBlocks(pub Vec<SrcBlk>, pub Vec<DstBlk>);
 
 /// Descriptor for input port.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -222,9 +218,24 @@ pub trait Tcd22xxSpecification {
     }
 
     /// Refine router entries by defined descriptors.
-    fn refine_router_entries(entries: &mut Vec<RouterEntry>, srcs: &[&SrcBlk], dsts: &[&DstBlk]) {
-        entries.retain(|entry| srcs.iter().find(|src| entry.src.eq(src)).is_some());
-        entries.retain(|entry| dsts.iter().find(|dst| entry.dst.eq(dst)).is_some());
+    fn refine_router_entries(
+        entries: &mut Vec<RouterEntry>,
+        avail_blocks: &Tcd22xxAvailableBlocks,
+    ) {
+        entries.retain(|entry| {
+            avail_blocks
+                .0
+                .iter()
+                .find(|src| entry.src.eq(src))
+                .is_some()
+        });
+        entries.retain(|entry| {
+            avail_blocks
+                .1
+                .iter()
+                .find(|dst| entry.dst.eq(dst))
+                .is_some()
+        });
         Self::FIXED.iter().enumerate().for_each(|(i, &src)| {
             match entries.iter().position(|entry| entry.src.eq(&src)) {
                 Some(pos) => entries.swap(i, pos),
@@ -249,17 +260,17 @@ pub trait Tcd22xxSpecification {
 
 /// Operation specific to TCD22xx.
 pub trait Tcd22xxOperation: Tcd22xxSpecification {
-    /// Cache combination of destination and source block.
-    fn cache_tcd22xx_state(
+    /// Detect available source and destination blocks at given rate mode.
+    fn detect_available_blocks(
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
-        state: &mut Tcd22xxState,
+        avail_blocks: &mut Tcd22xxAvailableBlocks,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
+        let real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
 
         let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
         let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
@@ -272,9 +283,25 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
             (&mut tx_entries, &mut rx_entries),
             timeout_ms,
         )?;
-        state.stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+        let stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
 
-        state.mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
+        let mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
+
+        avail_blocks.0 = real_blk_pair
+            .0
+            .iter()
+            .chain(&stream_blk_pair.0)
+            .chain(&mixer_blk_pair.0)
+            .copied()
+            .collect();
+
+        avail_blocks.1 = real_blk_pair
+            .1
+            .iter()
+            .chain(&stream_blk_pair.1)
+            .chain(&mixer_blk_pair.1)
+            .copied()
+            .collect();
 
         Ok(())
     }
@@ -286,26 +313,11 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
-        state: &Tcd22xxState,
+        avail_blocks: &Tcd22xxAvailableBlocks,
         entries: &mut Vec<RouterEntry>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let srcs: Vec<_> = state
-            .real_blk_pair
-            .0
-            .iter()
-            .chain(&state.stream_blk_pair.0)
-            .chain(&state.mixer_blk_pair.0)
-            .collect();
-        let dsts: Vec<_> = state
-            .real_blk_pair
-            .1
-            .iter()
-            .chain(&state.stream_blk_pair.1)
-            .chain(&state.mixer_blk_pair.1)
-            .collect();
-
-        Self::refine_router_entries(entries, &srcs, &dsts);
+        Self::refine_router_entries(entries, avail_blocks);
         if entries.len() > caps.router.maximum_entry_count as usize {
             let msg = format!(
                 "The number of entries for router section should be less than {} but {}",

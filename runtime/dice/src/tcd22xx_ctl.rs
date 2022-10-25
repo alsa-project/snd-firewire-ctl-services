@@ -756,7 +756,7 @@ where
 }
 
 #[derive(Default, Debug)]
-struct RouterCtls<T>(Vec<RouterEntry>, Tcd22xxState, PhantomData<T>)
+struct RouterCtls<T>(Vec<RouterEntry>, Tcd22xxAvailableBlocks, PhantomData<T>)
 where
     T: Tcd22xxSpecification + Tcd22xxOperation;
 
@@ -775,7 +775,7 @@ where
         rate_mode: RateMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_tcd22xx_state(
+        let res = T::detect_available_blocks(
             req,
             node,
             sections,
