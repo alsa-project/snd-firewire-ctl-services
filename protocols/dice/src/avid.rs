@@ -226,12 +226,12 @@ fn serialize_standalone_use_case(
 ) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match use_case {
+    let val = match use_case {
         StandaloneUseCase::Mixer => StandaloneUseCase::MIXER,
         StandaloneUseCase::AdDa => StandaloneUseCase::AD_DA,
         StandaloneUseCase::Preamp => StandaloneUseCase::PREAMP,
-    }
-    .build_quadlet(raw);
+    };
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -243,7 +243,7 @@ fn deserialize_standalone_use_case(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *use_case = match val {
         StandaloneUseCase::MIXER => StandaloneUseCase::Mixer,
@@ -261,7 +261,7 @@ fn serialize_master_knob_assigns(assigns: &[bool; 6], raw: &mut [u8]) -> Result<
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !MASTER_KNOB_MASK;
 
     assigns
@@ -269,7 +269,7 @@ fn serialize_master_knob_assigns(assigns: &[bool; 6], raw: &mut [u8]) -> Result<
         .enumerate()
         .filter(|(_, &assign)| assign)
         .for_each(|(i, _)| val |= 1 << i);
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -278,7 +278,7 @@ fn deserialize_master_knob_assigns(assigns: &mut [bool; 6], raw: &[u8]) -> Resul
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     assigns
         .iter_mut()
         .enumerate()
@@ -313,7 +313,7 @@ fn serialize_mute_led_state(state: &MuteLedState, raw: &mut [u8]) -> Result<(), 
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !MuteLedState::LED_MASK;
 
     match state {
@@ -322,7 +322,7 @@ fn serialize_mute_led_state(state: &MuteLedState, raw: &mut [u8]) -> Result<(), 
         MuteLedState::On => val |= MuteLedState::LED_MASK & !MuteLedState::LED_BLINK_MASK,
     }
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -331,7 +331,7 @@ fn deserialize_mute_led_state(state: &mut MuteLedState, raw: &[u8]) -> Result<()
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *state = if val & MuteLedState::LED_MASK == 0 {
         MuteLedState::Off
@@ -367,7 +367,7 @@ fn serialize_mono_led_state(state: &MonoLedState, raw: &mut [u8]) -> Result<(), 
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !MonoLedState::LED_MASK;
 
     match state {
@@ -375,7 +375,7 @@ fn serialize_mono_led_state(state: &MonoLedState, raw: &mut [u8]) -> Result<(), 
         MonoLedState::On => val |= MonoLedState::LED_MASK,
     }
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -384,7 +384,7 @@ fn deserialize_mono_led_state(state: &mut MonoLedState, raw: &[u8]) -> Result<()
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *state = if val & MonoLedState::LED_MASK > 0 {
         MonoLedState::On
@@ -436,7 +436,7 @@ fn serialize_spkr_led_state(state: &SpkrLedState, raw: &mut [u8]) -> Result<(), 
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !(SpkrLedState::COLOR_MASK | SpkrLedState::BLINK_MASK);
 
     let (color, blink) = match state {
@@ -454,7 +454,7 @@ fn serialize_spkr_led_state(state: &SpkrLedState, raw: &mut [u8]) -> Result<(), 
         val |= SpkrLedState::BLINK_MASK;
     }
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -463,7 +463,7 @@ fn deserialize_spkr_led_state(state: &mut SpkrLedState, raw: &[u8]) -> Result<()
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     let color = (val & SpkrLedState::COLOR_MASK) >> SpkrLedState::COLOR_SHIFT;
     let blink = (val & SpkrLedState::BLINK_MASK) >> SpkrLedState::BLINK_SHIFT > 0;
@@ -505,14 +505,14 @@ fn serialize_phantom_powering(enable: &bool, raw: &mut [u8]) -> Result<(), Strin
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !PHANTOM_POWERING_MASK;
 
     if *enable {
         val |= PHANTOM_POWERING_MASK;
     }
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -521,7 +521,7 @@ fn deserialize_phantom_powering(enable: &mut bool, raw: &[u8]) -> Result<(), Str
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *enable = val & PHANTOM_POWERING_MASK > 0;
 
@@ -532,7 +532,7 @@ fn serialize_hpf_enables(enables: &[bool; 4], raw: &mut [u8]) -> Result<(), Stri
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
     val &= !INPUT_HPF_ENABLES_MASK;
 
     enables
@@ -541,7 +541,7 @@ fn serialize_hpf_enables(enables: &[bool; 4], raw: &mut [u8]) -> Result<(), Stri
         .filter(|(_, &enabled)| enabled)
         .for_each(|(i, _)| val |= 1 << (i + INPUT_HPF_ENABLES_SHIFT));
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -550,7 +550,7 @@ fn deserialize_hpf_enables(enables: &mut [bool; 4], raw: &[u8]) -> Result<(), St
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     enables
         .iter_mut()
@@ -565,7 +565,7 @@ fn serialize_output_trims(trims: &[u8; 6], raw: &mut [u8]) -> Result<(), String>
 
     trims.iter().enumerate().for_each(|(i, &trim)| {
         let pos = i * 4;
-        ((u8::MAX - trim) as u32).build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_u8(&(u8::MAX - trim), &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -574,11 +574,11 @@ fn serialize_output_trims(trims: &[u8; 6], raw: &mut [u8]) -> Result<(), String>
 fn deserialize_output_trims(trims: &mut [u8; 6], raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= 24);
 
-    let mut val = 0u32;
+    let mut val = 0u8;
     trims.iter_mut().enumerate().for_each(|(i, trim)| {
         let pos = i * 4;
-        val.parse_quadlet(&raw[pos..(pos + 4)]);
-        *trim = u8::MAX - val as u8;
+        deserialize_u8(&mut val, &raw[pos..(pos + 4)]);
+        *trim = u8::MAX - val;
     });
 
     Ok(())
@@ -625,7 +625,7 @@ impl ReverbType {
 fn serialize_reverb_type(reverb_type: &ReverbType, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match reverb_type {
+    let val = match reverb_type {
         ReverbType::Room1 => ReverbType::ROOM_1,
         ReverbType::Room2 => ReverbType::ROOM_2,
         ReverbType::Room3 => ReverbType::ROOM_3,
@@ -634,8 +634,8 @@ fn serialize_reverb_type(reverb_type: &ReverbType, raw: &mut [u8]) -> Result<(),
         ReverbType::Plate => ReverbType::PLATE,
         ReverbType::Delay => ReverbType::DELAY,
         ReverbType::Echo => ReverbType::ECHO,
-    }
-    .build_quadlet(raw);
+    };
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -644,7 +644,7 @@ fn deserialize_reverb_type(reverb_type: &mut ReverbType, raw: &[u8]) -> Result<(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *reverb_type = match val {
         ReverbType::ROOM_1 => ReverbType::Room1,
@@ -702,23 +702,20 @@ fn serialize(params: &Mbox3SpecificParams, raw: &mut [u8]) -> Result<(), String>
     assert!(raw.len() >= MIN_SIZE);
 
     serialize_standalone_use_case(&params.standalone_use_case, &mut raw[..0x04])?;
-    (params.master_knob_value as u32).build_quadlet(&mut raw[0x08..0x0c]);
+    serialize_u8(&params.master_knob_value, &mut raw[0x08..0x0c]);
     serialize_master_knob_assigns(&params.master_knob_assigns, &mut raw[0x0c..0x10])?;
     serialize_mute_led_state(&params.mute_led, &mut raw[0x10..0x14])?;
     serialize_mono_led_state(&params.mono_led, &mut raw[0x14..0x18])?;
     serialize_spkr_led_state(&params.spkr_led, &mut raw[0x14..0x18])?;
-
-    params.dim_led.build_quadlet(&mut raw[0x1c..0x20]);
-
-    (params.duration_hold as u32).build_quadlet(&mut raw[0x20..0x24]);
-
+    serialize_bool(&params.dim_led, &mut raw[0x1c..0x20]);
+    serialize_u8(&params.duration_hold, &mut raw[0x20..0x24]);
     serialize_phantom_powering(&params.phantom_powering, &mut raw[0x24..0x28])?;
     serialize_hpf_enables(&params.hpf_enables, &mut raw[0x24..0x28])?;
     serialize_output_trims(&params.output_trims, &mut raw[0x28..0x40])?;
     serialize_reverb_type(&params.reverb_type, &mut raw[0x40..0x44])?;
-    (params.reverb_volume as u32).build_quadlet(&mut raw[0x44..0x48]);
-    (params.reverb_duration as u32).build_quadlet(&mut raw[0x48..0x4c]);
-    (params.reverb_feedback as u32).build_quadlet(&mut raw[0x4c..0x50]);
+    serialize_u8(&params.reverb_volume, &mut raw[0x44..0x48]);
+    serialize_u8(&params.reverb_duration, &mut raw[0x48..0x4c]);
+    serialize_u8(&params.reverb_feedback, &mut raw[0x4c..0x50]);
 
     Ok(())
 }
@@ -726,36 +723,21 @@ fn serialize(params: &Mbox3SpecificParams, raw: &mut [u8]) -> Result<(), String>
 fn deserialize(params: &mut Mbox3SpecificParams, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= MIN_SIZE);
 
-    let mut val = 0u32;
-
     deserialize_standalone_use_case(&mut params.standalone_use_case, &raw[..0x04])?;
-
-    val.parse_quadlet(&raw[0x08..0x0c]);
-    params.master_knob_value = val as u8;
-
+    deserialize_u8(&mut params.master_knob_value, &raw[0x08..0x0c]);
     deserialize_master_knob_assigns(&mut params.master_knob_assigns, &raw[0x0c..0x10])?;
     deserialize_mute_led_state(&mut params.mute_led, &raw[0x10..0x14])?;
     deserialize_mono_led_state(&mut params.mono_led, &raw[0x14..0x18])?;
     deserialize_spkr_led_state(&mut params.spkr_led, &raw[0x14..0x18])?;
-
-    params.dim_led.parse_quadlet(&raw[0x1c..0x20]);
-
-    val.parse_quadlet(&raw[0x20..0x24]);
-    params.duration_hold = val as u8;
-
+    deserialize_bool(&mut params.dim_led, &raw[0x1c..0x20]);
+    deserialize_u8(&mut params.duration_hold ,&raw[0x20..0x24]);
     deserialize_phantom_powering(&mut params.phantom_powering, &raw[0x24..0x28])?;
     deserialize_hpf_enables(&mut params.hpf_enables, &raw[0x24..0x28])?;
     deserialize_output_trims(&mut params.output_trims, &raw[0x28..0x40])?;
     deserialize_reverb_type(&mut params.reverb_type, &raw[0x40..0x44])?;
-
-    val.parse_quadlet(&raw[0x44..0x48]);
-    params.reverb_volume = val as u8;
-
-    val.parse_quadlet(&raw[0x48..0x4c]);
-    params.reverb_duration = val as u8;
-
-    val.parse_quadlet(&raw[0x4c..0x50]);
-    params.reverb_feedback = val as u8;
+    deserialize_u8(&mut params.reverb_volume, &raw[0x44..0x48]);
+    deserialize_u8(&mut params.reverb_duration, &raw[0x48..0x4c]);
+    deserialize_u8(&mut params.reverb_feedback, &raw[0x4c..0x50]);
 
     Ok(())
 }
