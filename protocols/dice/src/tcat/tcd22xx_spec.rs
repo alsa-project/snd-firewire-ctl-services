@@ -46,7 +46,7 @@ pub trait Tcd22xxSpecification {
     /// Physical output ports.
     const OUTPUTS: &'static [Output];
 
-    /// Ports with fixed position in router entries.
+    /// Ports with fixed position in router entries; e.g. target ports for meter display.
     const FIXED: &'static [SrcBlk];
 
     /// The number of mixer outputs at specification of TCD22xx.
@@ -289,7 +289,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         Ok(())
     }
 
-    /// Load configuration from on-board flash memory.
+    /// Load configuration from on-board flash memory, including parameters in application section.
     fn load_configuration(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -308,7 +308,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
         .map(|_| ())
     }
 
-    /// Store configuration to on-board flash memory.
+    /// Store configuration to on-board flash memory, including parameters in application section.
     fn store_configuration(
         req: &mut FwReq,
         node: &mut FwNode,
