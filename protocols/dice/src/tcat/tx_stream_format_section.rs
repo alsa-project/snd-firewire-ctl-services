@@ -39,7 +39,7 @@ fn serialize_tx_stream_entry(entry: &TxStreamFormatEntry, raw: &mut [u8]) -> Res
 
     // NOTE: it's not supported by old version of firmware.
     if raw.len() >= 272 {
-        raw[272..280].copy_from_slice(&build_iec60958_params(&entry.iec60958));
+        serialize_iec60958_params(&entry.iec60958, &mut raw[272..280])?;
     }
 
     Ok(())
@@ -60,11 +60,9 @@ fn deserialize_tx_stream_entry(entry: &mut TxStreamFormatEntry, raw: &[u8]) -> R
         parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
 
     // NOTE: it's not supported by old version of firmware.
-    entry.iec60958 = if raw.len() >= MIN_SIZE {
-        parse_iec60958_params(&raw[272..280])
-    } else {
-        [Iec60958Param::default(); IEC60958_CHANNELS]
-    };
+    if raw.len() >= MIN_SIZE {
+        deserialize_iec60958_params(&mut entry.iec60958, &raw[272..280])?;
+    }
 
     Ok(())
 }
