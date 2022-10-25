@@ -82,6 +82,15 @@ where
 
         Ok(())
     }
+
+    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        self.tcd22xx_ctls.store_configuration(
+            &mut self.req,
+            node,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )
+    }
 }
 
 impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>

@@ -54,6 +54,15 @@ impl SPro14Model {
 
         Ok(())
     }
+
+    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        self.tcd22xx_ctls.store_configuration(
+            &mut self.req,
+            node,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )
+    }
 }
 
 impl CtlModel<(SndDice, FwNode)> for SPro14Model {
