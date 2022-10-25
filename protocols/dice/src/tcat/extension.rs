@@ -14,7 +14,7 @@ pub mod current_config_section;
 pub mod mixer_section;
 pub mod peak_section;
 #[doc(hidden)]
-mod router_entry;
+pub(crate) mod router_entry;
 pub mod router_section;
 pub mod standalone_section;
 #[doc(hidden)]

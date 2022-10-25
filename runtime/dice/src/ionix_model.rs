@@ -184,23 +184,28 @@ impl MeterCtl {
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::SPDIF_INPUT_NAME => {
-                elem_value.set_int(&self.0.spdif_inputs);
+                let vals: Vec<i32> = self.0.spdif_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::STREAM_INPUT_NAME => {
-                elem_value.set_int(&self.0.stream_inputs);
+                let vals: Vec<i32> = self.0.stream_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::ANALOG_INPUT_NAME => {
-                elem_value.set_int(&self.0.analog_inputs);
+                let vals: Vec<i32> = self.0.analog_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::BUS_OUTPUT_NAME => {
-                elem_value.set_int(&self.0.bus_outputs);
+                let vals: Vec<i32> = self.0.bus_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::MAIN_OUTPUT_NAME => {
-                elem_value.set_int(&self.0.main_outputs);
+                let vals: Vec<i32> = self.0.main_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
