@@ -402,7 +402,8 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         let data = build_label(&params.nickname, NICKNAME_MAX_SIZE);
         raw[12..(12 + data.len())].copy_from_slice(&data);
 
-        params.clock_config.build_quadlet(&mut raw[76..80]);
+        let mut val = u32::from(params.clock_config);
+        serialize_u32(&mut val, &mut raw[76..80]);
 
         // NOTE: The enable field is changed by ALSA dice driver.
 
@@ -425,7 +426,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
                         .collect()
                 })?;
 
-            val.parse_quadlet(&raw[100..104]);
+            deserialize_u32(&mut val, &raw[100..104]);
             let rate_bits = (val & 0x0000ffff) as u16;
             let src_bits = ((val & 0xffff0000) >> 16) as u16;
 
@@ -492,7 +493,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
                         || avail_srcs.iter().find(|s| src.eq(s)).is_some())
             });
 
-            val.parse_quadlet(&raw[96..100]);
+            deserialize_u32(&mut val, &raw[96..100]);
             let version = val;
 
             (version, avail_rates, avail_srcs, labels)
@@ -508,25 +509,25 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
             (version, avail_rates, avail_srcs, src_labels)
         };
 
-        val.parse_quadlet(&raw[..4]);
+        deserialize_u32(&mut val, &raw[..4]);
         params.owner = (val as u64) << 32;
-        val.parse_quadlet(&raw[4..8]);
+        deserialize_u32(&mut val, &raw[4..8]);
         params.owner |= val as u64;
 
-        params.latest_notification.parse_quadlet(&raw[8..12]);
+        deserialize_u32(&mut params.latest_notification, &raw[8..12]);
 
         params.nickname =
             parse_label(&raw[12..76]).map_err(|err| format!("Fail to parse nickname: {}", err))?;
 
-        val.parse_quadlet(&raw[76..80]);
+        deserialize_u32(&mut val, &raw[76..80]);
         params.clock_config = ClockConfig::from(val);
 
-        params.enable.parse_quadlet(&raw[80..84]);
+        deserialize_bool(&mut params.enable, &raw[80..84]);
 
-        val.parse_quadlet(&raw[84..88]);
+        deserialize_u32(&mut val, &raw[84..88]);
         params.clock_status = ClockStatus::from(val);
 
-        val.parse_quadlet(&raw[88..92]);
+        deserialize_u32(&mut val, &raw[88..92]);
         let locked_bits = (val & 0x0000ffff) as u16;
         let slipped_bits = ((val & 0xffff0000) >> 16) as u16;
 
@@ -552,7 +553,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         params.external_source_states.locked = locked;
         params.external_source_states.slipped = slipped;
 
-        params.current_rate.parse_quadlet(&raw[92..96]);
+        deserialize_u32(&mut params.current_rate, &raw[92..96]);
 
         params.version = version;
         params.avail_rates = avail_rates;

@@ -35,17 +35,18 @@ impl<O: TcatOperation> TcatSectionSerdes<ExtendedSyncParameters> for O {
     }
 
     fn deserialize(params: &mut ExtendedSyncParameters, raw: &[u8]) -> Result<(), String> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        params.clk_src = ClockSource::from(u32::from_be_bytes(quadlet) as u8);
+        let mut val = 0u32;
 
-        params.clk_src_locked = u32::from_be_bytes(quadlet) > 0;
+        deserialize_u32(&mut val, &raw[..4]);
+        params.clk_src = ClockSource::from(val as u8);
 
-        quadlet.copy_from_slice(&raw[8..12]);
-        params.clk_rate = ClockRate::from(u32::from_be_bytes(quadlet) as u8);
+        deserialize_u32(&mut val, &raw[4..8]);
+        params.clk_src_locked = val > 0;
 
-        quadlet.copy_from_slice(&raw[12..16]);
-        let val = u32::from_be_bytes(quadlet);
+        deserialize_u32(&mut val, &raw[8..12]);
+        params.clk_rate = ClockRate::from(val as u8);
+
+        deserialize_u32(&mut val, &raw[12..16]);
         params.adat_user_data = if val & ADAT_USER_DATA_UNAVAIL > 0 {
             None
         } else {

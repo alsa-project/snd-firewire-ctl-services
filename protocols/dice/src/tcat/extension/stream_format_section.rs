@@ -37,12 +37,11 @@ impl StreamFormatSectionProtocol {
         )
         .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))?;
 
-        let mut val = 0u32;
-        val.parse_quadlet(&raw[..4]);
-        let tx_entry_count = val as usize;
+        let mut tx_entry_count = 0usize;
+        deserialize_usize(&mut tx_entry_count, &raw[..4]);
 
-        val.parse_quadlet(&raw[4..8]);
-        let rx_entry_count = val as usize;
+        let mut rx_entry_count = 0usize;
+        deserialize_usize(&mut rx_entry_count, &raw[4..8]);
 
         tx_entries.resize_with(tx_entry_count, Default::default);
         rx_entries.resize_with(rx_entry_count, Default::default);

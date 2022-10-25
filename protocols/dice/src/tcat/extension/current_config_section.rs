@@ -56,7 +56,7 @@ impl CurrentConfigSectionProtocol {
         .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))?;
 
         let mut val = 0u32;
-        val.parse_quadlet(&raw);
+        deserialize_u32(&mut val, &raw[..4]);
 
         let entry_count = std::cmp::min(val as usize, caps.router.maximum_entry_count as usize);
 
@@ -108,11 +108,11 @@ impl CurrentConfigSectionProtocol {
         )?;
 
         let mut val = 0u32;
-        val.parse_quadlet(&raw[..4]);
+        deserialize_u32(&mut val, &raw[..4]);
         let tx_entries_count = val as usize;
         tx_entries.resize_with(tx_entries_count, Default::default);
 
-        val.parse_quadlet(&raw[4..8]);
+        deserialize_u32(&mut val, &raw[4..8]);
         let rx_entries_count = val as usize;
         rx_entries.resize_with(rx_entries_count, Default::default);
 

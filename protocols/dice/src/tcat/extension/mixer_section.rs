@@ -33,7 +33,7 @@ fn serialize_mixer_coefficients<T: AsRef<[u16]>>(
                 .enumerate()
                 .for_each(|(j, &coef)| {
                     let pos = 4 * (i * MAX_INPUT_COUNT + j);
-                    (coef as u32).build_quadlet(&mut raw[pos..(pos + 4)]);
+                    serialize_u32(&(coef as u32), &mut raw[pos..(pos + 4)]);
                 });
         });
 
@@ -60,7 +60,7 @@ fn deserialize_mixer_coefficients<T: AsMut<[u16]>>(
                 .for_each(|(j, coef)| {
                     let pos = 4 * (i * MAX_INPUT_COUNT + j);
                     let mut val = 0u32;
-                    val.parse_quadlet(&raw[pos..(pos + 4)]);
+                    deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
                     *coef = val as u16
                 });
         });
@@ -102,7 +102,7 @@ impl MixerSectionProtocol {
         )?;
 
         let mut val = 0u32;
-        val.parse_quadlet(&raw);
+        deserialize_u32(&mut val, &raw);
 
         saturations
             .iter_mut()

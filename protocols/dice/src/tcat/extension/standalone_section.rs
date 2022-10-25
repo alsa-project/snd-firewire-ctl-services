@@ -167,17 +167,17 @@ const MIN_SIZE: usize = 20;
 fn serialize(params: &StandaloneParameters, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= MIN_SIZE);
 
-    (u8::from(params.clock_source) as u32).build_quadlet(&mut raw[..4]);
+    serialize_u8(&u8::from(params.clock_source), &mut raw[..4]);
 
-    (params.aes_high_rate as u32).build_quadlet(&mut raw[4..8]);
+    serialize_bool(&params.aes_high_rate, &mut raw[4..8]);
 
-    (match params.adat_mode {
+    let val = match params.adat_mode {
         AdatParam::Normal => 0x00u32,
         AdatParam::SMUX2 => 0x01,
         AdatParam::SMUX4 => 0x02,
         AdatParam::Auto => 0x03,
-    })
-    .build_quadlet(&mut raw[8..12]);
+    };
+    serialize_u32(&val, &mut raw[8..12]);
 
     let mut val = match params.word_clock_param.mode {
         WordClockMode::Normal => 0x00u32,
@@ -194,9 +194,9 @@ fn serialize(params: &StandaloneParameters, raw: &mut [u8]) -> Result<(), String
     }
     val |= ((params.word_clock_param.rate.numerator as u32) - 1) << 4;
     val |= ((params.word_clock_param.rate.denominator as u32) - 1) << 16;
-    val.build_quadlet(&mut raw[12..16]);
+    serialize_u32(&val, &mut raw[12..16]);
 
-    (u8::from(params.internal_rate) as u32).build_quadlet(&mut raw[16..20]);
+    serialize_u8(&u8::from(params.internal_rate), &mut raw[16..20]);
 
     Ok(())
 }
@@ -206,13 +206,12 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
 
     let mut val = 0u32;
 
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, &raw[..4]);
     params.clock_source = ClockSource::from(val as u8);
 
-    val.parse_quadlet(&raw[4..8]);
-    params.aes_high_rate = val > 0;
+    deserialize_bool(&mut params.aes_high_rate, &raw[4..8]);
 
-    val.parse_quadlet(&raw[8..12]);
+    deserialize_u32(&mut val, &raw[8..12]);
     params.adat_mode = match val {
         0x01 => AdatParam::SMUX2,
         0x02 => AdatParam::SMUX4,
@@ -220,7 +219,7 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
         _ => AdatParam::Normal,
     };
 
-    val.parse_quadlet(&raw[12..16]);
+    deserialize_u32(&mut val, &raw[12..16]);
     params.word_clock_param.mode = match val & 0x03 {
         0x01 => WordClockMode::Low,
         0x02 => WordClockMode::Middle,
@@ -230,7 +229,7 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
     params.word_clock_param.rate.numerator = 1 + ((val >> 4) & 0x0fff) as u16;
     params.word_clock_param.rate.denominator = 1 + ((val >> 16) & 0xffff) as u16;
 
-    val.parse_quadlet(&raw[16..20]);
+    deserialize_u32(&mut val, &raw[16..20]);
     params.internal_rate = ClockRate::from(val as u8);
 
     Ok(())

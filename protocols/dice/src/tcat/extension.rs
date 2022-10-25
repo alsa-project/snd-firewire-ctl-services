@@ -43,11 +43,8 @@ impl ExtensionSection {
 fn serialize_extension_section(section: &ExtensionSection, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= ExtensionSection::SIZE);
 
-    let val = (section.offset / 4) as u32;
-    val.build_quadlet(&mut raw[..4]);
-
-    let val = (section.size / 4) as u32;
-    val.build_quadlet(&mut raw[4..8]);
+    serialize_usize(&(section.offset / 4), &mut raw[..4]);
+    serialize_usize(&(section.size / 4), &mut raw[4..8]);
 
     Ok(())
 }
@@ -56,10 +53,10 @@ fn deserialize_extension_section(section: &mut ExtensionSection, raw: &[u8]) -> 
     assert!(raw.len() >= ExtensionSection::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, &raw[..4]);
     section.offset = 4 * val as usize;
 
-    val.parse_quadlet(&raw[4..8]);
+    deserialize_u32(&mut val, &raw[4..8]);
     section.size = 4 * val as usize;
 
     Ok(())
