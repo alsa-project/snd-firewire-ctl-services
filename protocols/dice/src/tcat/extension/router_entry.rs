@@ -202,7 +202,7 @@ impl RouterEntry {
     const PEAK_SHIFT: usize = 16;
 }
 
-fn serialize_router_entry(entry: &RouterEntry, raw: &mut [u8]) -> Result<(), String> {
+pub(crate) fn serialize_router_entry(entry: &RouterEntry, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= RouterEntry::SIZE);
 
     let mut dst_val = 0u8;
@@ -219,7 +219,7 @@ fn serialize_router_entry(entry: &RouterEntry, raw: &mut [u8]) -> Result<(), Str
     Ok(())
 }
 
-fn deserialize_router_entry(entry: &mut RouterEntry, raw: &[u8]) -> Result<(), String> {
+pub(crate) fn deserialize_router_entry(entry: &mut RouterEntry, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= RouterEntry::SIZE);
 
     let mut val = 0u32;

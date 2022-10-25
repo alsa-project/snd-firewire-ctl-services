@@ -37,7 +37,10 @@
 
 use {
     super::{
-        tcat::{extension::*, *},
+        tcat::{
+            extension::{router_entry::*, *},
+            *,
+        },
         *,
     },
     std::ops::Range,
@@ -233,43 +236,16 @@ impl IonixProtocol {
 /// Hardware meter.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IonixMeter {
-    pub analog_inputs: [i32; IonixProtocol::ANALOG_INPUT_COUNT],
-    pub spdif_inputs: [i32; IonixProtocol::SPDIF_INPUT_COUNT],
-    pub stream_inputs: [i32; IonixProtocol::STREAM_INPUT_COUNT],
-    pub bus_outputs: [i32; IonixProtocol::MIXER_BUS_COUNT],
-    pub main_outputs: [i32; IonixProtocol::MIXER_MAIN_COUNT],
-}
-
-/// Entry of hardware meter.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-struct IonixMeterEntry {
-    level: i16,
-    src: SrcBlk,
-    dst: DstBlk,
-}
-
-fn serialize_meter_entry(entry: &IonixMeterEntry, raw: &mut [u8]) -> Result<(), String> {
-    assert!(raw.len() >= 4);
-
-    let val = ((entry.level as u32) << 16)
-        | ((u8::from(entry.src) as u32) << 8)
-        | (u8::from(entry.dst) as u32);
-    serialize_u32(&val, raw);
-
-    Ok(())
-}
-
-fn deserialize_meter_entry(entry: &mut IonixMeterEntry, raw: &[u8]) -> Result<(), String> {
-    assert!(raw.len() >= 4);
-
-    let mut val = 0u32;
-    deserialize_u32(&mut val, raw);
-
-    entry.level = ((val & 0xffff0000) >> 16) as i16;
-    entry.src = SrcBlk::from(((val & 0x0000ff00) >> 8) as u8);
-    entry.dst = DstBlk::from(((val & 0x000000ff) >> 0) as u8);
-
-    Ok(())
+    /// Detected level of analog inputs.
+    pub analog_inputs: [u16; IonixProtocol::ANALOG_INPUT_COUNT],
+    /// Detected level of S/PDIF inputs.
+    pub spdif_inputs: [u16; IonixProtocol::SPDIF_INPUT_COUNT],
+    /// Detected level of stream inputs.
+    pub stream_inputs: [u16; IonixProtocol::STREAM_INPUT_COUNT],
+    /// Detected level of mixer bus outputs.
+    pub bus_outputs: [u16; IonixProtocol::MIXER_BUS_COUNT],
+    /// Detected level of main outputs.
+    pub main_outputs: [u16; IonixProtocol::MIXER_MAIN_COUNT],
 }
 
 // NOTE: Router entries in address region for hardware metering.
@@ -322,7 +298,7 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMeter> for O {
     fn serialize_params(params: &IonixMeter, raw: &mut [u8]) -> Result<(), String> {
         raw.fill_with(Default::default);
 
-        let mut entry = IonixMeterEntry::default();
+        let mut entry = RouterEntry::default();
         let mut pos = 0;
 
         [
@@ -394,58 +370,58 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMeter> for O {
         .try_for_each(
             |(levels, dst_blk_id, dst_blk_ch_offset, src_blk_id, src_blk_ch_offset)| {
                 levels.iter().enumerate().try_for_each(|(i, &level)| {
-                    entry.level = level as i16;
+                    entry.peak = level;
                     entry.dst.id = *dst_blk_id;
                     entry.dst.ch = (i + dst_blk_ch_offset) as u8;
                     entry.src.id = *src_blk_id;
                     entry.src.ch = (i + src_blk_ch_offset) as u8;
-                    serialize_meter_entry(&entry, &mut raw[pos..(pos + 4)]).map(|_| pos += 4)
+                    serialize_router_entry(&entry, &mut raw[pos..(pos + 4)]).map(|_| pos += 4)
                 })
             },
         )
     }
 
     fn deserialize_params(params: &mut IonixMeter, raw: &[u8]) -> Result<(), String> {
-        let mut entry = IonixMeterEntry::default();
+        let mut entry = RouterEntry::default();
 
         (0..raw.len()).step_by(4).try_for_each(|pos| {
-            deserialize_meter_entry(&mut entry, &raw[pos..(pos + 4)]).map(|_| {
+            deserialize_router_entry(&mut entry, &raw[pos..(pos + 4)]).map(|_| {
                 match (entry.dst.id, entry.dst.ch, entry.src.id, entry.src.ch) {
                     (DstBlkId::MixerTx0, 0..=7, SrcBlkId::Avs0, 0..=7) => {
                         let pos = entry.src.ch as usize;
-                        params.stream_inputs[pos] = entry.level as i32;
+                        params.stream_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::Aes, 2..=3, SrcBlkId::Avs0, 8..=9) => {
                         let pos = entry.src.ch as usize;
-                        params.stream_inputs[pos] = entry.level as i32;
+                        params.stream_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::MixerTx0, 8..=9, SrcBlkId::Aes, 2..=3) => {
                         let pos = (entry.src.ch - 2) as usize;
-                        params.spdif_inputs[pos] = entry.level as i32;
+                        params.spdif_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::MixerTx0, 10..=13, SrcBlkId::Ins0, 0..=3) => {
                         let pos = entry.src.ch as usize;
-                        params.analog_inputs[pos] = entry.level as i32;
+                        params.analog_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::MixerTx0, 14..=15, SrcBlkId::Ins0, 8..=9) => {
                         let pos = 4 + (entry.src.ch - 8) as usize;
-                        params.analog_inputs[pos] = entry.level as i32;
+                        params.analog_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::MixerTx1, 0..=2, SrcBlkId::Ins0, 10..=11) => {
                         let pos = 6 + (entry.src.ch - 10) as usize;
-                        params.analog_inputs[pos] = entry.level as i32;
+                        params.analog_inputs[pos] = entry.peak;
                     }
                     (DstBlkId::Ins0, 4..=7, SrcBlkId::Mixer, 0..=3) => {
                         let pos = entry.src.ch as usize;
-                        params.bus_outputs[pos] = entry.level as i32;
+                        params.bus_outputs[pos] = entry.peak;
                     }
                     (DstBlkId::Ins0, 12..=15, SrcBlkId::Mixer, 4..=7) => {
                         let pos = 4 + (entry.src.ch - 4) as usize;
-                        params.bus_outputs[pos] = entry.level as i32;
+                        params.bus_outputs[pos] = entry.peak;
                     }
                     (DstBlkId::Ins1, 0..=2, SrcBlkId::Mixer, 10..=11) => {
                         let pos = (entry.src.ch - 10) as usize;
-                        params.main_outputs[pos] = entry.level as i32;
+                        params.main_outputs[pos] = entry.peak;
                     }
                     _ => (),
                 }
