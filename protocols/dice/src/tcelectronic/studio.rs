@@ -477,12 +477,8 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
                 serialize_src_entry(assign, &mut raw[pos..(pos + 4)])
             })?;
         serialize_remote_effect_button_mode(&params.effect_button_mode, &mut raw[28..32])?;
-        params
-            .fallback_to_master_enable
-            .build_quadlet(&mut raw[32..36]);
-        params
-            .fallback_to_master_duration
-            .build_quadlet(&mut raw[36..40]);
+        serialize_bool(&params.fallback_to_master_enable, &mut raw[32..36]);
+        serialize_u32(&params.fallback_to_master_duration, &mut raw[36..40]);
         serialize_knob_push_mode(&params.knob_push_mode, &mut raw[40..44])?;
         Ok(())
     }
@@ -498,10 +494,8 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
                 deserialize_src_entry(assign, &raw[pos..(pos + 4)])
             })?;
         deserialize_remote_effect_button_mode(&mut params.effect_button_mode, &raw[28..32])?;
-        params.fallback_to_master_enable.parse_quadlet(&raw[32..36]);
-        params
-            .fallback_to_master_duration
-            .parse_quadlet(&raw[36..40]);
+        deserialize_bool(&mut params.fallback_to_master_enable, &raw[32..36]);
+        deserialize_u32(&mut params.fallback_to_master_duration, &raw[36..40]);
         deserialize_knob_push_mode(&mut params.knob_push_mode, &raw[40..44])?;
         Ok(())
     }
@@ -622,7 +616,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
         serialize_opt_iface_mode(&params.opt_iface_mode, &mut raw[..4])?;
         serialize_standalone_clock_source(&params.standalone_src, &mut raw[4..8])?;
         serialize_standalone_clock_rate(&params.standalone_rate, &mut raw[8..12])?;
-        params.clock_recovery.build_quadlet(&mut raw[16..20]);
+        serialize_bool(&params.clock_recovery, &mut raw[16..20]);
         serialize_midi_sender(&params.midi_send, &mut raw[52..88])?;
         Ok(())
     }
@@ -631,7 +625,7 @@ impl TcKonnektSegmentSerdes<StudioConfig> for Studiok48Protocol {
         deserialize_opt_iface_mode(&mut params.opt_iface_mode, &raw[..4])?;
         deserialize_standalone_clock_source(&mut params.standalone_src, &raw[4..8])?;
         deserialize_standalone_clock_rate(&mut params.standalone_rate, &raw[8..12])?;
-        params.clock_recovery.parse_quadlet(&raw[16..20]);
+        deserialize_bool(&mut params.clock_recovery, &raw[16..20]);
         deserialize_midi_sender(&mut params.midi_send, &raw[52..88])?;
         Ok(())
     }
@@ -691,7 +685,7 @@ fn serialize_src_entry(entry: &SrcEntry, raw: &mut [u8]) -> Result<(), String> {
         SrcEntry::Mixer(ch) => SrcEntry::MIXER_OFFSET + ch,
     }) as u32;
 
-    val.build_quadlet(raw);
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -700,7 +694,7 @@ fn deserialize_src_entry(entry: &mut SrcEntry, raw: &[u8]) -> Result<(), String>
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     let v = val as usize;
     *entry = if v >= SrcEntry::ANALOG_OFFSET && v < SrcEntry::SPDIF_OFFSET {
@@ -740,9 +734,9 @@ impl OutPair {
 fn serialize_out_pair(pair: &OutPair, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= OutPair::SIZE);
 
-    pair.dim_enabled.build_quadlet(&mut raw[..4]);
-    pair.vol.build_quadlet(&mut raw[4..8]);
-    pair.dim_vol.build_quadlet(&mut raw[8..12]);
+    serialize_bool(&pair.dim_enabled, &mut raw[..4]);
+    serialize_i32(&pair.vol, &mut raw[4..8]);
+    serialize_i32(&pair.dim_vol, &mut raw[8..12]);
 
     Ok(())
 }
@@ -750,9 +744,9 @@ fn serialize_out_pair(pair: &OutPair, raw: &mut [u8]) -> Result<(), String> {
 fn deserialize_out_pair(pair: &mut OutPair, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= OutPair::SIZE);
 
-    pair.dim_enabled.parse_quadlet(&raw[..4]);
-    pair.vol.parse_quadlet(&raw[4..8]);
-    pair.dim_vol.parse_quadlet(&raw[8..12]);
+    deserialize_bool(&mut pair.dim_enabled, &raw[..4]);
+    deserialize_i32(&mut pair.vol, &raw[4..8]);
+    deserialize_i32(&mut pair.dim_vol, &raw[8..12]);
 
     Ok(())
 }
@@ -831,11 +825,11 @@ fn serialize_monitor_src_params(params: &MonitorSrcParam, raw: &mut [u8]) -> Res
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
     serialize_src_entry(&params.src, &mut raw[..4])?;
-    params.gain_to_main.build_quadlet(&mut raw[4..8]);
-    params.pan_to_main.build_quadlet(&mut raw[8..12]);
-    params.gain_to_reverb.build_quadlet(&mut raw[12..16]);
-    params.gain_to_aux0.build_quadlet(&mut raw[16..20]);
-    params.gain_to_aux1.build_quadlet(&mut raw[20..24]);
+    serialize_i32(&params.gain_to_main, &mut raw[4..8]);
+    serialize_i32(&params.pan_to_main, &mut raw[8..12]);
+    serialize_i32(&params.gain_to_reverb, &mut raw[12..16]);
+    serialize_i32(&params.gain_to_aux0, &mut raw[16..20]);
+    serialize_i32(&params.gain_to_aux1, &mut raw[20..24]);
 
     Ok(())
 }
@@ -844,11 +838,11 @@ fn deserialize_monitor_src_params(params: &mut MonitorSrcParam, raw: &[u8]) -> R
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
     deserialize_src_entry(&mut params.src, &raw[..4])?;
-    params.gain_to_main.parse_quadlet(&raw[4..8]);
-    params.pan_to_main.parse_quadlet(&raw[8..12]);
-    params.gain_to_reverb.parse_quadlet(&raw[12..16]);
-    params.gain_to_aux0.parse_quadlet(&raw[16..20]);
-    params.gain_to_aux1.parse_quadlet(&raw[20..24]);
+    deserialize_i32(&mut params.gain_to_main, &raw[4..8]);
+    deserialize_i32(&mut params.pan_to_main, &raw[8..12]);
+    deserialize_i32(&mut params.gain_to_reverb, &raw[12..16]);
+    deserialize_i32(&mut params.gain_to_aux0, &raw[16..20]);
+    deserialize_i32(&mut params.gain_to_aux1, &raw[20..24]);
 
     Ok(())
 }
@@ -872,7 +866,7 @@ fn serialize_monitor_src_pair(pair: &MonitorSrcPair, raw: &mut [u8]) -> Result<(
     assert!(raw.len() >= MonitorSrcPair::SIZE);
 
     serialize_monitor_src_pair_mode(&pair.mode, &mut raw[..4])?;
-    pair.stereo_link.build_quadlet(&mut raw[4..8]);
+    serialize_bool(&pair.stereo_link, &mut raw[4..8]);
     serialize_monitor_src_params(&pair.params[0], &mut raw[8..32])?;
     serialize_monitor_src_params(&pair.params[1], &mut raw[32..56])?;
 
@@ -883,7 +877,7 @@ fn deserialize_monitor_src_pair(pair: &mut MonitorSrcPair, raw: &[u8]) -> Result
     assert!(raw.len() >= MonitorSrcPair::SIZE);
 
     deserialize_monitor_src_pair_mode(&mut pair.mode, &raw[..4])?;
-    pair.stereo_link.parse_quadlet(&raw[4..8]);
+    deserialize_bool(&mut pair.stereo_link, &raw[4..8]);
     deserialize_monitor_src_params(&mut pair.params[0], &raw[8..32])?;
     deserialize_monitor_src_params(&mut pair.params[1], &raw[32..56])?;
 
@@ -937,16 +931,15 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
-        val.build_quadlet(&mut raw[672..676]);
-        params.reverb_return_mute[0].build_quadlet(&mut raw[712..716]);
-        params.reverb_return_gain[0].build_quadlet(&mut raw[716..720]);
-        params.reverb_return_mute[1].build_quadlet(&mut raw[720..724]);
-        params.reverb_return_gain[1].build_quadlet(&mut raw[724..728]);
-        params.reverb_return_mute[2].build_quadlet(&mut raw[728..732]);
-        params.reverb_return_gain[2].build_quadlet(&mut raw[732..736]);
-        params
-            .ch_strip_as_plugin
-            .build_quadlet_block(&mut raw[736..744]);
+        serialize_u32(&val, &mut raw[672..676]);
+        serialize_bool(&params.reverb_return_mute[0], &mut raw[712..716]);
+        serialize_i32(&params.reverb_return_gain[0], &mut raw[716..720]);
+        serialize_bool(&params.reverb_return_mute[1], &mut raw[720..724]);
+        serialize_i32(&params.reverb_return_gain[1], &mut raw[724..728]);
+        serialize_bool(&params.reverb_return_mute[2], &mut raw[728..732]);
+        serialize_i32(&params.reverb_return_gain[2], &mut raw[732..736]);
+        serialize_bool(&params.ch_strip_as_plugin[0], &mut raw[736..740]);
+        serialize_bool(&params.ch_strip_as_plugin[1], &mut raw[740..744]);
         params
             .ch_strip_src
             .iter()
@@ -955,14 +948,14 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
                 let pos = 744 + i * 4;
                 serialize_src_entry(entry, &mut raw[pos..(pos + 4)])
             })?;
-        params
-            .ch_strip_23_at_mid_rate
-            .build_quadlet(&mut raw[760..764]);
+        serialize_bool(&params.ch_strip_23_at_mid_rate, &mut raw[760..764]);
         serialize_out_pair(&params.mixer_out[0], &mut raw[764..776])?;
         serialize_out_pair(&params.mixer_out[1], &mut raw[776..788])?;
         serialize_out_pair(&params.mixer_out[2], &mut raw[788..800])?;
-        params.post_fader.build_quadlet_block(&mut raw[800..812]);
-        params.enabled.build_quadlet(&mut raw[812..816]);
+        serialize_bool(&params.post_fader[0], &mut raw[800..804]);
+        serialize_bool(&params.post_fader[1], &mut raw[804..808]);
+        serialize_bool(&params.post_fader[2], &mut raw[808..812]);
+        serialize_bool(&params.enabled, &mut raw[812..816]);
         Ok(())
     }
 
@@ -976,19 +969,18 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
                 deserialize_monitor_src_pair(p, &raw[pos..(pos + MonitorSrcPair::SIZE)])
             })?;
         let mut val = 0u32;
-        val.parse_quadlet(&raw[672..676]);
+        deserialize_u32(&mut val, &raw[672..676]);
         params.mutes.iter_mut().enumerate().for_each(|(i, m)| {
             *m = (val & 1 << i) > 0;
         });
-        params.reverb_return_mute[0].parse_quadlet(&raw[712..716]);
-        params.reverb_return_gain[0].parse_quadlet(&raw[716..720]);
-        params.reverb_return_mute[1].parse_quadlet(&raw[720..724]);
-        params.reverb_return_gain[1].parse_quadlet(&raw[724..728]);
-        params.reverb_return_mute[2].parse_quadlet(&raw[728..732]);
-        params.reverb_return_gain[2].parse_quadlet(&raw[732..736]);
-        params
-            .ch_strip_as_plugin
-            .parse_quadlet_block(&raw[736..744]);
+        deserialize_bool(&mut params.reverb_return_mute[0], &raw[712..716]);
+        deserialize_i32(&mut params.reverb_return_gain[0], &raw[716..720]);
+        deserialize_bool(&mut params.reverb_return_mute[1], &raw[720..724]);
+        deserialize_i32(&mut params.reverb_return_gain[1], &raw[724..728]);
+        deserialize_bool(&mut params.reverb_return_mute[2], &raw[728..732]);
+        deserialize_i32(&mut params.reverb_return_gain[2], &raw[732..736]);
+        deserialize_bool(&mut params.ch_strip_as_plugin[0], &raw[736..740]);
+        deserialize_bool(&mut params.ch_strip_as_plugin[1], &raw[740..744]);
         params
             .ch_strip_src
             .iter_mut()
@@ -997,12 +989,14 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
                 let pos = 744 + i * 4;
                 deserialize_src_entry(entry, &raw[pos..(pos + 4)])
             })?;
-        params.ch_strip_23_at_mid_rate.parse_quadlet(&raw[760..764]);
+        deserialize_bool(&mut params.ch_strip_23_at_mid_rate, &raw[760..764]);
         deserialize_out_pair(&mut params.mixer_out[0], &raw[764..776])?;
         deserialize_out_pair(&mut params.mixer_out[1], &raw[776..788])?;
         deserialize_out_pair(&mut params.mixer_out[2], &raw[788..800])?;
-        params.post_fader.parse_quadlet_block(&raw[800..812]);
-        params.enabled.parse_quadlet(&raw[812..816]);
+        deserialize_bool(&mut params.post_fader[0], &raw[800..804]);
+        deserialize_bool(&mut params.post_fader[1], &raw[804..808]);
+        deserialize_bool(&mut params.post_fader[2], &raw[800..812]);
+        deserialize_bool(&mut params.enabled, &raw[812..816]);
         Ok(())
     }
 }
@@ -1032,8 +1026,8 @@ fn serialize_phys_out_src_params(params: &PhysOutSrcParam, raw: &mut [u8]) -> Re
     assert!(raw.len() >= PhysOutSrcParam::SIZE);
 
     serialize_src_entry(&params.src, &mut raw[..4])?;
-    params.vol.build_quadlet(&mut raw[4..8]);
-    params.delay.build_quadlet(&mut raw[8..12]);
+    serialize_i32(&params.vol, &mut raw[4..8]);
+    serialize_i32(&params.delay, &mut raw[8..12]);
 
     Ok(())
 }
@@ -1042,8 +1036,8 @@ fn deserialize_phys_out_src_params(params: &mut PhysOutSrcParam, raw: &[u8]) -> 
     assert!(raw.len() >= PhysOutSrcParam::SIZE);
 
     deserialize_src_entry(&mut params.src, &raw[..4])?;
-    params.vol.parse_quadlet(&raw[4..8]);
-    params.delay.parse_quadlet(&raw[8..12]);
+    deserialize_i32(&mut params.vol, &raw[4..8]);
+    deserialize_i32(&mut params.delay, &raw[8..12]);
 
     Ok(())
 }
@@ -1064,7 +1058,7 @@ impl PhysOutPairSrc {
 fn serialize_phys_out_pair_src(src: &PhysOutPairSrc, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= PhysOutPairSrc::SIZE);
 
-    src.stereo_link.build_quadlet(&mut raw[..4]);
+    serialize_bool(&src.stereo_link, &mut raw[..4]);
     serialize_phys_out_src_params(&src.params[0], &mut raw[4..16])?;
     serialize_phys_out_src_params(&src.params[1], &mut raw[16..28])?;
 
@@ -1074,7 +1068,7 @@ fn serialize_phys_out_pair_src(src: &PhysOutPairSrc, raw: &mut [u8]) -> Result<(
 fn deserialize_phys_out_pair_src(src: &mut PhysOutPairSrc, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= PhysOutPairSrc::SIZE);
 
-    src.stereo_link.parse_quadlet(&raw[..4]);
+    deserialize_bool(&mut src.stereo_link, &raw[..4]);
     deserialize_phys_out_src_params(&mut src.params[0], &raw[4..16])?;
     deserialize_phys_out_src_params(&mut src.params[1], &raw[16..28])?;
 
@@ -1174,11 +1168,11 @@ impl Default for LowPassFreq {
 fn serialize_low_pass_freq(freq: &LowPassFreq, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    match freq {
+    let val = match freq {
         LowPassFreq::Below12 => 1u32,
         LowPassFreq::Below24 => 2,
-    }
-    .build_quadlet(raw);
+    };
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -1187,7 +1181,7 @@ fn deserialize_low_pass_freq(freq: &mut LowPassFreq, raw: &[u8]) -> Result<(), S
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, raw);
 
     *freq = match val {
         1 => LowPassFreq::Below12,
@@ -1243,16 +1237,16 @@ fn serialize_out_group(group: &OutGroup, raw: &mut [u8]) -> Result<(), String> {
         .for_each(|(i, _)| {
             val |= 1 << i;
         });
-    val.build_quadlet(&mut raw[..4]);
-    group.bass_management.build_quadlet(&mut raw[4..8]);
+    serialize_u32(&val, &mut raw[..4]);
+    serialize_bool(&group.bass_management, &mut raw[4..8]);
     val = match group.sub_channel {
         Some(pos) => 1 << pos,
         None => 0,
     };
-    val.build_quadlet(&mut raw[12..16]);
-    let _ = serialize_cross_over_freq(&group.main_cross_over_freq, &mut raw[16..20]);
-    group.main_level_to_sub.build_quadlet(&mut raw[20..24]);
-    group.sub_level_to_sub.build_quadlet(&mut raw[24..28]);
+    serialize_u32(&val, &mut raw[12..16]);
+    serialize_cross_over_freq(&group.main_cross_over_freq, &mut raw[16..20])?;
+    serialize_i32(&group.main_level_to_sub, &mut raw[20..24]);
+    serialize_i32(&group.sub_level_to_sub, &mut raw[24..28]);
     serialize_high_pass_freq(&group.main_filter_for_main, &mut raw[28..32])?;
     serialize_low_pass_freq(&group.main_filter_for_sub, &mut raw[32..])?;
 
@@ -1263,20 +1257,20 @@ fn deserialize_out_group(group: &mut OutGroup, raw: &[u8]) -> Result<(), String>
     assert!(raw.len() >= OutGroup::SIZE);
 
     let mut val = 0u32;
-    val.parse_quadlet(&raw[..4]);
+    deserialize_u32(&mut val, &raw[..4]);
     group
         .assigned_phys_outs
         .iter_mut()
         .enumerate()
         .for_each(|(i, a)| *a = val & (1 << i) > 0);
-    group.bass_management.parse_quadlet(&raw[4..8]);
-    val.parse_quadlet(&raw[12..16]);
+    deserialize_bool(&mut group.bass_management, &raw[4..8]);
+    deserialize_u32(&mut val, &raw[12..16]);
     group.sub_channel = (0..group.assigned_phys_outs.len())
         .position(|i| val & (1 << i) > 0)
         .map(|pos| pos as usize);
     deserialize_cross_over_freq(&mut group.main_cross_over_freq, &raw[16..20])?;
-    group.main_level_to_sub.parse_quadlet(&raw[20..24]);
-    group.sub_level_to_sub.parse_quadlet(&raw[24..28]);
+    deserialize_i32(&mut group.main_level_to_sub, &raw[20..24]);
+    deserialize_i32(&mut group.sub_level_to_sub, &raw[24..28]);
     deserialize_high_pass_freq(&mut group.main_filter_for_main, &raw[28..32])?;
     deserialize_low_pass_freq(&mut group.main_filter_for_sub, &raw[32..])?;
 
@@ -1327,7 +1321,7 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
                 let pos = 16 + i * PhysOutPairSrc::SIZE;
                 serialize_phys_out_pair_src(p, &mut raw[pos..(pos + PhysOutPairSrc::SIZE)])
             })?;
-        (params.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
+        serialize_usize(&params.selected_out_grp, &mut raw[12..16]);
         let mut val = 0u32;
         params
             .out_assign_to_grp
@@ -1337,7 +1331,7 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
-        val.build_quadlet(&mut raw[324..328]);
+        serialize_u32(&val, &mut raw[324..328]);
         let mut val = 0u32;
         params
             .out_mutes
@@ -1347,7 +1341,7 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
-        val.build_quadlet(&mut raw[328..332]);
+        serialize_u32(&val, &mut raw[328..332]);
         params.out_grps.iter().enumerate().try_for_each(|(i, s)| {
             let pos = 332 + OutGroup::SIZE * i;
             serialize_out_group(s, &mut raw[pos..(pos + OutGroup::SIZE)])
@@ -1366,9 +1360,8 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
                 deserialize_phys_out_pair_src(p, &raw[pos..(pos + PhysOutPairSrc::SIZE)])
             })?;
         let mut val = 0u32;
-        val.parse_quadlet(&raw[12..16]);
-        params.selected_out_grp = val as usize;
-        val.parse_quadlet(&raw[324..328]);
+        deserialize_u32(&mut val, &raw[12..16]);
+        deserialize_usize(&mut params.selected_out_grp, &raw[324..328]);
         params
             .out_assign_to_grp
             .iter_mut()
@@ -1377,7 +1370,7 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
                 *m = val & (1 << i) > 0;
             });
         let mut val = 0u32;
-        val.parse_quadlet(&raw[328..332]);
+        deserialize_u32(&mut val, &raw[328..332]);
         params.out_mutes.iter_mut().enumerate().for_each(|(i, d)| {
             *d = val & (1 << i) > 0;
         });
@@ -1468,26 +1461,41 @@ impl Default for StudioAnalogJackState {
     }
 }
 
-impl From<u32> for StudioAnalogJackState {
-    fn from(val: u32) -> Self {
-        match val {
-            8 => Self::RearInserted,
-            7 => Self::RearSelected,
-            6 => Self::FrontInserted,
-            _ => Self::FrontSelected,
-        }
-    }
+fn serialize_analog_jack_state(
+    state: &StudioAnalogJackState,
+    raw: &mut [u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let val = match state {
+        StudioAnalogJackState::FrontSelected => 5,
+        StudioAnalogJackState::FrontInserted => 6,
+        StudioAnalogJackState::RearSelected => 7,
+        StudioAnalogJackState::RearInserted => 8,
+    };
+
+    serialize_u32(&val, raw);
+
+    Ok(())
 }
 
-impl From<StudioAnalogJackState> for u32 {
-    fn from(state: StudioAnalogJackState) -> Self {
-        match state {
-            StudioAnalogJackState::FrontSelected => 5,
-            StudioAnalogJackState::FrontInserted => 6,
-            StudioAnalogJackState::RearSelected => 7,
-            StudioAnalogJackState::RearInserted => 8,
-        }
-    }
+fn deserialize_analog_jack_state(
+    state: &mut StudioAnalogJackState,
+    raw: &[u8],
+) -> Result<(), String> {
+    assert!(raw.len() >= 4);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    *state = match val {
+        8 => StudioAnalogJackState::RearInserted,
+        7 => StudioAnalogJackState::RearSelected,
+        6 => StudioAnalogJackState::FrontInserted,
+        _ => StudioAnalogJackState::FrontSelected,
+    };
+
+    Ok(())
 }
 
 /// The number of analog inputs which has jack sense.
@@ -1515,18 +1523,32 @@ impl TcKonnektSegmentSerdes<StudioHwState> for Studiok48Protocol {
     fn serialize(params: &StudioHwState, raw: &mut [u8]) -> Result<(), String> {
         params
             .analog_jack_states
-            .build_quadlet_block(&mut raw[..48]);
-        params.hp_state.build_quadlet_block(&mut raw[48..56]);
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, state)| {
+                let pos = 4 * i;
+                serialize_analog_jack_state(state, &mut raw[pos..(pos + 4)])
+            })?;
+        serialize_bool(&params.hp_state[0], &mut raw[48..56]);
+        serialize_bool(&params.hp_state[1], &mut raw[48..56]);
         serialize_fw_led_state(&params.firewire_led, &mut raw[56..60])?;
-        params.valid_master_level.build_quadlet(&mut raw[60..64]);
+        serialize_bool(&params.valid_master_level, &mut raw[60..64]);
         Ok(())
     }
 
     fn deserialize(params: &mut StudioHwState, raw: &[u8]) -> Result<(), String> {
-        params.analog_jack_states.parse_quadlet_block(&raw[..48]);
-        params.hp_state.parse_quadlet_block(&raw[48..56]);
+        params
+            .analog_jack_states
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, state)| {
+                let pos = 4 * i;
+                deserialize_analog_jack_state(state, &raw[pos..(pos + 4)])
+            })?;
+        deserialize_bool(&mut params.hp_state[0], &raw[48..52]);
+        deserialize_bool(&mut params.hp_state[1], &raw[52..56]);
         deserialize_fw_led_state(&mut params.firewire_led, &raw[56..60])?;
-        params.valid_master_level.parse_quadlet(&raw[60..64]);
+        deserialize_bool(&mut params.valid_master_level, &raw[60..64]);
         Ok(())
     }
 }
@@ -1554,16 +1576,32 @@ impl TcKonnektSegmentSerdes<StudioMixerMeter> for Studiok48Protocol {
     const SIZE: usize = 128;
 
     fn serialize(params: &StudioMixerMeter, raw: &mut [u8]) -> Result<(), String> {
-        params.src_inputs.build_quadlet_block(&mut raw[4..100]);
-        params.mixer_outputs.build_quadlet_block(&mut raw[100..108]);
-        params.aux_outputs.build_quadlet_block(&mut raw[108..124]);
+        params
+            .src_inputs
+            .iter()
+            .chain(&params.mixer_outputs)
+            .chain(&params.aux_outputs)
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = i * 4;
+                serialize_i32(level, &mut raw[pos..(pos + 4)])
+            });
+
         Ok(())
     }
 
     fn deserialize(params: &mut StudioMixerMeter, raw: &[u8]) -> Result<(), String> {
-        params.src_inputs.parse_quadlet_block(&raw[4..100]);
-        params.mixer_outputs.parse_quadlet_block(&raw[100..108]);
-        params.aux_outputs.parse_quadlet_block(&raw[108..124]);
+        params
+            .src_inputs
+            .iter_mut()
+            .chain(&mut params.mixer_outputs)
+            .chain(&mut params.aux_outputs)
+            .enumerate()
+            .for_each(|(i, level)| {
+                let pos = i * 4;
+                deserialize_i32(level, &raw[pos..(pos + 4)])
+            });
+
         Ok(())
     }
 }

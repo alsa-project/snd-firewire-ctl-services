@@ -65,7 +65,8 @@ fn serialize_analog_jack_state(state: &ShellAnalogJackState, raw: &mut [u8]) -> 
         ShellAnalogJackState::RearSelected => ShellAnalogJackState::REAR_SELECTED,
         ShellAnalogJackState::RearInserted => ShellAnalogJackState::REAR_INSERTED,
     };
-    val.build_quadlet(raw);
+
+    serialize_u32(&val, raw);
 
     Ok(())
 }
@@ -77,7 +78,7 @@ fn deserialize_analog_jack_state(
     assert!(raw.len() >= 4);
 
     let mut val = 0u32;
-    val.parse_quadlet(raw);
+    deserialize_u32(&mut val, raw);
 
     *state = match val & 0xff {
         ShellAnalogJackState::FRONT_INSERTED => ShellAnalogJackState::FrontInserted,
@@ -146,9 +147,9 @@ impl MonitorSrcParam {
 fn serialize_monitor_source_param(param: &MonitorSrcParam, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-    param.gain_to_mixer.build_quadlet(&mut raw[..4]);
-    param.pan_to_mixer.build_quadlet(&mut raw[4..8]);
-    param.gain_to_send.build_quadlet(&mut raw[8..12]);
+    serialize_i32(&param.gain_to_mixer, &mut raw[..4]);
+    serialize_i32(&param.pan_to_mixer, &mut raw[4..8]);
+    serialize_i32(&param.gain_to_send, &mut raw[8..12]);
 
     Ok(())
 }
@@ -156,9 +157,9 @@ fn serialize_monitor_source_param(param: &MonitorSrcParam, raw: &mut [u8]) -> Re
 fn deserialize_monitor_source_param(param: &mut MonitorSrcParam, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-    param.gain_to_mixer.parse_quadlet(&raw[..4]);
-    param.pan_to_mixer.parse_quadlet(&raw[4..8]);
-    param.gain_to_send.parse_quadlet(&raw[8..12]);
+    deserialize_i32(&mut param.gain_to_mixer, &raw[..4]);
+    deserialize_i32(&mut param.pan_to_mixer, &raw[4..8]);
+    deserialize_i32(&mut param.gain_to_send, &raw[8..12]);
 
     Ok(())
 }
@@ -179,7 +180,7 @@ impl ShellMonitorSrcPair {
 fn serialize_monitor_source_pair(pair: &ShellMonitorSrcPair, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= ShellMonitorSrcPair::SIZE);
 
-    pair.stereo_link.build_quadlet(&mut raw[..4]);
+    serialize_bool(&pair.stereo_link, &mut raw[..4]);
     serialize_monitor_source_param(&pair.params[0], &mut raw[4..16])?;
     serialize_monitor_source_param(&pair.params[1], &mut raw[16..28])?;
     Ok(())
@@ -191,7 +192,7 @@ fn deserialize_monitor_source_pair(
 ) -> Result<(), String> {
     assert!(raw.len() >= ShellMonitorSrcPair::SIZE);
 
-    pair.stereo_link.parse_quadlet(&raw[..4]);
+    deserialize_bool(&mut pair.stereo_link, &raw[..4]);
     deserialize_monitor_source_param(&mut pair.params[0], &raw[4..16])?;
     deserialize_monitor_source_param(&mut pair.params[1], &raw[16..28])?;
     Ok(())
@@ -313,9 +314,9 @@ fn serialize_mixer_state<T: ShellMixerStateSpecification>(
         })?;
 
     // For mixer output.
-    state.output_dim_enable.build_quadlet(&mut raw[280..284]);
-    state.output_volume.build_quadlet(&mut raw[284..288]);
-    state.output_dim_volume.build_quadlet(&mut raw[296..300]);
+    serialize_bool(&state.output_dim_enable, &mut raw[280..284]);
+    serialize_i32(&state.output_volume, &mut raw[284..288]);
+    serialize_i32(&state.output_dim_volume, &mut raw[296..300]);
 
     // For mute of sources.
     let mut mutes = 0u32;
@@ -332,7 +333,7 @@ fn serialize_mixer_state<T: ShellMixerStateSpecification>(
         .for_each(|(i, _)| {
             mutes |= 1 << (8 + i);
         });
-    mutes.build_quadlet(&mut raw[308..312]);
+    serialize_u32(&mutes, &mut raw[308..312]);
 
     Ok(())
 }
@@ -366,13 +367,13 @@ fn deserialize_mixer_state<T: ShellMixerStateSpecification>(
         })?;
 
     // For mixer output.
-    state.output_dim_enable.parse_quadlet(&raw[280..284]);
-    state.output_volume.parse_quadlet(&raw[284..288]);
-    state.output_dim_volume.parse_quadlet(&raw[296..300]);
+    deserialize_bool(&mut state.output_dim_enable, &raw[280..284]);
+    deserialize_i32(&mut state.output_volume, &raw[284..288]);
+    deserialize_i32(&mut state.output_dim_volume, &raw[296..300]);
 
     // For mute of sources.
     let mut mutes = 0u32;
-    mutes.parse_quadlet(&raw[308..312]);
+    deserialize_u32(&mut mutes, &raw[308..312]);
     state.mutes.stream = mutes & 0x00000001 > 0;
     state
         .mutes
@@ -406,9 +407,9 @@ impl ShellReverbReturn {
 fn serialize_reverb_return(state: &ShellReverbReturn, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= ShellReverbReturn::SIZE);
 
-    state.plugin_mode.build_quadlet(&mut raw[..4]);
-    state.return_gain.build_quadlet(&mut raw[4..8]);
-    state.return_mute.build_quadlet(&mut raw[8..12]);
+    serialize_bool(&state.plugin_mode, &mut raw[..4]);
+    serialize_i32(&state.return_gain, &mut raw[4..8]);
+    serialize_bool(&state.return_mute, &mut raw[8..12]);
 
     Ok(())
 }
@@ -416,9 +417,9 @@ fn serialize_reverb_return(state: &ShellReverbReturn, raw: &mut [u8]) -> Result<
 fn deserialize_reverb_return(state: &mut ShellReverbReturn, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= ShellReverbReturn::SIZE);
 
-    state.plugin_mode.parse_quadlet(&raw[..4]);
-    state.return_gain.parse_quadlet(&raw[4..8]);
-    state.return_mute.parse_quadlet(&raw[8..12]);
+    deserialize_bool(&mut state.plugin_mode, &raw[..4]);
+    deserialize_i32(&mut state.return_gain, &raw[4..8]);
+    deserialize_bool(&mut state.return_mute, &raw[8..12]);
 
     Ok(())
 }
@@ -470,7 +471,7 @@ fn serialize_mixer_meter<T: ShellMixerMeterSpecification>(
     let mut offset = 0;
     state.stream_inputs.iter().enumerate().for_each(|(i, m)| {
         let pos = offset + i * 4;
-        m.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_i32(m, &mut raw[pos..(pos + 4)]);
     });
 
     offset += T::MAX_STREAM_INPUT_COUNT * 4;
@@ -482,7 +483,7 @@ fn serialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.build_quadlet(&mut raw[pos..(pos + 4)]);
+            serialize_i32(m, &mut raw[pos..(pos + 4)]);
         });
 
     offset += T::MAX_ANALOG_INPUT_COUNT * 4;
@@ -494,13 +495,13 @@ fn serialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.build_quadlet(&mut raw[pos..(pos + 4)]);
+            serialize_i32(m, &mut raw[pos..(pos + 4)]);
         });
 
     offset += T::MAX_DIGITAL_INPUT_COUNT * 4;
     state.main_outputs.iter().enumerate().for_each(|(i, m)| {
         let pos = offset + i * 4;
-        m.build_quadlet(&mut raw[pos..(pos + 4)]);
+        serialize_i32(m, &mut raw[pos..(pos + 4)]);
     });
 
     Ok(())
@@ -519,7 +520,7 @@ fn deserialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.parse_quadlet(&raw[pos..(pos + 4)]);
+            deserialize_i32(m, &raw[pos..(pos + 4)]);
         });
 
     offset += T::MAX_STREAM_INPUT_COUNT * 4;
@@ -531,7 +532,7 @@ fn deserialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.parse_quadlet(&raw[pos..(pos + 4)]);
+            deserialize_i32(m, &raw[pos..(pos + 4)]);
         });
 
     offset += T::MAX_ANALOG_INPUT_COUNT * 4;
@@ -543,7 +544,7 @@ fn deserialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.parse_quadlet(&raw[pos..(pos + 4)]);
+            deserialize_i32(m, &raw[pos..(pos + 4)]);
         });
 
     offset += T::MAX_DIGITAL_INPUT_COUNT * 4;
@@ -553,7 +554,7 @@ fn deserialize_mixer_meter<T: ShellMixerMeterSpecification>(
         .enumerate()
         .for_each(|(i, m)| {
             let pos = offset + i * 4;
-            m.parse_quadlet(&raw[pos..(pos + 4)]);
+            deserialize_i32(m, &raw[pos..(pos + 4)]);
         });
 
     Ok(())
