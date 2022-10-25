@@ -798,8 +798,8 @@ where
         debug!(params = ?self.0, ?res);
         res?;
         let res = T::update_router_entries(
-            node,
             req,
+            node,
             sections,
             caps,
             rate_mode,
@@ -1018,8 +1018,8 @@ where
         let rate_mode = RateMode::try_from(current_rate).unwrap();
 
         let res = T::update_router_entries(
-            node,
             req,
+            node,
             sections,
             caps,
             rate_mode,
