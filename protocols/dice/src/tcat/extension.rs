@@ -387,26 +387,6 @@ pub struct FormatEntry {
 /// The number of channels in stream format for AC3 channels.
 pub const AC3_CHANNELS: usize = 32;
 
-/// Serialize and deserialize parameters for variable length of data in extension section.
-pub trait TcatExtensionVariableLengthSectionParamsSerdes<T> {
-    /// Offset to operate.
-    const OFFSET: usize;
-
-    /// Detect size to operate.
-    fn detect_size(
-        req: &FwReq,
-        node: &FwNode,
-        sections: &ExtensionSections,
-        timeout_ms: u32,
-    ) -> Result<usize, Error>;
-
-    /// Serialize parameters.
-    fn serialize_extension_variable_params(params: &T, raw: &mut [u8]) -> Result<(), String>;
-
-    /// Deserialize parameters.
-    fn deserialize_extension_variable_params(params: &mut T, raw: &[u8]) -> Result<(), String>;
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
