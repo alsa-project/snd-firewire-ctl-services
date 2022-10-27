@@ -535,6 +535,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_SPDIF_HIGH_RATE_NAME => {
@@ -548,6 +549,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_ADAT_MODE_NAME => {
@@ -569,6 +571,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_WC_MODE_NAME => {
@@ -591,6 +594,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_WC_RATE_NUMERATOR_NAME => {
@@ -604,6 +608,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_WC_RATE_DENOMINATOR_NAME => {
@@ -617,6 +622,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STANDALONE_INTERNAL_CLK_RATE_NAME => {
@@ -638,6 +644,7 @@ where
                     &mut self.0,
                     timeout_ms,
                 );
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
