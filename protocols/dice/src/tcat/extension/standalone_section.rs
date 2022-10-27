@@ -186,7 +186,7 @@ impl StandaloneSectionProtocol {
             .step_by(4)
             .try_for_each(|pos| {
                 if new[pos] != old[pos] {
-                    extension_read(
+                    extension_write(
                         req,
                         node,
                         sections.standalone.offset + pos,
