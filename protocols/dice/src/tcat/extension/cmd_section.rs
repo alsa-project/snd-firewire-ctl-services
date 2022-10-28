@@ -8,10 +8,13 @@
 use super::{caps_section::*, *};
 
 /// Mode of sampling transfer frequency.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RateMode {
+    /// up to 48.0 kHz.
     Low,
+    /// up to 96.0 kHz.
     Middle,
+    /// up to 192.0 kHz.
     High,
 }
 
@@ -21,19 +24,22 @@ impl Default for RateMode {
     }
 }
 
-impl std::fmt::Display for RateMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let label = match self {
-            RateMode::Low => "low",
-            RateMode::Middle => "middle",
-            RateMode::High => "high",
-        };
-        write!(f, "{}", label)
-    }
-}
+impl RateMode {
+    const LOW_FLAG: u32 = 0x00010000;
+    const MIDDLE_FLAG: u32 = 0x00020000;
+    const HIGH_FLAG: u32 = 0x00040000;
 
-impl From<ClockRate> for RateMode {
-    fn from(rate: ClockRate) -> Self {
+    /// Conversion from sampling transfer frequency.
+    pub fn from_sampling_transfer_frequency(freq: u32) -> Self {
+        match freq {
+            0..=48000 => Self::Low,
+            48001..=96000 => Self::Middle,
+            96001.. => Self::High,
+        }
+    }
+
+    /// Conversion from clock rate.
+    pub fn from_clock_rate(rate: ClockRate) -> Self {
         match rate {
             ClockRate::R32000
             | ClockRate::R44100
@@ -47,49 +53,63 @@ impl From<ClockRate> for RateMode {
     }
 }
 
-impl TryFrom<u32> for RateMode {
-    type Error = Error;
-
-    fn try_from(rate: u32) -> Result<Self, Self::Error> {
-        let r = match rate {
-            32000 => ClockRate::R32000,
-            44100 => ClockRate::R44100,
-            48000 => ClockRate::R48000,
-            88200 => ClockRate::R88200,
-            96000 => ClockRate::R96000,
-            176400 => ClockRate::R176400,
-            192000 => ClockRate::R192000,
-            _ => {
-                let msg = format!("Fail to convert from nominal rate: {}", rate);
-                Err(Error::new(GeneralProtocolError::Global, &msg))?
-            }
-        };
-        Ok(Self::from(r))
-    }
-}
-
 /// Operation code of command.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Opcode {
+    /// No operation.
     NoOp,
+    /// Load router configuration to router section at given rate.
     LoadRouter(RateMode),
+    /// Load stream format configuration to stream format section at given rate.
     LoadStreamConfig(RateMode),
+    /// Load both router and stream format configurations at given rate.
     LoadRouterStreamConfig(RateMode),
+    /// Load all configurations from on-board flash memory.
     LoadConfigFromFlash,
+    /// Store all configurations to on-board flash memory.
     StoreConfigToFlash,
 }
 
-impl From<Opcode> for u16 {
-    fn from(code: Opcode) -> u16 {
-        match code {
-            Opcode::NoOp => 0x00,
-            Opcode::LoadRouter(_) => 0x01,
-            Opcode::LoadStreamConfig(_) => 0x02,
-            Opcode::LoadRouterStreamConfig(_) => 0x03,
-            Opcode::LoadConfigFromFlash => 0x04,
-            Opcode::StoreConfigToFlash => 0x05,
+impl Opcode {
+    const NOOP_VALUE: u16 = 0x0000;
+    const LOAD_ROUTER_VALUE: u16 = 0x0001;
+    const LOAD_STREAM_CONFIG_VALUE: u16 = 0x0002;
+    const LOAD_ROUTER_STREAM_CONFIG_VALUE: u16 = 0x0003;
+    const LOAD_FLASH_CONFIG_VALUE: u16 = 0x0004;
+    const STORE_FLASH_CONFIG_VALUE: u16 = 0x0005;
+}
+
+const EXECUTE_FLAG: u32 = 0x80000000;
+
+fn serialize_opcode(code: &Opcode, raw: &mut [u8]) {
+    assert!(raw.len() >= 4);
+
+    let mut val = match code {
+        Opcode::NoOp => Opcode::NOOP_VALUE as u32,
+        Opcode::LoadRouter(rate_mode)
+        | Opcode::LoadStreamConfig(rate_mode)
+        | Opcode::LoadRouterStreamConfig(rate_mode) => {
+            let val = match code {
+                Opcode::LoadRouter(_) => Opcode::LOAD_ROUTER_VALUE,
+                Opcode::LoadStreamConfig(_) => Opcode::LOAD_STREAM_CONFIG_VALUE,
+                Opcode::LoadRouterStreamConfig(_) => Opcode::LOAD_ROUTER_STREAM_CONFIG_VALUE,
+                _ => unreachable!(),
+            } as u32;
+
+            let flag = match rate_mode {
+                RateMode::Low => RateMode::LOW_FLAG,
+                RateMode::Middle => RateMode::MIDDLE_FLAG,
+                RateMode::High => RateMode::HIGH_FLAG,
+            };
+            flag | val
         }
-    }
+        Opcode::LoadConfigFromFlash => Opcode::LOAD_FLASH_CONFIG_VALUE as u32,
+        Opcode::StoreConfigToFlash => Opcode::STORE_FLASH_CONFIG_VALUE as u32,
+    };
+
+    val |= EXECUTE_FLAG;
+
+    serialize_u32(&val, raw);
 }
 
 /// Protocol implementation of command section.
@@ -99,8 +119,6 @@ pub struct CmdSectionProtocol;
 impl CmdSectionProtocol {
     const OPCODE_OFFSET: usize = 0x00;
     const RETURN_OFFSET: usize = 0x04;
-
-    const EXECUTE: u8 = 0x80;
 
     pub fn initiate(
         req: &mut FwReq,
@@ -147,24 +165,13 @@ impl CmdSectionProtocol {
             }
         }
 
-        let mut data = [0; 4];
-        data[2..4].copy_from_slice(&u16::from(opcode).to_be_bytes());
-        data[1] = match opcode {
-            Opcode::LoadRouter(r)
-            | Opcode::LoadStreamConfig(r)
-            | Opcode::LoadRouterStreamConfig(r) => match r {
-                RateMode::Low => 1,
-                RateMode::Middle => 2,
-                RateMode::High => 4,
-            },
-            _ => 0,
-        };
-        data[0] = Self::EXECUTE;
+        let mut raw = [0; 4];
+        serialize_opcode(&opcode, &mut raw);
         extension_write(
             req,
             node,
             sections.cmd.offset + Self::OPCODE_OFFSET,
-            &mut data,
+            &mut raw,
             timeout_ms,
         )
         .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
@@ -173,19 +180,22 @@ impl CmdSectionProtocol {
         while count < 10 {
             std::thread::sleep(std::time::Duration::from_millis(50));
 
-            extension_read(req, node, sections.cmd.offset, &mut data, timeout_ms)
+            extension_read(req, node, sections.cmd.offset, &mut raw, timeout_ms)
                 .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
-            if (data[0] & Self::EXECUTE) != Self::EXECUTE {
+            let mut val = 0u32;
+            deserialize_u32(&mut val, &raw);
+
+            if val & EXECUTE_FLAG == 0 {
                 extension_read(
                     req,
                     node,
                     sections.cmd.offset + Self::RETURN_OFFSET,
-                    &mut data,
+                    &mut raw,
                     timeout_ms,
                 )
                 .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
-                return Ok(u32::from_be_bytes(data));
+                return Ok(u32::from_be_bytes(raw));
             }
             count += 1;
         }

@@ -231,7 +231,7 @@ fn print_current_router_entries(
             TIMEOUT_MS,
         )
         .map(|_| {
-            println!("  {}:", mode);
+            println!("  {:?}:", mode);
             entries.iter().enumerate().for_each(|(i, entry)| {
                 println!("    entry {}: {:?} <- {:?}", i, entry.dst, entry.src);
             });
@@ -277,7 +277,7 @@ fn print_current_stream_format_entries(
             TIMEOUT_MS,
         )
         .map(|_| {
-            println!("  {}:", mode);
+            println!("  {:?}:", mode);
             tx_entries.iter().enumerate().for_each(|(i, entry)| {
                 println!("    Tx stream {}:", i);
                 print_stream_format_entry(entry);
