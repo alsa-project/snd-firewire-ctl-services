@@ -779,6 +779,44 @@ impl TcatExtensionSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol 
     }
 }
 
+impl TcatExtensionSectionPartialMutableParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &Mbox3SpecificParams,
+        prev: &mut Mbox3SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; MIN_SIZE];
+        serialize(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; MIN_SIZE];
+        serialize(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..MIN_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        deserialize(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl TcatApplSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
 
 impl TcatApplSectionMutableParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
