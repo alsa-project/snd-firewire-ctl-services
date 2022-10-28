@@ -35,7 +35,7 @@ fn serialize_tx_stream_entry(entry: &TxStreamFormatEntry, raw: &mut [u8]) -> Res
     serialize_u32(&entry.midi, &mut raw[8..12]);
     serialize_u32(&entry.speed, &mut raw[12..16]);
 
-    raw[16..272].copy_from_slice(&mut build_labels(&entry.labels, STREAM_NAMES_SIZE));
+    serialize_labels(&entry.labels, &mut raw[16..272])?;
 
     // NOTE: it's not supported by old version of firmware.
     if raw.len() >= 272 {
@@ -56,8 +56,7 @@ fn deserialize_tx_stream_entry(entry: &mut TxStreamFormatEntry, raw: &[u8]) -> R
     deserialize_u32(&mut entry.midi, &raw[8..12]);
     deserialize_u32(&mut entry.speed, &raw[12..16]);
 
-    entry.labels =
-        parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
+    deserialize_labels(&mut entry.labels, &raw[16..272])?;
 
     // NOTE: it's not supported by old version of firmware.
     if raw.len() >= MIN_SIZE {

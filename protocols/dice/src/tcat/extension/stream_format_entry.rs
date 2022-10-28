@@ -5,7 +5,6 @@ use super::*;
 
 impl FormatEntry {
     const SIZE: usize = 268;
-    const NAMES_MAX_SIZE: usize = 256;
 }
 
 fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<(), String> {
@@ -14,7 +13,7 @@ fn serialize_stream_format_entry(entry: &FormatEntry, raw: &mut [u8]) -> Result<
     serialize_u8(&entry.pcm_count, &mut raw[..4]);
     serialize_u8(&entry.midi_count, &mut raw[4..8]);
 
-    raw[8..264].copy_from_slice(&build_labels(&entry.labels, FormatEntry::NAMES_MAX_SIZE));
+    serialize_labels(&entry.labels, &mut raw[8..264])?;
 
     let val = entry
         .enable_ac3
@@ -32,8 +31,7 @@ fn deserialize_stream_format_entry(entry: &mut FormatEntry, raw: &[u8]) -> Resul
 
     deserialize_u8(&mut entry.pcm_count, &raw[..4]);
     deserialize_u8(&mut entry.midi_count, &raw[4..8]);
-    entry.labels = parse_labels(&raw[8..264])
-        .map_err(|e| format!("Fail to parse label of stream channel {}", e))?;
+    deserialize_labels(&mut entry.labels, &raw[8..264])?;
 
     let mut val = 0u32;
     deserialize_u32(&mut val, &raw[264..268]);

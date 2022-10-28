@@ -399,13 +399,10 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         // NOTE: The owner field is changed by ALSA dice driver.
 
         raw[12..76].fill(0x00);
-        let data = build_label(&params.nickname, NICKNAME_MAX_SIZE);
-        raw[12..(12 + data.len())].copy_from_slice(&data);
+        serialize_label(&params.nickname, &mut raw[12..76])?;
 
         let mut val = u32::from(params.clock_config);
         serialize_u32(&mut val, &mut raw[76..80]);
-
-        // NOTE: The enable field is changed by ALSA dice driver.
 
         Ok(())
     }
@@ -416,15 +413,14 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         // NOTE: the global section was extended in later version of protocol. Evaluate the
         // extended fields at first.
         let (version, avail_rates, avail_srcs, src_labels) = if raw.len() > 96 {
-            let mut labels: Vec<(ClockSource, String)> = parse_labels(&raw[104..360])
-                .map_err(|err| format!("Fail to parse clock source labels: {}", err))
-                .map(|labels| {
-                    Self::CLOCK_SOURCE_LABEL_TABLE
-                        .iter()
-                        .cloned()
-                        .zip(labels.into_iter())
-                        .collect()
-                })?;
+            let mut labels = Vec::new();
+            deserialize_labels(&mut labels, &raw[104..360])?;
+
+            let mut labels: Vec<(ClockSource, String)> = Self::CLOCK_SOURCE_LABEL_TABLE
+                .iter()
+                .cloned()
+                .zip(labels.into_iter())
+                .collect();
 
             deserialize_u32(&mut val, &raw[100..104]);
             let rate_bits = (val & 0x0000ffff) as u16;
@@ -516,8 +512,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
 
         deserialize_u32(&mut params.latest_notification, &raw[8..12]);
 
-        params.nickname =
-            parse_label(&raw[12..76]).map_err(|err| format!("Fail to parse nickname: {}", err))?;
+        deserialize_label(&mut params.nickname, &raw[12..76])?;
 
         deserialize_u32(&mut val, &raw[76..80]);
         params.clock_config = ClockConfig::from(val);

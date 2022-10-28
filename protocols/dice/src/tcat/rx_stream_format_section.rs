@@ -35,7 +35,7 @@ fn serialize_rx_stream_entry(entry: &RxStreamFormatEntry, raw: &mut [u8]) -> Res
     serialize_u32(&entry.pcm, &mut raw[8..12]);
     serialize_u32(&entry.midi, &mut raw[12..16]);
 
-    raw[16..272].copy_from_slice(&mut build_labels(&entry.labels, STREAM_NAMES_SIZE));
+    serialize_labels(&entry.labels, &mut raw[16..272])?;
 
     // NOTE: it's not supported by old version of firmware.
     if raw.len() >= 272 {
@@ -55,8 +55,7 @@ fn deserialize_rx_stream_entry(entry: &mut RxStreamFormatEntry, raw: &[u8]) -> R
     deserialize_u32(&mut entry.pcm, &raw[8..12]);
     deserialize_u32(&mut entry.midi, &raw[12..16]);
 
-    entry.labels =
-        parse_labels(&raw[16..272]).map_err(|e| format!("Invalid data for string: {}", e))?;
+    deserialize_labels(&mut entry.labels, &raw[16..272])?;
 
     // NOTE: it's not supported by old version of firmware.
     if raw.len() >= MIN_SIZE {

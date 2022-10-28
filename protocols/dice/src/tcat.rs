@@ -525,59 +525,119 @@ fn to_ne(raw: &mut [u8]) {
     });
 }
 
-fn build_label<T: AsRef<str>>(name: T, len: usize) -> Vec<u8> {
-    let mut raw = name.as_ref().as_bytes().to_vec();
-    raw.resize(len, 0x00);
-    from_ne(&mut raw);
-    raw
+fn serialize_label<T: AsRef<str>>(name: T, raw: &mut [u8]) -> Result<(), String> {
+    let r = name.as_ref().as_bytes();
+
+    if r.len() >= raw.len() {
+        Err(format!("Insufficient buffer size {} for label", raw.len()))
+    } else {
+        raw[..r.len()].copy_from_slice(r);
+        from_ne(raw);
+
+        Ok(())
+    }
 }
 
-fn build_labels<T: AsRef<str>>(labels: &[T], len: usize) -> Vec<u8> {
-    let mut raw = Vec::with_capacity(len);
-    labels.iter().for_each(|label| {
-        raw.extend_from_slice(&label.as_ref().as_bytes());
-        raw.push('\\' as u8);
-    });
-    raw.push('\\' as u8);
-    raw.resize(len, 0x00);
-    from_ne(&mut raw);
+fn serialize_labels<T: AsRef<str>>(labels: &[T], raw: &mut [u8]) -> Result<(), String> {
+    raw.fill(0x00);
 
-    raw
-}
+    let mut pos = 0;
+    labels.iter().try_for_each(|label| {
+        let r = label.as_ref().as_bytes();
 
-fn parse_label(raw: &[u8]) -> Result<String, std::str::Utf8Error> {
-    let mut raw = raw.to_vec();
-    to_ne(&mut raw);
-
-    raw.push(0x00);
-    std::str::from_utf8(&raw).map(|text| {
-        if let Some(pos) = text.find('\0') {
-            text[..pos].to_string()
+        if pos + r.len() + 1 >= raw.len() {
+            Err(format!(
+                "Insufficient buffer size {} for all of labels",
+                raw.len()
+            ))
         } else {
-            String::new()
+            let end = pos + r.len();
+            raw[pos..end].copy_from_slice(r);
+
+            raw[end] = '\\' as u8;
+            pos = end + 1;
+
+            Ok(())
         }
-    })
+    })?;
+
+    if pos + 1 >= raw.len() {
+        Err(format!(
+            "Insufficient buffer size {} for all of labels",
+            raw.len()
+        ))
+    } else {
+        raw[pos] = '\\' as u8;
+
+        from_ne(raw);
+
+        Ok(())
+    }
 }
 
-fn parse_labels(raw: &[u8]) -> Result<Vec<String>, std::str::Utf8Error> {
-    let mut raw = raw.to_vec();
-    to_ne(&mut raw);
+fn deserialize_label(label: &mut String, raw: &[u8]) -> Result<(), String> {
+    let mut data = raw.to_vec();
+    to_ne(&mut data);
 
-    let mut labels = Vec::new();
-    raw.split(|&b| b == '\\' as u8)
+    data.push(0x00);
+    std::str::from_utf8(&data)
+        .map_err(|err| err.to_string())
+        .and_then(|text| {
+            text.find('\0')
+                .ok_or_else(|| "String terminator not found".to_string())
+                .map(|pos| *label = text[..pos].to_string())
+        })
+}
+
+fn deserialize_labels(labels: &mut Vec<String>, raw: &[u8]) -> Result<(), String> {
+    labels.truncate(0);
+
+    let mut data = raw.to_vec();
+    to_ne(&mut data);
+
+    data.split(|&b| b == '\\' as u8)
         .filter(|chunk| chunk.len() > 0 && chunk[0] != '\0' as u8)
         .fuse()
         .try_for_each(|chunk| {
-            std::str::from_utf8(&chunk).map(|label| labels.push(label.to_string()))
-        })?;
-
-    Ok(labels)
+            std::str::from_utf8(&chunk)
+                .map(|label| labels.push(label.to_string()))
+                .map_err(|err| err.to_string())
+        })
 }
-
-const STREAM_NAMES_SIZE: usize = 256;
 
 const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
 const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
 const NOTIFY_LOCK_CHG: u32 = 0x00000010;
 const NOTIFY_CLOCK_ACCEPTED: u32 = 0x00000020;
 const NOTIFY_EXT_STATUS: u32 = 0x00000040;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn label_serdes() {
+        let label = "label-0";
+
+        let mut raw = vec![0u8; 20];
+        serialize_label(&label, &mut raw).unwrap();
+
+        let mut l = String::new();
+        deserialize_label(&mut l, &raw).unwrap();
+
+        assert_eq!(label, l);
+    }
+
+    #[test]
+    fn labels_serdes() {
+        let labels: Vec<String> = (0..10).map(|num| format!("label-{}", num)).collect();
+
+        let mut raw = vec![0u8; 100];
+        serialize_labels(&labels, &mut raw).unwrap();
+
+        let mut l = Vec::new();
+        deserialize_labels(&mut l, &raw).unwrap();
+
+        assert_eq!(labels, l);
+    }
+}
