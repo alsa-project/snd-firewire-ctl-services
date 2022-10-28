@@ -56,62 +56,42 @@ impl Default for ClockRate {
     }
 }
 
-impl From<u8> for ClockRate {
-    fn from(val: u8) -> Self {
-        match val {
-            Self::R32000_VAL => Self::R32000,
-            Self::R44100_VAL => Self::R44100,
-            Self::R48000_VAL => Self::R48000,
-            Self::R88200_VAL => Self::R88200,
-            Self::R96000_VAL => Self::R96000,
-            Self::R176400_VAL => Self::R176400,
-            Self::R192000_VAL => Self::R192000,
-            Self::ANY_LOW_VAL => Self::AnyLow,
-            Self::ANY_MID_VAL => Self::AnyMid,
-            Self::ANY_HIGH_VAL => Self::AnyHigh,
-            Self::NONE_VAL => Self::None,
-            _ => Self::Reserved(val),
-        }
-    }
+pub(crate) fn serialize_clock_rate(rate: &ClockRate, val: &mut u8) -> Result<(), String> {
+    *val = match *rate {
+        ClockRate::R32000 => ClockRate::R32000_VAL,
+        ClockRate::R44100 => ClockRate::R44100_VAL,
+        ClockRate::R48000 => ClockRate::R48000_VAL,
+        ClockRate::R88200 => ClockRate::R88200_VAL,
+        ClockRate::R96000 => ClockRate::R96000_VAL,
+        ClockRate::R176400 => ClockRate::R176400_VAL,
+        ClockRate::R192000 => ClockRate::R192000_VAL,
+        ClockRate::AnyLow => ClockRate::ANY_LOW_VAL,
+        ClockRate::AnyMid => ClockRate::ANY_MID_VAL,
+        ClockRate::AnyHigh => ClockRate::ANY_HIGH_VAL,
+        ClockRate::None => ClockRate::NONE_VAL,
+        ClockRate::Reserved(val) => val,
+    };
+
+    Ok(())
 }
 
-impl From<ClockRate> for u8 {
-    fn from(rate: ClockRate) -> u8 {
-        match rate {
-            ClockRate::R32000 => ClockRate::R32000_VAL,
-            ClockRate::R44100 => ClockRate::R44100_VAL,
-            ClockRate::R48000 => ClockRate::R48000_VAL,
-            ClockRate::R88200 => ClockRate::R88200_VAL,
-            ClockRate::R96000 => ClockRate::R96000_VAL,
-            ClockRate::R176400 => ClockRate::R176400_VAL,
-            ClockRate::R192000 => ClockRate::R192000_VAL,
-            ClockRate::AnyLow => ClockRate::ANY_LOW_VAL,
-            ClockRate::AnyMid => ClockRate::ANY_MID_VAL,
-            ClockRate::AnyHigh => ClockRate::ANY_HIGH_VAL,
-            ClockRate::None => ClockRate::NONE_VAL,
-            ClockRate::Reserved(val) => val,
-        }
-    }
-}
+pub(crate) fn deserialize_clock_rate(rate: &mut ClockRate, val: &u8) -> Result<(), String> {
+    *rate = match *val {
+        ClockRate::R32000_VAL => ClockRate::R32000,
+        ClockRate::R44100_VAL => ClockRate::R44100,
+        ClockRate::R48000_VAL => ClockRate::R48000,
+        ClockRate::R88200_VAL => ClockRate::R88200,
+        ClockRate::R96000_VAL => ClockRate::R96000,
+        ClockRate::R176400_VAL => ClockRate::R176400,
+        ClockRate::R192000_VAL => ClockRate::R192000,
+        ClockRate::ANY_LOW_VAL => ClockRate::AnyLow,
+        ClockRate::ANY_MID_VAL => ClockRate::AnyMid,
+        ClockRate::ANY_HIGH_VAL => ClockRate::AnyHigh,
+        ClockRate::NONE_VAL => ClockRate::None,
+        _ => ClockRate::Reserved(*val),
+    };
 
-impl TryFrom<u32> for ClockRate {
-    type Error = Error;
-
-    fn try_from(val: u32) -> Result<ClockRate, Self::Error> {
-        match val {
-            32000 => Ok(Self::R32000),
-            44100 => Ok(Self::R44100),
-            48000 => Ok(Self::R48000),
-            88200 => Ok(Self::R88200),
-            96000 => Ok(Self::R96000),
-            176400 => Ok(Self::R176400),
-            192000 => Ok(Self::R192000),
-            _ => {
-                let msg = format!("Fail to convert from nominal rate: {}", val);
-                Err(Error::new(GeneralProtocolError::Global, &msg))
-            }
-        }
-    }
+    Ok(())
 }
 
 /// Nominal sampling rate.
@@ -169,46 +149,45 @@ impl ClockSource {
     const INTERNAL_VAL: u8 = 0x0c;
 }
 
-impl From<u8> for ClockSource {
-    fn from(val: u8) -> Self {
-        match val {
-            Self::AES1_VAL => Self::Aes1,
-            Self::AES2_VAL => Self::Aes2,
-            Self::AES3_VAL => Self::Aes3,
-            Self::AES4_VAL => Self::Aes4,
-            Self::AES_ANY_VAL => Self::AesAny,
-            Self::ADAT_VAL => Self::Adat,
-            Self::TDIF_VAL => Self::Tdif,
-            Self::WORD_CLOCK_VAL => Self::WordClock,
-            Self::ARX1_VAL => Self::Arx1,
-            Self::ARX2_VAL => Self::Arx2,
-            Self::ARX3_VAL => Self::Arx3,
-            Self::ARX4_VAL => Self::Arx4,
-            Self::INTERNAL_VAL => Self::Internal,
-            _ => Self::Reserved(val),
-        }
-    }
+pub(crate) fn serialize_clock_source(src: &ClockSource, val: &mut u8) -> Result<(), String> {
+    *val = match *src {
+        ClockSource::Aes1 => ClockSource::AES1_VAL,
+        ClockSource::Aes2 => ClockSource::AES2_VAL,
+        ClockSource::Aes3 => ClockSource::AES3_VAL,
+        ClockSource::Aes4 => ClockSource::AES4_VAL,
+        ClockSource::AesAny => ClockSource::AES_ANY_VAL,
+        ClockSource::Adat => ClockSource::ADAT_VAL,
+        ClockSource::Tdif => ClockSource::TDIF_VAL,
+        ClockSource::WordClock => ClockSource::WORD_CLOCK_VAL,
+        ClockSource::Arx1 => ClockSource::ARX1_VAL,
+        ClockSource::Arx2 => ClockSource::ARX2_VAL,
+        ClockSource::Arx3 => ClockSource::ARX3_VAL,
+        ClockSource::Arx4 => ClockSource::ARX4_VAL,
+        ClockSource::Internal => ClockSource::INTERNAL_VAL,
+        ClockSource::Reserved(src_val) => src_val,
+    };
+
+    Ok(())
 }
 
-impl From<ClockSource> for u8 {
-    fn from(src: ClockSource) -> u8 {
-        match src {
-            ClockSource::Aes1 => ClockSource::AES1_VAL,
-            ClockSource::Aes2 => ClockSource::AES2_VAL,
-            ClockSource::Aes3 => ClockSource::AES3_VAL,
-            ClockSource::Aes4 => ClockSource::AES4_VAL,
-            ClockSource::AesAny => ClockSource::AES_ANY_VAL,
-            ClockSource::Adat => ClockSource::ADAT_VAL,
-            ClockSource::Tdif => ClockSource::TDIF_VAL,
-            ClockSource::WordClock => ClockSource::WORD_CLOCK_VAL,
-            ClockSource::Arx1 => ClockSource::ARX1_VAL,
-            ClockSource::Arx2 => ClockSource::ARX2_VAL,
-            ClockSource::Arx3 => ClockSource::ARX3_VAL,
-            ClockSource::Arx4 => ClockSource::ARX4_VAL,
-            ClockSource::Internal => ClockSource::INTERNAL_VAL,
-            ClockSource::Reserved(val) => val,
-        }
-    }
+pub(crate) fn deserialize_clock_source(src: &mut ClockSource, val: &u8) -> Result<(), String> {
+    *src = match *val {
+        ClockSource::AES1_VAL => ClockSource::Aes1,
+        ClockSource::AES2_VAL => ClockSource::Aes2,
+        ClockSource::AES3_VAL => ClockSource::Aes3,
+        ClockSource::AES4_VAL => ClockSource::Aes4,
+        ClockSource::AES_ANY_VAL => ClockSource::AesAny,
+        ClockSource::ADAT_VAL => ClockSource::Adat,
+        ClockSource::TDIF_VAL => ClockSource::Tdif,
+        ClockSource::WORD_CLOCK_VAL => ClockSource::WordClock,
+        ClockSource::ARX1_VAL => ClockSource::Arx1,
+        ClockSource::ARX2_VAL => ClockSource::Arx2,
+        ClockSource::ARX3_VAL => ClockSource::Arx3,
+        ClockSource::ARX4_VAL => ClockSource::Arx4,
+        ClockSource::INTERNAL_VAL => ClockSource::Internal,
+        _ => ClockSource::Reserved(*val),
+    };
+    Ok(())
 }
 
 /// Configuration of clock.
@@ -221,29 +200,44 @@ pub struct ClockConfig {
 }
 
 impl ClockConfig {
+    const SIZE: usize = 4;
+
     const SRC_MASK: u32 = 0x000000ff;
     const SRC_SHIFT: usize = 0;
     const RATE_MASK: u32 = 0x0000ff00;
     const RATE_SHIFT: usize = 8;
 }
 
-impl From<u32> for ClockConfig {
-    fn from(val: u32) -> Self {
-        let src_val = ((val & Self::SRC_MASK) >> Self::SRC_SHIFT) as u8;
-        let rate_val = ((val & Self::RATE_MASK) >> Self::RATE_SHIFT) as u8;
-        let src = ClockSource::from(src_val);
-        let rate = ClockRate::from(rate_val);
-        ClockConfig { rate, src }
-    }
+fn serialize_clock_config(config: &ClockConfig, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ClockConfig::SIZE);
+
+    let mut src_val = 0u8;
+    serialize_clock_source(&config.src, &mut src_val)?;
+
+    let mut rate_val = 0u8;
+    serialize_clock_rate(&config.rate, &mut rate_val)?;
+
+    let val = (((rate_val as u32) << ClockConfig::RATE_SHIFT) & ClockConfig::RATE_MASK)
+        | (((src_val as u32) << ClockConfig::SRC_SHIFT) & ClockConfig::SRC_MASK);
+
+    serialize_u32(&val, raw);
+
+    Ok(())
 }
 
-impl From<ClockConfig> for u32 {
-    fn from(cfg: ClockConfig) -> u32 {
-        let src_val = u8::from(cfg.src) as u32;
-        let rate_val = u8::from(cfg.rate) as u32;
-        ((rate_val << ClockConfig::RATE_SHIFT) & ClockConfig::RATE_MASK)
-            | ((src_val << ClockConfig::SRC_SHIFT) & ClockConfig::SRC_MASK)
-    }
+fn deserialize_clock_config(config: &mut ClockConfig, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ClockConfig::SIZE);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    let src_val = ((val & ClockConfig::SRC_MASK) >> ClockConfig::SRC_SHIFT) as u8;
+    let rate_val = ((val & ClockConfig::RATE_MASK) >> ClockConfig::RATE_SHIFT) as u8;
+
+    deserialize_clock_source(&mut config.src, &src_val)?;
+    deserialize_clock_rate(&mut config.rate, &rate_val)?;
+
+    Ok(())
 }
 
 /// Status of sampling clock.
@@ -256,21 +250,25 @@ pub struct ClockStatus {
 }
 
 impl ClockStatus {
+    const SIZE: usize = 4;
+
     const SRC_LOCKED: u32 = 0x00000001;
     const RATE_MASK: u32 = 0x0000ff00;
     const RATE_SHIFT: usize = 8;
 }
 
-impl From<u32> for ClockStatus {
-    fn from(val: u32) -> Self {
-        let src_is_locked = (val & Self::SRC_LOCKED) > 0;
-        let rate_val = ((val & Self::RATE_MASK) >> Self::RATE_SHIFT) as u8;
-        let rate = ClockRate::from(rate_val);
-        ClockStatus {
-            src_is_locked,
-            rate,
-        }
-    }
+fn deserialize_clock_status(status: &mut ClockStatus, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= ClockStatus::SIZE);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    status.src_is_locked = (val & ClockStatus::SRC_LOCKED) > 0;
+
+    let rate_val = ((val & ClockStatus::RATE_MASK) >> ClockStatus::RATE_SHIFT) as u8;
+    deserialize_clock_rate(&mut status.rate, &rate_val)?;
+
+    Ok(())
 }
 
 /// The states of external signal sources of sampling clock.
@@ -401,8 +399,7 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
         raw[12..76].fill(0x00);
         serialize_label(&params.nickname, &mut raw[12..76])?;
 
-        let mut val = u32::from(params.clock_config);
-        serialize_u32(&mut val, &mut raw[76..80]);
+        serialize_clock_config(&params.clock_config, &mut raw[76..80])?;
 
         Ok(())
     }
@@ -514,13 +511,11 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
 
         deserialize_label(&mut params.nickname, &raw[12..76])?;
 
-        deserialize_u32(&mut val, &raw[76..80]);
-        params.clock_config = ClockConfig::from(val);
+        deserialize_clock_config(&mut params.clock_config, &raw[76..80])?;
 
         deserialize_bool(&mut params.enable, &raw[80..84]);
 
-        deserialize_u32(&mut val, &raw[84..88]);
-        params.clock_status = ClockStatus::from(val);
+        deserialize_clock_status(&mut params.clock_status, &raw[84..88])?;
 
         deserialize_u32(&mut val, &raw[88..92]);
         let locked_bits = (val & 0x0000ffff) as u16;

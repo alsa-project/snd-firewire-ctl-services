@@ -51,7 +51,20 @@ impl TryFrom<u32> for RateMode {
     type Error = Error;
 
     fn try_from(rate: u32) -> Result<Self, Self::Error> {
-        ClockRate::try_from(rate).map(|clock_rate| RateMode::from(clock_rate))
+        let r = match rate {
+            32000 => ClockRate::R32000,
+            44100 => ClockRate::R44100,
+            48000 => ClockRate::R48000,
+            88200 => ClockRate::R88200,
+            96000 => ClockRate::R96000,
+            176400 => ClockRate::R176400,
+            192000 => ClockRate::R192000,
+            _ => {
+                let msg = format!("Fail to convert from nominal rate: {}", rate);
+                Err(Error::new(GeneralProtocolError::Global, &msg))?
+            }
+        };
+        Ok(Self::from(r))
     }
 }
 

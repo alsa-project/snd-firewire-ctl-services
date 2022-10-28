@@ -82,7 +82,9 @@ const MIN_SIZE: usize = 20;
 fn serialize(params: &StandaloneParameters, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= MIN_SIZE);
 
-    serialize_u8(&u8::from(params.clock_source), &mut raw[..4]);
+    let mut val = 0u8;
+    serialize_clock_source(&params.clock_source, &mut val)?;
+    serialize_u8(&val, &mut raw[..4]);
 
     serialize_bool(&params.aes_high_rate, &mut raw[4..8]);
 
@@ -111,7 +113,9 @@ fn serialize(params: &StandaloneParameters, raw: &mut [u8]) -> Result<(), String
     val |= ((params.word_clock_param.rate.denominator as u32) - 1) << 16;
     serialize_u32(&val, &mut raw[12..16]);
 
-    serialize_u8(&u8::from(params.internal_rate), &mut raw[16..20]);
+    let mut val = 0u8;
+    serialize_clock_rate(&params.internal_rate, &mut val)?;
+    serialize_u8(&val, &mut raw[16..20]);
 
     Ok(())
 }
@@ -119,13 +123,13 @@ fn serialize(params: &StandaloneParameters, raw: &mut [u8]) -> Result<(), String
 fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= MIN_SIZE);
 
-    let mut val = 0u32;
-
-    deserialize_u32(&mut val, &raw[..4]);
-    params.clock_source = ClockSource::from(val as u8);
+    let mut val = 0u8;
+    deserialize_u8(&mut val, &raw[..4]);
+    deserialize_clock_source(&mut params.clock_source, &val)?;
 
     deserialize_bool(&mut params.aes_high_rate, &raw[4..8]);
 
+    let mut val = 0u32;
     deserialize_u32(&mut val, &raw[8..12]);
     params.adat_mode = match val {
         0x01 => AdatParam::SMUX2,
@@ -144,8 +148,9 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
     params.word_clock_param.rate.numerator = 1 + ((val >> 4) & 0x0fff) as u16;
     params.word_clock_param.rate.denominator = 1 + ((val >> 16) & 0xffff) as u16;
 
-    deserialize_u32(&mut val, &raw[16..20]);
-    params.internal_rate = ClockRate::from(val as u8);
+    let mut val = 0u8;
+    deserialize_u8(&mut val, &raw[16..20]);
+    deserialize_clock_rate(&mut params.internal_rate, &val)?;
 
     Ok(())
 }
