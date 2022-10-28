@@ -164,74 +164,7 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<MixerCoeffic
 pub struct MixerSectionProtocol;
 
 impl MixerSectionProtocol {
-    const SATURATION_OFFSET: usize = 0x00;
     const COEFF_OFFSET: usize = 0x04;
-
-    /// Cache state of hardware for mixer saturation.
-    pub fn cache_mixer_whole_saturation(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        saturations: &mut [bool],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if !caps.mixer.is_exposed {
-            Err(Error::new(
-                ProtocolExtensionError::Mixer,
-                "Mixer is not available",
-            ))?
-        }
-
-        let mut raw = [0; 4];
-        extension_read(
-            req,
-            node,
-            sections.mixer.offset + Self::SATURATION_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )?;
-
-        let mut val = 0u32;
-        deserialize_u32(&mut val, &raw);
-
-        saturations
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, saturation)| *saturation = val & (1 << i) > 0);
-
-        Ok(())
-    }
-
-    /// Cache state of hardware for mixer coefficients.
-    pub fn cache_mixer_whole_coefficients<T: AsMut<[u16]>>(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        coefs: &mut [T],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if !caps.mixer.is_exposed {
-            Err(Error::new(
-                ProtocolExtensionError::Mixer,
-                "Mixer is not available",
-            ))?
-        }
-
-        let mut raw = vec![0u8; calculate_mixer_coefficients_size()];
-        extension_read(
-            req,
-            node,
-            sections.mixer.offset + Self::COEFF_OFFSET,
-            &mut raw,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::Mixer, &e.to_string()))?;
-
-        deserialize_mixer_coefficients(coefs, &caps.mixer, &raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Mixer, &cause))
-    }
 
     /// Update state of hardware for mixer coefficients.
     pub fn update_mixer_partial_coefficients<T, U>(
