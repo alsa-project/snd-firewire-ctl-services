@@ -307,6 +307,20 @@ pub trait TcatExtensionSectionWholeMutableParamsOperation<T: Debug> {
     ) -> Result<(), Error>;
 }
 
+/// Operation for partial mutable parameters in section of TCAT protocol extension.
+pub trait TcatExtensionSectionPartialMutableParamsOperation<T: Debug> {
+    /// Update state of hardware for partial parameters.
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &T,
+        prev: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 fn extension_read(
     req: &mut FwReq,
     node: &mut FwNode,
