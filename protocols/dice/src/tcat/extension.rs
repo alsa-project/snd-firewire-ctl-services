@@ -26,7 +26,11 @@ use {
     std::cmp::Ordering,
 };
 
-pub use {caps_section::ExtensionCaps, standalone_section::StandaloneParameters};
+pub use {
+    caps_section::ExtensionCaps,
+    mixer_section::{MixerCoefficientParams, MixerSaturationParams},
+    standalone_section::StandaloneParameters,
+};
 
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
