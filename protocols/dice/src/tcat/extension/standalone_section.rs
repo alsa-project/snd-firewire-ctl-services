@@ -15,7 +15,7 @@ use super::{global_section::*, *};
 // const INTERNAL_CFG_OFFSET: usize = 0x10;
 
 /// Parameter of ADAT input/output.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AdatParam {
     Normal,
     SMUX2,
@@ -30,7 +30,7 @@ impl Default for AdatParam {
 }
 
 /// Mode of word clock input/output.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum WordClockMode {
     Normal,
     Low,
@@ -45,14 +45,14 @@ impl Default for WordClockMode {
 }
 
 /// Rate of word clock input/output by enumerator and denominator.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct WordClockRate {
     pub numerator: u16,
     pub denominator: u16,
 }
 
 /// Parameter of word clock input/output.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct WordClockParam {
     pub mode: WordClockMode,
     pub rate: WordClockRate,
@@ -173,21 +173,6 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StandalonePa
 }
 
 impl StandaloneSectionProtocol {
-    pub fn cache_standalone_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &mut StandaloneParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; sections.standalone.size];
-        extension_read(req, node, sections.standalone.offset, &mut raw, timeout_ms)
-            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))?;
-
-        deserialize(params, &raw)
-            .map_err(|msg| Error::new(ProtocolExtensionError::Standalone, &msg))
-    }
-
     pub fn update_standalone_params(
         req: &mut FwReq,
         node: &mut FwNode,
