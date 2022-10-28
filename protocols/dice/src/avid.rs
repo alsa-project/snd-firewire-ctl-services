@@ -816,6 +816,76 @@ impl TcatExtensionSectionPartialMutableParamsOperation<Mbox3SpecificParams> for 
     }
 }
 
+impl TcatExtensionSectionNotifiedParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {
+    fn cache_extension_notified_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut Mbox3SpecificParams,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if msg & (PHANTOM_POWERING_CHANGED | MASTER_KNOB_CHANGED) > 0 {
+            Self::cache_extension_whole_params(req, node, sections, caps, params, timeout_ms)?;
+        }
+
+        let mut p = params.clone();
+        if msg & SPKR_BUTTON_PUSHED > 0 {
+            p.spkr_led = match params.spkr_led {
+                SpkrLedState::Off => SpkrLedState::Green,
+                SpkrLedState::GreenBlink => SpkrLedState::Green,
+                SpkrLedState::Green => SpkrLedState::Red,
+                SpkrLedState::RedBlink => SpkrLedState::Red,
+                SpkrLedState::Red => SpkrLedState::Orange,
+                SpkrLedState::OrangeBlink => SpkrLedState::Orange,
+                SpkrLedState::Orange => SpkrLedState::Off,
+            };
+        }
+
+        if msg & SPKR_BUTTON_HELD > 0 {
+            p.spkr_led = match params.spkr_led {
+                SpkrLedState::Off => SpkrLedState::Off,
+                SpkrLedState::GreenBlink => SpkrLedState::Green,
+                SpkrLedState::Green => SpkrLedState::GreenBlink,
+                SpkrLedState::RedBlink => SpkrLedState::Red,
+                SpkrLedState::Red => SpkrLedState::RedBlink,
+                SpkrLedState::OrangeBlink => SpkrLedState::Orange,
+                SpkrLedState::Orange => SpkrLedState::OrangeBlink,
+            };
+        }
+
+        if msg & MONO_BUTTON_PUSHED > 0 {
+            p.mono_led = match params.mono_led {
+                MonoLedState::Off => MonoLedState::On,
+                MonoLedState::On => MonoLedState::Off,
+            };
+        }
+
+        if msg & MUTE_BUTTON_PUSHED > 0 {
+            p.mute_led = match params.mute_led {
+                MuteLedState::Off => MuteLedState::On,
+                MuteLedState::Blink => MuteLedState::On,
+                MuteLedState::On => MuteLedState::Off,
+            };
+        }
+
+        if msg & MUTE_BUTTON_HELD > 0 {
+            p.mute_led = match params.mute_led {
+                MuteLedState::Off => MuteLedState::Off,
+                MuteLedState::Blink => MuteLedState::On,
+                MuteLedState::On => MuteLedState::Blink,
+            };
+        }
+
+        if !p.eq(params) {
+            Self::update_extension_partial_params(req, node, sections, caps, &p, params, timeout_ms)?;
+        }
+
+        Ok(())
+    }
+}
+
 impl TcatApplSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
 
 impl TcatApplSectionMutableParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
