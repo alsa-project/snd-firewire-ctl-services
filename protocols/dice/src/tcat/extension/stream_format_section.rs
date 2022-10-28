@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for stream format
 //! section in protocol extension defined by TCAT for ASICs of DICE.
 
-use super::{caps_section::*, stream_format_entry::*, *};
+use super::{stream_format_entry::*, *};
 
 /// Parameters of entries in stream format section.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -45,6 +45,34 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StreamFormat
             .rx_entries
             .resize_with(rx_entry_count, Default::default);
         deserialize_stream_format_entries((&mut params.tx_entries, &mut params.rx_entries), &raw)
+            .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
+    }
+}
+
+impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<StreamFormatParams>
+    for O
+{
+    fn update_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &StreamFormatParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if caps.general.dynamic_stream_format {
+            let msg = "Stream format configuration is not mutable.";
+            Err(Error::new(ProtocolExtensionError::StreamFormat, &msg))?;
+        }
+
+        let size =
+            calculate_stream_format_entries_size(params.tx_entries.len(), params.rx_entries.len());
+        let size = std::cmp::min(sections.stream_format.size, size);
+        let mut raw = vec![0u8; size];
+        serialize_stream_format_entries((&params.tx_entries, &params.rx_entries), &mut raw)
+            .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))?;
+
+        Self::write_extension(req, node, &sections.stream_format, 0, &mut raw, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
     }
 }
