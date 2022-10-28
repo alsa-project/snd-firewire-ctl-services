@@ -40,7 +40,7 @@ impl FStudioMobileModel {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
-            &self.sections.global.params,
+            &self.common_ctl.global_params,
             TIMEOUT_MS,
         )?;
 
@@ -131,7 +131,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for FStudioMobileModel {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
-            &self.sections.global.params,
+            &self.common_ctl.global_params,
             TIMEOUT_MS,
             *msg,
         )?;

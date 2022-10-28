@@ -66,7 +66,7 @@ where
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
-            &self.sections.global.params,
+            &self.common_ctl.global_params,
             TIMEOUT_MS,
         )?;
 
@@ -207,7 +207,7 @@ where
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
-            &self.sections.global.params,
+            &self.common_ctl.global_params,
             TIMEOUT_MS,
             *msg,
         )?;
