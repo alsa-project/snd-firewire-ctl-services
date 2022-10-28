@@ -764,6 +764,21 @@ impl ApplSectionParamsSerdes<Mbox3SpecificParams> for Mbox3Protocol {
     }
 }
 
+impl TcatExtensionSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut Mbox3SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; MIN_SIZE];
+        Self::read_extension(req, node, &sections.application, 0, &mut raw, timeout_ms)?;
+        deserialize(params, &raw).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl TcatApplSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
 
 impl TcatApplSectionMutableParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {}
