@@ -269,7 +269,7 @@ fn deserialize_general_caps(params: &mut GeneralCaps, raw: &[u8]) -> Result<(), 
 }
 
 /// Capabilities of each funtions.
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ExtensionCaps {
     /// Capabilities for router function.
     pub router: RouterCaps,
@@ -329,30 +329,6 @@ pub trait TcatExtensionCapsSectionOperation: TcatExtensionOperation {
 }
 
 impl<O: TcatExtensionOperation> TcatExtensionCapsSectionOperation for O {}
-
-/// Protocol implementation of capabilities section.
-#[derive(Default)]
-pub struct CapsSectionProtocol;
-
-impl CapsSectionProtocol {
-    /// Read capabilities.
-    pub fn read_caps(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &mut ExtensionCaps,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; ExtensionCaps::SIZE];
-        extension_read(req, node, sections.caps.offset, &mut raw, timeout_ms)
-            .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))?;
-
-        deserialize_extension_caps(caps, &raw)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Caps, &cause))?;
-
-        Ok(())
-    }
-}
 
 #[cfg(test)]
 mod test {
