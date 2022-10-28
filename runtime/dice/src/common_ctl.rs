@@ -4,14 +4,19 @@
 use {super::*, std::marker::PhantomData};
 
 #[derive(Default, Debug)]
-pub struct CommonCtl<T>(pub Vec<ElemId>, pub Vec<ElemId>, PhantomData<T>)
+pub struct CommonCtl<T>
 where
     T: TcatNotifiedSectionOperation<GlobalParameters>
         + TcatFluctuatedSectionOperation<GlobalParameters>
         + TcatMutableSectionOperation<GlobalParameters>
         + TcatNotifiedSectionOperation<TxStreamFormatParameters>
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>;
+        + TcatSectionOperation<ExtendedSyncParameters>,
+{
+    pub measured_elem_id_list: Vec<ElemId>,
+    pub notified_elem_id_list: Vec<ElemId>,
+    _phantom: PhantomData<T>,
+}
 
 const CLK_RATE_NAME: &str = "clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
@@ -73,7 +78,7 @@ where
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .avail_sources
@@ -90,12 +95,12 @@ where
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, NICKNAME, 0);
         card_cntr
             .add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)
-            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .external_source_states
@@ -114,12 +119,12 @@ where
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOCKED_CLK_SRC_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, labels.len(), false)
-                .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.measured_elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SLIPPED_CLK_SRC_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, labels.len(), false)
-                .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.measured_elem_id_list.append(&mut elem_id_list))?;
         }
 
         Ok(())

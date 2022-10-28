@@ -170,7 +170,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
@@ -208,7 +208,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_ctl.1);
     }
