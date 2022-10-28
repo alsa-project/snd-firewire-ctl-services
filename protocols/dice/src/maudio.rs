@@ -490,13 +490,6 @@ impl<O: PfireSpecificSpecification> ApplSectionParamsSerdes<PfireSpecificParams>
     }
 }
 
-impl<O> TcatApplSectionParamsOperation<PfireSpecificParams> for O where
-    O: TcatExtensionOperation
-        + PfireSpecificSpecification
-        + ApplSectionParamsSerdes<PfireSpecificParams>
-{
-}
-
 impl<O> TcatApplSectionMutableParamsOperation<PfireSpecificParams> for O where
     O: TcatExtensionOperation
         + PfireSpecificSpecification
