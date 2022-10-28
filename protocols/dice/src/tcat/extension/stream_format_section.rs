@@ -8,6 +8,47 @@
 
 use super::{caps_section::*, stream_format_entry::*, *};
 
+/// Parameters of entries in stream format section.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct StreamFormatParams {
+    pub tx_entries: Vec<FormatEntry>,
+    pub rx_entries: Vec<FormatEntry>,
+}
+
+impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StreamFormatParams> for O {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut StreamFormatParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let size = calculate_stream_format_entries_size(
+            caps.general.max_tx_streams as usize,
+            caps.general.max_rx_streams as usize,
+        );
+        let size = std::cmp::min(sections.stream_format.size, size);
+        let mut raw = vec![0u8; size];
+        Self::read_extension(req, node, &sections.stream_format, 0, &mut raw, timeout_ms)?;
+
+        let mut tx_entry_count = 0usize;
+        deserialize_usize(&mut tx_entry_count, &raw[..4]);
+
+        let mut rx_entry_count = 0usize;
+        deserialize_usize(&mut rx_entry_count, &raw[4..8]);
+
+        params
+            .tx_entries
+            .resize_with(tx_entry_count, Default::default);
+        params
+            .rx_entries
+            .resize_with(rx_entry_count, Default::default);
+        deserialize_stream_format_entries((&mut params.tx_entries, &mut params.rx_entries), &raw)
+            .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
+    }
+}
+
 /// Protocol implementation of stream format section.
 #[derive(Default)]
 pub struct StreamFormatSectionProtocol;

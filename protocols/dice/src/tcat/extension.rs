@@ -32,6 +32,7 @@ pub use {
     peak_section::PeakParams,
     router_section::RouterParams,
     standalone_section::StandaloneParameters,
+    stream_format_section::StreamFormatParams,
 };
 
 /// Section in control and status register (CSR) of node.
