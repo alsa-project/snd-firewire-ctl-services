@@ -674,6 +674,42 @@ impl TcatExtensionSectionParamsOperation<Spro24DspEffectGeneralParams> for SPro2
     }
 }
 
+impl TcatExtensionSectionPartialMutableParamsOperation<Spro24DspEffectGeneralParams>
+    for SPro24DspProtocol
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &Spro24DspEffectGeneralParams,
+        prev: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; 4];
+        serialize_effect_general_params(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; 4];
+        serialize_effect_general_params(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        if new != old {
+            Self::write_extension(
+                req,
+                node,
+                &sections.application,
+                CH_STRIP_FLAG_OFFSET,
+                &mut new,
+                timeout_ms,
+            )?;
+            Self::write_sw_notice(req, node, sections, CH_STRIP_FLAG_SW_NOTICE, timeout_ms)?;
+        }
+        deserialize_effect_general_params(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl ApplSectionParamsSerdes<Spro24DspEffectGeneralParams> for SPro24DspProtocol {
     const APPL_PARAMS_OFFSET: usize = CH_STRIP_FLAG_OFFSET;
 
@@ -748,6 +784,48 @@ impl TcatExtensionSectionParamsOperation<Spro24DspCompressorState> for SPro24Dsp
             timeout_ms,
         )?;
         deserialize_compressor_state(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionPartialMutableParamsOperation<Spro24DspCompressorState>
+    for SPro24DspProtocol
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &Spro24DspCompressorState,
+        prev: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_compressor_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, COMP_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, COMP_CH1_SW_NOTICE, timeout_ms)?;
+
+        deserialize_compressor_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
@@ -832,6 +910,80 @@ impl TcatExtensionSectionParamsOperation<Spro24DspEqualizerState> for SPro24DspP
             timeout_ms,
         )?;
         deserialize_equalizer_state(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionPartialMutableParamsOperation<Spro24DspEqualizerState>
+    for SPro24DspProtocol
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &Spro24DspEqualizerState,
+        prev: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE * 2];
+        serialize_equalizer_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH1_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH1_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH0_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH1_SW_NOTICE, timeout_ms)?;
+
+        deserialize_equalizer_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
@@ -948,6 +1100,44 @@ impl TcatExtensionSectionParamsOperation<Spro24DspReverbState> for SPro24DspProt
             timeout_ms,
         )?;
         deserialize_reverb_state(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionPartialMutableParamsOperation<Spro24DspReverbState> for SPro24DspProtocol {
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &Spro24DspReverbState,
+        prev: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; COEF_BLOCK_SIZE];
+        serialize_reverb_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..(COEF_BLOCK_SIZE * 2)).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+        Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
+        deserialize_reverb_state(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
