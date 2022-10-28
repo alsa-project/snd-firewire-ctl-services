@@ -21,7 +21,8 @@ where
         + TcatExtensionCapsSectionOperation
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
-        + TcatExtensionSectionParamsOperation<MixerSaturationParams>,
+        + TcatExtensionSectionParamsOperation<MixerSaturationParams>
+        + TcatExtensionSectionParamsOperation<PeakParams>,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -50,7 +51,8 @@ where
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
-        + TcatExtensionSectionParamsOperation<MixerSaturationParams>,
+        + TcatExtensionSectionParamsOperation<MixerSaturationParams>
+        + TcatExtensionSectionParamsOperation<PeakParams>,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -1132,9 +1134,10 @@ where
 #[derive(Default, Debug)]
 struct MeterCtls<T>
 where
-    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>,
+    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>
+        + TcatExtensionSectionParamsOperation<PeakParams>,
 {
-    peak_entries: Vec<RouterEntry>,
+    peak_entries: PeakParams,
 
     real_meter: Vec<i32>,
     stream_meter: Vec<i32>,
@@ -1147,7 +1150,8 @@ where
 
 impl<T> MeterCtls<T>
 where
-    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>,
+    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>
+        + TcatExtensionSectionParamsOperation<PeakParams>,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
@@ -1165,8 +1169,10 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.peak_entries
+            .0
+             .0
             .resize_with(caps.router.maximum_entry_count as usize, Default::default);
-        let res = PeakSectionProtocol::cache_peak_whole_entries(
+        let res = T::cache_extension_whole_params(
             req,
             node,
             sections,
@@ -1201,6 +1207,8 @@ where
             )
             .for_each(|(meter, dst)| {
                 *meter = peak_entries
+                    .0
+                     .0
                     .iter()
                     .find(|entry| dst.eq(&entry.dst))
                     .map(|entry| entry.peak as i32)
