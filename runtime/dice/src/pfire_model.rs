@@ -107,7 +107,7 @@ where
         + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections)?;
+        self.common_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctls.load(card_cntr)?;
 
@@ -122,7 +122,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
@@ -220,7 +220,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
@@ -268,7 +268,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
             Ok(true)
