@@ -29,6 +29,7 @@ use {
 pub use {
     caps_section::ExtensionCaps,
     mixer_section::{MixerCoefficientParams, MixerSaturationParams},
+    router_section::RouterParams,
     standalone_section::StandaloneParameters,
 };
 
