@@ -289,6 +289,37 @@ impl<O: TcatExtensionOperation + SaffireproOutGroupSpecification>
     }
 }
 
+impl<O: TcatExtensionOperation + SaffireproOutGroupSpecification>
+    TcatExtensionSectionNotifiedParamsOperation<OutGroupState> for O
+{
+    fn cache_extension_notified_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut OutGroupState,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if msg & (NOTIFY_DIM_MUTE_CHANGE | NOTIFY_VOL_CHANGE) > 0 {
+            Self::cache_extension_whole_params(req, node, sections, caps, params, timeout_ms)?;
+
+            if msg & NOTIFY_VOL_CHANGE > 0 {
+                let vol_hwctls = params.vol_hwctls.clone();
+                let hw_knob_value = params.hw_knob_value;
+                params
+                    .vols
+                    .iter_mut()
+                    .zip(vol_hwctls)
+                    .filter(|(_, vol_hwctl)| *vol_hwctl)
+                    .for_each(|(vol, _)| *vol = hw_knob_value);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl<O: SaffireproOutGroupSpecification> ApplSectionParamsSerdes<OutGroupState> for O {
     const APPL_PARAMS_OFFSET: usize = O::OUT_GROUP_STATE_OFFSET;
 
