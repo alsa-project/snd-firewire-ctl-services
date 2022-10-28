@@ -298,14 +298,7 @@ fn print_standalone_config(
 ) -> Result<(), Error> {
     println!("Standalone configurations:");
     let mut params = StandaloneParameters::default();
-    Protocol::cache_extension_whole_params(
-        req,
-        node,
-        sections,
-        caps,
-        &mut params,
-        TIMEOUT_MS,
-    )?;
+    Protocol::cache_extension_whole_params(req, node, sections, caps, &mut params, TIMEOUT_MS)?;
     println!(
         "  clock source: {}",
         clock_source_to_string(&params.clock_source)

@@ -5,9 +5,8 @@ use {
     super::*,
     protocols::tcat::{
         extension::{
-            peak_section::*,
-            {caps_section::*, cmd_section::*, mixer_section::*, *},
-            {current_config_section::*, standalone_section::*},
+            caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
+            peak_section::*, standalone_section::*, *,
         },
         tcd22xx_spec::*,
     },
@@ -17,7 +16,10 @@ use {
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation + TcatExtensionCapsSectionOperation,
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
+        + TcatExtensionCapsSectionOperation
+        + TcatExtensionSectionParamsOperation<StandaloneParameters>,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -42,7 +44,10 @@ where
 
 impl<T> Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation + TcatExtensionCapsSectionOperation,
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
+        + TcatExtensionCapsSectionOperation
+        + TcatExtensionSectionParamsOperation<StandaloneParameters>,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -123,7 +128,7 @@ where
         self.current_rate = global_params.current_rate;
 
         self.standalone_ctls
-            .cache(req, node, sections, timeout_ms)?;
+            .cache(req, node, sections, &self.caps, timeout_ms)?;
 
         self.mixer_ctls
             .cache(req, node, sections, &self.caps, timeout_ms)?;
@@ -297,11 +302,13 @@ where
 }
 
 #[derive(Default, Debug)]
-struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>);
+struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>)
+where
+    T: TcatExtensionSectionParamsOperation<StandaloneParameters>;
 
 impl<T> StandaloneCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: TcatExtensionSectionParamsOperation<StandaloneParameters>,
 {
     const ADAT_MODES: &'static [AdatParam] = &[
         AdatParam::Normal,
@@ -322,15 +329,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = StandaloneSectionProtocol::cache_standalone_params(
-            req,
-            node,
-            sections,
-            &mut self.0,
-            timeout_ms,
-        );
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
