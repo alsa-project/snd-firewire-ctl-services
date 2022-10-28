@@ -159,6 +159,48 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<MixerCoeffic
     }
 }
 
+impl<O: TcatExtensionOperation>
+    TcatExtensionSectionPartialMutableParamsOperation<MixerCoefficientParams> for O
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &MixerCoefficientParams,
+        prev: &mut MixerCoefficientParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; calculate_mixer_coefficients_size()];
+        serialize_mixer_coefficients(&params.0, &caps.mixer, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Mixer, &cause))?;
+
+        let mut old = vec![0u8; calculate_mixer_coefficients_size()];
+        serialize_mixer_coefficients(&prev.0, &caps.mixer, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Mixer, &cause))?;
+
+        (0..calculate_mixer_coefficients_size())
+            .step_by(4)
+            .try_for_each(|pos| {
+                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                    Self::write_extension(
+                        req,
+                        node,
+                        &sections.mixer,
+                        COEFF_OFFSET + pos,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                } else {
+                    Ok(())
+                }
+            })?;
+
+        deserialize_mixer_coefficients(&mut prev.0, &caps.mixer, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Mixer, &cause))
+    }
+}
+
 /// Protocol implementation of mixer section.
 #[derive(Default)]
 pub struct MixerSectionProtocol;
