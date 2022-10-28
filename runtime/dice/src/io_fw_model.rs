@@ -974,14 +974,21 @@ pub fn detect_io26fw_model(node: &FwNode) -> Result<bool, Error> {
     let mut sections = GeneralSections::default();
     Io14fwProtocol::read_general_sections(&req, node, &mut sections, TIMEOUT_MS)?;
 
-    Io14fwProtocol::whole_cache(&req, node, &mut sections.global, TIMEOUT_MS)?;
-    let global_params = sections.global.params.clone();
+    let mut global_params = GlobalParameters::default();
+    Io14fwProtocol::whole_cache(&req, node, &sections.global, &mut global_params, TIMEOUT_MS)?;
     let config = &global_params.clock_config;
 
     match config.rate {
         ClockRate::R32000 | ClockRate::R44100 | ClockRate::R48000 | ClockRate::AnyLow => {
-            Io14fwProtocol::whole_cache(&req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
-            let entries = &sections.tx_stream_format.params.0;
+            let mut params = TxStreamFormatParameters::default();
+            Io14fwProtocol::whole_cache(
+                &req,
+                node,
+                &sections.tx_stream_format,
+                &mut params,
+                TIMEOUT_MS,
+            )?;
+            let entries = &params.0;
             if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 16 {
                 Ok(true)
             } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 8 {
@@ -994,8 +1001,15 @@ pub fn detect_io26fw_model(node: &FwNode) -> Result<bool, Error> {
             }
         }
         ClockRate::R88200 | ClockRate::R96000 | ClockRate::AnyMid => {
-            Io14fwProtocol::whole_cache(&req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
-            let entries = &sections.tx_stream_format.params.0;
+            let mut params = TxStreamFormatParameters::default();
+            Io14fwProtocol::whole_cache(
+                &req,
+                node,
+                &sections.tx_stream_format,
+                &mut params,
+                TIMEOUT_MS,
+            )?;
+            let entries = &params.0;
             if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 4 {
                 Ok(true)
             } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 4 {

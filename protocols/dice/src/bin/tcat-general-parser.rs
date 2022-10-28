@@ -79,9 +79,8 @@ fn print_global_section(
     node: &FwNode,
     sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    Protocol::whole_cache(req, node, &mut sections.global, TIMEOUT_MS)?;
-
-    let params = &sections.global.params;
+    let mut params = GlobalParameters::default();
+    Protocol::whole_cache(req, node, &sections.global, &mut params, TIMEOUT_MS)?;
 
     println!("Parameters in global section:");
     println!("  Owner:");
@@ -175,9 +174,16 @@ fn print_tx_stream_formats(
     node: &FwNode,
     sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    Protocol::whole_cache(req, node, &mut sections.tx_stream_format, TIMEOUT_MS)?;
+    let mut params = TxStreamFormatParameters::default();
+    Protocol::whole_cache(
+        req,
+        node,
+        &sections.tx_stream_format,
+        &mut params,
+        TIMEOUT_MS,
+    )?;
 
-    let entries = &sections.tx_stream_format.params.0;
+    let entries = &params.0;
 
     println!("Parameters in tx stream format section");
     println!("  Tx stream format entries:");
@@ -212,9 +218,16 @@ fn print_rx_stream_formats(
     node: &FwNode,
     sections: &mut GeneralSections,
 ) -> Result<(), Error> {
-    Protocol::whole_cache(req, node, &mut sections.rx_stream_format, TIMEOUT_MS)?;
+    let mut params = RxStreamFormatParameters::default();
+    Protocol::whole_cache(
+        req,
+        node,
+        &sections.rx_stream_format,
+        &mut params,
+        TIMEOUT_MS,
+    )?;
 
-    let entries = &sections.rx_stream_format.params.0;
+    let entries = &params.0;
     println!("Parameters in tx stream format section");
     println!("  Rx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
@@ -244,9 +257,8 @@ fn print_rx_stream_formats(
 }
 
 fn print_ext_sync(req: &FwReq, node: &FwNode, sections: &mut GeneralSections) -> Result<(), Error> {
-    Protocol::whole_cache(req, node, &mut sections.ext_sync, TIMEOUT_MS)?;
-
-    let params = &sections.ext_sync.params;
+    let mut params = ExtendedSyncParameters::default();
+    Protocol::whole_cache(req, node, &sections.ext_sync, &mut params, TIMEOUT_MS)?;
 
     println!("Parameters in external synchronization section");
     println!("  External sync:");

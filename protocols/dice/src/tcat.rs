@@ -279,13 +279,14 @@ where
     fn whole_cache(
         req: &FwReq,
         node: &FwNode,
-        section: &mut Section<T>,
+        section: &Section<T>,
+        params: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
-        Self::read(req, node, section.offset, &mut section.raw, timeout_ms)?;
-        Self::deserialize(&mut section.params, &section.raw)
-            .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+        let mut raw = vec![0u8; section.size];
+        Self::read(req, node, section.offset, &mut raw, timeout_ms)?;
+        Self::deserialize(params, &raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
     }
 }
 
