@@ -29,7 +29,7 @@ where
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
 
-    caps: ExtensionCaps,
+    pub caps: ExtensionCaps,
 
     supported_sources: Vec<ClockSource>,
     supported_source_labels: Vec<String>,
