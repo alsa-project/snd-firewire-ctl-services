@@ -30,14 +30,14 @@ pub struct OutGroupCtl<T>(OutGroupState, Vec<ElemId>, PhantomData<T>)
 where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
-        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>;
 
 impl<T> Default for OutGroupCtl<T>
 where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
-        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
 {
     fn default() -> Self {
@@ -53,7 +53,7 @@ impl<T> OutGroupCtl<T>
 where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
-        + TcatApplSectionMutableParamsOperation<OutGroupState>
+        + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
 {
     const LEVEL_MIN: i32 = 0x00;
@@ -167,6 +167,7 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -179,10 +180,11 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as i8);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -197,10 +199,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_mute, val)| *vol_mute = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -215,10 +218,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(vol_hwctl, val)| *vol_hwctl = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -229,10 +233,11 @@ where
             MUTE_NAME => {
                 let mut params = self.0.clone();
                 params.mute_enabled = elem_value.boolean()[0];
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -247,10 +252,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(mute_hwctl, val)| *mute_hwctl = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -261,10 +267,11 @@ where
             DIM_NAME => {
                 let mut params = self.0.clone();
                 params.dim_enabled = elem_value.boolean()[0];
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -279,10 +286,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(dim_hwctl, val)| *dim_hwctl = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -328,13 +336,13 @@ pub struct SaffireproInputCtl<T>(SaffireproInputParams, PhantomData<T>)
 where
     T: SaffireproInputSpecification
         + TcatExtensionSectionParamsOperation<SaffireproInputParams>
-        + TcatApplSectionMutableParamsOperation<SaffireproInputParams>;
+        + TcatExtensionSectionPartialMutableParamsOperation<SaffireproInputParams>;
 
 impl<T> SaffireproInputCtl<T>
 where
     T: SaffireproInputSpecification
         + TcatExtensionSectionParamsOperation<SaffireproInputParams>
-        + TcatApplSectionMutableParamsOperation<SaffireproInputParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<SaffireproInputParams>,
 {
     const MIC_LEVELS: [SaffireproMicInputLevel; 2] = [
         SaffireproMicInputLevel::Line,
@@ -415,6 +423,7 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -437,10 +446,11 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -465,10 +475,11 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -486,7 +497,7 @@ pub struct IoParamsCtl<T>(SaffireproIoParams, PhantomData<T>)
 where
     T: SaffireproIoParamsSpecification
         + TcatExtensionSectionParamsOperation<SaffireproIoParams>
-        + TcatApplSectionMutableParamsOperation<SaffireproIoParams>;
+        + TcatExtensionSectionPartialMutableParamsOperation<SaffireproIoParams>;
 
 fn optical_out_iface_mode_to_str(mode: &OpticalOutIfaceMode) -> &'static str {
     match mode {
@@ -504,7 +515,7 @@ impl<T> IoParamsCtl<T>
 where
     T: SaffireproIoParamsSpecification
         + TcatExtensionSectionParamsOperation<SaffireproIoParams>
-        + TcatApplSectionMutableParamsOperation<SaffireproIoParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<SaffireproIoParams>,
 {
     const OPTICAL_OUT_IFACE_MODES: [OpticalOutIfaceMode; 3] = [
         OpticalOutIfaceMode::Adat,
@@ -575,6 +586,7 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -583,10 +595,11 @@ where
             ANALOG_OUT_0_1_PAD_NAME => {
                 let mut params = self.0.clone();
                 params.analog_out_0_1_pad = elem_value.boolean()[0];
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -606,10 +619,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_out_iface_mode = mode)?;
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -624,10 +638,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(transformer, val)| *transformer = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,

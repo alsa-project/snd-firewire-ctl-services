@@ -116,6 +116,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             elem_id,
             new,
             TIMEOUT_MS,
