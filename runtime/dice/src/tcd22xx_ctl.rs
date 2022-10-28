@@ -22,6 +22,7 @@ where
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionPartialMutableParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
         + TcatExtensionSectionParamsOperation<PeakParams>
         + TcatExtensionSectionParamsOperation<CurrentRouterParams>
@@ -56,6 +57,7 @@ where
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionPartialMutableParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
         + TcatExtensionSectionParamsOperation<PeakParams>
         + TcatExtensionSectionParamsOperation<CurrentRouterParams>
@@ -686,11 +688,13 @@ where
 #[derive(Default, Debug)]
 struct MixerCtls<T>(MixerCoefficientParams, PhantomData<T>)
 where
-    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>;
+    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionPartialMutableParamsOperation<MixerCoefficientParams>;
 
 impl<T> MixerCtls<T>
 where
-    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>,
+    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionPartialMutableParamsOperation<MixerCoefficientParams>,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
@@ -788,13 +792,13 @@ where
                             .zip(elem_value.int())
                             .for_each(|(coef, &val)| *coef = val as u16);
                     })?;
-                let res = MixerSectionProtocol::update_mixer_partial_coefficients(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
                     caps,
-                    &params.0,
-                    &mut self.0 .0,
+                    &params,
+                    &mut self.0,
                     timeout_ms,
                 );
                 debug!(params = ?self.0, ?res);
