@@ -84,11 +84,7 @@
 //! ```
 
 use super::{
-    tcat::{
-        extension::{appl_section::*, *},
-        tcd22xx_spec::*,
-        *,
-    },
+    tcat::{extension::*, tcd22xx_spec::*, *},
     *,
 };
 
@@ -749,20 +745,6 @@ const SPKR_BUTTON_HELD: u32 = 0x02000000;
 const MONO_BUTTON_PUSHED: u32 = 0x00800000;
 const MUTE_BUTTON_PUSHED: u32 = 0x00400000;
 const MUTE_BUTTON_HELD: u32 = 0x00200000;
-
-impl ApplSectionParamsSerdes<Mbox3SpecificParams> for Mbox3Protocol {
-    const APPL_PARAMS_OFFSET: usize = 0;
-
-    const APPL_PARAMS_SIZE: usize = MIN_SIZE;
-
-    fn serialize_appl_params(params: &Mbox3SpecificParams, raw: &mut [u8]) -> Result<(), String> {
-        serialize(params, raw)
-    }
-
-    fn deserialize_appl_params(params: &mut Mbox3SpecificParams, raw: &[u8]) -> Result<(), String> {
-        deserialize(params, raw)
-    }
-}
 
 impl TcatExtensionSectionParamsOperation<Mbox3SpecificParams> for Mbox3Protocol {
     fn cache_extension_whole_params(

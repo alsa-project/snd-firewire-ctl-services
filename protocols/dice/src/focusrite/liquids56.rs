@@ -790,26 +790,6 @@ fn deserialize_specific_params(
     Ok(())
 }
 
-impl ApplSectionParamsSerdes<LiquidS56SpecificParams> for LiquidS56Protocol {
-    const APPL_PARAMS_OFFSET: usize = SPECIFIC_PARAMS_OFFSET;
-
-    const APPL_PARAMS_SIZE: usize = SPECIFIC_PARAMS_SIZE;
-
-    fn serialize_appl_params(
-        params: &LiquidS56SpecificParams,
-        raw: &mut [u8],
-    ) -> Result<(), String> {
-        serialize_specific_params(params, raw)
-    }
-
-    fn deserialize_appl_params(
-        params: &mut LiquidS56SpecificParams,
-        raw: &[u8],
-    ) -> Result<(), String> {
-        deserialize_specific_params(params, raw)
-    }
-}
-
 /// Protocol specific to Saffire Pro 26.
 impl LiquidS56Protocol {
     pub const MIC_AMP_HARMONICS_MIN: u8 = 0;
@@ -847,59 +827,6 @@ impl TcatExtensionSectionPartialMutableParamsOperation<LiquidS56SpecificParams>
         node: &FwNode,
         sections: &ExtensionSections,
         _: &ExtensionCaps,
-        params: &LiquidS56SpecificParams,
-        prev: &mut LiquidS56SpecificParams,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut new = vec![0u8; SPECIFIC_PARAMS_SIZE];
-        serialize_specific_params(params, &mut new)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        let mut old = vec![0u8; SPECIFIC_PARAMS_SIZE];
-        serialize_specific_params(prev, &mut old)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
-
-        (0..SPECIFIC_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
-            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                Self::write_extension(
-                    req,
-                    node,
-                    &sections.application,
-                    SPECIFIC_PARAMS_OFFSET + pos,
-                    &mut new[pos..(pos + 4)],
-                    timeout_ms,
-                )
-            } else {
-                Ok(())
-            }
-        })?;
-
-        [
-            (0x00, MIC_AMP_1_EMULATION_SW_NOTICE),
-            (0x04, MIC_AMP_2_EMULATION_SW_NOTICE),
-            (0x08, MIC_AMP_1_HARMONICS_SW_NOTICE),
-            (0x0c, MIC_AMP_2_HARMONICS_SW_NOTICE),
-            (0x10, MIC_AMP_POLARITY_SW_NOTICE),
-            (0x14, MIC_AMP_POLARITY_SW_NOTICE),
-            (0x38, INPUT_LEVEL_SW_NOTICE),
-            (0x3c, INPUT_LEVEL_SW_NOTICE),
-        ]
-        .iter()
-        .filter(|(pos, _)| &new[*pos..(*pos + 4)] != &old[*pos..(*pos + 4)])
-        .try_for_each(|(_, msg)| Self::write_sw_notice(req, node, sections, *msg, timeout_ms))?;
-
-        deserialize_specific_params(prev, &new)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
-    }
-}
-
-impl TcatApplSectionParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {}
-
-impl TcatApplSectionMutableParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {
-    fn update_appl_partial_params(
-        req: &FwReq,
-        node: &FwNode,
-        sections: &ExtensionSections,
         params: &LiquidS56SpecificParams,
         prev: &mut LiquidS56SpecificParams,
         timeout_ms: u32,
