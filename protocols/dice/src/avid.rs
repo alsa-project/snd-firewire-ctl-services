@@ -812,8 +812,7 @@ impl TcatExtensionSectionPartialMutableParamsOperation<Mbox3SpecificParams> for 
             }
         })?;
 
-        deserialize(prev, &new)
-            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+        deserialize(prev, &new).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
 
