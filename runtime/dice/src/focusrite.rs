@@ -29,14 +29,14 @@ const MUTE_HWCTL_NAME: &str = "output-group-mute-hwctl";
 pub struct OutGroupCtl<T>(OutGroupState, Vec<ElemId>, PhantomData<T>)
 where
     T: SaffireproOutGroupSpecification
-        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>;
 
 impl<T> Default for OutGroupCtl<T>
 where
     T: SaffireproOutGroupSpecification
-        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
 {
@@ -52,7 +52,7 @@ where
 impl<T> OutGroupCtl<T>
 where
     T: SaffireproOutGroupSpecification
-        + TcatApplSectionParamsOperation<OutGroupState>
+        + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatApplSectionMutableParamsOperation<OutGroupState>
         + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
 {
@@ -65,9 +65,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -325,13 +327,13 @@ fn line_input_level_to_str(level: &SaffireproLineInputLevel) -> &'static str {
 pub struct SaffireproInputCtl<T>(SaffireproInputParams, PhantomData<T>)
 where
     T: SaffireproInputSpecification
-        + TcatApplSectionParamsOperation<SaffireproInputParams>
+        + TcatExtensionSectionParamsOperation<SaffireproInputParams>
         + TcatApplSectionMutableParamsOperation<SaffireproInputParams>;
 
 impl<T> SaffireproInputCtl<T>
 where
     T: SaffireproInputSpecification
-        + TcatApplSectionParamsOperation<SaffireproInputParams>
+        + TcatExtensionSectionParamsOperation<SaffireproInputParams>
         + TcatApplSectionMutableParamsOperation<SaffireproInputParams>,
 {
     const MIC_LEVELS: [SaffireproMicInputLevel; 2] = [
@@ -349,9 +351,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -481,7 +485,7 @@ where
 pub struct IoParamsCtl<T>(SaffireproIoParams, PhantomData<T>)
 where
     T: SaffireproIoParamsSpecification
-        + TcatApplSectionParamsOperation<SaffireproIoParams>
+        + TcatExtensionSectionParamsOperation<SaffireproIoParams>
         + TcatApplSectionMutableParamsOperation<SaffireproIoParams>;
 
 fn optical_out_iface_mode_to_str(mode: &OpticalOutIfaceMode) -> &'static str {
@@ -499,7 +503,7 @@ const MIC_AMP_TRANSFORMER_NAME: &str = "mic-amp-transformer";
 impl<T> IoParamsCtl<T>
 where
     T: SaffireproIoParamsSpecification
-        + TcatApplSectionParamsOperation<SaffireproIoParams>
+        + TcatExtensionSectionParamsOperation<SaffireproIoParams>
         + TcatApplSectionMutableParamsOperation<SaffireproIoParams>,
 {
     const OPTICAL_OUT_IFACE_MODES: [OpticalOutIfaceMode; 3] = [
@@ -513,9 +517,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_appl_whole_params(req, node, sections, &mut self.0, timeout_ms);
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
