@@ -112,6 +112,109 @@ fn serialize_opcode(code: &Opcode, raw: &mut [u8]) {
     serialize_u32(&val, raw);
 }
 
+const OPCODE_OFFSET: usize = 0x00;
+const RETURN_OFFSET: usize = 0x04;
+
+/// Operation in command section of TCAT protocol extension.
+pub trait TcatExtensionCommandSectionOperation: TcatExtensionOperation {
+    /// Initiate command and wait for its completion.
+    fn initiate(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        opcode: Opcode,
+        timeout_ms: u32,
+    ) -> Result<u32, Error> {
+        if let Opcode::LoadRouter(_) = opcode {
+            if caps.mixer.is_readonly {
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Router configuration is immutable",
+                ))?
+            }
+        } else if let Opcode::LoadStreamConfig(_) = opcode {
+            if !caps.general.dynamic_stream_format {
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Stream format configuration is immutable",
+                ))?
+            }
+        } else if let Opcode::LoadRouterStreamConfig(_) = opcode {
+            if caps.mixer.is_readonly && !caps.general.dynamic_stream_format {
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Any configuration is immutable",
+                ))?
+            }
+        } else if opcode == Opcode::LoadConfigFromFlash {
+            if !caps.general.storage_avail {
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Storage is not available",
+                ))?
+            }
+        } else if opcode == Opcode::StoreConfigToFlash {
+            if !caps.general.storage_avail {
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Storage is not available",
+                ))?
+            }
+        }
+
+        let mut raw = [0; 4];
+        serialize_opcode(&opcode, &mut raw);
+        Self::write_extension(
+            req,
+            node,
+            &sections.cmd,
+            OPCODE_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        let mut count = 0;
+        while count < 10 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+
+            Self::read_extension(
+                req,
+                node,
+                &sections.cmd,
+                OPCODE_OFFSET,
+                &mut raw,
+                timeout_ms,
+            )
+            .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
+
+            let mut val = 0u32;
+            deserialize_u32(&mut val, &raw);
+
+            if val & EXECUTE_FLAG == 0 {
+                Self::read_extension(
+                    req,
+                    node,
+                    &sections.cmd,
+                    RETURN_OFFSET,
+                    &mut raw,
+                    timeout_ms,
+                )
+                .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
+                return Ok(u32::from_be_bytes(raw));
+            }
+            count += 1;
+        }
+
+        Err(Error::new(
+            ProtocolExtensionError::Cmd,
+            "Operation timeout.",
+        ))
+    }
+}
+
+impl<O: TcatExtensionOperation> TcatExtensionCommandSectionOperation for O {}
+
 /// Protocol implementation of command section.
 #[derive(Default)]
 pub struct CmdSectionProtocol;
