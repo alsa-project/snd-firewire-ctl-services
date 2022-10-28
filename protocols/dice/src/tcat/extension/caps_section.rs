@@ -80,9 +80,9 @@ pub struct MixerCaps {
     pub input_device_id: u8,
     /// The numeric identifier of output device.
     pub output_device_id: u8,
-    /// The number of input devices.
+    /// The total number of mixer inputs.
     pub input_count: u8,
-    /// The number of output devices.
+    /// The total number of mixer outputs.
     pub output_count: u8,
 }
 
@@ -290,7 +290,10 @@ fn serialize_extension_caps(params: &ExtensionCaps, raw: &mut [u8]) -> Result<()
     Ok(())
 }
 
-fn deserialize_extension_caps(params: &mut ExtensionCaps, raw: &[u8]) -> Result<(), String> {
+pub(crate) fn deserialize_extension_caps(
+    params: &mut ExtensionCaps,
+    raw: &[u8],
+) -> Result<(), String> {
     assert!(raw.len() >= ExtensionCaps::SIZE);
 
     deserialize_router_caps(&mut params.router, &raw[..4])?;
@@ -301,8 +304,31 @@ fn deserialize_extension_caps(params: &mut ExtensionCaps, raw: &[u8]) -> Result<
 }
 
 impl ExtensionCaps {
-    const SIZE: usize = RouterCaps::SIZE + MixerCaps::SIZE + GeneralCaps::SIZE;
+    pub(crate) const SIZE: usize = RouterCaps::SIZE + MixerCaps::SIZE + GeneralCaps::SIZE;
 }
+
+/// Operation in capabilities section of TCAT protocol extension.
+pub trait TcatExtensionCapsSectionOperation: TcatExtensionOperation {
+    /// Read capabilities.
+    fn read_extension_caps(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &mut ExtensionCaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0; ExtensionCaps::SIZE];
+        Self::read_extension(req, node, &sections.caps, 0, &mut raw, timeout_ms)
+            .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))?;
+
+        deserialize_extension_caps(caps, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Caps, &cause))?;
+
+        Ok(())
+    }
+}
+
+impl<O: TcatExtensionOperation> TcatExtensionCapsSectionOperation for O {}
 
 /// Protocol implementation of capabilities section.
 #[derive(Default)]
