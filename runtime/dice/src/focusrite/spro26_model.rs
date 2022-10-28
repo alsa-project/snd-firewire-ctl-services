@@ -155,6 +155,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             *msg,
             TIMEOUT_MS,
         )?;

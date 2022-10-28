@@ -10,10 +10,7 @@ pub mod spro40_model;
 
 use {
     super::{tcd22xx_ctl::*, *},
-    protocols::{
-        focusrite::*,
-        tcat::extension::{appl_section::*, *},
-    },
+    protocols::{focusrite::*, tcat::extension::*},
     std::marker::PhantomData,
 };
 
@@ -31,14 +28,14 @@ where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
-        + TcatApplSectionNotifiedParamsOperation<OutGroupState>;
+        + TcatExtensionSectionNotifiedParamsOperation<OutGroupState>;
 
 impl<T> Default for OutGroupCtl<T>
 where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
-        + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
+        + TcatExtensionSectionNotifiedParamsOperation<OutGroupState>,
 {
     fn default() -> Self {
         Self(
@@ -54,7 +51,7 @@ where
     T: SaffireproOutGroupSpecification
         + TcatExtensionSectionParamsOperation<OutGroupState>
         + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
-        + TcatApplSectionNotifiedParamsOperation<OutGroupState>,
+        + TcatExtensionSectionNotifiedParamsOperation<OutGroupState>,
 {
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0x7f;
@@ -307,10 +304,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_appl_notified_params(req, node, sections, &mut self.0, msg, timeout_ms)
+        T::cache_extension_notified_params(req, node, sections, caps, &mut self.0, msg, timeout_ms)
     }
 }
 
