@@ -19,7 +19,9 @@ where
     T: Tcd22xxSpecification
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
-        + TcatExtensionSectionParamsOperation<StandaloneParameters>,
+        + TcatExtensionSectionParamsOperation<StandaloneParameters>
+        + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionParamsOperation<MixerSaturationParams>,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -47,7 +49,8 @@ where
     T: Tcd22xxSpecification
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
-        + TcatExtensionSectionParamsOperation<StandaloneParameters>,
+        + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
+        + TcatExtensionSectionParamsOperation<MixerSaturationParams>,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -656,11 +659,13 @@ where
 }
 
 #[derive(Default, Debug)]
-struct MixerCtls<T>(Vec<Vec<u16>>, PhantomData<T>);
+struct MixerCtls<T>(MixerCoefficientParams, PhantomData<T>)
+where
+    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>;
 
 impl<T> MixerCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: TcatExtensionSectionParamsOperation<MixerCoefficientParams>,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
@@ -681,19 +686,15 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.0
+             .0
             .resize_with(caps.mixer.output_count as usize, Default::default);
         self.0
+             .0
             .iter_mut()
             .for_each(|coefs| coefs.resize_with(caps.mixer.input_count as usize, Default::default));
 
-        let res = MixerSectionProtocol::cache_mixer_whole_coefficients(
-            req,
-            node,
-            sections,
-            caps,
-            &mut self.0,
-            timeout_ms,
-        );
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -722,6 +723,7 @@ where
                 let dst_ch = elem_id.index() as usize;
                 let vals: Vec<i32> = self
                     .0
+                     .0
                     .iter()
                     .nth(dst_ch)
                     .map(|coefs| coefs.iter().map(|&coef| coef as i32).collect())
@@ -748,6 +750,7 @@ where
                 let dst_ch = elem_id.index() as usize;
                 let mut params = self.0.clone();
                 params
+                    .0
                     .iter_mut()
                     .nth(dst_ch)
                     .ok_or_else(|| {
@@ -765,8 +768,8 @@ where
                     node,
                     sections,
                     caps,
-                    &params,
-                    &mut self.0,
+                    &params.0,
+                    &mut self.0 .0,
                     timeout_ms,
                 );
                 debug!(params = ?self.0, ?res);
@@ -1129,7 +1132,7 @@ where
 #[derive(Default, Debug)]
 struct MeterCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>,
 {
     peak_entries: Vec<RouterEntry>,
 
@@ -1137,14 +1140,14 @@ where
     stream_meter: Vec<i32>,
     mixer_meter: Vec<i32>,
 
-    mixer_saturation: Vec<bool>,
+    mixer_saturation: MixerSaturationParams,
 
     _phantom: PhantomData<T>,
 }
 
 impl<T> MeterCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: TcatExtensionSectionParamsOperation<MixerSaturationParams>,
 {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
@@ -1205,8 +1208,9 @@ where
             });
 
         self.mixer_saturation
+            .0
             .resize_with(mixer_blk_dsts.len(), Default::default);
-        let res = MixerSectionProtocol::cache_mixer_whole_saturation(
+        let res = T::cache_extension_whole_params(
             req,
             node,
             sections,
@@ -1277,7 +1281,7 @@ where
                 Ok(true)
             }
             MIXER_SATURATION_NAME => {
-                elem_value.set_bool(&self.mixer_saturation);
+                elem_value.set_bool(&self.mixer_saturation.0);
                 Ok(true)
             }
             _ => Ok(false),
