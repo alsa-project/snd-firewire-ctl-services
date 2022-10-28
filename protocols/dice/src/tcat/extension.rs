@@ -294,6 +294,19 @@ pub trait TcatExtensionSectionParamsOperation<T: Debug> {
     ) -> Result<(), Error>;
 }
 
+/// Operation for whole mutable parameters in section of TCAT protocol extension.
+pub trait TcatExtensionSectionWholeMutableParamsOperation<T: Debug> {
+    /// Update state of hardware for whole parameters.
+    fn update_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 fn extension_read(
     req: &mut FwReq,
     node: &mut FwNode,
