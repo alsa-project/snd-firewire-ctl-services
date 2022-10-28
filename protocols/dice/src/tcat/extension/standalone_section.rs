@@ -214,44 +214,6 @@ impl<O: TcatExtensionOperation>
     }
 }
 
-impl StandaloneSectionProtocol {
-    pub fn update_standalone_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        params: &StandaloneParameters,
-        prev: &mut StandaloneParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut new = vec![0; sections.standalone.size];
-        serialize(params, &mut new)
-            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))?;
-
-        let mut old = vec![0; sections.standalone.size];
-        serialize(params, &mut old)
-            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))?;
-
-        (0..sections.standalone.size)
-            .step_by(4)
-            .try_for_each(|pos| {
-                if new[pos] != old[pos] {
-                    extension_write(
-                        req,
-                        node,
-                        sections.standalone.offset + pos,
-                        &mut new[pos..(pos + 4)],
-                        timeout_ms,
-                    )
-                } else {
-                    Ok(())
-                }
-            })?;
-
-        deserialize(prev, &new)
-            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
