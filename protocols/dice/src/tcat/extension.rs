@@ -26,6 +26,8 @@ use {
     std::cmp::Ordering,
 };
 
+pub use caps_section::ExtensionCaps;
+
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtensionSection {
@@ -269,6 +271,19 @@ pub trait TcatExtensionOperation: TcatOperation {
         Self::read(req, node, EXTENSION_OFFSET, &mut raw, timeout_ms)
             .map(|_| deserialize_extension_sections(sections, &raw).unwrap())
     }
+}
+
+/// Operation for whole parameters in section of TCAT protocol extension.
+pub trait TcatExtensionSectionParamsOperation<T: Debug> {
+    /// Cache state of hardware for whole parameters.
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
 }
 
 fn extension_read(
