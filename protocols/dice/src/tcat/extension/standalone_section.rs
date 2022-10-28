@@ -155,6 +155,23 @@ fn deserialize(params: &mut StandaloneParameters, raw: &[u8]) -> Result<(), Stri
     Ok(())
 }
 
+impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StandaloneParameters> for O {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut StandaloneParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0; sections.standalone.size];
+        Self::read_extension(req, node, &sections.standalone, 0, &mut raw, timeout_ms)?;
+
+        deserialize(params, &raw)
+            .map_err(|msg| Error::new(ProtocolExtensionError::Standalone, &msg))
+    }
+}
+
 impl StandaloneSectionProtocol {
     pub fn cache_standalone_params(
         req: &mut FwReq,

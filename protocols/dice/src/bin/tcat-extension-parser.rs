@@ -294,13 +294,15 @@ fn print_standalone_config(
     req: &mut FwReq,
     node: &mut FwNode,
     sections: &ExtensionSections,
+    caps: &ExtensionCaps,
 ) -> Result<(), Error> {
     println!("Standalone configurations:");
     let mut params = StandaloneParameters::default();
-    StandaloneSectionProtocol::cache_standalone_params(
+    Protocol::cache_extension_whole_params(
         req,
         node,
         sections,
+        caps,
         &mut params,
         TIMEOUT_MS,
     )?;
@@ -379,7 +381,7 @@ fn main() {
                     print_peak(&mut req, &mut node, &sections, &caps)?;
                     print_current_router_entries(&mut req, &mut node, &sections, &caps)?;
                     print_current_stream_format_entries(&mut req, &mut node, &sections, &caps)?;
-                    print_standalone_config(&mut req, &mut node, &sections)?;
+                    print_standalone_config(&mut req, &mut node, &sections, &caps)?;
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
