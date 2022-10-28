@@ -20,6 +20,7 @@ where
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
+        + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
         + TcatExtensionSectionParamsOperation<PeakParams>
@@ -52,6 +53,8 @@ where
     T: Tcd22xxSpecification
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
+        + TcatExtensionSectionParamsOperation<StandaloneParameters>
+        + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
         + TcatExtensionSectionParamsOperation<PeakParams>
@@ -232,6 +235,7 @@ where
             req,
             node,
             sections,
+            &self.caps,
             elem_id,
             elem_value,
             &self.supported_sources,
@@ -318,11 +322,13 @@ where
 #[derive(Default, Debug)]
 struct StandaloneCtls<T>(StandaloneParameters, PhantomData<T>)
 where
-    T: TcatExtensionSectionParamsOperation<StandaloneParameters>;
+    T: TcatExtensionSectionParamsOperation<StandaloneParameters>
+        + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>;
 
 impl<T> StandaloneCtls<T>
 where
-    T: TcatExtensionSectionParamsOperation<StandaloneParameters>,
+    T: TcatExtensionSectionParamsOperation<StandaloneParameters>
+        + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>,
 {
     const ADAT_MODES: &'static [AdatParam] = &[
         AdatParam::Normal,
@@ -526,6 +532,7 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         supported_sources: &[ClockSource],
@@ -544,10 +551,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&src| params.clock_source = src)?;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -558,10 +566,11 @@ where
             STANDALONE_SPDIF_HIGH_RATE_NAME => {
                 let mut params = self.0.clone();
                 params.aes_high_rate = elem_value.boolean()[0];
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -580,10 +589,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.adat_mode = mode)?;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -603,10 +613,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.word_clock_param.mode = mode)?;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -617,10 +628,11 @@ where
             STANDALONE_WC_RATE_NUMERATOR_NAME => {
                 let mut params = self.0.clone();
                 params.word_clock_param.rate.numerator = elem_value.int()[0] as u16;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -631,10 +643,11 @@ where
             STANDALONE_WC_RATE_DENOMINATOR_NAME => {
                 let mut params = self.0.clone();
                 params.word_clock_param.rate.denominator = elem_value.int()[0] as u16;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -653,10 +666,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&rate| params.internal_rate = rate)?;
-                let res = StandaloneSectionProtocol::update_standalone_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
-                    &sections,
+                    sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
