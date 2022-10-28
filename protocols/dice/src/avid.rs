@@ -879,7 +879,9 @@ impl TcatExtensionSectionNotifiedParamsOperation<Mbox3SpecificParams> for Mbox3P
         }
 
         if !p.eq(params) {
-            Self::update_extension_partial_params(req, node, sections, caps, &p, params, timeout_ms)?;
+            Self::update_extension_partial_params(
+                req, node, sections, caps, &p, params, timeout_ms,
+            )?;
         }
 
         Ok(())

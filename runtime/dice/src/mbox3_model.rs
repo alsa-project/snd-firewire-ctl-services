@@ -3,10 +3,7 @@
 
 use {
     super::{tcd22xx_ctl::*, *},
-    protocols::{
-        avid::*,
-        tcat::extension::{appl_section::*, *},
-    },
+    protocols::{avid::*, tcat::extension::*},
 };
 
 #[derive(Default)]
@@ -141,12 +138,16 @@ impl NotifyModel<(SndDice, FwNode), u32> for Mbox3Model {
         elem_id_list.extend_from_slice(&self.specific_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        &msg: &u32,
+    ) -> Result<(), Error> {
         self.common_ctl.parse_notification(
             &self.req,
             &unit.1,
             &mut self.sections,
-            *msg,
+            msg,
             TIMEOUT_MS,
         )?;
         self.tcd22xx_ctls.parse_notification(
@@ -155,13 +156,14 @@ impl NotifyModel<(SndDice, FwNode), u32> for Mbox3Model {
             &self.extension_sections,
             &self.sections.global.params,
             TIMEOUT_MS,
-            *msg,
+            msg,
         )?;
         self.specific_ctl.parse_notification(
-            &mut self.req,
-            &mut unit.1,
+            &self.req,
+            &unit.1,
             &self.extension_sections,
-            *msg,
+            &self.tcd22xx_ctls.caps,
+            msg,
             TIMEOUT_MS,
         )?;
         Ok(())
@@ -876,16 +878,18 @@ impl SpecificCtl {
 
     fn parse_notification(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = Mbox3Protocol::cache_appl_notified_params(
+        let res = Mbox3Protocol::cache_extension_notified_params(
             req,
             node,
             sections,
+            caps,
             &mut self.0,
             msg,
             timeout_ms,
