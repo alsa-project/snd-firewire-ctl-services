@@ -5,10 +5,7 @@ use {
     super::{tcd22xx_ctl::*, *},
     protocols::{
         maudio::*,
-        tcat::{
-            extension::{appl_section::*, *},
-            tcd22xx_spec::*,
-        },
+        tcat::{extension::*, tcd22xx_spec::*},
     },
     std::marker::PhantomData,
 };
@@ -32,7 +29,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     req: FwReq,
     sections: GeneralSections,
@@ -55,7 +52,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
@@ -107,7 +104,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, &self.sections)?;
@@ -166,6 +163,7 @@ where
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -190,7 +188,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
@@ -245,7 +243,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.0);
@@ -285,7 +283,7 @@ pub struct PfireSpecificCtl<T: PfireSpecificSpecification>(PfireSpecificParams, 
 where
     T: PfireSpecificSpecification
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>;
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>;
 
 fn opt_iface_b_mode_to_str(mode: &OptIfaceMode) -> &'static str {
     match mode {
@@ -309,7 +307,7 @@ impl<T> PfireSpecificCtl<T>
 where
     T: PfireSpecificSpecification
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: [&'static str; 4] = [
@@ -396,6 +394,7 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -408,10 +407,11 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(assign, val)| *assign = val);
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -431,10 +431,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.opt_iface_b_mode = mode)?;
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -456,10 +457,11 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.standalone_mode = mode)?;
-                let res = T::update_appl_partial_params(
+                let res = T::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
