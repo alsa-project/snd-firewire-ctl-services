@@ -206,7 +206,9 @@ pub trait Tcd22xxSpecification {
 }
 
 /// Operation specific to TCD22xx.
-pub trait Tcd22xxOperation: Tcd22xxSpecification {
+pub trait Tcd22xxOperation:
+    Tcd22xxSpecification + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
+{
     /// Detect available source and destination blocks at given rate mode.
     fn detect_available_blocks(
         req: &mut FwReq,
@@ -219,18 +221,14 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
     ) -> Result<(), Error> {
         let real_blk_pair = Self::compute_avail_real_blk_pair(rate_mode);
 
-        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
-        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
-        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
-            req,
-            node,
-            sections,
-            caps,
-            rate_mode,
-            (&mut tx_entries, &mut rx_entries),
-            timeout_ms,
-        )?;
-        let stream_blk_pair = Self::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+        let pair = StreamFormatParams {
+            tx_entries: Vec::with_capacity(caps.general.max_tx_streams as usize),
+            rx_entries: Vec::with_capacity(caps.general.max_rx_streams as usize),
+        };
+        let mut params = CurrentStreamFormatParams { pair, rate_mode };
+        Self::cache_extension_whole_params(req, node, sections, caps, &mut params, timeout_ms)?;
+        let stream_blk_pair =
+            Self::compute_avail_stream_blk_pair(&params.pair.tx_entries, &params.pair.rx_entries);
 
         let mixer_blk_pair = Self::compute_avail_mixer_blk_pair(caps, rate_mode);
 
@@ -328,4 +326,7 @@ pub trait Tcd22xxOperation: Tcd22xxSpecification {
     }
 }
 
-impl<O: Tcd22xxSpecification> Tcd22xxOperation for O {}
+impl<O: Tcd22xxSpecification + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>>
+    Tcd22xxOperation for O
+{
+}
