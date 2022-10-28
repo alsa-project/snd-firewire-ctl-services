@@ -352,7 +352,7 @@ where
     const NOTIFY_FLAG: u32;
 
     /// Check message to be notified or not.
-    fn notified(_: &Section<T>, msg: u32) -> bool {
+    fn notified(_: &T, msg: u32) -> bool {
         msg & Self::NOTIFY_FLAG > 0
     }
 }
