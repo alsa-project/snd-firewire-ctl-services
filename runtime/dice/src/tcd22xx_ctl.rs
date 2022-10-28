@@ -22,7 +22,9 @@ where
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
-        + TcatExtensionSectionParamsOperation<PeakParams>,
+        + TcatExtensionSectionParamsOperation<PeakParams>
+        + TcatExtensionSectionParamsOperation<CurrentRouterParams>
+        + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -52,7 +54,9 @@ where
         + TcatExtensionCapsSectionOperation
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
         + TcatExtensionSectionParamsOperation<MixerSaturationParams>
-        + TcatExtensionSectionParamsOperation<PeakParams>,
+        + TcatExtensionSectionParamsOperation<PeakParams>
+        + TcatExtensionSectionParamsOperation<CurrentRouterParams>
+        + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -96,20 +100,25 @@ where
                     rate_modes.push(m);
                 }
             });
-        let mut tx_entries = Vec::with_capacity(self.caps.general.max_tx_streams as usize);
-        let mut rx_entries = Vec::with_capacity(self.caps.general.max_rx_streams as usize);
-        rate_modes.iter().try_for_each(|&mode| {
-            CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
+        rate_modes.iter().try_for_each(|&rate_mode| {
+            let pair = StreamFormatParams {
+                tx_entries: Vec::with_capacity(self.caps.general.max_tx_streams as usize),
+                rx_entries: Vec::with_capacity(self.caps.general.max_rx_streams as usize),
+            };
+            let mut params = CurrentStreamFormatParams { pair, rate_mode };
+            T::cache_extension_whole_params(
                 req,
                 node,
                 sections,
                 &self.caps,
-                mode,
-                (&mut tx_entries, &mut rx_entries),
+                &mut params,
                 timeout_ms,
             )
             .map(|_| {
-                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+                let (tx_blk, rx_blk) = T::compute_avail_stream_blk_pair(
+                    &params.pair.tx_entries,
+                    &params.pair.rx_entries,
+                );
                 tx_blk.iter().for_each(|src| {
                     if self.stream_blk_pair.0.iter().find(|s| s.eq(&src)).is_none() {
                         self.stream_blk_pair.0.push(*src);
@@ -783,13 +792,17 @@ where
 }
 
 #[derive(Default, Debug)]
-struct RouterCtls<T>(Vec<RouterEntry>, Tcd22xxAvailableBlocks, PhantomData<T>)
+struct RouterCtls<T>(RouterParams, Tcd22xxAvailableBlocks, PhantomData<T>)
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation;
+    T: Tcd22xxOperation
+        + TcatExtensionSectionParamsOperation<CurrentRouterParams>
+        + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>;
 
 impl<T> RouterCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: Tcd22xxOperation
+        + TcatExtensionSectionParamsOperation<CurrentRouterParams>
+        + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>,
 {
     const NONE_SRC_LABEL: &'static str = "None";
 
@@ -813,17 +826,18 @@ where
         );
         debug!(params = ?self.1, ?res);
         res?;
-        let res = CurrentConfigSectionProtocol::cache_current_config_router_entries(
-            req,
-            node,
-            sections,
-            caps,
-            rate_mode,
-            &mut self.0,
-            timeout_ms,
-        );
-        debug!(params = ?self.0, ?res);
+
+        let entries = RouterParams(vec![
+            Default::default();
+            caps.router.maximum_entry_count as usize
+        ]);
+        let mut params = CurrentRouterParams { entries, rate_mode };
+        let res =
+            T::cache_extension_whole_params(req, node, sections, caps, &mut params, timeout_ms);
+        debug!(?params, ?res);
         res?;
+
+        self.0 = params.entries;
         let res = T::update_router_entries(
             req,
             node,
@@ -831,7 +845,7 @@ where
             caps,
             rate_mode,
             &self.1,
-            &mut self.0,
+            &mut self.0.0,
             timeout_ms,
         );
         debug!(params = ?self.0, ?res);
@@ -1001,6 +1015,7 @@ where
             .iter()
             .map(|dst| {
                 self.0
+                     .0
                     .iter()
                     .find(|entry| dst.eq(&entry.dst))
                     .and_then(|entry| {
@@ -1080,7 +1095,7 @@ where
         srcs: &[&[SrcBlk]],
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let mut entries = self.0.clone();
+        let mut params = self.0.clone();
 
         dsts.iter()
             .zip(elem_value.enumerated())
@@ -1102,9 +1117,9 @@ where
                         })
                 };
 
-                match entries.iter_mut().find(|entry| entry.dst.eq(dst)) {
+                match params.0.iter_mut().find(|entry| entry.dst.eq(dst)) {
                     Some(entry) => entry.src = src,
-                    None => entries.push(RouterEntry {
+                    None => params.0.push(RouterEntry {
                         dst: *dst,
                         src,
                         ..Default::default()
@@ -1121,11 +1136,11 @@ where
             caps,
             rate_mode,
             &self.1,
-            &mut entries,
+            &mut params.0,
             timeout_ms,
         );
-        debug!(params = ?entries, ?res);
-        res.map(|_| self.0 = entries)?;
+        debug!(params = ?params, ?res);
+        res.map(|_| self.0 = params)?;
 
         Ok(true)
     }
