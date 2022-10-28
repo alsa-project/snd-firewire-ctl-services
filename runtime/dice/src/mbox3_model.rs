@@ -122,6 +122,7 @@ impl CtlModel<(SndDice, FwNode)> for Mbox3Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -601,6 +602,7 @@ impl SpecificCtl {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -617,10 +619,11 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&case| params.standalone_use_case = case)?;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -635,10 +638,11 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(assign, val)| *assign = val);
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -657,10 +661,11 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.mute_led = s)?;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -679,10 +684,11 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.mono_led = s)?;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -701,10 +707,11 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.spkr_led = s)?;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -715,10 +722,11 @@ impl SpecificCtl {
             Self::DIM_LED_USAGE_NAME => {
                 let mut params = self.0.clone();
                 params.dim_led = elem_value.boolean()[0];
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -729,10 +737,11 @@ impl SpecificCtl {
             Self::HOLD_DURATION_NAME => {
                 let mut params = self.0.clone();
                 params.duration_hold = elem_value.int()[0] as u8;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -743,10 +752,11 @@ impl SpecificCtl {
             Self::PHANTOM_POWERING_NAME => {
                 let mut params = self.0.clone();
                 params.phantom_powering = elem_value.boolean()[0];
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -761,10 +771,11 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enabled, val)| *enabled = val);
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -779,10 +790,11 @@ impl SpecificCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(trim, &val)| *trim = val as u8);
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -801,10 +813,11 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| params.reverb_type = t)?;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -815,10 +828,11 @@ impl SpecificCtl {
             Self::REVERB_VOL_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_volume = elem_value.int()[0] as u8;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -829,10 +843,11 @@ impl SpecificCtl {
             Self::REVERB_DURATION_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_duration = elem_value.int()[0] as u8;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
@@ -843,10 +858,11 @@ impl SpecificCtl {
             Self::REVERB_FEEDBACK_NAME => {
                 let mut params = self.0.clone();
                 params.reverb_feedback = elem_value.int()[0] as u8;
-                let res = Mbox3Protocol::update_appl_partial_params(
+                let res = Mbox3Protocol::update_extension_partial_params(
                     req,
                     node,
                     sections,
+                    caps,
                     &params,
                     &mut self.0,
                     timeout_ms,
