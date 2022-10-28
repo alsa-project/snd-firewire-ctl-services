@@ -207,7 +207,9 @@ pub trait Tcd22xxSpecification {
 
 /// Operation specific to TCD22xx.
 pub trait Tcd22xxOperation:
-    Tcd22xxSpecification + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
+    Tcd22xxSpecification
+    + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
+    + TcatExtensionSectionWholeMutableParamsOperation<RouterParams>
 {
     /// Detect available source and destination blocks at given rate mode.
     fn detect_available_blocks(
@@ -259,22 +261,20 @@ pub trait Tcd22xxOperation:
         caps: &ExtensionCaps,
         rate_mode: RateMode,
         avail_blocks: &Tcd22xxAvailableBlocks,
-        entries: &mut Vec<RouterEntry>,
+        params: &mut RouterParams,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::refine_router_entries(entries, avail_blocks);
-        if entries.len() > caps.router.maximum_entry_count as usize {
+        Self::refine_router_entries(&mut params.0, avail_blocks);
+        if params.0.len() > caps.router.maximum_entry_count as usize {
             let msg = format!(
                 "The number of entries for router section should be less than {} but {}",
                 caps.router.maximum_entry_count,
-                entries.len()
+                params.0.len()
             );
             Err(Error::new(FileError::Inval, &msg))?
         }
 
-        RouterSectionProtocol::write_router_whole_entries(
-            req, node, sections, caps, &entries, timeout_ms,
-        )?;
+        Self::update_extension_whole_params(req, node, sections, caps, params, timeout_ms)?;
         CmdSectionProtocol::initiate(
             req,
             node,
@@ -326,7 +326,9 @@ pub trait Tcd22xxOperation:
     }
 }
 
-impl<O: Tcd22xxSpecification + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>>
-    Tcd22xxOperation for O
+impl<O> Tcd22xxOperation for O where
+    O: Tcd22xxSpecification
+        + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
+        + TcatExtensionSectionWholeMutableParamsOperation<RouterParams>
 {
 }

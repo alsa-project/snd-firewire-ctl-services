@@ -36,7 +36,9 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<RouterParams
     }
 }
 
-impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<RouterParams> for O {
+impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<RouterParams>
+    for O
+{
     fn update_extension_whole_params(
         req: &FwReq,
         node: &FwNode,

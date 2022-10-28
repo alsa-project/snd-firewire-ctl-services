@@ -88,7 +88,9 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<CurrentRoute
     }
 }
 
-impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<CurrentStreamFormatParams> for O {
+impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
+    for O
+{
     fn cache_extension_whole_params(
         req: &FwReq,
         node: &FwNode,
