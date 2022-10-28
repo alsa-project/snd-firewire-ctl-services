@@ -177,6 +177,8 @@ impl ErrorDomain for GeneralProtocolError {
     }
 }
 
+const MAX_FRAME_SIZE: usize = 512;
+
 /// Operation of TCAT general protocol.
 pub trait TcatOperation {
     /// Initiate read transaction to offset in specific address space and finish it.
@@ -190,7 +192,7 @@ pub trait TcatOperation {
         let mut addr = BASE_ADDR + offset as u64;
 
         while frames.len() > 0 {
-            let len = std::cmp::min(frames.len(), GeneralProtocol::MAX_FRAME_SIZE);
+            let len = std::cmp::min(frames.len(), MAX_FRAME_SIZE);
             let tcode = if len == 4 {
                 FwTcode::ReadQuadletRequest
             } else {
@@ -217,7 +219,7 @@ pub trait TcatOperation {
         let mut addr = BASE_ADDR + (offset as u64);
 
         while frames.len() > 0 {
-            let len = std::cmp::min(frames.len(), GeneralProtocol::MAX_FRAME_SIZE);
+            let len = std::cmp::min(frames.len(), MAX_FRAME_SIZE);
             let tcode = if len == 4 {
                 FwTcode::WriteQuadletRequest
             } else {
@@ -387,67 +389,7 @@ where
     }
 }
 
-/// Protocol implementation of TCAT general protocol.
-#[derive(Default)]
-pub struct GeneralProtocol;
-
 const BASE_ADDR: u64 = 0xffffe0000000;
-
-impl GeneralProtocol {
-    const MAX_FRAME_SIZE: usize = 512;
-
-    pub fn read(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        offset: usize,
-        mut frames: &mut [u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut addr = BASE_ADDR + offset as u64;
-
-        while frames.len() > 0 {
-            let len = std::cmp::min(frames.len(), Self::MAX_FRAME_SIZE);
-            let tcode = if len == 4 {
-                FwTcode::ReadQuadletRequest
-            } else {
-                FwTcode::ReadBlockRequest
-            };
-
-            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
-
-            addr += len as u64;
-            frames = &mut frames[len..];
-        }
-
-        Ok(())
-    }
-
-    pub fn write(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        offset: usize,
-        mut frames: &mut [u8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut addr = BASE_ADDR + (offset as u64);
-
-        while frames.len() > 0 {
-            let len = std::cmp::min(frames.len(), Self::MAX_FRAME_SIZE);
-            let tcode = if len == 4 {
-                FwTcode::WriteQuadletRequest
-            } else {
-                FwTcode::WriteBlockRequest
-            };
-
-            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
-
-            addr += len as u64;
-            frames = &mut frames[len..];
-        }
-
-        Ok(())
-    }
-}
 
 /// Parameter of stream format for IEC 60958.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
