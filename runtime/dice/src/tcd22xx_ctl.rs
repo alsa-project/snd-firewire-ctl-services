@@ -845,7 +845,7 @@ where
             caps,
             rate_mode,
             &self.1,
-            &mut self.0.0,
+            &mut self.0,
             timeout_ms,
         );
         debug!(params = ?self.0, ?res);
@@ -1136,7 +1136,7 @@ where
             caps,
             rate_mode,
             &self.1,
-            &mut params.0,
+            &mut params,
             timeout_ms,
         );
         debug!(params = ?params, ?res);
