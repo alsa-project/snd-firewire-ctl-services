@@ -54,42 +54,6 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StreamFormat
 pub struct StreamFormatSectionProtocol;
 
 impl StreamFormatSectionProtocol {
-    /// Read from stream format section and deserialize entries.
-    pub fn read_stream_format_whole_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        (tx_entries, rx_entries): (&mut Vec<FormatEntry>, &mut Vec<FormatEntry>),
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let size = calculate_stream_format_entries_size(
-            caps.general.max_tx_streams as usize,
-            caps.general.max_rx_streams as usize,
-        );
-        let size = std::cmp::min(sections.stream_format.size, size);
-        let mut raw = vec![0u8; size];
-        extension_read(
-            req,
-            node,
-            sections.stream_format.offset,
-            &mut raw,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))?;
-
-        let mut tx_entry_count = 0usize;
-        deserialize_usize(&mut tx_entry_count, &raw[..4]);
-
-        let mut rx_entry_count = 0usize;
-        deserialize_usize(&mut rx_entry_count, &raw[4..8]);
-
-        tx_entries.resize_with(tx_entry_count, Default::default);
-        rx_entries.resize_with(rx_entry_count, Default::default);
-        deserialize_stream_format_entries((tx_entries, rx_entries), &raw)
-            .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
-    }
-
     /// Serialize entries and write to stream format section.
     pub fn write_stream_format_whole_entries(
         req: &mut FwReq,
