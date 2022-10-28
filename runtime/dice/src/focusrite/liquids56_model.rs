@@ -48,6 +48,7 @@ impl LiquidS56Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             TIMEOUT_MS,
         )?;
 
@@ -55,6 +56,7 @@ impl LiquidS56Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             TIMEOUT_MS,
         )?;
 
@@ -62,6 +64,7 @@ impl LiquidS56Model {
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             TIMEOUT_MS,
         )?;
 
@@ -382,12 +385,14 @@ impl SpecificCtl {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = LiquidS56Protocol::cache_appl_whole_params(
+        let res = LiquidS56Protocol::cache_extension_whole_params(
             req,
             node,
             sections,
+            caps,
             &mut self.0,
             timeout_ms,
         );
