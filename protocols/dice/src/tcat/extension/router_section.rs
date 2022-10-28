@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for router section
 //! in protocol extension defined by TCAT for ASICs of DICE.
 
-use super::{caps_section::*, router_entry::*, *};
+use super::{router_entry::*, *};
 
 /// Parameter of entries in router section.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -64,39 +64,5 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<
             .map_err(|cause| Error::new(ProtocolExtensionError::Router, &cause))?;
 
         Self::write_extension(req, node, &sections.router, 0, &mut raw, timeout_ms)
-    }
-}
-
-/// Protocol implementation of router section.
-#[derive(Default)]
-pub struct RouterSectionProtocol;
-
-impl RouterSectionProtocol {
-    /// Serialize entries and write to router section.
-    pub fn write_router_whole_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        entries: &[RouterEntry],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if entries.len() >= caps.router.maximum_entry_count as usize {
-            let msg = format!(
-                "The number of router entries should be less than{}, but {} given",
-                caps.router.maximum_entry_count,
-                entries.len(),
-            );
-            Err(Error::new(ProtocolExtensionError::Router, &msg))?;
-        }
-
-        let size = 4 + calculate_router_entries_size(entries.len() as usize);
-        let mut raw = vec![0u8; size];
-
-        serialize_u32(&(entries.len() as u32), &mut raw[..4]);
-        serialize_router_entries(entries, &mut raw[4..])
-            .map_err(|cause| Error::new(ProtocolExtensionError::Router, &cause))?;
-
-        extension_write(req, node, sections.router.offset, &mut raw, timeout_ms)
     }
 }
