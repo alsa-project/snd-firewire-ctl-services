@@ -241,6 +241,54 @@ impl<O: TcatExtensionOperation + SaffireproOutGroupSpecification>
     }
 }
 
+impl<O: TcatExtensionOperation + SaffireproOutGroupSpecification>
+    TcatExtensionSectionPartialMutableParamsOperation<OutGroupState> for O
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &OutGroupState,
+        prev: &mut OutGroupState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; OUT_GROUP_STATE_SIZE];
+        serialize_out_group_state(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; OUT_GROUP_STATE_SIZE];
+        serialize_out_group_state(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..OUT_GROUP_STATE_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    Self::OUT_GROUP_STATE_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new[..0x08] != old[..0x08] {
+            Self::write_sw_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)?;
+        }
+
+        if new[0x08..0x34] != old[0x08..0x34] {
+            Self::write_sw_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)?;
+        }
+
+        deserialize_out_group_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl<O: SaffireproOutGroupSpecification> ApplSectionParamsSerdes<OutGroupState> for O {
     const APPL_PARAMS_OFFSET: usize = O::OUT_GROUP_STATE_OFFSET;
 
@@ -480,6 +528,50 @@ impl<O: TcatExtensionOperation + SaffireproInputSpecification>
             timeout_ms,
         )?;
         deserialize_input_params(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl<O: TcatExtensionOperation + SaffireproInputSpecification>
+    TcatExtensionSectionPartialMutableParamsOperation<SaffireproInputParams> for O
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &SaffireproInputParams,
+        prev: &mut SaffireproInputParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(params, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; INPUT_PARAMS_SIZE];
+        serialize_input_params(prev, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..INPUT_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    Self::INPUT_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new != old {
+            Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)?;
+        }
+
+        deserialize_input_params(prev, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
@@ -759,6 +851,69 @@ impl<O: TcatExtensionOperation + SaffireproIoParamsSpecification>
             timeout_ms,
         )?;
         deserialize_io_params(params, O::AESEBU_IS_SUPPORTED, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl<O: TcatExtensionOperation + SaffireproIoParamsSpecification>
+    TcatExtensionSectionPartialMutableParamsOperation<SaffireproIoParams> for O
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &SaffireproIoParams,
+        prev: &mut SaffireproIoParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(params, Self::AESEBU_IS_SUPPORTED, &mut new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        let mut old = vec![0u8; IO_PARAMS_SIZE];
+        serialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &mut old)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))?;
+
+        (0..IO_PARAMS_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write_extension(
+                    req,
+                    node,
+                    &sections.application,
+                    IO_PARAMS_OFFSET + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if new[..0x04] != old[..0x04] {
+            Self::write_sw_notice(req, node, sections, 0x00000003, timeout_ms)?;
+        }
+
+        if new[0x1c..0x20] != old[0x1c..0x20] {
+            let mut n = 0u32;
+            deserialize_u32(&mut n, &new[0x1c..0x20]);
+            let mut o = 0u32;
+            deserialize_u32(&mut o, &old[0x1c..0x20]);
+
+            if (n ^ o) & 0x00000003 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000004, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000008 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000008, timeout_ms)?;
+            }
+
+            if (n ^ o) & 0x00000010 > 0 {
+                Self::write_sw_notice(req, node, sections, 0x00000010, timeout_ms)?;
+            }
+        }
+
+        deserialize_io_params(prev, Self::AESEBU_IS_SUPPORTED, &new)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
