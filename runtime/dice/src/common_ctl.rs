@@ -300,8 +300,13 @@ where
         sections: &mut GeneralSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::partial_cache(req, node, &mut sections.global, timeout_ms);
-        self.global_params = sections.global.params.clone();
+        let res = T::partial_cache(
+            req,
+            node,
+            &sections.global,
+            &mut self.global_params,
+            timeout_ms,
+        );
         debug!(params = ?self.global_params, ?res);
         res?;
 
