@@ -298,45 +298,48 @@ where
     fn whole_update(
         req: &FwReq,
         node: &FwNode,
+        section: &Section<T>,
         params: &T,
-        section: &mut Section<T>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
-        let mut raw = section.raw.clone();
+        let mut raw = vec![0u8; section.size];
         Self::serialize(params, &mut raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
-        Self::write(req, node, section.offset, &mut raw, timeout_ms)?;
-        section.raw.copy_from_slice(&raw);
-        Self::deserialize(&mut section.params, &raw)
-            .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
+        Self::write(req, node, section.offset, &mut raw, timeout_ms)
     }
 
     /// Update part of section for any change at the parameters.
     fn partial_update(
         req: &FwReq,
         node: &FwNode,
+        section: &Section<T>,
         params: &T,
-        section: &mut Section<T>,
+        prev: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
-        let mut raw = section.raw.clone();
-        Self::serialize(params, &mut raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
-        (0..section.size)
-            .step_by(4)
-            .try_for_each(|pos| {
-                let new = &mut raw[pos..(pos + 4)];
-                if new != &section.raw[pos..(pos + 4)] {
-                    Self::write(req, node, section.offset + pos, new, timeout_ms)
-                        .map(|_| section.raw[pos..(pos + 4)].copy_from_slice(new))
-                } else {
-                    Ok(())
-                }
-            })
-            .and_then(|_| {
-                Self::deserialize(&mut section.params, &raw)
-                    .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
-            })
+
+        let mut new = vec![0u8; section.size];
+        Self::serialize(params, &mut new).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
+
+        let mut old = vec![0u8; section.size];
+        Self::serialize(prev, &mut old).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
+
+        (0..section.size).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                Self::write(
+                    req,
+                    node,
+                    section.offset + pos,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+            } else {
+                Ok(())
+            }
+        })?;
+
+        Self::deserialize(prev, &new).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
     }
 }
 
