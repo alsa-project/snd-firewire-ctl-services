@@ -26,7 +26,7 @@ use {
     std::cmp::Ordering,
 };
 
-pub use caps_section::ExtensionCaps;
+pub use {caps_section::ExtensionCaps, standalone_section::StandaloneParameters};
 
 /// Section in control and status register (CSR) of node.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
