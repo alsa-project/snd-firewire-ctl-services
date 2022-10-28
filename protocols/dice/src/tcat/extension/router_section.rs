@@ -36,6 +36,35 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<RouterParams
     }
 }
 
+impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<RouterParams> for O {
+    fn update_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &RouterParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params.0.len() >= caps.router.maximum_entry_count as usize {
+            let msg = format!(
+                "The number of router entries should be less than{}, but {} given",
+                caps.router.maximum_entry_count,
+                params.0.len(),
+            );
+            Err(Error::new(ProtocolExtensionError::Router, &msg))?;
+        }
+
+        let size = 4 + calculate_router_entries_size(params.0.len() as usize);
+        let mut raw = vec![0u8; size];
+
+        serialize_u32(&(params.0.len() as u32), &mut raw[..4]);
+        serialize_router_entries(&params.0, &mut raw[4..])
+            .map_err(|cause| Error::new(ProtocolExtensionError::Router, &cause))?;
+
+        Self::write_extension(req, node, &sections.router, 0, &mut raw, timeout_ms)
+    }
+}
+
 /// Protocol implementation of router section.
 #[derive(Default)]
 pub struct RouterSectionProtocol;
