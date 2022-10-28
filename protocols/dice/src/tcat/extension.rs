@@ -7,7 +7,6 @@
 //! extension defined by TC Applied Technologies (TCAT) for ASICs of Digital Interface Communication
 //! Engine (DICE).
 
-pub mod appl_section;
 pub mod caps_section;
 pub mod cmd_section;
 pub mod current_config_section;
