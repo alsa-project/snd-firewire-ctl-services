@@ -203,17 +203,18 @@ fn print_peak(
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
-    let mut entries = vec![RouterEntry::default(); caps.router.maximum_entry_count as usize];
-    PeakSectionProtocol::cache_peak_whole_entries(
+    let entries = vec![RouterEntry::default(); caps.router.maximum_entry_count as usize];
+    let mut params = PeakParams(RouterParams(entries));
+    Protocol::cache_extension_whole_params(
         req,
         node,
         sections,
         caps,
-        &mut entries,
+        &mut params,
         TIMEOUT_MS,
     )?;
     println!("Peak:");
-    entries.iter().enumerate().for_each(|(i, entry)| {
+    params.0.0.iter().enumerate().for_each(|(i, entry)| {
         println!("  entry {}: 0x{:04x}", i, entry.peak);
     });
 
