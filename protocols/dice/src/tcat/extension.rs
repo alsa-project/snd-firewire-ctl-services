@@ -320,6 +320,20 @@ pub trait TcatExtensionSectionPartialMutableParamsOperation<T: Debug> {
         timeout_ms: u32,
     ) -> Result<(), Error>;
 }
+/// Operation for parameters in which any change is notified to owner application in TCAT protocol
+/// extension.
+pub trait TcatExtensionSectionNotifiedParamsOperation<T: Debug> {
+    /// Cache state of hardware for notified parameters.
+    fn cache_extension_notified_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut T,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
 
 fn extension_read(
     req: &mut FwReq,
