@@ -19,6 +19,7 @@ where
     T: Tcd22xxSpecification
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
+        + TcatExtensionCommandSectionOperation
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
@@ -54,6 +55,7 @@ where
     T: Tcd22xxSpecification
         + Tcd22xxOperation
         + TcatExtensionCapsSectionOperation
+        + TcatExtensionCommandSectionOperation
         + TcatExtensionSectionParamsOperation<StandaloneParameters>
         + TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters>
         + TcatExtensionSectionParamsOperation<MixerCoefficientParams>
@@ -813,12 +815,14 @@ where
 struct RouterCtls<T>(RouterParams, Tcd22xxAvailableBlocks, PhantomData<T>)
 where
     T: Tcd22xxOperation
+        + TcatExtensionCommandSectionOperation
         + TcatExtensionSectionParamsOperation<CurrentRouterParams>
         + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>;
 
 impl<T> RouterCtls<T>
 where
     T: Tcd22xxOperation
+        + TcatExtensionCommandSectionOperation
         + TcatExtensionSectionParamsOperation<CurrentRouterParams>
         + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>,
 {

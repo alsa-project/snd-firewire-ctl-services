@@ -208,6 +208,7 @@ pub trait Tcd22xxSpecification {
 /// Operation specific to TCD22xx.
 pub trait Tcd22xxOperation:
     Tcd22xxSpecification
+    + TcatExtensionCommandSectionOperation
     + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
     + TcatExtensionSectionWholeMutableParamsOperation<RouterParams>
 {
@@ -275,7 +276,7 @@ pub trait Tcd22xxOperation:
         }
 
         Self::update_extension_whole_params(req, node, sections, caps, params, timeout_ms)?;
-        CmdSectionProtocol::initiate(
+        Self::initiate(
             req,
             node,
             sections,
@@ -295,7 +296,7 @@ pub trait Tcd22xxOperation:
         caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        CmdSectionProtocol::initiate(
+        Self::initiate(
             req,
             node,
             sections,
@@ -314,7 +315,7 @@ pub trait Tcd22xxOperation:
         caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        CmdSectionProtocol::initiate(
+        Self::initiate(
             req,
             node,
             sections,
@@ -328,6 +329,7 @@ pub trait Tcd22xxOperation:
 
 impl<O> Tcd22xxOperation for O where
     O: Tcd22xxSpecification
+        + TcatExtensionCommandSectionOperation
         + TcatExtensionSectionParamsOperation<CurrentStreamFormatParams>
         + TcatExtensionSectionWholeMutableParamsOperation<RouterParams>
 {
