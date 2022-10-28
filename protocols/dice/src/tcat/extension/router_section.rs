@@ -8,6 +8,34 @@
 
 use super::{caps_section::*, router_entry::*, *};
 
+/// Parameter of entries in router section.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct RouterParams(pub Vec<RouterEntry>);
+
+impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<RouterParams> for O {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        params: &mut RouterParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let size = 4 + calculate_router_entries_size(caps.router.maximum_entry_count as usize);
+        let size = std::cmp::min(sections.router.size, size);
+        let mut raw = vec![0u8; size];
+
+        Self::read_extension(req, node, &sections.router, 0, &mut raw, timeout_ms)?;
+
+        let mut val = 0u32;
+        deserialize_u32(&mut val, &raw[..4]);
+        params.0.resize_with(val as usize, Default::default);
+
+        deserialize_router_entries(&mut params.0, &mut raw[4..])
+            .map_err(|cause| Error::new(ProtocolExtensionError::Router, &cause))
+    }
+}
+
 /// Protocol implementation of router section.
 #[derive(Default)]
 pub struct RouterSectionProtocol;
