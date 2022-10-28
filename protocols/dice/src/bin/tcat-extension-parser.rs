@@ -148,41 +148,51 @@ fn print_mixer(
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
-    let mut saturations = vec![false; caps.mixer.output_count as usize];
-    MixerSectionProtocol::cache_mixer_whole_saturation(
+    let entries = vec![false; caps.mixer.output_count as usize];
+    let mut saturation_params = MixerSaturationParams(entries);
+    Protocol::cache_extension_whole_params(
         req,
         node,
         sections,
         caps,
-        &mut saturations,
+        &mut saturation_params,
         TIMEOUT_MS,
     )?;
 
-    let mut entries =
+    let entries =
         vec![vec![0u16; caps.mixer.input_count as usize]; caps.mixer.output_count as usize];
-    MixerSectionProtocol::cache_mixer_whole_coefficients(
+    let mut coefficient_params = MixerCoefficientParams(entries);
+    Protocol::cache_extension_whole_params(
         req,
         node,
         sections,
         caps,
-        &mut entries,
+        &mut coefficient_params,
         TIMEOUT_MS,
     )?;
 
     println!("Mixer:");
 
     println!("  Saturation:");
-    saturations.iter().enumerate().for_each(|(i, saturation)| {
-        println!("    dst {}: {}", i, saturation);
-    });
+    saturation_params
+        .0
+        .iter()
+        .enumerate()
+        .for_each(|(i, saturation)| {
+            println!("    dst {}: {}", i, saturation);
+        });
 
     println!("  Coefficiency:");
-    entries.iter().enumerate().for_each(|(dst, coefs)| {
-        coefs
-            .iter()
-            .enumerate()
-            .for_each(|(src, &coef)| println!("    dst {} <- src {}: {}", dst, src, coef));
-    });
+    coefficient_params
+        .0
+        .iter()
+        .enumerate()
+        .for_each(|(dst, coefs)| {
+            coefs
+                .iter()
+                .enumerate()
+                .for_each(|(src, &coef)| println!("    dst {} <- src {}: {}", dst, src, coef));
+        });
 
     Ok(())
 }
