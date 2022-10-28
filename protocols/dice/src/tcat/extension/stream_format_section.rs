@@ -76,39 +76,3 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionWholeMutableParamsOperation<
             .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
     }
 }
-
-/// Protocol implementation of stream format section.
-#[derive(Default)]
-pub struct StreamFormatSectionProtocol;
-
-impl StreamFormatSectionProtocol {
-    /// Serialize entries and write to stream format section.
-    pub fn write_stream_format_whole_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        caps: &ExtensionCaps,
-        (tx_entries, rx_entries): (&[FormatEntry], &[FormatEntry]),
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if caps.general.dynamic_stream_format {
-            let msg = "Stream format configuration is not mutable.";
-            Err(Error::new(ProtocolExtensionError::StreamFormat, &msg))?;
-        }
-
-        let size = calculate_stream_format_entries_size(tx_entries.len(), rx_entries.len());
-        let size = std::cmp::min(sections.stream_format.size, size);
-        let mut raw = vec![0u8; size];
-        serialize_stream_format_entries((tx_entries, rx_entries), &mut raw)
-            .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))?;
-
-        extension_write(
-            req,
-            node,
-            sections.stream_format.offset,
-            &mut raw,
-            timeout_ms,
-        )
-        .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
-    }
-}
