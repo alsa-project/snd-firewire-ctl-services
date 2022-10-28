@@ -28,6 +28,7 @@ use {
 
 pub use {
     caps_section::ExtensionCaps,
+    current_config_section::{CurrentRouterParams, CurrentStreamFormatParams},
     mixer_section::{MixerCoefficientParams, MixerSaturationParams},
     peak_section::PeakParams,
     router_section::RouterParams,

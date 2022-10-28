@@ -223,23 +223,19 @@ fn print_current_router_entries(
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
     println!("Current router entries:");
-    let mut entries = Vec::with_capacity(caps.router.maximum_entry_count as usize);
-    RATE_MODES.iter().try_for_each(|&mode| {
-        CurrentConfigSectionProtocol::cache_current_config_router_entries(
-            req,
-            node,
-            sections,
-            caps,
-            mode,
-            &mut entries,
-            TIMEOUT_MS,
-        )
-        .map(|_| {
-            println!("  {:?}:", mode);
-            entries.iter().enumerate().for_each(|(i, entry)| {
-                println!("    entry {}: {:?} <- {:?}", i, entry.dst, entry.src);
-            });
-        })
+    RATE_MODES.iter().try_for_each(|&rate_mode| {
+        let entries = RouterParams(vec![
+            Default::default();
+            caps.router.maximum_entry_count as usize
+        ]);
+        let mut params = CurrentRouterParams { entries, rate_mode };
+        Protocol::cache_extension_whole_params(req, node, sections, caps, &mut params, TIMEOUT_MS)
+            .map(|_| {
+                println!("  {:?}:", rate_mode);
+                params.entries.0.iter().enumerate().for_each(|(i, entry)| {
+                    println!("    entry {}: {:?} <- {:?}", i, entry.dst, entry.src);
+                });
+            })
     })
 }
 
@@ -268,29 +264,34 @@ fn print_current_stream_format_entries(
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
     println!("Current stream format entries:");
-    RATE_MODES.iter().try_for_each(|&mode| {
-        let mut tx_entries = Vec::with_capacity(caps.general.max_tx_streams as usize);
-        let mut rx_entries = Vec::with_capacity(caps.general.max_rx_streams as usize);
-        CurrentConfigSectionProtocol::cache_current_config_stream_format_entries(
-            req,
-            node,
-            sections,
-            caps,
-            mode,
-            (&mut tx_entries, &mut rx_entries),
-            TIMEOUT_MS,
-        )
-        .map(|_| {
-            println!("  {:?}:", mode);
-            tx_entries.iter().enumerate().for_each(|(i, entry)| {
-                println!("    Tx stream {}:", i);
-                print_stream_format_entry(entry);
-            });
-            rx_entries.iter().enumerate().for_each(|(i, entry)| {
-                println!("    Rx stream {}:", i);
-                print_stream_format_entry(entry);
-            });
-        })
+    RATE_MODES.iter().try_for_each(|&rate_mode| {
+        let pair = StreamFormatParams {
+            tx_entries: Vec::with_capacity(caps.general.max_tx_streams as usize),
+            rx_entries: Vec::with_capacity(caps.general.max_rx_streams as usize),
+        };
+        let mut params = CurrentStreamFormatParams { pair, rate_mode };
+        Protocol::cache_extension_whole_params(req, node, sections, caps, &mut params, TIMEOUT_MS)
+            .map(|_| {
+                println!("  {:?}:", rate_mode);
+                params
+                    .pair
+                    .tx_entries
+                    .iter()
+                    .enumerate()
+                    .for_each(|(i, entry)| {
+                        println!("    Tx stream {}:", i);
+                        print_stream_format_entry(entry);
+                    });
+                params
+                    .pair
+                    .rx_entries
+                    .iter()
+                    .enumerate()
+                    .for_each(|(i, entry)| {
+                        println!("    Rx stream {}:", i);
+                        print_stream_format_entry(entry);
+                    });
+            })
     })
 }
 
