@@ -17,7 +17,7 @@ use {
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation + TcatExtensionCapsSectionOperation,
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
@@ -42,7 +42,7 @@ where
 
 impl<T> Tcd22xxCtls<T>
 where
-    T: Tcd22xxSpecification + Tcd22xxOperation,
+    T: Tcd22xxSpecification + Tcd22xxOperation + TcatExtensionCapsSectionOperation,
 {
     pub fn cache_whole_params(
         &mut self,
@@ -52,7 +52,7 @@ where
         global_params: &GlobalParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = CapsSectionProtocol::read_caps(req, node, sections, &mut self.caps, timeout_ms);
+        let res = T::read_extension_caps(req, node, sections, &mut self.caps, timeout_ms);
         debug!(params = ?self.caps, ?res);
         res?;
 
