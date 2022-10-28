@@ -143,8 +143,8 @@ fn print_caps(caps: &ExtensionCaps) {
 }
 
 fn print_mixer(
-    req: &mut FwReq,
-    node: &mut FwNode,
+    req: &FwReq,
+    node: &FwNode,
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
@@ -198,8 +198,8 @@ fn print_mixer(
 }
 
 fn print_peak(
-    req: &mut FwReq,
-    node: &mut FwNode,
+    req: &FwReq,
+    node: &FwNode,
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
@@ -217,8 +217,8 @@ fn print_peak(
 const RATE_MODES: [RateMode; 3] = [RateMode::Low, RateMode::Middle, RateMode::High];
 
 fn print_current_router_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
+    req: &FwReq,
+    node: &FwNode,
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
@@ -258,8 +258,8 @@ fn print_stream_format_entry(entry: &FormatEntry) {
 }
 
 fn print_current_stream_format_entries(
-    req: &mut FwReq,
-    node: &mut FwNode,
+    req: &FwReq,
+    node: &FwNode,
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
@@ -296,8 +296,8 @@ fn print_current_stream_format_entries(
 }
 
 fn print_standalone_config(
-    req: &mut FwReq,
-    node: &mut FwNode,
+    req: &FwReq,
+    node: &FwNode,
     sections: &ExtensionSections,
     caps: &ExtensionCaps,
 ) -> Result<(), Error> {
