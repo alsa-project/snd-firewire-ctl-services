@@ -139,7 +139,7 @@ fn deserialize_extension_sections(
 }
 
 /// Any error of protocol extension.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ProtocolExtensionError {
     /// Capability.
     Caps,
@@ -332,26 +332,6 @@ pub trait TcatExtensionSectionNotifiedParamsOperation<T: Debug> {
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error>;
-}
-
-fn extension_read(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    frames: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::read(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
-}
-
-fn extension_write(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    offset: usize,
-    frames: &mut [u8],
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    GeneralProtocol::write(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
 }
 
 /// Identifier of destination block.
