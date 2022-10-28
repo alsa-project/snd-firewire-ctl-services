@@ -1442,7 +1442,7 @@ impl TcKonnektNotifiedSegmentOperation<StudioChStripStates> for Studiok48Protoco
     const NOTIFY_FLAG: u32 = STUDIO_CH_STRIP_NOTIFY_01_CHANGE | STUDIO_CH_STRIP_NOTIFY_23_CHANGE;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// State of jack sense for analog input.
 pub enum StudioAnalogJackState {
     /// Select front jack instead of rear.

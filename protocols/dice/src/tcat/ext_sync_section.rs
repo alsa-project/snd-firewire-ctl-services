@@ -9,7 +9,7 @@
 use super::{global_section::*, *};
 
 /// Parameters in extended synchronization section.
-#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtendedSyncParameters {
     /// Current clock source; read-only.
     pub clk_src: ClockSource,
