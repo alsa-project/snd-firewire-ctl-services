@@ -367,7 +367,7 @@ fn main() {
                 .and_then(|_| {
                     print_sections(&sections);
                     let mut caps = ExtensionCaps::default();
-                    CapsSectionProtocol::read_caps(
+                    Protocol::read_extension_caps(
                         &mut req,
                         &mut node,
                         &sections,
