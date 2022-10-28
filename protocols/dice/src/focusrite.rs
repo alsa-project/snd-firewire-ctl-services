@@ -216,6 +216,31 @@ pub trait SaffireproOutGroupSpecification: SaffireproSwNoticeOperation {
     }
 }
 
+impl<O: TcatExtensionOperation + SaffireproOutGroupSpecification>
+    TcatExtensionSectionParamsOperation<OutGroupState> for O
+{
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut OutGroupState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; OUT_GROUP_STATE_SIZE];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            O::OUT_GROUP_STATE_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_out_group_state(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl<O: SaffireproOutGroupSpecification> ApplSectionParamsSerdes<OutGroupState> for O {
     const APPL_PARAMS_OFFSET: usize = O::OUT_GROUP_STATE_OFFSET;
 
@@ -432,6 +457,31 @@ pub trait SaffireproInputSpecification: SaffireproSwNoticeOperation {
 
     const MIC_INPUT_COUNT: usize = 2;
     const LINE_INPUT_COUNT: usize = 2;
+}
+
+impl<O: TcatExtensionOperation + SaffireproInputSpecification>
+    TcatExtensionSectionParamsOperation<SaffireproInputParams> for O
+{
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut SaffireproInputParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; INPUT_PARAMS_SIZE];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            O::INPUT_PARAMS_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_input_params(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
 }
 
 impl<O: SaffireproInputSpecification> ApplSectionParamsSerdes<SaffireproInputParams> for O {
@@ -686,6 +736,31 @@ pub trait SaffireproIoParamsSpecification: SaffireproSwNoticeOperation {
 
     /// Whether to support transformer function for microphone pre-amplifier.
     const MIC_PREAMP_TRANSFORMER_IS_SUPPORTED: bool;
+}
+
+impl<O: TcatExtensionOperation + SaffireproIoParamsSpecification>
+    TcatExtensionSectionParamsOperation<SaffireproIoParams> for O
+{
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut SaffireproIoParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; IO_PARAMS_SIZE];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            IO_PARAMS_SIZE,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_io_params(params, O::AESEBU_IS_SUPPORTED, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
 }
 
 impl<O: SaffireproIoParamsSpecification> ApplSectionParamsSerdes<SaffireproIoParams> for O {
