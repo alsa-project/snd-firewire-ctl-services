@@ -816,6 +816,29 @@ impl LiquidS56Protocol {
     pub const MIC_AMP_HARMONICS_MAX: u8 = 21;
 }
 
+impl TcatExtensionSectionParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut LiquidS56SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; SPECIFIC_PARAMS_SIZE];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            SPECIFIC_PARAMS_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_specific_params(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl TcatApplSectionParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {}
 
 impl TcatApplSectionMutableParamsOperation<LiquidS56SpecificParams> for LiquidS56Protocol {

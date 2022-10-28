@@ -651,6 +651,29 @@ fn deserialize_effect_general_params(
     Ok(())
 }
 
+impl TcatExtensionSectionParamsOperation<Spro24DspEffectGeneralParams> for SPro24DspProtocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut Spro24DspEffectGeneralParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; 4];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            CH_STRIP_FLAG_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_effect_general_params(params, &raw)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl ApplSectionParamsSerdes<Spro24DspEffectGeneralParams> for SPro24DspProtocol {
     const APPL_PARAMS_OFFSET: usize = CH_STRIP_FLAG_OFFSET;
 
@@ -702,6 +725,29 @@ impl TcatApplSectionMutableParamsOperation<Spro24DspEffectGeneralParams> for SPr
             Self::write_sw_notice(req, node, sections, CH_STRIP_FLAG_SW_NOTICE, timeout_ms)?;
         }
         deserialize_effect_general_params(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionParamsOperation<Spro24DspCompressorState> for SPro24DspProtocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut Spro24DspCompressorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_COMP,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_compressor_state(params, &raw)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
@@ -763,6 +809,29 @@ impl TcatApplSectionMutableParamsOperation<Spro24DspCompressorState> for SPro24D
         Self::write_sw_notice(req, node, sections, COMP_CH1_SW_NOTICE, timeout_ms)?;
 
         deserialize_compressor_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionParamsOperation<Spro24DspEqualizerState> for SPro24DspProtocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut Spro24DspEqualizerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE * 2];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_EQ,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_equalizer_state(params, &raw)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
@@ -856,6 +925,29 @@ impl TcatApplSectionMutableParamsOperation<Spro24DspEqualizerState> for SPro24Ds
         Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH1_SW_NOTICE, timeout_ms)?;
 
         deserialize_equalizer_state(prev, &new)
+            .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
+impl TcatExtensionSectionParamsOperation<Spro24DspReverbState> for SPro24DspProtocol {
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut Spro24DspReverbState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; COEF_BLOCK_SIZE];
+        Self::read_extension(
+            req,
+            node,
+            &sections.application,
+            COEF_OFFSET + COEF_BLOCK_SIZE * COEF_BLOCK_REVERB,
+            &mut raw,
+            timeout_ms,
+        )?;
+        deserialize_reverb_state(params, &raw)
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
     }
 }
