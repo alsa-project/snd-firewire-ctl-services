@@ -459,6 +459,23 @@ pub trait PfireSpecificSpecification {
     const KNOB_COUNT: usize = 4;
 }
 
+impl<O: TcatExtensionOperation + PfireSpecificSpecification>
+    TcatExtensionSectionParamsOperation<PfireSpecificParams> for O
+{
+    fn cache_extension_whole_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &mut PfireSpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; MIN_SIZE];
+        Self::read_extension(req, node, &sections.application, 0, &mut raw, timeout_ms)?;
+        deserialize(params, &raw).map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause))
+    }
+}
+
 impl<O: PfireSpecificSpecification> ApplSectionParamsSerdes<PfireSpecificParams> for O {
     const APPL_PARAMS_OFFSET: usize = 0;
 
