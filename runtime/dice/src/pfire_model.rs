@@ -31,7 +31,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     req: FwReq,
@@ -54,7 +54,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -77,6 +77,7 @@ where
             &mut self.req,
             &mut unit.1,
             &self.extension_sections,
+            &self.tcd22xx_ctls.caps,
             TIMEOUT_MS,
         )?;
 
@@ -105,7 +106,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -188,7 +189,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -243,7 +244,7 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>
         + TcatExtensionOperation
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -283,7 +284,7 @@ where
 pub struct PfireSpecificCtl<T: PfireSpecificSpecification>(PfireSpecificParams, PhantomData<T>)
 where
     T: PfireSpecificSpecification
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>;
 
 fn opt_iface_b_mode_to_str(mode: &OptIfaceMode) -> &'static str {
@@ -307,7 +308,7 @@ const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 impl<T> PfireSpecificCtl<T>
 where
     T: PfireSpecificSpecification
-        + TcatApplSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatApplSectionMutableParamsOperation<PfireSpecificParams>,
 {
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
@@ -328,9 +329,11 @@ where
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
+        caps: &ExtensionCaps,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::cache_appl_whole_params(req, node, &sections, &mut self.0, timeout_ms);
+        let res =
+            T::cache_extension_whole_params(req, node, &sections, caps, &mut self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
