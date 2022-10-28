@@ -11,7 +11,7 @@ use {
         },
         tcd22xx_spec::*,
     },
-    std::{convert::TryFrom, marker::PhantomData},
+    std::marker::PhantomData,
 };
 
 #[derive(Default, Debug)]
@@ -80,7 +80,7 @@ where
         global_params
             .avail_rates
             .iter()
-            .map(|&r| RateMode::from(r))
+            .map(|&r| RateMode::from_clock_rate(r))
             .for_each(|m| {
                 if rate_modes.iter().find(|&&mode| mode.eq(&m)).is_none() {
                     rate_modes.push(m);
@@ -117,7 +117,7 @@ where
 
         self.mixer_blk_pair = T::compute_avail_mixer_blk_pair(&self.caps, RateMode::Low);
 
-        let rate_mode = RateMode::try_from(global_params.current_rate).unwrap();
+        let rate_mode = RateMode::from_sampling_transfer_frequency(global_params.current_rate);
         self.router_ctls
             .cache(req, node, sections, &self.caps, rate_mode, timeout_ms)?;
         self.current_rate = global_params.current_rate;
@@ -272,7 +272,7 @@ where
         msg: u32,
     ) -> Result<(), Error> {
         if msg > 0 && global_params.current_rate != self.current_rate {
-            let rate_mode = RateMode::try_from(global_params.current_rate).unwrap();
+            let rate_mode = RateMode::from_sampling_transfer_frequency(global_params.current_rate);
             self.router_ctls
                 .cache(req, node, sections, &self.caps, rate_mode, timeout_ms)?;
             self.current_rate = global_params.current_rate;
@@ -1104,7 +1104,7 @@ where
                 }
             });
 
-        let rate_mode = RateMode::try_from(current_rate).unwrap();
+        let rate_mode = RateMode::from_sampling_transfer_frequency(current_rate);
 
         let res = T::update_router_entries(
             req,

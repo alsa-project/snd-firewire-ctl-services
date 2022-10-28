@@ -24,7 +24,7 @@ use {
     super::*,
     glib::{error::ErrorDomain, Quark},
     hinawa::{prelude::FwReqExtManual, FwTcode},
-    std::{convert::TryFrom, fmt::Debug},
+    std::fmt::Debug,
 };
 
 pub use {
