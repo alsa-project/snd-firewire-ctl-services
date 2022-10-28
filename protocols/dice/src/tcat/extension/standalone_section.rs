@@ -172,6 +172,48 @@ impl<O: TcatExtensionOperation> TcatExtensionSectionParamsOperation<StandalonePa
     }
 }
 
+impl<O: TcatExtensionOperation>
+    TcatExtensionSectionPartialMutableParamsOperation<StandaloneParameters> for O
+{
+    fn update_extension_partial_params(
+        req: &FwReq,
+        node: &FwNode,
+        sections: &ExtensionSections,
+        _: &ExtensionCaps,
+        params: &StandaloneParameters,
+        prev: &mut StandaloneParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0; sections.standalone.size];
+        serialize(params, &mut new)
+            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))?;
+
+        let mut old = vec![0; sections.standalone.size];
+        serialize(params, &mut old)
+            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))?;
+
+        (0..sections.standalone.size)
+            .step_by(4)
+            .try_for_each(|pos| {
+                if new[pos] != old[pos] {
+                    Self::write_extension(
+                        req,
+                        node,
+                        &sections.standalone,
+                        pos,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                } else {
+                    Ok(())
+                }
+            })?;
+
+        deserialize(prev, &new)
+            .map_err(|e| Error::new(ProtocolExtensionError::Standalone, &e.to_string()))
+    }
+}
+
 impl StandaloneSectionProtocol {
     pub fn update_standalone_params(
         req: &mut FwReq,
