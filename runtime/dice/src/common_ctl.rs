@@ -243,7 +243,8 @@ where
             CLK_SRC_NAME => {
                 let pos = elem_value.enumerated()[0] as usize;
                 let mut params = self.global_params.clone();
-                let src = self.global_params
+                let src = self
+                    .global_params
                     .avail_sources
                     .iter()
                     .nth(pos)
@@ -323,19 +324,19 @@ where
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if T::notified(&sections.global, msg) {
+        if T::notified(&self.global_params, msg) {
             let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
             self.global_params = sections.global.params.clone();
             debug!(params = ?self.global_params, ?res);
             res?;
         }
-        if T::notified(&sections.tx_stream_format, msg) {
+        if T::notified(&self.tx_stream_format_params, msg) {
             let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
             self.tx_stream_format_params = sections.tx_stream_format.params.clone();
             debug!(params = ?self.tx_stream_format_params, ?res);
             res?;
         }
-        if T::notified(&sections.rx_stream_format, msg) {
+        if T::notified(&self.rx_stream_format_params, msg) {
             let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
             self.rx_stream_format_params = sections.rx_stream_format.params.clone();
             debug!(params = ?self.rx_stream_format_params, ?res);
