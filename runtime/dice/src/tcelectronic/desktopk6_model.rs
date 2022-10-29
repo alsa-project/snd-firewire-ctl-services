@@ -119,7 +119,7 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
 
 impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
         elem_id_list.extend_from_slice(&self.panel_ctl.1);
     }
@@ -166,7 +166,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
 
 impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 

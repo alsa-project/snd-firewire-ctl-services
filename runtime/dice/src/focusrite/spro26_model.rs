@@ -130,7 +130,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro26Model {
 
 impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.notified_elem_id_list);
         elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
@@ -182,7 +182,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro26Model {
 
 impl MeasureModel<(SndDice, FwNode)> for SPro26Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.tcd22xx_ctls.measured_elem_id_list);
     }
 

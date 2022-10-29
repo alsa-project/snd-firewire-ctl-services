@@ -186,7 +186,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
 
 impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
         elem_id_list.extend_from_slice(&self.lineout_ctl.1);
         elem_id_list.extend_from_slice(&self.remote_ctl.1);
         elem_id_list.extend_from_slice(&self.config_ctl.1);
@@ -261,7 +261,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
 
 impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);

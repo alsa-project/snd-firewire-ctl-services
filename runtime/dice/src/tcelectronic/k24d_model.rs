@@ -162,7 +162,7 @@ impl CtlModel<(SndDice, FwNode)> for K24dModel {
 
 impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
         elem_id_list.extend_from_slice(&self.config_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_state_ctl.1);
@@ -227,7 +227,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
 
 impl MeasureModel<(SndDice, FwNode)> for K24dModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);

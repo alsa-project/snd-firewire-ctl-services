@@ -58,7 +58,7 @@ impl CtlModel<(SndDice, FwNode)> for MinimalModel {
 
 impl NotifyModel<(SndDice, FwNode), u32> for MinimalModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
@@ -78,7 +78,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for MinimalModel {
 
 impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.0);
+        elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
