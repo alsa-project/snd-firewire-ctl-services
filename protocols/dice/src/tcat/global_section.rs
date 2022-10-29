@@ -257,6 +257,23 @@ impl ClockStatus {
     const RATE_SHIFT: usize = 8;
 }
 
+fn serialize_clock_status(status: &ClockStatus, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= ClockStatus::SIZE);
+
+    let mut val = 0u32;
+    if status.src_is_locked {
+        val |= ClockStatus::SRC_LOCKED;
+    }
+
+    let mut rate_bit = 0u8;
+    serialize_clock_rate(&status.rate, &mut rate_bit)?;
+    val |= ((rate_bit as u32) << ClockStatus::RATE_SHIFT) & ClockStatus::RATE_MASK;
+
+    serialize_u32(&val, raw);
+
+    Ok(())
+}
+
 fn deserialize_clock_status(status: &mut ClockStatus, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= ClockStatus::SIZE);
 
@@ -394,12 +411,85 @@ impl<O: TcatOperation + TcatGlobalSectionSpecification> TcatSectionSerdes<Global
     const ERROR_TYPE: GeneralProtocolError = GeneralProtocolError::Global;
 
     fn serialize(params: &GlobalParameters, raw: &mut [u8]) -> Result<(), String> {
-        // NOTE: The owner field is changed by ALSA dice driver.
+        let val = ((params.owner & 0xffffffff00000000) >> 32) as u32;
+        serialize_u32(&val, &mut raw[..4]);
+        let val = (params.owner & 0x00000000ffffffff) as u32;
+        serialize_u32(&val, &mut raw[4..8]);
+
+        serialize_u32(&params.latest_notification, &mut raw[8..12]);
 
         raw[12..76].fill(0x00);
         serialize_label(&params.nickname, &mut raw[12..76])?;
 
         serialize_clock_config(&params.clock_config, &mut raw[76..80])?;
+
+        serialize_bool(&params.enable, &mut raw[80..84]);
+
+        serialize_clock_status(&params.clock_status, &mut raw[84..88])?;
+
+        let mut locked_bits = 0u32;
+        let mut slipped_bits = 0u32;
+        params
+            .external_source_states
+            .sources
+            .iter()
+            .zip(&params.external_source_states.locked)
+            .zip(&params.external_source_states.slipped)
+            .for_each(|((source, &locked), &slipped)| {
+                EXTERNAL_CLOCK_SOURCE_TABLE
+                    .iter()
+                    .enumerate()
+                    .find(|(_, s)| source.eq(s))
+                    .map(|(i, _)| {
+                        if locked {
+                            locked_bits |= 1 << i;
+                        }
+                        if slipped {
+                            slipped_bits |= 1 << i;
+                        }
+                    });
+            });
+        let val = (slipped_bits << 16) | locked_bits;
+        serialize_u32(&val, &mut raw[88..92]);
+
+        serialize_u32(&params.current_rate, &mut raw[92..96]);
+
+        if raw.len() > 96 {
+            serialize_u32(&params.version, &mut raw[96..100]);
+
+            let mut rate_bits = 0u32;
+            params.avail_rates.iter().for_each(|avail_rate| {
+                CLOCK_CAPS_RATE_TABLE
+                    .iter()
+                    .enumerate()
+                    .find(|(_, r)| avail_rate.eq(r))
+                    .map(|(i, _)| rate_bits |= 1 << i);
+            });
+
+            let mut src_bits = 0u32;
+            params.avail_sources.iter().for_each(|avail_source| {
+                CLOCK_CAPS_SRC_TABLE
+                    .iter()
+                    .enumerate()
+                    .find(|(_, s)| avail_source.eq(s))
+                    .map(|(i, _)| src_bits |= 1 << i);
+            });
+            let val = (src_bits << 16) | rate_bits;
+            serialize_u32(&val, &mut raw[100..104]);
+
+            let labels: Vec<&str> = Self::CLOCK_SOURCE_LABEL_TABLE
+                .iter()
+                .map(|source| {
+                    params
+                        .clock_source_labels
+                        .iter()
+                        .find(|(s, _)| source.eq(s))
+                        .map(|(_, l)| l.as_str())
+                        .unwrap_or("unused")
+                })
+                .collect();
+            serialize_labels(&labels, &mut raw[104..360])?;
+        }
 
         Ok(())
     }
@@ -593,7 +683,7 @@ mod test {
 
     #[test]
     fn global_params_serdes() {
-        let mut raw = [
+        let raw = [
             0xff, 0xc1, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x6b, 0x73,
             0x65, 0x44, 0x4b, 0x70, 0x6f, 0x74, 0x65, 0x6e, 0x6e, 0x6f, 0x00, 0x36, 0x74, 0x6b,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -673,29 +763,16 @@ mod test {
             ]
         );
 
-        let mut p = params.clone();
-        p.nickname = "tcat-procotol-general".to_string();
-        p.clock_config = ClockConfig {
-            rate: ClockRate::R192000,
-            src: ClockSource::Adat,
-        };
-        Protocol::serialize(&p, &mut raw).unwrap();
-        assert_eq!(
-            raw[12..76],
-            [
-                0x74, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x70, 0x2d, 0x6f, 0x74, 0x6f, 0x63, 0x65, 0x67,
-                0x2d, 0x6c, 0x61, 0x72, 0x65, 0x6e, 0x00, 0x00, 0x00, 0x6c, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]
-        );
-        assert_eq!(raw[76..80], [00, 00, 06, 05]);
+        let mut r = vec![0u8; raw.len()];
+        Protocol::serialize(&params, &mut r).unwrap();
+
+        // NOTE: The rest of fields are unrecoverable from local parameters.
+        assert_eq!(r[..100], raw[..100]);
     }
 
     #[test]
     fn global_old_params_serdes() {
-        let mut raw = [
+        let raw = [
             0xff, 0xc1, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x73, 0x65,
             0x6c, 0x41, 0x4d, 0x20, 0x73, 0x69, 0x69, 0x74, 0x6c, 0x75, 0x00, 0x78, 0x69, 0x4d,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -748,23 +825,9 @@ mod test {
             ]
         );
 
-        let mut p = params.clone();
-        p.nickname = "tcat-procotol-general".to_string();
-        p.clock_config = ClockConfig {
-            rate: ClockRate::R192000,
-            src: ClockSource::Adat,
-        };
-        Protocol::serialize(&p, &mut raw).unwrap();
-        assert_eq!(
-            raw[12..76],
-            [
-                0x74, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x70, 0x2d, 0x6f, 0x74, 0x6f, 0x63, 0x65, 0x67,
-                0x2d, 0x6c, 0x61, 0x72, 0x65, 0x6e, 0x00, 0x00, 0x00, 0x6c, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]
-        );
-        assert_eq!(raw[76..80], [00, 00, 06, 05]);
+        let mut r = vec![0u8; raw.len()];
+        Protocol::serialize(&params, &mut r).unwrap();
+
+        assert_eq!(r, raw);
     }
 }
