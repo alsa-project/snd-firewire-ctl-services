@@ -15,7 +15,7 @@ where
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
-    global_params: GlobalParameters,
+    pub global_params: GlobalParameters,
     tx_stream_format_params: TxStreamFormatParameters,
     rx_stream_format_params: RxStreamFormatParameters,
     extended_sync_params: ExtendedSyncParameters,
@@ -237,9 +237,7 @@ where
             CLK_SRC_NAME => {
                 let pos = elem_value.enumerated()[0] as usize;
                 let mut params = self.global_params.clone();
-                let src = sections
-                    .global
-                    .params
+                let src = self.global_params
                     .avail_sources
                     .iter()
                     .nth(pos)
