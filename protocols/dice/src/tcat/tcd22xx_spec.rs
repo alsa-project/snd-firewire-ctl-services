@@ -272,7 +272,7 @@ pub trait Tcd22xxOperation:
                 caps.router.maximum_entry_count,
                 params.0.len()
             );
-            Err(Error::new(FileError::Inval, &msg))?
+            Err(Error::new(ProtocolExtensionError::Router, &msg))?
         }
 
         Self::update_extension_whole_params(req, node, sections, caps, params, timeout_ms)?;

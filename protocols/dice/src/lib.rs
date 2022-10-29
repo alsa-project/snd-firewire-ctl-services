@@ -14,7 +14,7 @@ pub mod tcat;
 pub mod tcelectronic;
 
 use {
-    glib::{Error, FileError},
+    glib::Error,
     hinawa::{FwNode, FwReq},
 };
 
