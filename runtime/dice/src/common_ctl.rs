@@ -228,9 +228,15 @@ where
                     .copied()?;
                 params.clock_config.rate = rate;
                 unit.lock()?;
-                let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
+                let res = T::partial_update(
+                    req,
+                    node,
+                    &sections.global,
+                    &params,
+                    &mut self.global_params,
+                    timeout_ms,
+                );
                 let _ = unit.unlock();
-                self.global_params = sections.global.params.clone();
                 debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
@@ -252,9 +258,15 @@ where
                     .copied()?;
                 params.clock_config.src = src;
                 unit.lock()?;
-                let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
+                let res = T::partial_update(
+                    req,
+                    node,
+                    &sections.global,
+                    &params,
+                    &mut self.global_params,
+                    timeout_ms,
+                );
                 let _ = unit.unlock();
-                self.global_params = sections.global.params.clone();
                 debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
@@ -265,8 +277,14 @@ where
                     let msg = format!("Invalid bytes for string: {}", e);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
-                self.global_params = sections.global.params.clone();
+                let res = T::partial_update(
+                    req,
+                    node,
+                    &sections.global,
+                    &params,
+                    &mut self.global_params,
+                    timeout_ms,
+                );
                 debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
