@@ -44,11 +44,11 @@ pub struct Section {
 }
 
 impl Section {
-    const SIZE: usize = 8;
+    pub(crate) const SIZE: usize = 8;
 }
 
 #[cfg(test)]
-fn serialize_section(section: &Section, raw: &mut [u8]) -> Result<(), String> {
+pub(crate) fn serialize_section(section: &Section, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= Section::SIZE);
 
     let val = (section.offset as u32) / 4;
@@ -60,7 +60,7 @@ fn serialize_section(section: &Section, raw: &mut [u8]) -> Result<(), String> {
     Ok(())
 }
 
-fn deserialize_section(section: &mut Section, raw: &[u8]) -> Result<(), String> {
+pub(crate) fn deserialize_section(section: &mut Section, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= Section::SIZE);
 
     let mut val = 0u32;
