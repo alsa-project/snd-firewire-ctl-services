@@ -370,25 +370,25 @@ where
     fn partial_cache(
         req: &FwReq,
         node: &FwNode,
-        section: &mut Section<T>,
+        section: &Section<T>,
+        params: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         check_section_cache(section, Self::MIN_SIZE, Self::ERROR_TYPE)?;
-        Self::FLUCTUATED_OFFSETS
-            .iter()
-            .try_for_each(|&offset| {
-                Self::read(
-                    req,
-                    node,
-                    section.offset + offset,
-                    &mut section.raw[offset..(offset + 4)],
-                    timeout_ms,
-                )
-            })
-            .and_then(|_| {
-                Self::deserialize(&mut section.params, &section.raw)
-                    .map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
-            })
+
+        let mut raw = vec![0u8; section.size];
+        Self::serialize(params, &mut raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))?;
+
+        Self::FLUCTUATED_OFFSETS.iter().try_for_each(|&offset| {
+            Self::read(
+                req,
+                node,
+                section.offset + offset,
+                &mut raw[offset..(offset + 4)],
+                timeout_ms,
+            )
+        })?;
+        Self::deserialize(params, &raw).map_err(|msg| Error::new(Self::ERROR_TYPE, &msg))
     }
 }
 
