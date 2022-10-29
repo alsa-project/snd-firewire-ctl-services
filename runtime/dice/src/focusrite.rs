@@ -308,7 +308,9 @@ where
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_extension_notified_params(req, node, sections, caps, &mut self.0, msg, timeout_ms)
+        let res = T::cache_extension_notified_params(req, node, sections, caps, &mut self.0, msg, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 }
 
