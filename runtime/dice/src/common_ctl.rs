@@ -44,25 +44,45 @@ where
         sections: &mut GeneralSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
-        self.global_params = sections.global.params.clone();
+        let res = T::whole_cache(
+            req,
+            node,
+            &sections.global,
+            &mut self.global_params,
+            timeout_ms,
+        );
         debug!(params = ?self.global_params, ?res);
         res?;
 
-        let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
-        self.tx_stream_format_params = sections.tx_stream_format.params.clone();
+        let res = T::whole_cache(
+            req,
+            node,
+            &sections.tx_stream_format,
+            &mut self.tx_stream_format_params,
+            timeout_ms,
+        );
         debug!(params = ?self.tx_stream_format_params, ?res);
         res?;
 
-        let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
-        self.rx_stream_format_params = sections.rx_stream_format.params.clone();
+        let res = T::whole_cache(
+            req,
+            node,
+            &sections.rx_stream_format,
+            &mut self.rx_stream_format_params,
+            timeout_ms,
+        );
         debug!(params = ?self.rx_stream_format_params, ?res);
         res?;
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
-            let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
-            self.extended_sync_params = sections.ext_sync.params.clone();
+            let res = T::whole_cache(
+                req,
+                node,
+                &mut sections.ext_sync,
+                &mut self.extended_sync_params,
+                timeout_ms,
+            );
             debug!(params = ?self.extended_sync_params, ?res);
             res?;
         }
@@ -312,8 +332,13 @@ where
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
-            let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
-            self.extended_sync_params = sections.ext_sync.params.clone();
+            let res = T::whole_cache(
+                req,
+                node,
+                &sections.ext_sync,
+                &mut self.extended_sync_params,
+                timeout_ms,
+            );
             debug!(params = ?self.extended_sync_params, ?res);
             res?;
         }
@@ -330,20 +355,35 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if T::notified(&self.global_params, msg) {
-            let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
-            self.global_params = sections.global.params.clone();
+            let res = T::whole_cache(
+                req,
+                node,
+                &sections.global,
+                &mut self.global_params,
+                timeout_ms,
+            );
             debug!(params = ?self.global_params, ?res);
             res?;
         }
         if T::notified(&self.tx_stream_format_params, msg) {
-            let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
-            self.tx_stream_format_params = sections.tx_stream_format.params.clone();
+            let res = T::whole_cache(
+                req,
+                node,
+                &sections.tx_stream_format,
+                &mut self.tx_stream_format_params,
+                timeout_ms,
+            );
             debug!(params = ?self.tx_stream_format_params, ?res);
             res?;
         }
         if T::notified(&self.rx_stream_format_params, msg) {
-            let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
-            self.rx_stream_format_params = sections.rx_stream_format.params.clone();
+            let res = T::whole_cache(
+                req,
+                node,
+                &sections.rx_stream_format,
+                &mut self.rx_stream_format_params,
+                timeout_ms,
+            );
             debug!(params = ?self.rx_stream_format_params, ?res);
             res?;
         }
