@@ -202,6 +202,8 @@ pub enum StandaloneUseCase {
     AdDa,
     /// For signal mixing.
     Mixer,
+    /// Not decided yet.
+    Undefined,
 }
 
 impl Default for StandaloneUseCase {
@@ -211,9 +213,12 @@ impl Default for StandaloneUseCase {
 }
 
 impl StandaloneUseCase {
-    const MIXER: u32 = 0;
-    const AD_DA: u32 = 1;
-    const PREAMP: u32 = 2;
+    const MIXER: u32 = 0x00;
+    const AD_DA: u32 = 0x01;
+    const PREAMP: u32 = 0x02;
+    const UNDEFINED: u32 = 0x03;
+
+    const MASK: u32 = 0x03;
 }
 
 fn serialize_standalone_use_case(
@@ -222,11 +227,18 @@ fn serialize_standalone_use_case(
 ) -> Result<(), String> {
     assert!(raw.len() >= 4);
 
-    let val = match use_case {
+    let mut val = 0u32;
+    deserialize_u32(&mut val, raw);
+
+    let flag = match use_case {
         StandaloneUseCase::Mixer => StandaloneUseCase::MIXER,
         StandaloneUseCase::AdDa => StandaloneUseCase::AD_DA,
         StandaloneUseCase::Preamp => StandaloneUseCase::PREAMP,
+        StandaloneUseCase::Undefined => StandaloneUseCase::UNDEFINED,
     };
+
+    val &= !StandaloneUseCase::MASK;
+    val |= flag;
     serialize_u32(&val, raw);
 
     Ok(())
@@ -241,11 +253,12 @@ fn deserialize_standalone_use_case(
     let mut val = 0u32;
     deserialize_u32(&mut val, raw);
 
+    val &= StandaloneUseCase::MASK;
     *use_case = match val {
         StandaloneUseCase::MIXER => StandaloneUseCase::Mixer,
         StandaloneUseCase::AD_DA => StandaloneUseCase::AdDa,
         StandaloneUseCase::PREAMP => StandaloneUseCase::Preamp,
-        _ => Err(format!("Standalone use case not found for value {}", val))?,
+        _ => StandaloneUseCase::Undefined,
     };
 
     Ok(())

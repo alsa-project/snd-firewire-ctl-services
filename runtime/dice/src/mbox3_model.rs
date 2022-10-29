@@ -226,6 +226,7 @@ fn standalone_use_case_to_str(case: &StandaloneUseCase) -> &'static str {
         StandaloneUseCase::Mixer => "Mixer",
         StandaloneUseCase::AdDa => "AD/DA",
         StandaloneUseCase::Preamp => "Preamp",
+        StandaloneUseCase::Undefined => "Undefined",
     }
 }
 
@@ -292,10 +293,11 @@ impl SpecificCtl {
     const MONO_BUTTON_NAME: &'static str = "mono-button";
     const SPKR_BUTTON_NAME: &'static str = "spkr-button";
 
-    const USE_CASES: [StandaloneUseCase; 3] = [
+    const USE_CASES: [StandaloneUseCase; 4] = [
         StandaloneUseCase::Mixer,
         StandaloneUseCase::AdDa,
         StandaloneUseCase::Preamp,
+        StandaloneUseCase::Undefined,
     ];
 
     const MASTER_KNOB_VALUE_MIN: i32 = 0x00;
