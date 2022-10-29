@@ -51,7 +51,7 @@ impl KliveModel {
 
 impl CtlModel<(SndDice, FwNode)> for KliveModel {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections)?;
+        self.common_ctl.load(card_cntr)?;
 
         self.knob_ctl.load(card_cntr)?;
         self.config_ctl.load(card_cntr)?;
@@ -82,7 +82,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -204,7 +204,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -253,7 +253,7 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_meter_ctl.read(elem_id, elem_value)? {
             Ok(true)

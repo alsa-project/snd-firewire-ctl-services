@@ -25,7 +25,7 @@ impl MinimalModel {
 
 impl CtlModel<(SndDice, FwNode)> for MinimalModel {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections)
+        self.common_ctl.load(card_cntr)
     }
 
     fn read(
@@ -34,7 +34,7 @@ impl CtlModel<(SndDice, FwNode)> for MinimalModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.read(&self.sections, elem_id, elem_value)
+        self.common_ctl.read(elem_id, elem_value)
     }
 
     fn write(
@@ -72,7 +72,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for MinimalModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.read(&self.sections, elem_id, elem_value)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
 
@@ -92,7 +92,7 @@ impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.read(&self.sections, elem_id, elem_value)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
 

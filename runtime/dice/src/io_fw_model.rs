@@ -89,7 +89,7 @@ where
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, &self.sections)?;
+        self.common_ctl.load(card_cntr)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
@@ -104,7 +104,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -184,7 +184,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.read(&self.sections, elem_id, elem_value)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
 
@@ -228,7 +228,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.sections, elem_id, elem_value)? {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -975,7 +975,8 @@ pub fn detect_io26fw_model(node: &FwNode) -> Result<bool, Error> {
     Io14fwProtocol::read_general_sections(&req, node, &mut sections, TIMEOUT_MS)?;
 
     Io14fwProtocol::whole_cache(&req, node, &mut sections.global, TIMEOUT_MS)?;
-    let config = &sections.global.params.clock_config;
+    let global_params = sections.global.params.clone();
+    let config = &global_params.clock_config;
 
     match config.rate {
         ClockRate::R32000 | ClockRate::R44100 | ClockRate::R48000 | ClockRate::AnyLow => {
@@ -1007,7 +1008,7 @@ pub fn detect_io26fw_model(node: &FwNode) -> Result<bool, Error> {
             }
         }
         ClockRate::R176400 | ClockRate::R192000 | ClockRate::AnyHigh => {
-            let nickname = &sections.global.params.nickname;
+            let nickname = &global_params.nickname;
             match nickname.as_str() {
                 "iO 26" => Ok(true),
                 "iO 14" => Ok(false),

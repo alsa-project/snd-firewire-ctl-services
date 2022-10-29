@@ -15,6 +15,10 @@ where
 {
     pub measured_elem_id_list: Vec<ElemId>,
     pub notified_elem_id_list: Vec<ElemId>,
+    global_params: GlobalParameters,
+    tx_stream_format_params: TxStreamFormatParameters,
+    rx_stream_format_params: RxStreamFormatParameters,
+    extended_sync_params: ExtendedSyncParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -41,33 +45,36 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
-        debug!(params = ?sections.global.params, ?res);
+        self.global_params = sections.global.params.clone();
+        debug!(params = ?self.global_params, ?res);
         res?;
 
         let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
-        debug!(params = ?sections.tx_stream_format.params, ?res);
+        self.tx_stream_format_params = sections.tx_stream_format.params.clone();
+        debug!(params = ?self.tx_stream_format_params, ?res);
         res?;
 
         let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
-        debug!(params = ?sections.rx_stream_format.params, ?res);
+        self.rx_stream_format_params = sections.rx_stream_format.params.clone();
+        debug!(params = ?self.rx_stream_format_params, ?res);
         res?;
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
             let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
-            debug!(params = ?sections.ext_sync.params, ?res);
+            self.extended_sync_params = sections.ext_sync.params.clone();
+            debug!(params = ?self.extended_sync_params, ?res);
             res?;
         }
 
         Ok(())
     }
 
-    pub fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        sections: &GeneralSections,
-    ) -> Result<(), Error> {
-        let params = &sections.global.params;
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut measured_elem_id_list = Vec::new();
+        let mut notified_elem_id_list = Vec::new();
+
+        let params = &self.global_params;
 
         let labels: Vec<String> = params
             .avail_rates
@@ -78,7 +85,7 @@ where
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .avail_sources
@@ -95,12 +102,12 @@ where
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, NICKNAME, 0);
         card_cntr
             .add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)
-            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = params
             .external_source_states
@@ -119,26 +126,24 @@ where
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOCKED_CLK_SRC_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, labels.len(), false)
-                .map(|mut elem_id_list| self.measured_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SLIPPED_CLK_SRC_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, labels.len(), false)
-                .map(|mut elem_id_list| self.measured_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
         }
+
+        self.measured_elem_id_list = measured_elem_id_list;
+        self.notified_elem_id_list = notified_elem_id_list;
 
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-        sections: &GeneralSections,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
-                let params = &sections.global.params;
+                let params = &self.global_params;
                 let pos = params
                     .avail_rates
                     .iter()
@@ -155,7 +160,7 @@ where
                 Ok(true)
             }
             CLK_SRC_NAME => {
-                let params = &sections.global.params;
+                let params = &self.global_params;
                 let pos = params
                     .avail_sources
                     .iter()
@@ -175,18 +180,18 @@ where
                 // NOTE: the maximum size of nickname bytes (=64) fits within the size of byte
                 // value container (=512).
                 let mut vals = [0u8; 512];
-                let raw = sections.global.params.nickname.as_bytes();
+                let raw = self.global_params.nickname.as_bytes();
                 vals[..raw.len()].copy_from_slice(&raw);
                 elem_value.set_bytes(&vals);
                 Ok(true)
             }
             LOCKED_CLK_SRC_NAME => {
-                let params = &sections.global.params;
+                let params = &self.global_params;
                 elem_value.set_bool(&params.external_source_states.locked);
                 Ok(true)
             }
             SLIPPED_CLK_SRC_NAME => {
-                let params = &sections.global.params;
+                let params = &self.global_params;
                 elem_value.set_bool(&params.external_source_states.slipped);
                 Ok(true)
             }
@@ -207,7 +212,7 @@ where
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 let pos = elem_value.enumerated()[0] as usize;
-                let mut params = sections.global.params.clone();
+                let mut params = self.global_params.clone();
                 let rate = params
                     .avail_rates
                     .iter()
@@ -225,12 +230,13 @@ where
                 unit.lock()?;
                 let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
                 let _ = unit.unlock();
-                debug!(?params, ?res);
+                self.global_params = sections.global.params.clone();
+                debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
             CLK_SRC_NAME => {
                 let pos = elem_value.enumerated()[0] as usize;
-                let mut params = sections.global.params.clone();
+                let mut params = self.global_params.clone();
                 let src = sections
                     .global
                     .params
@@ -250,18 +256,20 @@ where
                 unit.lock()?;
                 let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
                 let _ = unit.unlock();
-                debug!(?params, ?res);
+                self.global_params = sections.global.params.clone();
+                debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
             NICKNAME => {
                 let vals = elem_value.bytes().to_vec();
-                let mut params = sections.global.params.clone();
+                let mut params = self.global_params.clone();
                 params.nickname = String::from_utf8(vals).map_err(|e| {
                     let msg = format!("Invalid bytes for string: {}", e);
                     Error::new(FileError::Inval, &msg)
                 })?;
                 let res = T::partial_update(req, node, &params, &mut sections.global, timeout_ms);
-                debug!(?params, ?res);
+                self.global_params = sections.global.params.clone();
+                debug!(params = ?self.global_params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -276,13 +284,15 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let res = T::partial_cache(req, node, &mut sections.global, timeout_ms);
-        debug!(params = ?sections.global.params, ?res);
+        self.global_params = sections.global.params.clone();
+        debug!(params = ?self.global_params, ?res);
         res?;
 
         // Old firmware doesn't support it.
         if sections.ext_sync.size > 0 {
             let res = T::whole_cache(req, node, &mut sections.ext_sync, timeout_ms);
-            debug!(params = ?sections.ext_sync.params, ?res);
+            self.extended_sync_params = sections.ext_sync.params.clone();
+            debug!(params = ?self.extended_sync_params, ?res);
             res?;
         }
 
@@ -290,7 +300,7 @@ where
     }
 
     pub fn parse_notification(
-        &self,
+        &mut self,
         req: &FwReq,
         node: &FwNode,
         sections: &mut GeneralSections,
@@ -299,17 +309,20 @@ where
     ) -> Result<(), Error> {
         if T::notified(&sections.global, msg) {
             let res = T::whole_cache(req, node, &mut sections.global, timeout_ms);
-            debug!(params = ?sections.global.params, ?res);
+            self.global_params = sections.global.params.clone();
+            debug!(params = ?self.global_params, ?res);
             res?;
         }
         if T::notified(&sections.tx_stream_format, msg) {
             let res = T::whole_cache(req, node, &mut sections.tx_stream_format, timeout_ms);
-            debug!(params = ?sections.global.params, ?res);
+            self.tx_stream_format_params = sections.tx_stream_format.params.clone();
+            debug!(params = ?self.tx_stream_format_params, ?res);
             res?;
         }
         if T::notified(&sections.rx_stream_format, msg) {
             let res = T::whole_cache(req, node, &mut sections.rx_stream_format, timeout_ms);
-            debug!(params = ?sections.global.params, ?res);
+            self.rx_stream_format_params = sections.rx_stream_format.params.clone();
+            debug!(params = ?self.rx_stream_format_params, ?res);
             res?;
         }
 
