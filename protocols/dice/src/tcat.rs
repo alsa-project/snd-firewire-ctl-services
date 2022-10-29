@@ -406,7 +406,7 @@ where
 const BASE_ADDR: u64 = 0xffffe0000000;
 
 /// Parameter of stream format for IEC 60958.
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Iec60958Param {
     /// The corresponding channel supports IEC 60958 bit stream.
     pub cap: bool,
