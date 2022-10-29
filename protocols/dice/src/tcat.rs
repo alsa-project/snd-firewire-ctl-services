@@ -43,22 +43,35 @@ pub struct Section {
     pub size: usize,
 }
 
-impl From<&[u8]> for Section {
-    fn from(data: &[u8]) -> Self {
-        assert!(data.len() >= SECTION_ENTRY_SIZE);
-
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&data[..4]);
-        let offset = 4 * u32::from_be_bytes(quadlet) as usize;
-
-        quadlet.copy_from_slice(&data[4..8]);
-        let size = 4 * u32::from_be_bytes(quadlet) as usize;
-
-        Section { offset, size }
-    }
+impl Section {
+    const SIZE: usize = 8;
 }
 
-const SECTION_ENTRY_SIZE: usize = 8;
+#[cfg(test)]
+fn serialize_section(section: &Section, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= Section::SIZE);
+
+    let val = (section.offset as u32) / 4;
+    serialize_u32(&val, &mut raw[..4]);
+
+    let val = (section.size as u32) / 4;
+    serialize_u32(&val, &mut raw[4..8]);
+
+    Ok(())
+}
+
+fn deserialize_section(section: &mut Section, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= Section::SIZE);
+
+    let mut val = 0u32;
+    deserialize_u32(&mut val, &raw[..4]);
+    section.offset = 4 * val as usize;
+
+    deserialize_u32(&mut val, &raw[4..8]);
+    section.size = 4 * val as usize;
+
+    Ok(())
+}
 
 /// The sset of sections in CSR of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -76,19 +89,32 @@ pub struct GeneralSections {
 
 impl GeneralSections {
     const SECTION_COUNT: usize = 5;
-    const SIZE: usize = SECTION_ENTRY_SIZE * Self::SECTION_COUNT;
+    const SIZE: usize = Section::SIZE * Self::SECTION_COUNT;
 }
 
-impl From<&[u8]> for GeneralSections {
-    fn from(raw: &[u8]) -> Self {
-        GeneralSections {
-            global: Section::from(&raw[..8]),
-            tx_stream_format: Section::from(&raw[8..16]),
-            rx_stream_format: Section::from(&raw[16..24]),
-            ext_sync: Section::from(&raw[24..32]),
-            reserved: Section::from(&raw[32..40]),
-        }
-    }
+#[cfg(test)]
+fn serialize_general_sections(sections: &GeneralSections, raw: &mut [u8]) -> Result<(), String> {
+    assert!(raw.len() >= GeneralSections::SIZE);
+
+    serialize_section(&sections.global, &mut raw[..8])?;
+    serialize_section(&sections.tx_stream_format, &mut raw[8..16])?;
+    serialize_section(&sections.rx_stream_format, &mut raw[16..24])?;
+    serialize_section(&sections.ext_sync, &mut raw[24..32])?;
+    serialize_section(&sections.reserved, &mut raw[32..40])?;
+
+    Ok(())
+}
+
+fn deserialize_general_sections(sections: &mut GeneralSections, raw: &[u8]) -> Result<(), String> {
+    assert!(raw.len() >= GeneralSections::SIZE);
+
+    deserialize_section(&mut sections.global, &raw[..8])?;
+    deserialize_section(&mut sections.tx_stream_format, &raw[8..16])?;
+    deserialize_section(&mut sections.rx_stream_format, &raw[16..24])?;
+    deserialize_section(&mut sections.ext_sync, &raw[24..32])?;
+    deserialize_section(&mut sections.reserved, &raw[32..40])?;
+
+    Ok(())
 }
 
 /// Serializer and deserializer for parameters in TCAT section.
@@ -107,7 +133,7 @@ pub trait TcatSectionSerdes<T> {
 }
 
 /// Any error of general protocol.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GeneralProtocolError {
     /// Error to operate for global settings.
     Global,
@@ -232,9 +258,9 @@ pub trait TcatOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; GeneralSections::SIZE];
-        Self::read(req, node, 0, &mut raw, timeout_ms).map(|_| {
-            *sections = GeneralSections::from(&raw[..]);
-        })
+        Self::read(req, node, 0, &mut raw, timeout_ms)?;
+        deserialize_general_sections(sections, &raw)
+            .map_err(|cause| Error::new(GeneralProtocolError::Invalid(0), &cause))
     }
 }
 
@@ -569,5 +595,32 @@ mod test {
         deserialize_labels(&mut l, &raw).unwrap();
 
         assert_eq!(labels, l);
+    }
+
+    #[test]
+    fn sections_serdes() {
+        let raw = [
+            0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x5f, 0x00, 0x00, 0x00, 0x69, 0x00, 0x00,
+            0x00, 0x8e, 0x00, 0x00, 0x00, 0xf7, 0x00, 0x00, 0x01, 0x1a, 0x00, 0x00, 0x02, 0x11,
+            0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let mut params = GeneralSections::default();
+        deserialize_general_sections(&mut params, &raw).unwrap();
+
+        assert_eq!(params.global.offset, 0x28);
+        assert_eq!(params.global.size, 0x17c);
+        assert_eq!(params.tx_stream_format.offset, 0x1a4);
+        assert_eq!(params.tx_stream_format.size, 0x238);
+        assert_eq!(params.rx_stream_format.offset, 0x3dc);
+        assert_eq!(params.rx_stream_format.size, 0x468);
+        assert_eq!(params.ext_sync.offset, 0x844);
+        assert_eq!(params.ext_sync.size, 0x10);
+        assert_eq!(params.reserved.offset, 0);
+        assert_eq!(params.reserved.size, 0);
+
+        let mut r = vec![0u8; raw.len()];
+        serialize_general_sections(&params, &mut r).unwrap();
+
+        assert_eq!(r, raw);
     }
 }
