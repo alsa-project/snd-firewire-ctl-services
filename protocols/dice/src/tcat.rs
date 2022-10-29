@@ -35,23 +35,18 @@ pub use {
 };
 
 /// Section in control and status register (CSR) of node.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct Section<T: Default + Debug> {
-    /// Parameters as intermediate expression.
-    pub params: T,
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Section {
     /// The offset of section in specific address space.
     pub offset: usize,
     /// The size of section.
     pub size: usize,
-    /// The raw data as hardware cache.
-    raw: Vec<u8>,
 }
 
-const SECTION_ENTRY_SIZE: usize = 8;
-
-impl<T: Default + Debug> From<&[u8]> for Section<T> {
+impl From<&[u8]> for Section {
     fn from(data: &[u8]) -> Self {
         assert!(data.len() >= SECTION_ENTRY_SIZE);
+
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let offset = 4 * u32::from_be_bytes(quadlet) as usize;
@@ -59,30 +54,24 @@ impl<T: Default + Debug> From<&[u8]> for Section<T> {
         quadlet.copy_from_slice(&data[4..8]);
         let size = 4 * u32::from_be_bytes(quadlet) as usize;
 
-        let params = Default::default();
-        let raw = vec![0; size];
-
-        Section {
-            params,
-            offset,
-            size,
-            raw,
-        }
+        Section { offset, size }
     }
 }
+
+const SECTION_ENTRY_SIZE: usize = 8;
 
 /// The sset of sections in CSR of node.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct GeneralSections {
     /// For global settings.
-    pub global: Section<GlobalParameters>,
+    pub global: Section,
     /// For tx stream format settings.
-    pub tx_stream_format: Section<TxStreamFormatParameters>,
+    pub tx_stream_format: Section,
     /// For rx stream format settings.
-    pub rx_stream_format: Section<RxStreamFormatParameters>,
+    pub rx_stream_format: Section,
     /// For extended status of synchronization for signal sources of sampling clock.
-    pub ext_sync: Section<ExtendedSyncParameters>,
-    pub reserved: Section<()>,
+    pub ext_sync: Section,
+    pub reserved: Section,
 }
 
 impl GeneralSections {
@@ -249,22 +238,17 @@ pub trait TcatOperation {
     }
 }
 
-fn check_section_cache<T>(
-    section: &Section<T>,
+fn check_section_cache(
+    section: &Section,
     min_size: usize,
     error_type: GeneralProtocolError,
-) -> Result<(), Error>
-where
-    T: Default + Debug,
-{
+) -> Result<(), Error> {
     if section.size < min_size {
         let msg = format!(
             "The size of section should be larger than {}, actually {}",
             min_size, section.size
         );
         Err(Error::new(error_type, &msg))
-    } else if section.raw.len() == 0 {
-        Err(Error::new(error_type, "The section is not initialized yet"))
     } else {
         Ok(())
     }
@@ -279,7 +263,7 @@ where
     fn whole_cache(
         req: &FwReq,
         node: &FwNode,
-        section: &Section<T>,
+        section: &Section,
         params: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -299,7 +283,7 @@ where
     fn whole_update(
         req: &FwReq,
         node: &FwNode,
-        section: &Section<T>,
+        section: &Section,
         params: &T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -313,7 +297,7 @@ where
     fn partial_update(
         req: &FwReq,
         node: &FwNode,
-        section: &Section<T>,
+        section: &Section,
         params: &T,
         prev: &mut T,
         timeout_ms: u32,
@@ -371,7 +355,7 @@ where
     fn partial_cache(
         req: &FwReq,
         node: &FwNode,
-        section: &Section<T>,
+        section: &Section,
         params: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
