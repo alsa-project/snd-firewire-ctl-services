@@ -47,7 +47,7 @@ impl ExtensionModel {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
         self.tcd22xx_ctls.store_configuration(
             &mut self.req,
             node,
@@ -334,7 +334,7 @@ impl Tcd22xxSpecification for ExtensionProtocol {
     ];
 }
 
-pub fn detect_extended_model(node: &mut FwNode) -> bool {
+pub fn detect_extended_model(node: &FwNode) -> bool {
     let mut req = FwReq::default();
     let mut sections = ExtensionSections::default();
     let res = ExtensionProtocol::read_extension_sections(&req, node, &mut sections, 100);

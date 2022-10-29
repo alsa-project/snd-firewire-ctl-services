@@ -57,7 +57,7 @@ impl SPro40Model {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
         self.tcd22xx_ctls.store_configuration(
             &mut self.req,
             node,

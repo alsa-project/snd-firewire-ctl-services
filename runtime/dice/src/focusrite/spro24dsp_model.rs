@@ -98,7 +98,7 @@ impl SPro24DspModel {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
         self.tcd22xx_ctls.store_configuration(
             &mut self.req,
             node,
@@ -358,8 +358,8 @@ const COMPRESSOR_RELEASE_NAME: &str = "compressor-release";
 impl CompressorCtl {
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -468,8 +468,8 @@ impl CompressorCtl {
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,
@@ -565,8 +565,8 @@ const EQUALIZER_OUTPUT_NAME: &str = "equalizer-output-volume";
 impl EqualizerCtl {
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -612,8 +612,8 @@ impl EqualizerCtl {
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,
@@ -652,8 +652,8 @@ const REVERB_PRE_FILTER_NAME: &str = "reverb-pre-filter";
 impl ReverbCtl {
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -741,8 +741,8 @@ impl ReverbCtl {
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,
@@ -835,8 +835,8 @@ impl EffectGeneralCtl {
 
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -901,8 +901,8 @@ impl EffectGeneralCtl {
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,

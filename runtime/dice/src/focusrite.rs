@@ -59,8 +59,8 @@ where
 
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -161,8 +161,8 @@ where
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,
@@ -301,8 +301,8 @@ where
 
     fn parse_notification(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         msg: u32,
@@ -354,8 +354,8 @@ where
 
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -418,8 +418,8 @@ where
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,
@@ -523,8 +523,8 @@ where
 
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -581,8 +581,8 @@ where
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,

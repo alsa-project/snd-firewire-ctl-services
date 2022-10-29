@@ -214,8 +214,8 @@ pub trait Tcd22xxOperation:
 {
     /// Detect available source and destination blocks at given rate mode.
     fn detect_available_blocks(
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
@@ -256,8 +256,8 @@ pub trait Tcd22xxOperation:
 
     /// Update router entries.
     fn update_router_entries(
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         rate_mode: RateMode,
@@ -290,8 +290,8 @@ pub trait Tcd22xxOperation:
 
     /// Load configuration from on-board flash memory, including parameters in application section.
     fn load_configuration(
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -309,8 +309,8 @@ pub trait Tcd22xxOperation:
 
     /// Store configuration to on-board flash memory, including parameters in application section.
     fn store_configuration(
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,

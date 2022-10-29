@@ -71,7 +71,7 @@ impl LiquidS56Model {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
         self.tcd22xx_ctls.store_configuration(
             &mut self.req,
             node,
@@ -386,8 +386,8 @@ impl SpecificCtl {
 
     fn cache(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32,
@@ -533,8 +533,8 @@ impl SpecificCtl {
 
     fn write(
         &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
+        req: &FwReq,
+        node: &FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         elem_id: &ElemId,

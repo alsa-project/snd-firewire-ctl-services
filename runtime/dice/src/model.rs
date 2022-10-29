@@ -419,7 +419,7 @@ impl DiceModel {
         }
     }
 
-    pub fn store_configuration(&mut self, node: &mut FwNode) -> Result<(), Error> {
+    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
         match &mut self.model {
             Model::Extension(m) => m.store_configuration(node),
             Model::MaudioPfire2626(m) => m.store_configuration(node),
