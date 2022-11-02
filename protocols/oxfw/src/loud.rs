@@ -25,6 +25,51 @@ impl Default for LinkFwInputSource {
 #[derive(Default, Debug)]
 pub struct LinkFwProtocol;
 
+impl OxfwFcpParamsOperation<OxfwAvc, LinkFwInputSource> for LinkFwProtocol {
+    fn cache(
+        avc: &mut OxfwAvc,
+        params: &mut LinkFwInputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = SignalSource::new(&Self::SIG_DST);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        let pos = Self::SIG_SRCS
+            .iter()
+            .position(|src| src.eq(&op.src))
+            .unwrap();
+        *params = if pos > 0 {
+            LinkFwInputSource::Digital
+        } else {
+            LinkFwInputSource::Analog
+        };
+        Ok(())
+    }
+}
+
+impl OxfwFcpMutableParamsOperation<OxfwAvc, LinkFwInputSource> for LinkFwProtocol {
+    fn update(
+        avc: &mut OxfwAvc,
+        params: &LinkFwInputSource,
+        prev: &mut LinkFwInputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if *params != *prev {
+            let pos = if *params == LinkFwInputSource::Digital {
+                1
+            } else {
+                0
+            };
+            let mut op = SignalSource {
+                src: Self::SIG_SRCS[pos],
+                dst: Self::SIG_DST,
+            };
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        }
+        *prev = *params;
+        Ok(())
+    }
+}
+
 impl LinkFwProtocol {
     const SIG_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: AvcAddrSubunit {
