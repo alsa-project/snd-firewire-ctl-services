@@ -7,13 +7,10 @@ use {super::*, protocols::lacie::*};
 pub struct LacieModel {
     avc: OxfwAvc,
     common_ctl: CommonCtl<OxfwAvc>,
-    voluntary: bool,
+    output_ctl: OutputCtl<OxfwAvc, FwSpeakersProtocol>,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
-
-const VOL_NAME: &str = "PCM Playback Volume";
-const MUTE_NAME: &str = "PCM Playback Switch";
 
 impl CtlModel<(SndUnit, FwNode)> for LacieModel {
     fn load(
@@ -23,30 +20,10 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
+        self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-
-        // NOTE: I have a plan to remove control functionality from ALSA oxfw driver for future.
-        let elem_id_list = card_cntr.card.elem_id_list()?;
-        self.voluntary = elem_id_list
-            .iter()
-            .find(|elem_id| elem_id.name().as_str() == VOL_NAME)
-            .is_none();
-        if self.voluntary {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
-            let _ = card_cntr.add_int_elems(
-                &elem_id,
-                1,
-                FwSpeakersProtocol::VOLUME_MIN as i32,
-                FwSpeakersProtocol::VOLUME_MAX as i32,
-                FwSpeakersProtocol::VOLUME_STEP as i32,
-                1,
-                None,
-                true,
-            )?;
-
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
-            let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        }
+        self.output_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -62,22 +39,8 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
             .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.voluntary {
-            match elem_id.name().as_str() {
-                VOL_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    let mut vol = 0;
-                    FwSpeakersProtocol::read_volume(&mut self.avc, &mut vol, FCP_TIMEOUT_MS)
-                        .map(|_| vol as i32)
-                })
-                .map(|_| true),
-                MUTE_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    let mut mute = false;
-                    FwSpeakersProtocol::read_mute(&mut self.avc, &mut mute, FCP_TIMEOUT_MS)
-                        .map(|_| mute)
-                })
-                .map(|_| true),
-                _ => Ok(false),
-            }
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -95,18 +58,11 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
             .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.voluntary {
-            match elem_id.name().as_str() {
-                VOL_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
-                    FwSpeakersProtocol::write_volume(&mut self.avc, val as i16, FCP_TIMEOUT_MS)
-                })
-                .map(|_| true),
-                MUTE_NAME => ElemValueAccessor::<bool>::get_val(new, |val| {
-                    FwSpeakersProtocol::write_mute(&mut self.avc, val, FCP_TIMEOUT_MS)
-                })
-                .map(|_| true),
-                _ => Ok(false),
-            }
+        } else if self
+            .output_ctl
+            .write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
         } else {
             Ok(false)
         }

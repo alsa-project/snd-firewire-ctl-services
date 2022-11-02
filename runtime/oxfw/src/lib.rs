@@ -25,7 +25,7 @@ use {
     model::*,
     nix::sys::signal,
     protocols::*,
-    std::{convert::TryFrom, sync::mpsc},
+    std::{convert::TryFrom, fmt::Debug, sync::mpsc},
     ta1394_avc_general::config_rom::*,
 };
 
