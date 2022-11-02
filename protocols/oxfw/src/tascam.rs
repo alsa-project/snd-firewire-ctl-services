@@ -10,15 +10,23 @@ use super::*;
 const TEAC_OUI: [u8; 3] = [0x00, 0x02, 0x2e];
 
 /// Mode of display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FireoneDisplayMode {
+    /// Turn off.
     Off,
+    /// Always on.
     AlwaysOn,
+    /// Breathe.
     Breathe,
+    /// Metronome.
     Metronome,
+    /// Rotate according to MIDI clock.
     MidiClockRotate,
+    /// Flash according to MIDI clock.
     MidiClockFlash,
+    /// Rotate slowly.
     JogSlowRotate,
+    /// Track to move of jog wheel.
     JogTrack,
 }
 
@@ -29,9 +37,11 @@ impl Default for FireoneDisplayMode {
 }
 
 /// Mode of MIDI message.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FireoneMidiMessageMode {
+    /// Native.
     Native,
+    /// Emulation of Mackie HUI.
     MackieHuiEmulation,
 }
 
@@ -42,9 +52,11 @@ impl Default for FireoneMidiMessageMode {
 }
 
 /// Mode of input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FireoneInputMode {
+    /// Stereo.
     Stereo,
+    /// Monaural.
     Monaural,
 }
 
@@ -217,93 +229,6 @@ impl OxfwFcpMutableParamsOperation<TascamAvc, SpecificParams> for FireoneProtoco
 
         *prev = *params;
         Ok(())
-    }
-}
-
-impl FireoneProtocol {
-    pub fn read_display_mode(
-        avc: &TascamAvc,
-        mode: &mut FireoneDisplayMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = TascamProto::new(VendorCmd::DisplayMode(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-        if let VendorCmd::DisplayMode(val) = &op.cmd {
-            deserialize_display_mode(mode, val).unwrap();
-        }
-        Ok(())
-    }
-
-    pub fn write_display_mode(
-        avc: &TascamAvc,
-        mode: FireoneDisplayMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut val = 0;
-        serialize_display_mode(&mode, &mut val).unwrap();
-        let mut op = TascamProto::new(VendorCmd::DisplayMode(val));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_midi_message_mode(
-        avc: &TascamAvc,
-        mode: &mut FireoneMidiMessageMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = TascamProto::new(VendorCmd::MessageMode(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::MessageMode(val) = &op.cmd {
-                deserialize_midi_message_mode(mode, val).unwrap();
-            }
-        })
-    }
-
-    pub fn write_midi_message_mode(
-        avc: &TascamAvc,
-        mode: FireoneMidiMessageMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut val = 0;
-        serialize_midi_message_mode(&mode, &mut val).unwrap();
-        let mut op = TascamProto::new(VendorCmd::MessageMode(val));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_input_mode(
-        avc: &TascamAvc,
-        mode: &mut FireoneInputMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = TascamProto::new(VendorCmd::MessageMode(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::MessageMode(val) = &op.cmd {
-                deserialize_input_mode(mode, val).unwrap();
-            }
-        })
-    }
-
-    pub fn write_input_mode(
-        avc: &TascamAvc,
-        mode: FireoneInputMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut val = 0;
-        serialize_input_mode(&mode, &mut val).unwrap();
-        let mut op = TascamProto::new(VendorCmd::InputMode(val));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_firmware_version(
-        avc: &TascamAvc,
-        version: &mut u8,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = TascamProto::new(VendorCmd::FirmwareVersion(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::FirmwareVersion(val) = &op.cmd {
-                *version = *val as u8;
-            }
-        })
     }
 }
 
