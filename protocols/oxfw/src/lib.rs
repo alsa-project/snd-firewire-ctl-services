@@ -68,3 +68,21 @@ fn from_avc_err(err: Ta1394AvcError<Error>) -> Error {
         Ta1394AvcError::RespParse(cause) => Error::new(FileError::Io, &cause.to_string()),
     }
 }
+
+/// Operation for read-only parameters by AV/C command in FCP.
+pub trait OxfwFcpParamsOperation<P, T>
+where
+    P: Ta1394Avc<Error>,
+{
+    /// Cache state of hardware for the parameter.
+    fn cache(avc: &mut P, params: &mut T, timeout_ms: u32) -> Result<(), Error>;
+}
+
+/// Operation for mutable parameters by AV/C command in FCP.
+pub trait OxfwFcpMutableParamsOperation<P, T>
+where
+    P: Ta1394Avc<Error>,
+{
+    /// Update state of hardware when detecting any change between the given parameters.
+    fn update(avc: &mut P, params: &T, prev: &mut T, timeout_ms: u32) -> Result<(), Error>;
+}
