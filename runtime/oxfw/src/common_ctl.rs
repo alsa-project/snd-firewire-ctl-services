@@ -335,3 +335,147 @@ fn from_avc_err(err: Ta1394AvcError<Error>) -> Error {
         Ta1394AvcError::RespParse(cause) => Error::new(FileError::Io, &cause.to_string()),
     }
 }
+
+/// Control for output parameters.
+#[derive(Debug)]
+pub struct OutputCtl<P, T>
+where
+    P: Debug + Ta1394Avc<Error>,
+    T: Debug
+        + OxfwAudioFbSpecification
+        + OxfwFcpParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpParamsOperation<P, OxfwOutputVolumeParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputVolumeParams>,
+{
+    pub volume: OxfwOutputVolumeParams,
+    pub mute: OxfwOutputMuteParams,
+    voluntary: bool,
+    _phantom0: PhantomData<P>,
+    _phantom1: PhantomData<T>,
+}
+
+impl<T, P> Default for OutputCtl<P, T>
+where
+    P: Debug + Ta1394Avc<Error>,
+    T: Debug
+        + OxfwAudioFbSpecification
+        + OxfwFcpParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpParamsOperation<P, OxfwOutputVolumeParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputVolumeParams>,
+{
+    fn default() -> Self {
+        Self {
+            volume: T::create_output_volume_params(),
+            mute: Default::default(),
+            voluntary: Default::default(),
+            _phantom0: Default::default(),
+            _phantom1: Default::default(),
+        }
+    }
+}
+
+const VOL_NAME: &str = "PCM Playback Volume";
+const MUTE_NAME: &str = "PCM Playback Switch";
+
+impl<P, T> OutputCtl<P, T>
+where
+    P: Debug + Ta1394Avc<Error>,
+    T: Debug
+        + OxfwAudioFbSpecification
+        + OxfwFcpParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputMuteParams>
+        + OxfwFcpParamsOperation<P, OxfwOutputVolumeParams>
+        + OxfwFcpMutableParamsOperation<P, OxfwOutputVolumeParams>,
+{
+    const PLAYBACK_COUNT: usize = T::CHANNEL_MAP.len();
+
+    const VOLUME_MIN: i32 = T::VOLUME_MIN as i32;
+    const VOLUME_MAX: i32 = T::VOLUME_MAX as i32;
+    const VOLUME_STEP: i32 = 1;
+
+    pub fn cache(&mut self, avc: &mut P, timeout_ms: u32) -> Result<(), Error> {
+        if self.voluntary {
+            T::cache(avc, &mut self.volume, timeout_ms)?;
+            T::cache(avc, &mut self.mute, timeout_ms)?;
+        }
+        Ok(())
+    }
+
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        // NOTE: I have a plan to remove control functionality from ALSA oxfw driver for future.
+        let elem_id_list = card_cntr.card.elem_id_list()?;
+        self.voluntary = elem_id_list
+            .iter()
+            .find(|elem_id| elem_id.name().as_str() == VOL_NAME)
+            .is_none();
+        if self.voluntary {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
+            let _ = card_cntr.add_int_elems(
+                &elem_id,
+                1,
+                Self::VOLUME_MIN as i32,
+                Self::VOLUME_MAX as i32,
+                Self::VOLUME_STEP as i32,
+                Self::PLAYBACK_COUNT,
+                None,
+                true,
+            )?;
+
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
+            let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        if self.voluntary {
+            match elem_id.name().as_str() {
+                VOL_NAME => {
+                    let vals: Vec<i32> = self.volume.0.iter().map(|&vol| vol as i32).collect();
+                    elem_value.set_int(&vals);
+                    Ok(true)
+                }
+                MUTE_NAME => {
+                    elem_value.set_bool(&[self.mute.0]);
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn write(
+        &mut self,
+        avc: &mut P,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if self.voluntary {
+            match elem_id.name().as_str() {
+                VOL_NAME => {
+                    let mut params = self.volume.clone();
+                    params
+                        .0
+                        .iter_mut()
+                        .zip(elem_value.int())
+                        .for_each(|(vol, &val)| *vol = val as i16);
+                    T::update(avc, &params, &mut self.volume, timeout_ms).map(|_| true)
+                }
+                MUTE_NAME => {
+                    let mut params = self.mute.clone();
+                    params.0 = elem_value.boolean()[0];
+                    T::update(avc, &params, &mut self.mute, timeout_ms).map(|_| true)
+                }
+                _ => Ok(false),
+            }
+        } else {
+            Ok(false)
+        }
+    }
+}
