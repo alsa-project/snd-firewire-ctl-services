@@ -54,6 +54,19 @@ impl Default for FireoneInputMode {
     }
 }
 
+/// Parameters specific to Fireone.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpecificParams {
+    /// Mode of display.
+    pub display_mode: FireoneDisplayMode,
+    /// Mode of MIDI messaging.
+    pub midi_message_mode: FireoneMidiMessageMode,
+    /// Mode of input.
+    pub input_mode: FireoneInputMode,
+    /// Version of firmware.
+    pub firmware_version: u8,
+}
+
 /// The protocol implementation of protocol for Tascam FireOne.
 #[derive(Default, Debug)]
 pub struct FireoneProtocol;
@@ -122,6 +135,89 @@ fn deserialize_input_mode(mode: &mut FireoneInputMode, val: &u8) -> Result<(), S
         _ => Err(format!("Input mode not found for value {}", *val))?,
     };
     Ok(())
+}
+
+impl OxfwFcpParamsOperation<TascamAvc, SpecificParams> for FireoneProtocol {
+    fn cache(
+        avc: &mut TascamAvc,
+        params: &mut SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = vec![
+            VendorCmd::DisplayMode(Default::default()),
+            VendorCmd::MessageMode(Default::default()),
+            VendorCmd::InputMode(Default::default()),
+            VendorCmd::FirmwareVersion(Default::default()),
+        ];
+
+        cmds.into_iter().try_for_each(|cmd| {
+            let mut op = TascamProto::new(cmd);
+            avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+            match &op.cmd {
+                VendorCmd::DisplayMode(val) => {
+                    deserialize_display_mode(&mut params.display_mode, val)
+                }
+                VendorCmd::MessageMode(val) => {
+                    deserialize_midi_message_mode(&mut params.midi_message_mode, val)
+                }
+                VendorCmd::InputMode(val) => deserialize_input_mode(&mut params.input_mode, val),
+                VendorCmd::FirmwareVersion(val) => {
+                    params.firmware_version = *val;
+                    Ok(())
+                }
+            }
+            .map_err(|cause| Error::new(FileError::Io, &cause))
+        })
+    }
+}
+
+fn cmds_from_specific_params(
+    params: &SpecificParams,
+    cmds: &mut Vec<VendorCmd>,
+) -> Result<(), String> {
+    let mut val = 0;
+    serialize_display_mode(&params.display_mode, &mut val)?;
+    cmds.push(VendorCmd::DisplayMode(val));
+
+    let mut val = 0;
+    serialize_midi_message_mode(&params.midi_message_mode, &mut val)?;
+    cmds.push(VendorCmd::MessageMode(val));
+
+    let mut val = 0;
+    serialize_input_mode(&params.input_mode, &mut val)?;
+    cmds.push(VendorCmd::InputMode(val));
+
+    cmds.push(VendorCmd::FirmwareVersion(params.firmware_version));
+
+    Ok(())
+}
+
+impl OxfwFcpMutableParamsOperation<TascamAvc, SpecificParams> for FireoneProtocol {
+    fn update(
+        avc: &mut TascamAvc,
+        params: &SpecificParams,
+        prev: &mut SpecificParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = Vec::new();
+        cmds_from_specific_params(params, &mut new)
+            .map_err(|cause| Error::new(FileError::Io, &cause.to_string()))?;
+        let mut old = Vec::new();
+        cmds_from_specific_params(prev, &mut old)
+            .map_err(|cause| Error::new(FileError::Io, &cause.to_string()))?;
+
+        new.iter()
+            .zip(&old)
+            .filter(|(n, o)| !n.eq(o))
+            .try_for_each(|(&n, _)| {
+                let mut op = TascamProto::new(n);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            })?;
+
+        *prev = *params;
+        Ok(())
+    }
 }
 
 impl FireoneProtocol {
@@ -212,6 +308,7 @@ impl FireoneProtocol {
 }
 
 /// Type of command for TASCAM FireOne.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum VendorCmd {
     DisplayMode(u8),
     MessageMode(u8),
