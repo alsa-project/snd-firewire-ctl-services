@@ -58,6 +58,72 @@ impl Default for FireoneInputMode {
 #[derive(Default, Debug)]
 pub struct FireoneProtocol;
 
+fn serialize_display_mode(mode: &FireoneDisplayMode, val: &mut u8) -> Result<(), String> {
+    *val = match mode {
+        FireoneDisplayMode::Off => 0,
+        FireoneDisplayMode::AlwaysOn => 1,
+        FireoneDisplayMode::Breathe => 2,
+        FireoneDisplayMode::Metronome => 3,
+        FireoneDisplayMode::MidiClockRotate => 4,
+        FireoneDisplayMode::MidiClockFlash => 5,
+        FireoneDisplayMode::JogSlowRotate => 6,
+        FireoneDisplayMode::JogTrack => 7,
+    };
+    Ok(())
+}
+
+fn deserialize_display_mode(mode: &mut FireoneDisplayMode, val: &u8) -> Result<(), String> {
+    *mode = match *val {
+        0 => FireoneDisplayMode::Off,
+        1 => FireoneDisplayMode::AlwaysOn,
+        2 => FireoneDisplayMode::Breathe,
+        3 => FireoneDisplayMode::Metronome,
+        4 => FireoneDisplayMode::MidiClockRotate,
+        5 => FireoneDisplayMode::MidiClockFlash,
+        6 => FireoneDisplayMode::JogSlowRotate,
+        7 => FireoneDisplayMode::JogTrack,
+        _ => Err(format!("Display mode not found for value {}", *val))?,
+    };
+    Ok(())
+}
+
+fn serialize_midi_message_mode(mode: &FireoneMidiMessageMode, val: &mut u8) -> Result<(), String> {
+    *val = match mode {
+        FireoneMidiMessageMode::Native => 0,
+        FireoneMidiMessageMode::MackieHuiEmulation => 1,
+    };
+    Ok(())
+}
+
+fn deserialize_midi_message_mode(
+    mode: &mut FireoneMidiMessageMode,
+    val: &u8,
+) -> Result<(), String> {
+    *mode = match *val {
+        0 => FireoneMidiMessageMode::Native,
+        1 => FireoneMidiMessageMode::MackieHuiEmulation,
+        _ => Err(format!("MIDI message mode not found for value {}", *val))?,
+    };
+    Ok(())
+}
+
+fn serialize_input_mode(mode: &FireoneInputMode, val: &mut u8) -> Result<(), String> {
+    *val = match mode {
+        FireoneInputMode::Stereo => 0,
+        FireoneInputMode::Monaural => 1,
+    };
+    Ok(())
+}
+
+fn deserialize_input_mode(mode: &mut FireoneInputMode, val: &u8) -> Result<(), String> {
+    *mode = match *val {
+        0 => FireoneInputMode::Stereo,
+        1 => FireoneInputMode::Monaural,
+        _ => Err(format!("Input mode not found for value {}", *val))?,
+    };
+    Ok(())
+}
+
 impl FireoneProtocol {
     pub fn read_display_mode(
         avc: &TascamAvc,
@@ -65,20 +131,11 @@ impl FireoneProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut op = TascamProto::new(VendorCmd::DisplayMode(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::DisplayMode(val) = &op.cmd {
-                *mode = match val {
-                    7 => FireoneDisplayMode::JogTrack,
-                    6 => FireoneDisplayMode::JogSlowRotate,
-                    5 => FireoneDisplayMode::MidiClockFlash,
-                    4 => FireoneDisplayMode::MidiClockRotate,
-                    3 => FireoneDisplayMode::Metronome,
-                    2 => FireoneDisplayMode::Breathe,
-                    1 => FireoneDisplayMode::AlwaysOn,
-                    _ => FireoneDisplayMode::Off,
-                };
-            }
-        })
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        if let VendorCmd::DisplayMode(val) = &op.cmd {
+            deserialize_display_mode(mode, val).unwrap();
+        }
+        Ok(())
     }
 
     pub fn write_display_mode(
@@ -86,16 +143,8 @@ impl FireoneProtocol {
         mode: FireoneDisplayMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = match mode {
-            FireoneDisplayMode::JogTrack => 7,
-            FireoneDisplayMode::JogSlowRotate => 6,
-            FireoneDisplayMode::MidiClockFlash => 5,
-            FireoneDisplayMode::MidiClockRotate => 4,
-            FireoneDisplayMode::Metronome => 3,
-            FireoneDisplayMode::Breathe => 2,
-            FireoneDisplayMode::AlwaysOn => 1,
-            FireoneDisplayMode::Off => 0,
-        } as u8;
+        let mut val = 0;
+        serialize_display_mode(&mode, &mut val).unwrap();
         let mut op = TascamProto::new(VendorCmd::DisplayMode(val));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -108,11 +157,7 @@ impl FireoneProtocol {
         let mut op = TascamProto::new(VendorCmd::MessageMode(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             if let VendorCmd::MessageMode(val) = &op.cmd {
-                *mode = if *val > 0 {
-                    FireoneMidiMessageMode::MackieHuiEmulation
-                } else {
-                    FireoneMidiMessageMode::Native
-                };
+                deserialize_midi_message_mode(mode, val).unwrap();
             }
         })
     }
@@ -122,10 +167,8 @@ impl FireoneProtocol {
         mode: FireoneMidiMessageMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = match mode {
-            FireoneMidiMessageMode::Native => 0,
-            FireoneMidiMessageMode::MackieHuiEmulation => 1,
-        };
+        let mut val = 0;
+        serialize_midi_message_mode(&mode, &mut val).unwrap();
         let mut op = TascamProto::new(VendorCmd::MessageMode(val));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -138,11 +181,7 @@ impl FireoneProtocol {
         let mut op = TascamProto::new(VendorCmd::MessageMode(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             if let VendorCmd::MessageMode(val) = &op.cmd {
-                *mode = if *val > 0 {
-                    FireoneInputMode::Monaural
-                } else {
-                    FireoneInputMode::Stereo
-                };
+                deserialize_input_mode(mode, val).unwrap();
             }
         })
     }
@@ -152,10 +191,8 @@ impl FireoneProtocol {
         mode: FireoneInputMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = match mode {
-            FireoneInputMode::Stereo => 0,
-            FireoneInputMode::Monaural => 1,
-        };
+        let mut val = 0;
+        serialize_input_mode(&mode, &mut val).unwrap();
         let mut op = TascamProto::new(VendorCmd::InputMode(val));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
