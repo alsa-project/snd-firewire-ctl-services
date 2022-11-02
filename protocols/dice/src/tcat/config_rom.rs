@@ -49,14 +49,14 @@ pub struct UnitData<'a> {
     pub version: u32,
 }
 
-    const VENDOR_ID_MASK: u32 = 0xffffff00;
-    const VENDOR_ID_SHIFT: usize = 8;
-    const CATEGORY_MASK: u32 = 0x000000ff;
-    const CATEGORY_SHIFT: usize = 0;
-    const PRODUCT_ID_MASK: u32 = 0xffc00000;
-    const PRODUCT_ID_SHIFT: usize = 22;
-    const SERIAL_MASK: u32 = 0x003fffff;
-    const SERIAL_SHIFT: usize = 0;
+const VENDOR_ID_MASK: u32 = 0xffffff00;
+const VENDOR_ID_SHIFT: usize = 8;
+const CATEGORY_MASK: u32 = 0x000000ff;
+const CATEGORY_SHIFT: usize = 0;
+const PRODUCT_ID_MASK: u32 = 0xffc00000;
+const PRODUCT_ID_SHIFT: usize = 22;
+const SERIAL_MASK: u32 = 0x003fffff;
+const SERIAL_SHIFT: usize = 0;
 
 /// Parser of configuration ROM which has layout specific to DICE.
 pub trait DiceConfigRom<'a> {
