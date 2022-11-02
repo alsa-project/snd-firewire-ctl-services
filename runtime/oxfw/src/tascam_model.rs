@@ -7,6 +7,86 @@ use {super::*, protocols::tascam::*};
 pub struct TascamModel {
     avc: TascamAvc,
     common_ctl: CommonCtl<TascamAvc>,
+    specific_ctl: SpecificCtl,
+}
+
+const FCP_TIMEOUT_MS: u32 = 100;
+
+impl CtlModel<(SndUnit, FwNode)> for TascamModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
+        self.specific_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+
+        self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.specific_ctl.load(card_cntr)?;
+
+        Ok(())
+    }
+
+    fn read(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self.specific_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .common_ctl
+            .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .specific_ctl
+            .write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl NotifyModel<(SndUnit, FwNode), bool> for TascamModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
+    }
+
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &(SndUnit, FwNode),
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    }
 }
 
 fn display_mode_to_str(mode: &FireoneDisplayMode) -> &str {
@@ -36,14 +116,15 @@ fn input_mode_to_str(mode: &FireoneInputMode) -> &str {
     }
 }
 
-const FCP_TIMEOUT_MS: u32 = 100;
-
 const DISPLAY_MODE_NAME: &str = "display-mode";
-const MESSAGE_MODE_NAME: &str = "message-mode";
+const MIDI_MESSAGE_MODE_NAME: &str = "message-mode";
 const INPUT_MODE_NAME: &str = "input-mode";
 const FIRMWARE_VERSION_NAME: &str = "firmware-version";
 
-impl TascamModel {
+#[derive(Default, Debug)]
+struct SpecificCtl(SpecificParams);
+
+impl SpecificCtl {
     const DISPLAY_MODES: [FireoneDisplayMode; 8] = [
         FireoneDisplayMode::Off,
         FireoneDisplayMode::AlwaysOn,
@@ -54,24 +135,20 @@ impl TascamModel {
         FireoneDisplayMode::JogSlowRotate,
         FireoneDisplayMode::JogTrack,
     ];
-    const MESSAGE_MODES: [FireoneMidiMessageMode; 2] = [
+
+    const MIDI_MESSAGE_MODES: [FireoneMidiMessageMode; 2] = [
         FireoneMidiMessageMode::Native,
         FireoneMidiMessageMode::MackieHuiEmulation,
     ];
+
     const INPUT_MODES: [FireoneInputMode; 2] =
         [FireoneInputMode::Stereo, FireoneInputMode::Monaural];
-}
 
-impl CtlModel<(SndUnit, FwNode)> for TascamModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
+    fn cache(&mut self, avc: &mut TascamAvc, timeout_ms: u32) -> Result<(), Error> {
+        FireoneProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
 
-        self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::DISPLAY_MODES
             .iter()
             .map(|m| display_mode_to_str(m))
@@ -79,11 +156,11 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::MESSAGE_MODES
+        let labels: Vec<&str> = Self::MIDI_MESSAGE_MODES
             .iter()
             .map(|m| midi_message_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MESSAGE_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIDI_MESSAGE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<&str> = Self::INPUT_MODES
@@ -99,134 +176,92 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
-            return Ok(true);
-        } else {
-            match elem_id.name().as_str() {
-                DISPLAY_MODE_NAME => {
-                    let mut mode = FireoneDisplayMode::default();
-                    FireoneProtocol::read_display_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
-                    let pos = Self::DISPLAY_MODES
-                        .iter()
-                        .position(|m| m.eq(&mode))
-                        .unwrap();
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                }
-                MESSAGE_MODE_NAME => {
-                    let mut mode = FireoneMidiMessageMode::default();
-                    FireoneProtocol::read_midi_message_mode(
-                        &mut self.avc,
-                        &mut mode,
-                        FCP_TIMEOUT_MS,
-                    )?;
-                    let pos = Self::MESSAGE_MODES
-                        .iter()
-                        .position(|m| m.eq(&mode))
-                        .unwrap();
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                }
-                INPUT_MODE_NAME => {
-                    let mut mode = FireoneInputMode::default();
-                    FireoneProtocol::read_input_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
-                    let pos = Self::INPUT_MODES.iter().position(|m| m.eq(&mode)).unwrap();
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                }
-                FIRMWARE_VERSION_NAME => {
-                    let mut version = 0;
-                    FireoneProtocol::read_firmware_version(
-                        &mut self.avc,
-                        &mut version,
-                        FCP_TIMEOUT_MS,
-                    )?;
-                    elem_value.set_bytes(&[version]);
-                    Ok(true)
-                }
-                _ => Ok(false),
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            DISPLAY_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::DISPLAY_MODES
+                    .iter()
+                    .position(|m| params.display_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
             }
+            MIDI_MESSAGE_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::MIDI_MESSAGE_MODES
+                    .iter()
+                    .position(|m| params.midi_message_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            INPUT_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::INPUT_MODES
+                    .iter()
+                    .position(|m| params.input_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            FIRMWARE_VERSION_NAME => {
+                let params = &self.0;
+                elem_value.set_bytes(&[params.firmware_version]);
+                Ok(true)
+            }
+            _ => Ok(false),
         }
     }
 
     fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        avc: &mut TascamAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
-            return Ok(true);
-        } else {
-            match elem_id.name().as_str() {
-                DISPLAY_MODE_NAME => {
-                    let val = new.enumerated()[0];
-                    let &mode = Self::DISPLAY_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for display modes: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    FireoneProtocol::write_display_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
-                        .map(|_| true)
-                }
-                MESSAGE_MODE_NAME => {
-                    let val = new.enumerated()[0];
-                    let &mode = Self::MESSAGE_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for midi message modes: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    FireoneProtocol::write_midi_message_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
-                        .map(|_| true)
-                }
-                INPUT_MODE_NAME => {
-                    let val = new.enumerated()[0];
-                    let &mode = Self::INPUT_MODES.iter().nth(val as usize).ok_or_else(|| {
-                        let msg = format!("Invalid index for input modes: {}", val);
+        match elem_id.name().as_str() {
+            DISPLAY_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.display_mode = Self::DISPLAY_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Display mode not found for position {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                    FireoneProtocol::write_input_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
-                        .map(|_| true)
-                }
-                _ => Ok(false),
+                    })
+                    .copied()?;
+                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
+            MIDI_MESSAGE_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.midi_message_mode = Self::MIDI_MESSAGE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("MIDI message mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            INPUT_MODE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.input_mode = Self::INPUT_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Input mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            _ => Ok(false),
         }
-    }
-}
-
-impl NotifyModel<(SndUnit, FwNode), bool> for TascamModel {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
-    }
-
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.common_ctl
-            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
