@@ -86,3 +86,137 @@ where
     /// Update state of hardware when detecting any change between the given parameters.
     fn update(avc: &mut P, params: &T, prev: &mut T, timeout_ms: u32) -> Result<(), Error>;
 }
+
+/// Specification of audio function block.
+pub trait OxfwAudioFbSpecification {
+    /// The numeric identifier of audio function block for volume control.
+    const VOLUME_FB_ID: u8;
+    /// The numeric identifier of audio function block for mute control.
+    const MUTE_FB_ID: u8;
+
+    /// List to map raw data into preferred data order.
+    const CHANNEL_MAP: &'static [usize];
+
+    /// The minimum value of volume.
+    const VOLUME_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
+    /// The maximum value of volume.
+    const VOLUME_MAX: i16 = VolumeData::VALUE_ZERO;
+
+    /// Instantiate parameters for output volume.
+    fn create_output_volume_params() -> OxfwOutputVolumeParams {
+        OxfwOutputVolumeParams(vec![Default::default(); Self::CHANNEL_MAP.len()])
+    }
+}
+
+/// Parameters of volume for output..
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OxfwOutputVolumeParams(pub Vec<i16>);
+
+impl<O, P> OxfwFcpParamsOperation<P, OxfwOutputVolumeParams> for O
+where
+    O: OxfwAudioFbSpecification,
+    P: Ta1394Avc<Error>,
+{
+    fn cache(
+        avc: &mut P,
+        params: &mut OxfwOutputVolumeParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(params.0.len() >= Self::CHANNEL_MAP.len());
+        let mut op = AudioFeature::new(
+            Self::VOLUME_FB_ID,
+            CtlAttr::Current,
+            AudioCh::All,
+            FeatureCtl::Volume(VolumeData::new(params.0.len())),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
+        if let FeatureCtl::Volume(data) = op.ctl {
+            data.0
+                .iter()
+                .zip(Self::CHANNEL_MAP)
+                .for_each(|(&vol, &pos)| {
+                    params.0[pos] = vol;
+                });
+        }
+        Ok(())
+    }
+}
+
+impl<O, P> OxfwFcpMutableParamsOperation<P, OxfwOutputVolumeParams> for O
+where
+    O: OxfwAudioFbSpecification,
+    P: Ta1394Avc<Error>,
+{
+    fn update(
+        avc: &mut P,
+        params: &OxfwOutputVolumeParams,
+        prev: &mut OxfwOutputVolumeParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params != prev {
+            let vols: Vec<i16> = Self::CHANNEL_MAP.iter().map(|&pos| params.0[pos]).collect();
+            let mut op = AudioFeature::new(
+                Self::VOLUME_FB_ID,
+                CtlAttr::Current,
+                AudioCh::All,
+                FeatureCtl::Volume(VolumeData(vols)),
+            );
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))?;
+        }
+        prev.0.iter_mut().zip(&params.0).for_each(|(o, n)| *o = *n);
+        Ok(())
+    }
+}
+
+/// Parameters of mute for output.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct OxfwOutputMuteParams(pub bool);
+
+impl<O, P> OxfwFcpParamsOperation<P, OxfwOutputMuteParams> for O
+where
+    O: OxfwAudioFbSpecification,
+    P: Ta1394Avc<Error>,
+{
+    fn cache(avc: &mut P, params: &mut OxfwOutputMuteParams, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = AudioFeature::new(
+            Self::MUTE_FB_ID,
+            CtlAttr::Current,
+            AudioCh::Master,
+            FeatureCtl::Mute(vec![Default::default()]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
+        if let FeatureCtl::Mute(data) = op.ctl {
+            params.0 = data[0]
+        }
+        Ok(())
+    }
+}
+
+impl<O, P> OxfwFcpMutableParamsOperation<P, OxfwOutputMuteParams> for O
+where
+    O: OxfwAudioFbSpecification,
+    P: Ta1394Avc<Error>,
+{
+    fn update(
+        avc: &mut P,
+        params: &OxfwOutputMuteParams,
+        prev: &mut OxfwOutputMuteParams,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params != prev {
+            let mut op = AudioFeature::new(
+                Self::MUTE_FB_ID,
+                CtlAttr::Current,
+                AudioCh::Master,
+                FeatureCtl::Mute(vec![params.0]),
+            );
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))?;
+        }
+        prev.0 = params.0;
+        Ok(())
+    }
+}

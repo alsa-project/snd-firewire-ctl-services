@@ -11,6 +11,12 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct FwSpeakersProtocol;
 
+impl OxfwAudioFbSpecification for FwSpeakersProtocol {
+    const VOLUME_FB_ID: u8 = 0x01;
+    const MUTE_FB_ID: u8 = 0x01;
+    const CHANNEL_MAP: &'static [usize] = &[0];
+}
+
 impl FwSpeakersProtocol {
     pub const VOLUME_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
     pub const VOLUME_MAX: i16 = VolumeData::VALUE_ZERO;

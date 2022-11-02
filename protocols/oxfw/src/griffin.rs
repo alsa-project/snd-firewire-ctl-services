@@ -11,6 +11,12 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct FirewaveProtocol;
 
+impl OxfwAudioFbSpecification for FirewaveProtocol {
+    const VOLUME_FB_ID: u8 = 0x02;
+    const MUTE_FB_ID: u8 = 0x01;
+    const CHANNEL_MAP: &'static [usize] = &[0, 1, 4, 5, 2, 3];
+}
+
 impl FirewaveProtocol {
     pub const VOLUME_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
     pub const VOLUME_MAX: i16 = VolumeData::VALUE_ZERO;
@@ -18,7 +24,6 @@ impl FirewaveProtocol {
 
     pub const PLAYBACK_COUNT: usize = Self::CHANNEL_MAP.len();
 
-    const CHANNEL_MAP: [u8; 6] = [0, 1, 4, 5, 2, 3];
     const VOL_FB_ID: u8 = 0x02;
     const MUTE_FB_ID: u8 = 0x01;
 
@@ -35,7 +40,7 @@ impl FirewaveProtocol {
             let mut op = AudioFeature::new(
                 Self::VOL_FB_ID,
                 CtlAttr::Current,
-                AudioCh::Each(Self::CHANNEL_MAP[idx]),
+                AudioCh::Each(Self::CHANNEL_MAP[idx] as u8),
                 FeatureCtl::Volume(VolumeData::new(1)),
             );
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
@@ -60,7 +65,7 @@ impl FirewaveProtocol {
             let mut op = AudioFeature::new(
                 Self::VOL_FB_ID,
                 CtlAttr::Current,
-                AudioCh::Each(Self::CHANNEL_MAP[idx]),
+                AudioCh::Each(Self::CHANNEL_MAP[idx] as u8),
                 FeatureCtl::Volume(VolumeData(vec![volume])),
             );
             avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
