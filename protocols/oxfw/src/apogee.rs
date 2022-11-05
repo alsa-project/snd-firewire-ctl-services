@@ -581,7 +581,7 @@ impl DuetFwOutputProtocol {
 }
 
 /// Source of input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwInputSource {
     /// From XLR plug.
     Xlr,
@@ -596,7 +596,7 @@ impl Default for DuetFwInputSource {
 }
 
 /// Nominal level of input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwInputXlrNominalLevel {
     /// Adjustable between 10 and 75 dB.
     Microphone,
@@ -613,14 +613,148 @@ impl Default for DuetFwInputXlrNominalLevel {
 }
 
 /// Input parameters.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DuetFwInputParameters {
+    /// Gains of inputs.
     pub gains: [u8; 2],
+    /// Polarity of XLR inputs.
     pub polarities: [bool; 2],
+    /// Nominal level of XLR inputs.
     pub xlr_nominal_levels: [DuetFwInputXlrNominalLevel; 2],
+    /// Whether to enable phantom powering for XLR inputs.
     pub phantom_powerings: [bool; 2],
+    /// Source of analog inputs.
     pub srcs: [DuetFwInputSource; 2],
+    /// Disable click sound for microphone amplifier.
     pub clickless: bool,
+}
+
+#[cfg(test)]
+fn default_cmds_for_input_params(cmds: &mut Vec<VendorCmd>) {
+    cmds.push(VendorCmd::InGain(0, Default::default()));
+    cmds.push(VendorCmd::InGain(1, Default::default()));
+    cmds.push(VendorCmd::MicPolarity(0, Default::default()));
+    cmds.push(VendorCmd::MicPolarity(1, Default::default()));
+    cmds.push(VendorCmd::XlrIsMicLevel(0, Default::default()));
+    cmds.push(VendorCmd::XlrIsMicLevel(1, Default::default()));
+    cmds.push(VendorCmd::XlrIsConsumerLevel(0, Default::default()));
+    cmds.push(VendorCmd::XlrIsConsumerLevel(1, Default::default()));
+    cmds.push(VendorCmd::MicPhantom(0, Default::default()));
+    cmds.push(VendorCmd::MicPhantom(1, Default::default()));
+    cmds.push(VendorCmd::InputSourceIsPhone(0, Default::default()));
+    cmds.push(VendorCmd::InputSourceIsPhone(1, Default::default()));
+    cmds.push(VendorCmd::InClickless(Default::default()));
+}
+
+#[cfg(test)]
+fn cmds_to_input_params(params: &mut DuetFwInputParameters, cmds: &[VendorCmd]) {
+    let mut is_mic_levels = [false; 2];
+    let mut is_consumer_levels = [false; 2];
+
+    cmds.iter().for_each(|&cmd| match cmd {
+        VendorCmd::InGain(i, gain) => {
+            if i < params.gains.len() {
+                params.gains[i] = gain;
+            }
+        }
+        VendorCmd::MicPolarity(i, polarity) => {
+            if i < params.polarities.len() {
+                params.polarities[i] = polarity;
+            }
+        }
+        VendorCmd::XlrIsMicLevel(i, is_mic_level) => {
+            if i < is_mic_levels.len() {
+                is_mic_levels[i] = is_mic_level;
+            }
+        }
+        VendorCmd::XlrIsConsumerLevel(i, is_consumer_level) => {
+            if i < is_consumer_levels.len() {
+                is_consumer_levels[i] = is_consumer_level;
+            }
+        }
+        VendorCmd::MicPhantom(i, enabled) => {
+            if i < params.phantom_powerings.len() {
+                params.phantom_powerings[i] = enabled;
+            }
+        }
+        VendorCmd::InputSourceIsPhone(i, is_phone) => {
+            if i < params.srcs.len() {
+                params.srcs[i] = if is_phone {
+                    DuetFwInputSource::Phone
+                } else {
+                    DuetFwInputSource::Xlr
+                };
+            }
+        }
+        VendorCmd::InClickless(enabled) => {
+            params.clickless = enabled;
+        }
+        _ => (),
+    });
+
+    params
+        .xlr_nominal_levels
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, xlr_nominal_level)| {
+            *xlr_nominal_level = if is_mic_levels[i] {
+                DuetFwInputXlrNominalLevel::Microphone
+            } else if is_consumer_levels[i] {
+                DuetFwInputXlrNominalLevel::Consumer
+            } else {
+                DuetFwInputXlrNominalLevel::Professional
+            };
+        });
+}
+
+#[cfg(test)]
+fn cmds_from_input_params(params: &DuetFwInputParameters, cmds: &mut Vec<VendorCmd>) {
+    params.gains.iter().enumerate().for_each(|(i, &gain)| {
+        cmds.push(VendorCmd::InGain(i, gain));
+    });
+    params
+        .polarities
+        .iter()
+        .enumerate()
+        .for_each(|(i, &polarity)| {
+            cmds.push(VendorCmd::MicPolarity(i, polarity));
+        });
+    params
+        .phantom_powerings
+        .iter()
+        .enumerate()
+        .for_each(|(i, &enabled)| {
+            cmds.push(VendorCmd::MicPhantom(i, enabled));
+        });
+    params.srcs.iter().enumerate().for_each(|(i, &src)| {
+        let enabled = src == DuetFwInputSource::Phone;
+        cmds.push(VendorCmd::InputSourceIsPhone(i, enabled));
+    });
+    cmds.push(VendorCmd::InClickless(params.clickless));
+
+    let mut is_mic_levels = [false; 2];
+    let mut is_consumer_levels = [false; 2];
+
+    params
+        .xlr_nominal_levels
+        .iter()
+        .enumerate()
+        .for_each(|(i, xlr_nominal_level)| match xlr_nominal_level {
+            DuetFwInputXlrNominalLevel::Microphone => is_mic_levels[i] = true,
+            DuetFwInputXlrNominalLevel::Consumer => is_consumer_levels[i] = true,
+            _ => (),
+        });
+
+    is_mic_levels.iter().enumerate().for_each(|(i, &enabled)| {
+        cmds.push(VendorCmd::XlrIsMicLevel(i, enabled));
+    });
+
+    is_consumer_levels
+        .iter()
+        .enumerate()
+        .for_each(|(i, &enabled)| {
+            cmds.push(VendorCmd::XlrIsConsumerLevel(i, enabled));
+        });
 }
 
 /// The protocol implementation of input parameters.
@@ -1387,6 +1521,34 @@ mod test {
 
         let mut defaults = Vec::new();
         default_cmds_for_output_params(&mut defaults);
+
+        assert_eq!(cmds.len(), defaults.len());
+    }
+
+    #[test]
+    fn input_params_serdes() {
+        let params = DuetFwInputParameters {
+            gains: [0x0f, 0xef],
+            polarities: [true, false],
+            xlr_nominal_levels: [
+                DuetFwInputXlrNominalLevel::Consumer,
+                DuetFwInputXlrNominalLevel::Microphone,
+            ],
+            phantom_powerings: [false, true],
+            srcs: [DuetFwInputSource::Phone, DuetFwInputSource::Xlr],
+            clickless: true,
+        };
+
+        let mut cmds = Vec::new();
+        cmds_from_input_params(&params, &mut cmds);
+
+        let mut p = DuetFwInputParameters::default();
+        cmds_to_input_params(&mut p, &cmds);
+
+        assert_eq!(params, p);
+
+        let mut defaults = Vec::new();
+        default_cmds_for_input_params(&mut defaults);
 
         assert_eq!(cmds.len(), defaults.len());
     }
