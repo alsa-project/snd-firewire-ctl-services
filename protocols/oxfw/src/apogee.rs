@@ -230,9 +230,11 @@ impl DuetFwKnobProtocol {
 }
 
 /// Source of output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwOutputSource {
+    /// The pair of stream inputs.
     StreamInputPair0,
+    /// The pair of mixer outputs.
     MixerOutputPair0,
 }
 
@@ -243,7 +245,7 @@ impl Default for DuetFwOutputSource {
 }
 
 /// Level of output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwOutputNominalLevel {
     /// Fixed level for external amplifier.
     Instrument,
@@ -257,11 +259,14 @@ impl Default for DuetFwOutputNominalLevel {
     }
 }
 
-/// Level of output.
+/// Mode of relation between mute and knob.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwOutputMuteMode {
+    /// Never.
     Never,
+    /// Muted at knob pushed, unmuted at knob released.
     Normal,
+    /// Muted at knob released, unmuted at knob pushed.
     Swapped,
 }
 
@@ -269,6 +274,125 @@ impl Default for DuetFwOutputMuteMode {
     fn default() -> Self {
         Self::Never
     }
+}
+
+/// Parameters for output.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct DuetFwOutputParams {
+    /// Whether to mute.
+    pub mute: bool,
+    /// Volume.
+    pub volume: u8,
+    /// Source of signal.
+    pub source: DuetFwOutputSource,
+    /// Nominal level.
+    pub nominal_level: DuetFwOutputNominalLevel,
+    /// Mode of mute for line output.
+    pub line_mute_mode: DuetFwOutputMuteMode,
+    /// Mode of mute for headphone output.
+    pub hp_mute_mode: DuetFwOutputMuteMode,
+}
+
+#[cfg(test)]
+fn parse_mute_mode(mute: bool, unmute: bool) -> DuetFwOutputMuteMode {
+    match (mute, unmute) {
+        (true, true) => DuetFwOutputMuteMode::Never,
+        (true, false) => DuetFwOutputMuteMode::Swapped,
+        (false, true) => DuetFwOutputMuteMode::Normal,
+        (false, false) => DuetFwOutputMuteMode::Never,
+    }
+}
+
+#[cfg(test)]
+fn build_mute_mode(mode: &DuetFwOutputMuteMode, mute: &mut bool, unmute: &mut bool) {
+    match mode {
+        DuetFwOutputMuteMode::Never => {
+            *mute = true;
+            *unmute = true;
+        }
+        DuetFwOutputMuteMode::Normal => {
+            *mute = false;
+            *unmute = true;
+        }
+        DuetFwOutputMuteMode::Swapped => {
+            *mute = true;
+            *unmute = false;
+        }
+    }
+}
+
+#[cfg(test)]
+fn default_cmds_for_output_params(cmds: &mut Vec<VendorCmd>) {
+    cmds.push(VendorCmd::OutMute(Default::default()));
+    cmds.push(VendorCmd::OutVolume(Default::default()));
+    cmds.push(VendorCmd::OutSourceIsMixer(Default::default()));
+    cmds.push(VendorCmd::OutIsConsumerLevel(Default::default()));
+    cmds.push(VendorCmd::MuteForLineOut(Default::default()));
+    cmds.push(VendorCmd::UnmuteForLineOut(Default::default()));
+    cmds.push(VendorCmd::MuteForHpOut(Default::default()));
+    cmds.push(VendorCmd::UnmuteForHpOut(Default::default()));
+}
+
+#[cfg(test)]
+fn cmds_to_output_params(params: &mut DuetFwOutputParams, cmds: &[VendorCmd]) {
+    let mut line_out_mute = false;
+    let mut line_out_unmute = false;
+    let mut hp_out_mute = false;
+    let mut hp_out_unmute = false;
+
+    cmds.iter().for_each(|&cmd| match cmd {
+        VendorCmd::OutMute(muted) => params.mute = muted,
+        VendorCmd::OutVolume(vol) => params.volume = vol,
+        VendorCmd::OutSourceIsMixer(is_mixer) => {
+            params.source = if is_mixer {
+                DuetFwOutputSource::MixerOutputPair0
+            } else {
+                DuetFwOutputSource::StreamInputPair0
+            };
+        }
+        VendorCmd::OutIsConsumerLevel(is_consumer_level) => {
+            params.nominal_level = if is_consumer_level {
+                DuetFwOutputNominalLevel::Consumer
+            } else {
+                DuetFwOutputNominalLevel::Instrument
+            };
+        }
+        VendorCmd::MuteForLineOut(muted) => line_out_mute = muted,
+        VendorCmd::UnmuteForLineOut(unmuted) => line_out_unmute = unmuted,
+        VendorCmd::MuteForHpOut(muted) => hp_out_mute = muted,
+        VendorCmd::UnmuteForHpOut(unmuted) => hp_out_unmute = unmuted,
+        _ => (),
+    });
+
+    params.line_mute_mode = parse_mute_mode(line_out_mute, line_out_unmute);
+    params.hp_mute_mode = parse_mute_mode(hp_out_mute, hp_out_unmute);
+}
+
+#[cfg(test)]
+fn cmds_from_output_params(params: &DuetFwOutputParams, cmds: &mut Vec<VendorCmd>) {
+    let mut line_out_mute = false;
+    let mut line_out_unmute = false;
+    let mut hp_out_mute = false;
+    let mut hp_out_unmute = false;
+
+    build_mute_mode(
+        &params.line_mute_mode,
+        &mut line_out_mute,
+        &mut line_out_unmute,
+    );
+    build_mute_mode(&params.hp_mute_mode, &mut hp_out_mute, &mut hp_out_unmute);
+
+    let is_mixer = params.source == DuetFwOutputSource::MixerOutputPair0;
+    let is_consumer_level = params.nominal_level == DuetFwOutputNominalLevel::Consumer;
+
+    cmds.push(VendorCmd::OutMute(params.mute));
+    cmds.push(VendorCmd::OutVolume(params.volume));
+    cmds.push(VendorCmd::OutSourceIsMixer(is_mixer));
+    cmds.push(VendorCmd::OutIsConsumerLevel(is_consumer_level));
+    cmds.push(VendorCmd::MuteForLineOut(line_out_mute));
+    cmds.push(VendorCmd::UnmuteForLineOut(line_out_unmute));
+    cmds.push(VendorCmd::MuteForHpOut(hp_out_mute));
+    cmds.push(VendorCmd::UnmuteForHpOut(hp_out_unmute));
 }
 
 /// The protocol implementation of output parameters.
@@ -1238,6 +1362,31 @@ mod test {
 
         let mut defaults = Vec::new();
         default_cmds_for_knob_params(&mut defaults);
+
+        assert_eq!(cmds.len(), defaults.len());
+    }
+
+    #[test]
+    fn output_params_serdes() {
+        let params = DuetFwOutputParams {
+            mute: true,
+            volume: 0x9a,
+            source: DuetFwOutputSource::MixerOutputPair0,
+            nominal_level: DuetFwOutputNominalLevel::Consumer,
+            line_mute_mode: DuetFwOutputMuteMode::Swapped,
+            hp_mute_mode: DuetFwOutputMuteMode::Normal,
+        };
+
+        let mut cmds = Vec::new();
+        cmds_from_output_params(&params, &mut cmds);
+
+        let mut p = DuetFwOutputParams::default();
+        cmds_to_output_params(&mut p, &cmds);
+
+        assert_eq!(params, p);
+
+        let mut defaults = Vec::new();
+        default_cmds_for_output_params(&mut defaults);
 
         assert_eq!(cmds.len(), defaults.len());
     }
