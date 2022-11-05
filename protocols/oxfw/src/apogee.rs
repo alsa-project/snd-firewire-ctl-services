@@ -123,10 +123,13 @@ impl DuetFwMixerMeterProtocol {
 }
 
 /// Target of knob.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwKnobTarget {
+    /// The pair of outputs.
     OutputPair0,
+    /// The 1st channel (left) of input pair.
     InputPair0,
+    /// The 2nd channel (right) of input pair.
     InputPair1,
 }
 
@@ -137,12 +140,56 @@ impl Default for DuetFwKnobTarget {
 }
 
 /// The state of rotary knob.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DuetFwKnobState {
+    /// Whether to mute pair of outputs.
     pub output_mute: bool,
+    /// Target to control by knob.
     pub target: DuetFwKnobTarget,
+    /// The value of output volume.
     pub output_volume: u8,
+    /// The value of input gains.
     pub input_gains: [u8; 2],
+}
+
+#[cfg(test)]
+fn default_cmds_for_knob_params(cmds: &mut Vec<VendorCmd>) {
+    cmds.push(VendorCmd::HwState(Default::default()));
+}
+
+#[cfg(test)]
+fn cmds_from_knob_params(params: &DuetFwKnobState, cmds: &mut Vec<VendorCmd>) {
+    let mut raw = [0; 11];
+
+    raw[0] = params.output_mute as u8;
+    raw[1] = match params.target {
+        DuetFwKnobTarget::OutputPair0 => 0,
+        DuetFwKnobTarget::InputPair0 => 1,
+        DuetFwKnobTarget::InputPair1 => 2,
+    };
+    raw[3] = DuetFwKnobProtocol::VOLUME_MAX - params.output_volume;
+    raw[4] = params.input_gains[0];
+    raw[5] = params.input_gains[1];
+
+    cmds.push(VendorCmd::HwState(raw));
+}
+
+#[cfg(test)]
+fn cmds_to_knob_params(params: &mut DuetFwKnobState, cmds: &[VendorCmd]) {
+    cmds.iter().for_each(|cmd| match cmd {
+        VendorCmd::HwState(raw) => {
+            params.output_mute = raw[0] > 0;
+            params.target = match raw[1] {
+                2 => DuetFwKnobTarget::InputPair1,
+                1 => DuetFwKnobTarget::InputPair0,
+                _ => DuetFwKnobTarget::OutputPair0,
+            };
+            params.output_volume = DuetFwKnobProtocol::VOLUME_MAX - raw[3];
+            params.input_gains[0] = raw[4];
+            params.input_gains[1] = raw[5];
+        }
+        _ => (),
+    });
 }
 
 /// The protocol implementation of rotary knob.
@@ -1172,6 +1219,28 @@ impl AvcStatus for ApogeeCmd {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn knob_params_serdes() {
+        let params = DuetFwKnobState {
+            output_mute: true,
+            target: DuetFwKnobTarget::InputPair0,
+            output_volume: 0x3f,
+            input_gains: [0x4e, 0x1c],
+        };
+        let mut cmds = Vec::new();
+        cmds_from_knob_params(&params, &mut cmds);
+
+        let mut p = DuetFwKnobState::default();
+        cmds_to_knob_params(&mut p, &cmds);
+
+        assert_eq!(params, p);
+
+        let mut defaults = Vec::new();
+        default_cmds_for_knob_params(&mut defaults);
+
+        assert_eq!(cmds.len(), defaults.len());
+    }
 
     #[test]
     fn apogee_cmd_proto_operands() {
