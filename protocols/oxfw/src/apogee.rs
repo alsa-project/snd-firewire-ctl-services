@@ -24,6 +24,66 @@
 
 use super::*;
 
+/// Protocol implementation for Duet FireWire.
+#[derive(Default, Debug)]
+pub struct DuetFwProtocol;
+
+/// Serializer and deserializer for parameters.
+pub trait DuetFwParamsSerdes<T> {
+    /// Build commands for AV/C status operation.
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>);
+
+    /// Deserialize parameters for AV/C status operation.
+    fn cmds_to_params(params: &mut T, cmds: &[VendorCmd]);
+
+    /// Serialize parameters for AV/C control operation.
+    fn cmds_from_params(params: &T, cmds: &mut Vec<VendorCmd>);
+}
+
+impl<T> OxfwFcpParamsOperation<OxfwAvc, T> for DuetFwProtocol
+where
+    DuetFwProtocol: DuetFwParamsSerdes<T>,
+{
+    fn cache(avc: &mut OxfwAvc, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        let mut cmds = Vec::new();
+        Self::default_cmds_for_params(&mut cmds);
+
+        let mut states = Vec::new();
+        cmds.into_iter().try_for_each(|cmd| {
+            let mut op = ApogeeCmd::new(cmd);
+            avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map(|_| states.push(op.cmd))
+        })?;
+
+        Self::cmds_to_params(params, &states);
+
+        Ok(())
+    }
+}
+
+impl<T> OxfwFcpMutableParamsOperation<OxfwAvc, T> for DuetFwProtocol
+where
+    T: Copy,
+    DuetFwProtocol: DuetFwParamsSerdes<T>,
+{
+    fn update(avc: &mut OxfwAvc, params: &T, prev: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        let mut new = Vec::new();
+        Self::cmds_from_params(params, &mut new);
+
+        let mut old = Vec::new();
+        Self::cmds_from_params(prev, &mut old);
+
+        new.iter()
+            .zip(&old)
+            .filter(|(n, o)| !n.eq(o))
+            .try_for_each(|(cmd, _)| {
+                let mut op = ApogeeCmd::new(*cmd);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            })
+            .map(|_| *prev = *params)
+    }
+}
+
 const APOGEE_OUI: [u8; 3] = [0x00, 0x03, 0xdb];
 
 const METER_OFFSET_BASE: u64 = 0xfffff0080000;
@@ -152,12 +212,10 @@ pub struct DuetFwKnobState {
     pub input_gains: [u8; 2],
 }
 
-#[cfg(test)]
 fn default_cmds_for_knob_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::HwState(Default::default()));
 }
 
-#[cfg(test)]
 fn cmds_from_knob_params(params: &DuetFwKnobState, cmds: &mut Vec<VendorCmd>) {
     let mut raw = [0; 11];
 
@@ -167,14 +225,13 @@ fn cmds_from_knob_params(params: &DuetFwKnobState, cmds: &mut Vec<VendorCmd>) {
         DuetFwKnobTarget::InputPair0 => 1,
         DuetFwKnobTarget::InputPair1 => 2,
     };
-    raw[3] = DuetFwKnobProtocol::VOLUME_MAX - params.output_volume;
+    raw[3] = DuetFwProtocol::KNOB_OUTPUT_VALUE_MAX - params.output_volume;
     raw[4] = params.input_gains[0];
     raw[5] = params.input_gains[1];
 
     cmds.push(VendorCmd::HwState(raw));
 }
 
-#[cfg(test)]
 fn cmds_to_knob_params(params: &mut DuetFwKnobState, cmds: &[VendorCmd]) {
     cmds.iter().for_each(|cmd| match cmd {
         VendorCmd::HwState(raw) => {
@@ -184,12 +241,38 @@ fn cmds_to_knob_params(params: &mut DuetFwKnobState, cmds: &[VendorCmd]) {
                 1 => DuetFwKnobTarget::InputPair0,
                 _ => DuetFwKnobTarget::OutputPair0,
             };
-            params.output_volume = DuetFwKnobProtocol::VOLUME_MAX - raw[3];
+            params.output_volume = DuetFwProtocol::KNOB_OUTPUT_VALUE_MAX - raw[3];
             params.input_gains[0] = raw[4];
             params.input_gains[1] = raw[5];
         }
         _ => (),
     });
+}
+
+impl DuetFwParamsSerdes<DuetFwKnobState> for DuetFwProtocol {
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>) {
+        default_cmds_for_knob_params(cmds);
+    }
+
+    fn cmds_to_params(params: &mut DuetFwKnobState, cmds: &[VendorCmd]) {
+        cmds_to_knob_params(params, cmds);
+    }
+
+    fn cmds_from_params(params: &DuetFwKnobState, cmds: &mut Vec<VendorCmd>) {
+        cmds_from_knob_params(params, cmds);
+    }
+}
+
+impl DuetFwProtocol {
+    /// The minimum value of output in knob parameters.
+    pub const KNOB_OUTPUT_VALUE_MIN: u8 = 0;
+    /// The maximum value of output in knob parameters.
+    pub const KNOB_OUTPUT_VALUE_MAX: u8 = 64;
+
+    /// The minimum value of input in knob parameters.
+    pub const KNOB_INPUT_VALUE_MIN: u8 = 10;
+    /// The maximum value of input in knob parameters.
+    pub const KNOB_INPUT_VALUE_MAX: u8 = 75;
 }
 
 /// The protocol implementation of rotary knob.
@@ -293,7 +376,6 @@ pub struct DuetFwOutputParams {
     pub hp_mute_mode: DuetFwOutputMuteMode,
 }
 
-#[cfg(test)]
 fn parse_mute_mode(mute: bool, unmute: bool) -> DuetFwOutputMuteMode {
     match (mute, unmute) {
         (true, true) => DuetFwOutputMuteMode::Never,
@@ -303,7 +385,6 @@ fn parse_mute_mode(mute: bool, unmute: bool) -> DuetFwOutputMuteMode {
     }
 }
 
-#[cfg(test)]
 fn build_mute_mode(mode: &DuetFwOutputMuteMode, mute: &mut bool, unmute: &mut bool) {
     match mode {
         DuetFwOutputMuteMode::Never => {
@@ -321,7 +402,6 @@ fn build_mute_mode(mode: &DuetFwOutputMuteMode, mute: &mut bool, unmute: &mut bo
     }
 }
 
-#[cfg(test)]
 fn default_cmds_for_output_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::OutMute(Default::default()));
     cmds.push(VendorCmd::OutVolume(Default::default()));
@@ -333,7 +413,6 @@ fn default_cmds_for_output_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::UnmuteForHpOut(Default::default()));
 }
 
-#[cfg(test)]
 fn cmds_to_output_params(params: &mut DuetFwOutputParams, cmds: &[VendorCmd]) {
     let mut line_out_mute = false;
     let mut line_out_unmute = false;
@@ -368,7 +447,6 @@ fn cmds_to_output_params(params: &mut DuetFwOutputParams, cmds: &[VendorCmd]) {
     params.hp_mute_mode = parse_mute_mode(hp_out_mute, hp_out_unmute);
 }
 
-#[cfg(test)]
 fn cmds_from_output_params(params: &DuetFwOutputParams, cmds: &mut Vec<VendorCmd>) {
     let mut line_out_mute = false;
     let mut line_out_unmute = false;
@@ -393,6 +471,27 @@ fn cmds_from_output_params(params: &DuetFwOutputParams, cmds: &mut Vec<VendorCmd
     cmds.push(VendorCmd::UnmuteForLineOut(line_out_unmute));
     cmds.push(VendorCmd::MuteForHpOut(hp_out_mute));
     cmds.push(VendorCmd::UnmuteForHpOut(hp_out_unmute));
+}
+
+impl DuetFwParamsSerdes<DuetFwOutputParams> for DuetFwProtocol {
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>) {
+        default_cmds_for_output_params(cmds);
+    }
+
+    fn cmds_to_params(params: &mut DuetFwOutputParams, cmds: &[VendorCmd]) {
+        cmds_to_output_params(params, cmds);
+    }
+
+    fn cmds_from_params(params: &DuetFwOutputParams, cmds: &mut Vec<VendorCmd>) {
+        cmds_from_output_params(params, cmds);
+    }
+}
+
+impl DuetFwProtocol {
+    /// The minimum value of volume in output parameters.
+    pub const OUTPUT_VOLUME_MIN: u8 = 0;
+    /// The maximum value of volume in output parameters.
+    pub const OUTPUT_VOLUME_MAX: u8 = 64;
 }
 
 /// The protocol implementation of output parameters.
@@ -629,7 +728,6 @@ pub struct DuetFwInputParameters {
     pub clickless: bool,
 }
 
-#[cfg(test)]
 fn default_cmds_for_input_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::InGain(0, Default::default()));
     cmds.push(VendorCmd::InGain(1, Default::default()));
@@ -646,7 +744,6 @@ fn default_cmds_for_input_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::InClickless(Default::default()));
 }
 
-#[cfg(test)]
 fn cmds_to_input_params(params: &mut DuetFwInputParameters, cmds: &[VendorCmd]) {
     let mut is_mic_levels = [false; 2];
     let mut is_consumer_levels = [false; 2];
@@ -707,7 +804,6 @@ fn cmds_to_input_params(params: &mut DuetFwInputParameters, cmds: &[VendorCmd]) 
         });
 }
 
-#[cfg(test)]
 fn cmds_from_input_params(params: &DuetFwInputParameters, cmds: &mut Vec<VendorCmd>) {
     params.gains.iter().enumerate().for_each(|(i, &gain)| {
         cmds.push(VendorCmd::InGain(i, gain));
@@ -755,6 +851,27 @@ fn cmds_from_input_params(params: &DuetFwInputParameters, cmds: &mut Vec<VendorC
         .for_each(|(i, &enabled)| {
             cmds.push(VendorCmd::XlrIsConsumerLevel(i, enabled));
         });
+}
+
+impl DuetFwParamsSerdes<DuetFwInputParameters> for DuetFwProtocol {
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>) {
+        default_cmds_for_input_params(cmds);
+    }
+
+    fn cmds_to_params(params: &mut DuetFwInputParameters, cmds: &[VendorCmd]) {
+        cmds_to_input_params(params, cmds);
+    }
+
+    fn cmds_from_params(params: &DuetFwInputParameters, cmds: &mut Vec<VendorCmd>) {
+        cmds_from_input_params(params, cmds);
+    }
+}
+
+impl DuetFwProtocol {
+    /// The minimum value of gain in input parameters.
+    pub const INPUT_GAIN_MIN: u8 = 10;
+    /// The minimum value of gain in input parameters.
+    pub const INPUT_GAIN_MAX: u8 = 75;
 }
 
 /// The protocol implementation of input parameters.
@@ -975,7 +1092,6 @@ pub struct DuetFwMixerCoefficients {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DuetFwMixerParams(pub [DuetFwMixerCoefficients; 2]);
 
-#[cfg(test)]
 fn default_cmds_for_mixer_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::MixerSrc(0, 0, Default::default()));
     cmds.push(VendorCmd::MixerSrc(1, 0, Default::default()));
@@ -987,7 +1103,6 @@ fn default_cmds_for_mixer_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::MixerSrc(3, 1, Default::default()));
 }
 
-#[cfg(test)]
 fn cmds_to_mixer_params(params: &mut DuetFwMixerParams, cmds: &[VendorCmd]) {
     cmds.iter().for_each(|&cmd| match cmd {
         VendorCmd::MixerSrc(src, dst, coef) => {
@@ -1001,7 +1116,6 @@ fn cmds_to_mixer_params(params: &mut DuetFwMixerParams, cmds: &[VendorCmd]) {
     });
 }
 
-#[cfg(test)]
 fn cmds_from_mixer_params(params: &DuetFwMixerParams, cmds: &mut Vec<VendorCmd>) {
     params.0.iter().enumerate().for_each(|(dst, coefs)| {
         coefs
@@ -1013,6 +1127,27 @@ fn cmds_from_mixer_params(params: &DuetFwMixerParams, cmds: &mut Vec<VendorCmd>)
                 cmds.push(VendorCmd::MixerSrc(src, dst, coef));
             });
     })
+}
+
+impl DuetFwParamsSerdes<DuetFwMixerParams> for DuetFwProtocol {
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>) {
+        default_cmds_for_mixer_params(cmds);
+    }
+
+    fn cmds_to_params(params: &mut DuetFwMixerParams, cmds: &[VendorCmd]) {
+        cmds_to_mixer_params(params, cmds);
+    }
+
+    fn cmds_from_params(params: &DuetFwMixerParams, cmds: &mut Vec<VendorCmd>) {
+        cmds_from_mixer_params(params, cmds);
+    }
+}
+
+impl DuetFwProtocol {
+    /// The minimum value of source gain in mixer parameters.
+    pub const MIXER_SOURCE_GAIN_MIN: u16 = 0;
+    /// The maximum value of source gain in mixer parameters.
+    pub const MIXER_SOURCE_GAIN_MAX: u16 = 0x3fff;
 }
 
 /// The protocol implementation of mixer.
@@ -1107,14 +1242,12 @@ pub struct DuetFwDisplayParams {
     pub overhold: DuetFwDisplayOverhold,
 }
 
-#[cfg(test)]
 fn default_cmds_for_display_params(cmds: &mut Vec<VendorCmd>) {
     cmds.push(VendorCmd::DisplayIsInput(Default::default()));
     cmds.push(VendorCmd::DisplayFollowToKnob(Default::default()));
     cmds.push(VendorCmd::DisplayOverholdTwoSec(Default::default()));
 }
 
-#[cfg(test)]
 fn cmds_to_display_params(params: &mut DuetFwDisplayParams, cmds: &[VendorCmd]) {
     cmds.iter().for_each(|&cmd| match cmd {
         VendorCmd::DisplayIsInput(enabled) => {
@@ -1142,7 +1275,6 @@ fn cmds_to_display_params(params: &mut DuetFwDisplayParams, cmds: &[VendorCmd]) 
     })
 }
 
-#[cfg(test)]
 fn cmds_from_display_params(params: &DuetFwDisplayParams, cmds: &mut Vec<VendorCmd>) {
     let enabled = params.target == DuetFwDisplayTarget::Input;
     cmds.push(VendorCmd::DisplayIsInput(enabled));
@@ -1152,6 +1284,20 @@ fn cmds_from_display_params(params: &DuetFwDisplayParams, cmds: &mut Vec<VendorC
 
     let enabled = params.overhold == DuetFwDisplayOverhold::TwoSeconds;
     cmds.push(VendorCmd::DisplayOverholdTwoSec(enabled));
+}
+
+impl DuetFwParamsSerdes<DuetFwDisplayParams> for DuetFwProtocol {
+    fn default_cmds_for_params(cmds: &mut Vec<VendorCmd>) {
+        default_cmds_for_display_params(cmds);
+    }
+
+    fn cmds_to_params(params: &mut DuetFwDisplayParams, cmds: &[VendorCmd]) {
+        cmds_to_display_params(params, cmds);
+    }
+
+    fn cmds_from_params(params: &DuetFwDisplayParams, cmds: &mut Vec<VendorCmd>) {
+        cmds_from_display_params(params, cmds);
+    }
 }
 
 /// The protocol implementation of display.
@@ -1244,8 +1390,7 @@ impl DuetFwDisplayProtocol {
 /// Type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-// Usually 5 params.
-enum VendorCmd {
+pub enum VendorCmd {
     MicPolarity(usize, bool),
     XlrIsMicLevel(usize, bool),
     XlrIsConsumerLevel(usize, bool),
