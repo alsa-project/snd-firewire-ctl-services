@@ -1052,9 +1052,11 @@ impl DuetFwMixerProtocol {
 }
 
 /// Target of display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwDisplayTarget {
+    /// For output.
     Output,
+    /// For input.
     Input,
 }
 
@@ -1065,9 +1067,11 @@ impl Default for DuetFwDisplayTarget {
 }
 
 /// Mode of display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwDisplayMode {
+    /// Independent.
     Independent,
+    /// Following to knob target.
     FollowingToKnobTarget,
 }
 
@@ -1078,9 +1082,11 @@ impl Default for DuetFwDisplayMode {
 }
 
 /// Overhold of display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DuetFwDisplayOverhold {
+    /// Infinite.
     Infinite,
+    /// Keep during two seconds.
     TwoSeconds,
 }
 
@@ -1088,6 +1094,64 @@ impl Default for DuetFwDisplayOverhold {
     fn default() -> Self {
         Self::Infinite
     }
+}
+
+/// Parameters of LED display.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct DuetFwDisplayParams {
+    /// Target to display.
+    pub target: DuetFwDisplayTarget,
+    /// Mode to display.
+    pub mode: DuetFwDisplayMode,
+    /// Mode of overhold.
+    pub overhold: DuetFwDisplayOverhold,
+}
+
+#[cfg(test)]
+fn default_cmds_for_display_params(cmds: &mut Vec<VendorCmd>) {
+    cmds.push(VendorCmd::DisplayIsInput(Default::default()));
+    cmds.push(VendorCmd::DisplayFollowToKnob(Default::default()));
+    cmds.push(VendorCmd::DisplayOverholdTwoSec(Default::default()));
+}
+
+#[cfg(test)]
+fn cmds_to_display_params(params: &mut DuetFwDisplayParams, cmds: &[VendorCmd]) {
+    cmds.iter().for_each(|&cmd| match cmd {
+        VendorCmd::DisplayIsInput(enabled) => {
+            params.target = if enabled {
+                DuetFwDisplayTarget::Input
+            } else {
+                DuetFwDisplayTarget::Output
+            };
+        }
+        VendorCmd::DisplayFollowToKnob(enabled) => {
+            params.mode = if enabled {
+                DuetFwDisplayMode::FollowingToKnobTarget
+            } else {
+                DuetFwDisplayMode::Independent
+            };
+        }
+        VendorCmd::DisplayOverholdTwoSec(enabled) => {
+            params.overhold = if enabled {
+                DuetFwDisplayOverhold::TwoSeconds
+            } else {
+                DuetFwDisplayOverhold::Infinite
+            };
+        }
+        _ => (),
+    })
+}
+
+#[cfg(test)]
+fn cmds_from_display_params(params: &DuetFwDisplayParams, cmds: &mut Vec<VendorCmd>) {
+    let enabled = params.target == DuetFwDisplayTarget::Input;
+    cmds.push(VendorCmd::DisplayIsInput(enabled));
+
+    let enabled = params.mode == DuetFwDisplayMode::FollowingToKnobTarget;
+    cmds.push(VendorCmd::DisplayFollowToKnob(enabled));
+
+    let enabled = params.overhold == DuetFwDisplayOverhold::TwoSeconds;
+    cmds.push(VendorCmd::DisplayOverholdTwoSec(enabled));
 }
 
 /// The protocol implementation of display.
@@ -1629,6 +1693,28 @@ mod test {
 
         let mut defaults = Vec::new();
         default_cmds_for_mixer_params(&mut defaults);
+
+        assert_eq!(cmds.len(), defaults.len());
+    }
+
+    #[test]
+    fn display_params_serdes() {
+        let params = DuetFwDisplayParams {
+            target: DuetFwDisplayTarget::Input,
+            mode: DuetFwDisplayMode::FollowingToKnobTarget,
+            overhold: DuetFwDisplayOverhold::TwoSeconds,
+        };
+
+        let mut cmds = Vec::new();
+        cmds_from_display_params(&params, &mut cmds);
+
+        let mut p = DuetFwDisplayParams::default();
+        cmds_to_display_params(&mut p, &cmds);
+
+        assert_eq!(params, p);
+
+        let mut defaults = Vec::new();
+        default_cmds_for_display_params(&mut defaults);
 
         assert_eq!(cmds.len(), defaults.len());
     }
