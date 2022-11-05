@@ -153,44 +153,6 @@ impl DuetFwProtocol {
     pub const METER_LEVEL_STEP: i32 = 0x100;
 }
 
-/// The protocol implementation of meter for analog input.
-#[derive(Default, Debug)]
-pub struct DuetFwInputMeterProtocol;
-
-impl DuetFwInputMeterProtocol {
-    const ANALOG_INPUT_SIZE: usize = 8;
-
-    pub const LEVEL_MIN: i32 = 0;
-    pub const LEVEL_MAX: i32 = i32::MAX;
-    pub const LEVEL_STEP: i32 = 0x100;
-
-    pub fn read_state(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut DuetFwInputMeterState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut frame = [0; Self::ANALOG_INPUT_SIZE];
-
-        req.transaction_sync(
-            node,
-            FwTcode::ReadBlockRequest,
-            (METER_OFFSET_BASE + METER_INPUT_OFFSET) as u64,
-            frame.len(),
-            &mut frame,
-            timeout_ms,
-        )
-        .map(|_| {
-            let mut quadlet = [0; 4];
-            state.0.iter_mut().enumerate().for_each(|(i, meter)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
-                *meter = i32::from_be_bytes(quadlet);
-            });
-        })
-    }
-}
-
 /// The state of meter for mixer source/output.
 #[derive(Default, Debug)]
 pub struct DuetFwMixerMeterState {
@@ -216,49 +178,6 @@ impl DuetFwMeterSpecification<DuetFwMixerMeterState> for DuetFwProtocol {
                 quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                 *meter = i32::from_be_bytes(quadlet);
             });
-    }
-}
-
-/// The protocol implementation of meter for mixer source/output.
-#[derive(Default, Debug)]
-pub struct DuetFwMixerMeterProtocol;
-
-impl DuetFwMixerMeterProtocol {
-    const MIXER_IO_SIZE: usize = 16;
-
-    pub const LEVEL_MIN: i32 = 0;
-    pub const LEVEL_MAX: i32 = i32::MAX;
-    pub const LEVEL_STEP: i32 = 0x100;
-
-    pub fn read_state(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut DuetFwMixerMeterState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut frame = [0; Self::MIXER_IO_SIZE];
-
-        req.transaction_sync(
-            node,
-            FwTcode::ReadBlockRequest,
-            (METER_OFFSET_BASE + METER_MIXER_OFFSET) as u64,
-            frame.len(),
-            &mut frame,
-            timeout_ms,
-        )
-        .map(|_| {
-            let mut quadlet = [0; 4];
-            state
-                .stream_inputs
-                .iter_mut()
-                .chain(&mut state.mixer_outputs)
-                .enumerate()
-                .for_each(|(i, meter)| {
-                    let pos = i * 4;
-                    quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
-                    *meter = i32::from_be_bytes(quadlet);
-                });
-        })
     }
 }
 
