@@ -962,6 +962,59 @@ impl DuetFwInputProtocol {
     }
 }
 
+/// Parameters of mixer coefficients.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct DuetFwMixerCoefficients {
+    /// Coefficients of analog inputs.
+    pub analog_inputs: [u16; 2],
+    /// Coefficients of stream inputs.
+    pub stream_inputs: [u16; 2],
+}
+
+/// Parameters of stereo mixer.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct DuetFwMixerParams(pub [DuetFwMixerCoefficients; 2]);
+
+#[cfg(test)]
+fn default_cmds_for_mixer_params(cmds: &mut Vec<VendorCmd>) {
+    cmds.push(VendorCmd::MixerSrc(0, 0, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(1, 0, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(2, 0, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(3, 0, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(0, 1, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(1, 1, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(2, 1, Default::default()));
+    cmds.push(VendorCmd::MixerSrc(3, 1, Default::default()));
+}
+
+#[cfg(test)]
+fn cmds_to_mixer_params(params: &mut DuetFwMixerParams, cmds: &[VendorCmd]) {
+    cmds.iter().for_each(|&cmd| match cmd {
+        VendorCmd::MixerSrc(src, dst, coef) => {
+            if src < 2 {
+                params.0[dst].analog_inputs[src] = coef;
+            } else if src < 4 {
+                params.0[dst].stream_inputs[src - 2] = coef;
+            }
+        }
+        _ => (),
+    });
+}
+
+#[cfg(test)]
+fn cmds_from_mixer_params(params: &DuetFwMixerParams, cmds: &mut Vec<VendorCmd>) {
+    params.0.iter().enumerate().for_each(|(dst, coefs)| {
+        coefs
+            .analog_inputs
+            .iter()
+            .chain(&coefs.stream_inputs)
+            .enumerate()
+            .for_each(|(src, &coef)| {
+                cmds.push(VendorCmd::MixerSrc(src, dst, coef));
+            });
+    })
+}
+
 /// The protocol implementation of mixer.
 #[derive(Default)]
 pub struct DuetFwMixerProtocol;
@@ -1549,6 +1602,33 @@ mod test {
 
         let mut defaults = Vec::new();
         default_cmds_for_input_params(&mut defaults);
+
+        assert_eq!(cmds.len(), defaults.len());
+    }
+
+    #[test]
+    fn mixer_params_serdes() {
+        let params = DuetFwMixerParams([
+            DuetFwMixerCoefficients {
+                analog_inputs: [0x7b, 0x1d],
+                stream_inputs: [0x25, 0x83],
+            },
+            DuetFwMixerCoefficients {
+                analog_inputs: [0x01, 0x96],
+                stream_inputs: [0xfa, 0xbc],
+            },
+        ]);
+
+        let mut cmds = Vec::new();
+        cmds_from_mixer_params(&params, &mut cmds);
+
+        let mut p = DuetFwMixerParams::default();
+        cmds_to_mixer_params(&mut p, &cmds);
+
+        assert_eq!(params, p);
+
+        let mut defaults = Vec::new();
+        default_cmds_for_mixer_params(&mut defaults);
 
         assert_eq!(cmds.len(), defaults.len());
     }
