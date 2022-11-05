@@ -18,8 +18,10 @@ pub struct ApogeeModel {
 
 const TIMEOUT_MS: u32 = 50;
 
+const FCP_TIMEOUT_MS: u32 = 100;
+
 impl ApogeeModel {
-    const FCP_TIMEOUT_MS: u32 = 100;
+    const FCP_TIMEOUT_MS: u32 = FCP_TIMEOUT_MS;
 }
 
 impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
@@ -30,18 +32,21 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
+        self.knob_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        self.display_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.meter_ctl
             .load_state(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.knob_ctl
-            .load_state(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
-        self.output_ctl
-            .load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
-        self.input_ctl
-            .load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
-        self.mixer_ctl.load_params(card_cntr)?;
-        self.display_ctl.load_params(card_cntr)?;
+        self.knob_ctl.load(card_cntr)?;
+        self.output_ctl.load(card_cntr)?;
+        self.input_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
+        self.display_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -59,30 +64,15 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_state(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.output_ctl.read_params(
-            &mut self.avc,
-            elem_id,
-            elem_value,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read_params(elem_id, elem_value)? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read_params(
-            &mut self.avc,
-            elem_id,
-            elem_value,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.display_ctl.read_params(
-            &mut self.avc,
-            elem_id,
-            elem_value,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self.display_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -93,7 +83,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
@@ -103,31 +93,23 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
             Ok(true)
         } else if self
             .output_ctl
-            .write_params(&mut self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)?
+            .write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.input_ctl.write_params(
-            &mut self.avc,
-            elem_id,
-            old,
-            new,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .input_ctl
+            .write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_ctl.write_params(
-            &mut self.avc,
-            elem_id,
-            old,
-            new,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.display_ctl.write_params(
-            &mut self.avc,
-            elem_id,
-            new,
-            Self::FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .display_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -139,17 +121,18 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.2);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
-        elem_id_list.extend_from_slice(&self.output_ctl.2);
+        elem_id_list.extend_from_slice(&self.output_ctl.1);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .measure_state(unit, &mut self.req, TIMEOUT_MS)?;
-        self.knob_ctl.measure_state(&mut self.avc, TIMEOUT_MS)?;
+        self.knob_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.output_ctl.0 = self.knob_ctl.0.output_mute;
-        self.output_ctl.1 = self.knob_ctl.0.output_volume;
+        self.output_ctl.0.mute = self.knob_ctl.0.output_mute;
+        self.output_ctl.0.volume = self.knob_ctl.0.output_volume;
+
         self.input_ctl.0.gains[0] = self.knob_ctl.0.input_gains[0];
         self.input_ctl.0.gains[1] = self.knob_ctl.0.input_gains[1];
 
@@ -164,11 +147,11 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.knob_ctl.read_state(elem_id, elem_value)? {
+        } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.output_ctl.measure_params(elem_id, elem_value)? {
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.measure_params(elem_id, elem_value)? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -311,12 +294,11 @@ impl KnobCtl {
         DuetFwKnobTarget::InputPair1,
     ];
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        fcp: &mut OxfwAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::KNOB_TARGETS
             .iter()
             .map(|t| knob_target_to_str(t))
@@ -324,16 +306,10 @@ impl KnobCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_TARGET_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-
-        self.measure_state(fcp, timeout_ms)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))
     }
 
-    fn measure_state(&mut self, fcp: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwKnobProtocol::read_state(fcp, &mut self.0, timeout_ms)
-    }
-
-    fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             KNOB_TARGET_NAME => {
                 let pos = Self::KNOB_TARGETS
@@ -349,7 +325,7 @@ impl KnobCtl {
 }
 
 #[derive(Default, Debug)]
-struct OutputCtl(bool, u8, Vec<ElemId>);
+struct OutputCtl(DuetFwOutputParams, Vec<ElemId>);
 
 fn output_source_to_str(src: &DuetFwOutputSource) -> &str {
     match src {
@@ -397,30 +373,29 @@ impl OutputCtl {
         DuetFwOutputMuteMode::Swapped,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut OxfwAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_MUTE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, true)
-            .map(|mut elem_id_list| self.2.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_VOLUME_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                DuetFwOutputProtocol::VOLUME_MIN as i32,
-                DuetFwOutputProtocol::VOLUME_MAX as i32,
-                DuetFwOutputProtocol::VOLUME_STEP as i32,
+                DuetFwProtocol::OUTPUT_VOLUME_MIN as i32,
+                DuetFwProtocol::OUTPUT_VOLUME_MAX as i32,
+                1,
                 1,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| self.2.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::SOURCES
             .iter()
@@ -446,74 +421,62 @@ impl OutputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_MUTE_FOR_HP_OUT, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        DuetFwOutputProtocol::read_mute(avc, &mut self.0, timeout_ms)?;
-        DuetFwOutputProtocol::read_volume(avc, &mut self.1, timeout_ms)?;
-
         Ok(())
     }
 
-    fn read_params(
-        &mut self,
-        avc: &mut OxfwAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
+            OUTPUT_MUTE_NAME => {
+                let params = &self.0;
+                elem_value.set_bool(&[params.mute]);
+                Ok(true)
+            }
+            OUTPUT_VOLUME_NAME => {
+                let params = &self.0;
+                elem_value.set_int(&[params.volume as i32]);
+                Ok(true)
+            }
             OUTPUT_SRC_NAME => {
-                let mut src = DuetFwOutputSource::default();
-                DuetFwOutputProtocol::read_src(avc, &mut src, timeout_ms)?;
-                let pos = Self::SOURCES.iter().position(|s| s.eq(&src)).unwrap();
+                let params = &self.0;
+                let pos = Self::SOURCES
+                    .iter()
+                    .position(|s| params.source.eq(s))
+                    .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             OUTPUT_NOMINAL_LEVEL_NAME => {
-                let mut level = DuetFwOutputNominalLevel::default();
-                DuetFwOutputProtocol::read_nominal_level(avc, &mut level, timeout_ms)?;
+                let params = &self.0;
                 let pos = Self::NOMINAL_LEVELS
                     .iter()
-                    .position(|l| l.eq(&level))
+                    .position(|l| params.nominal_level.eq(l))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             OUTPUT_MUTE_FOR_LINE_OUT => {
-                let mut mode = DuetFwOutputMuteMode::default();
-                DuetFwOutputProtocol::read_mute_mode_for_analog_output(avc, &mut mode, timeout_ms)?;
-                let pos = Self::MUTE_MODES.iter().position(|m| m.eq(&mode)).unwrap();
+                let params = &self.0;
+                let pos = Self::MUTE_MODES
+                    .iter()
+                    .position(|m| params.line_mute_mode.eq(m))
+                    .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             OUTPUT_MUTE_FOR_HP_OUT => {
-                let mut mode = DuetFwOutputMuteMode::default();
-                DuetFwOutputProtocol::read_mute_mode_for_hp(avc, &mut mode, timeout_ms)?;
-                let pos = Self::MUTE_MODES.iter().position(|m| m.eq(&mode)).unwrap();
+                let params = &self.0;
+                let pos = Self::MUTE_MODES
+                    .iter()
+                    .position(|m| params.hp_mute_mode.eq(m))
+                    .unwrap();
                 elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => self.measure_params(elem_id, elem_value),
-        }
-    }
-
-    fn measure_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&[self.0]);
-                Ok(true)
-            }
-            OUTPUT_VOLUME_NAME => {
-                elem_value.set_int(&[self.1 as i32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write_params(
+    fn write(
         &mut self,
         avc: &mut OxfwAvc,
         elem_id: &ElemId,
@@ -521,49 +484,68 @@ impl OutputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OUTPUT_MUTE_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                DuetFwOutputProtocol::write_mute(avc, val, timeout_ms)
-            })
-            .map(|_| true),
-            OUTPUT_VOLUME_NAME => ElemValueAccessor::<i32>::get_val(elem_value, |val| {
-                DuetFwOutputProtocol::write_volume(avc, val as u8, timeout_ms)
-            })
-            .map(|_| true),
-            OUTPUT_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let &src = Self::SOURCES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for source of output: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwOutputProtocol::write_src(avc, src, timeout_ms)
-            })
-            .map(|_| true),
-            OUTPUT_NOMINAL_LEVEL_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let &level = Self::NOMINAL_LEVELS
+            OUTPUT_MUTE_NAME => {
+                let mut params = self.0.clone();
+                params.mute = elem_value.boolean()[0];
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            OUTPUT_VOLUME_NAME => {
+                let mut params = self.0.clone();
+                params.volume = elem_value.int()[0] as u8;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            OUTPUT_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.source = Self::SOURCES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for source of output: {}", val);
+                        let msg = format!("Output source not found for position {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                DuetFwOutputProtocol::write_nominal_level(avc, level, timeout_ms)
-            })
-            .map(|_| true),
-            OUTPUT_MUTE_FOR_LINE_OUT => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let &mode = Self::MUTE_MODES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for mute modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwOutputProtocol::write_mute_mode_for_analog_output(avc, mode, timeout_ms)
-            })
-            .map(|_| true),
-            OUTPUT_MUTE_FOR_HP_OUT => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let &mode = Self::MUTE_MODES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for mute modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwOutputProtocol::write_mute_mode_for_hp(avc, mode, timeout_ms)
-            })
-            .map(|_| true),
+                    })
+                    .copied()?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            OUTPUT_NOMINAL_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.source = Self::SOURCES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Output nominal level not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            OUTPUT_MUTE_FOR_LINE_OUT => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.line_mute_mode = Self::MUTE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Output mute mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            OUTPUT_MUTE_FOR_HP_OUT => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.hp_mute_mode = Self::MUTE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Output mute mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
             _ => Ok(false),
         }
     }
@@ -606,20 +588,19 @@ impl InputCtl {
         DuetFwInputXlrNominalLevel::Consumer,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut OxfwAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                DuetFwInputProtocol::GAIN_MIN as i32,
-                DuetFwInputProtocol::GAIN_MAX as i32,
-                DuetFwInputProtocol::GAIN_STEP as i32,
+                DuetFwProtocol::INPUT_GAIN_MIN as i32,
+                DuetFwProtocol::INPUT_GAIN_MAX as i32,
+                1,
                 Self::LABELS.len(),
                 None,
                 true,
@@ -651,53 +632,58 @@ impl InputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_CLICKLESS_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        DuetFwInputProtocol::read_parameters(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
-    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_POLARITY_NAME => {
-                elem_value.set_bool(&self.0.polarities);
+                let params = &self.0;
+                elem_value.set_bool(&params.polarities);
                 Ok(true)
             }
             INPUT_XLR_NOMINAL_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let pos = Self::XLR_NOMINAL_LEVELS
-                        .iter()
-                        .position(|l| l.eq(&self.0.xlr_nominal_levels[idx]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .xlr_nominal_levels
+                    .iter()
+                    .map(|xlr_nominal_level| {
+                        let pos = Self::XLR_NOMINAL_LEVELS
+                            .iter()
+                            .position(|l| xlr_nominal_level.eq(l))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             INPUT_PHANTOM_NAME => {
-                elem_value.set_bool(&self.0.phantom_powerings);
+                let params = &self.0;
+                elem_value.set_bool(&params.phantom_powerings);
                 Ok(true)
             }
-            INPUT_SOURCE_NAME => ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                let pos = Self::SOURCES
+            INPUT_SOURCE_NAME => {
+                let params = &self.0;
+                let vals: Vec<u32> = params
+                    .srcs
                     .iter()
-                    .position(|s| s.eq(&self.0.srcs[idx]))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            INPUT_CLICKLESS_NAME => {
-                elem_value.set_bool(&[self.0.clickless]);
+                    .map(|src| {
+                        let pos = Self::SOURCES.iter().position(|s| src.eq(s)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
                 Ok(true)
             }
-            _ => self.measure_params(elem_id, elem_value),
-        }
-    }
-
-    fn measure_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
+            INPUT_CLICKLESS_NAME => {
+                let params = &self.0;
+                elem_value.set_bool(&[params.clickless]);
+                Ok(true)
+            }
             INPUT_GAIN_NAME => {
-                let vals: Vec<i32> = self.0.gains.iter().map(|&val| val as i32).collect();
+                let params = &self.0;
+                let vals: Vec<i32> = params.gains.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
@@ -705,58 +691,84 @@ impl InputCtl {
         }
     }
 
-    fn write_params(
+    fn write(
         &mut self,
         avc: &mut OxfwAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            INPUT_GAIN_NAME => ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                DuetFwInputProtocol::write_gain(avc, idx, val as u8, &mut self.0, timeout_ms)
-            })
-            .map(|_| true),
-            INPUT_POLARITY_NAME => ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                DuetFwInputProtocol::write_polarity(avc, idx, val, &mut self.0, timeout_ms)
-            })
-            .map(|_| true),
-            INPUT_XLR_NOMINAL_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    let &level = Self::XLR_NOMINAL_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for nominal levels: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    DuetFwInputProtocol::write_xlr_nominal_level(
-                        avc,
-                        idx,
-                        level,
-                        &mut self.0,
-                        timeout_ms,
-                    )
-                })
-                .map(|_| true)
+            INPUT_GAIN_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
-            INPUT_PHANTOM_NAME => ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                DuetFwInputProtocol::write_phantom_powering(avc, idx, val, &mut self.0, timeout_ms)
-            })
-            .map(|_| true),
-            INPUT_SOURCE_NAME => ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                let &src = Self::SOURCES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for input sources: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwInputProtocol::write_src(avc, idx, src, &mut self.0, timeout_ms)
-            })
-            .map(|_| true),
+            INPUT_POLARITY_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .polarities
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(polarity, val)| *polarity = val);
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            INPUT_XLR_NOMINAL_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .xlr_nominal_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(xlr_nominal_level, &val)| {
+                        let pos = val as usize;
+                        Self::XLR_NOMINAL_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("XLR nominal level not found for position {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&level| *xlr_nominal_level = level)
+                    })?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            INPUT_PHANTOM_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .phantom_powerings
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(enabled, val)| *enabled = val);
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
+            INPUT_SOURCE_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .srcs
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(src, &val)| {
+                        let pos = val as usize;
+                        Self::SOURCES
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Input source not found for position {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&s| *src = s)
+                    })?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+            }
             INPUT_CLICKLESS_NAME => {
-                let val = new.boolean()[0];
-                DuetFwInputProtocol::write_clickless(avc, val, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.0.clone();
+                params.clickless = elem_value.boolean()[0];
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -764,7 +776,7 @@ impl InputCtl {
 }
 
 #[derive(Default, Debug)]
-struct MixerCtl;
+struct MixerCtl(DuetFwMixerParams);
 
 const MIXER_SOURCE_GAIN_NAME: &str = "mixer-source-gain";
 
@@ -777,14 +789,18 @@ impl MixerCtl {
         "analog-input-2",
     ];
 
-    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
             Self::DST_LABELS.len(),
-            DuetFwMixerProtocol::GAIN_MIN as i32,
-            DuetFwMixerProtocol::GAIN_MAX as i32,
-            DuetFwMixerProtocol::GAIN_STEP as i32,
+            DuetFwProtocol::MIXER_SOURCE_GAIN_MIN as i32,
+            DuetFwProtocol::MIXER_SOURCE_GAIN_MAX as i32,
+            1,
             Self::SRC_LABELS.len(),
             None,
             true,
@@ -793,22 +809,22 @@ impl MixerCtl {
         Ok(())
     }
 
-    fn read_params(
-        &mut self,
-        avc: &mut OxfwAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
-                    let mut gain = 0;
-                    DuetFwMixerProtocol::read_source_gain(avc, dst, src, &mut gain, timeout_ms)
-                        .map(|_| gain as i32)
-                })
-                .map(|_| true)
+                let mixer = self.0 .0.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", dst);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer
+                    .stream_inputs
+                    .iter()
+                    .chain(&mixer.analog_inputs)
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -818,17 +834,24 @@ impl MixerCtl {
         &mut self,
         avc: &mut OxfwAvc,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, Self::SRC_LABELS.len(), |src, gain| {
-                    DuetFwMixerProtocol::write_source_gain(avc, dst, src, gain as u16, timeout_ms)
-                })
-                .map(|_| true)
+                let mut params = self.0.clone();
+                let mixer = params.0.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Mixer not found for position {}", dst);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
+                    .stream_inputs
+                    .iter_mut()
+                    .chain(&mut mixer.analog_inputs)
+                    .zip(elem_value.int())
+                    .for_each(|(coef, &val)| *coef = val as u16);
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -836,7 +859,7 @@ impl MixerCtl {
 }
 
 #[derive(Default, Debug)]
-struct DisplayCtl;
+struct DisplayCtl(DuetFwDisplayParams);
 
 fn display_target_to_str(target: &DuetFwDisplayTarget) -> &str {
     match target {
@@ -877,7 +900,11 @@ impl DisplayCtl {
         DuetFwDisplayOverhold::TwoSeconds,
     ];
 
-    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+    }
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::TARGETS
             .iter()
             .map(|t| display_target_to_str(t))
@@ -899,32 +926,32 @@ impl DisplayCtl {
         Ok(())
     }
 
-    fn read_params(
-        &mut self,
-        avc: &mut OxfwAvc,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            DISPLAY_TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mut target = DuetFwDisplayTarget::default();
-                DuetFwDisplayProtocol::read_target(avc, &mut target, timeout_ms)
-                    .map(|_| Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap() as u32)
-            })
-            .map(|_| true),
-            DISPLAY_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mut mode = DuetFwDisplayMode::default();
-                DuetFwDisplayProtocol::read_mode(avc, &mut mode, timeout_ms)
-                    .map(|_| Self::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
-            })
-            .map(|_| true),
-            DISPLAY_OVERHOLDS_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mut mode = DuetFwDisplayOverhold::default();
-                DuetFwDisplayProtocol::read_overhold(avc, &mut mode, timeout_ms)
-                    .map(|_| Self::OVERHOLDS.iter().position(|m| m.eq(&mode)).unwrap() as u32)
-            })
-            .map(|_| true),
+            DISPLAY_TARGET_NAME => {
+                let params = &self.0;
+                let pos = Self::TARGETS
+                    .iter()
+                    .position(|t| params.target.eq(t))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            DISPLAY_MODE_NAME => {
+                let params = &self.0;
+                let pos = Self::MODES.iter().position(|t| params.mode.eq(t)).unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            DISPLAY_OVERHOLDS_NAME => {
+                let params = &self.0;
+                let pos = Self::OVERHOLDS
+                    .iter()
+                    .position(|t| params.overhold.eq(t))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
@@ -938,28 +965,43 @@ impl DisplayCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             DISPLAY_TARGET_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for display targets: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwDisplayProtocol::write_target(avc, target, timeout_ms).map(|_| true)
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Display target not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&t| params.target = t)?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             DISPLAY_MODE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &mode = Self::MODES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for display modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwDisplayProtocol::write_mode(avc, mode, timeout_ms).map(|_| true)
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Display mode not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&m| params.mode = m)?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             DISPLAY_OVERHOLDS_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &mode = Self::OVERHOLDS.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for display overholds: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                DuetFwDisplayProtocol::write_overhold(avc, mode, timeout_ms).map(|_| true)
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::OVERHOLDS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Display overhold not found for position {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&o| params.overhold = o)?;
+                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
