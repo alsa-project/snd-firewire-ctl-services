@@ -84,15 +84,74 @@ where
     }
 }
 
+/// Specification of meter.
+pub trait DuetFwMeterSpecification<T> {
+    /// Offset for raw meter data.
+    const OFFSET: usize;
+
+    /// Size for raw meter data.
+    const SIZE: usize;
+
+    /// Deserialize for meter.
+    fn deserialize_meter(params: &mut T, raw: &[u8]);
+}
+
+/// Operation for meter.
+pub trait DuetFwMeterOperation<T>: DuetFwMeterSpecification<T> {
+    fn cache_meter(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = vec![0u8; Self::SIZE];
+
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            (METER_OFFSET_BASE + Self::OFFSET) as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms,
+        )
+        .map(|_| Self::deserialize_meter(params, &raw))
+    }
+}
+
+impl<O, T> DuetFwMeterOperation<T> for O where O: DuetFwMeterSpecification<T> {}
+
 const APOGEE_OUI: [u8; 3] = [0x00, 0x03, 0xdb];
 
-const METER_OFFSET_BASE: u64 = 0xfffff0080000;
-const METER_INPUT_OFFSET: u64 = 0x0004;
-const METER_MIXER_OFFSET: u64 = 0x0404;
+const METER_OFFSET_BASE: usize = 0xfffff0080000;
+const METER_INPUT_OFFSET: usize = 0x0004;
+const METER_MIXER_OFFSET: usize = 0x0404;
 
 /// The state of meter for analog input.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DuetFwInputMeterState(pub [i32; 2]);
+
+impl DuetFwMeterSpecification<DuetFwInputMeterState> for DuetFwProtocol {
+    const OFFSET: usize = METER_INPUT_OFFSET;
+    const SIZE: usize = 8;
+
+    fn deserialize_meter(state: &mut DuetFwInputMeterState, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+        state.0.iter_mut().enumerate().for_each(|(i, level)| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            *level = i32::from_be_bytes(quadlet);
+        });
+    }
+}
+
+impl DuetFwProtocol {
+    /// The minimum value of detected level in meter state.
+    pub const METER_LEVEL_MIN: i32 = 0;
+    /// The maximum value of detected level in meter state.
+    pub const METER_LEVEL_MAX: i32 = i32::MAX;
+    /// The step value of detected level in meter state.
+    pub const METER_LEVEL_STEP: i32 = 0x100;
+}
 
 /// The protocol implementation of meter for analog input.
 #[derive(Default, Debug)]
@@ -116,7 +175,7 @@ impl DuetFwInputMeterProtocol {
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
-            METER_OFFSET_BASE + METER_INPUT_OFFSET,
+            (METER_OFFSET_BASE + METER_INPUT_OFFSET) as u64,
             frame.len(),
             &mut frame,
             timeout_ms,
@@ -135,8 +194,29 @@ impl DuetFwInputMeterProtocol {
 /// The state of meter for mixer source/output.
 #[derive(Default, Debug)]
 pub struct DuetFwMixerMeterState {
+    /// Detected level of stream inputs.
     pub stream_inputs: [i32; 2],
+    /// Detected level of mixer outputs.
     pub mixer_outputs: [i32; 2],
+}
+
+impl DuetFwMeterSpecification<DuetFwMixerMeterState> for DuetFwProtocol {
+    const OFFSET: usize = METER_MIXER_OFFSET;
+    const SIZE: usize = 16;
+
+    fn deserialize_meter(state: &mut DuetFwMixerMeterState, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+        state
+            .stream_inputs
+            .iter_mut()
+            .chain(&mut state.mixer_outputs)
+            .enumerate()
+            .for_each(|(i, meter)| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                *meter = i32::from_be_bytes(quadlet);
+            });
+    }
 }
 
 /// The protocol implementation of meter for mixer source/output.
@@ -161,7 +241,7 @@ impl DuetFwMixerMeterProtocol {
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
-            METER_OFFSET_BASE + METER_MIXER_OFFSET,
+            (METER_OFFSET_BASE + METER_MIXER_OFFSET) as u64,
             frame.len(),
             &mut frame,
             timeout_ms,
