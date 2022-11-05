@@ -32,6 +32,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.knob_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.input_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
@@ -40,8 +41,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
 
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
-        self.meter_ctl
-            .load_state(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr)?;
         self.knob_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
@@ -62,7 +62,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
             .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -126,8 +126,7 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.meter_ctl
-            .measure_state(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.knob_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
 
         self.output_ctl.0.mute = self.knob_ctl.0.output_mute;
@@ -145,7 +144,7 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.meter_ctl.read_state(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -191,21 +190,21 @@ impl MeterCtl {
     const STREAM_INPUT_LABELS: [&'static str; 2] = ["stream-input-1", "stream-input-2"];
     const MIXER_OUTPUT_LABELS: [&'static str; 2] = ["mixer-output-1", "mixer-output-2"];
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwProtocol::cache_meter(req, node, &mut self.0, timeout_ms)?;
+        DuetFwProtocol::cache_meter(req, node, &mut self.1, timeout_ms)?;
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_INPUT_METER_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                DuetFwInputMeterProtocol::LEVEL_MIN,
-                DuetFwInputMeterProtocol::LEVEL_MAX,
-                DuetFwInputMeterProtocol::LEVEL_STEP,
+                DuetFwProtocol::METER_LEVEL_MIN,
+                DuetFwProtocol::METER_LEVEL_MAX,
+                DuetFwProtocol::METER_LEVEL_STEP,
                 Self::ANALOG_INPUT_LABELS.len(),
                 None,
                 false,
@@ -217,9 +216,9 @@ impl MeterCtl {
             .add_int_elems(
                 &elem_id,
                 1,
-                DuetFwMixerMeterProtocol::LEVEL_MIN,
-                DuetFwMixerMeterProtocol::LEVEL_MAX,
-                DuetFwMixerMeterProtocol::LEVEL_STEP,
+                DuetFwProtocol::METER_LEVEL_MIN,
+                DuetFwProtocol::METER_LEVEL_MAX,
+                DuetFwProtocol::METER_LEVEL_STEP,
                 Self::STREAM_INPUT_LABELS.len(),
                 None,
                 false,
@@ -231,42 +230,33 @@ impl MeterCtl {
             .add_int_elems(
                 &elem_id,
                 1,
-                DuetFwMixerMeterProtocol::LEVEL_MIN,
-                DuetFwMixerMeterProtocol::LEVEL_MAX,
-                DuetFwMixerMeterProtocol::LEVEL_STEP,
+                DuetFwProtocol::METER_LEVEL_MIN,
+                DuetFwProtocol::METER_LEVEL_MAX,
+                DuetFwProtocol::METER_LEVEL_STEP,
                 Self::MIXER_OUTPUT_LABELS.len(),
                 None,
                 false,
             )
             .map(|mut elem_id_list| self.2.append(&mut elem_id_list))?;
 
-        self.measure_state(unit, req, timeout_ms)
-    }
-
-    fn measure_state(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let node = &mut unit.1;
-        DuetFwInputMeterProtocol::read_state(req, node, &mut self.0, timeout_ms)?;
-        DuetFwMixerMeterProtocol::read_state(req, node, &mut self.1, timeout_ms)?;
         Ok(())
     }
 
-    fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             ANALOG_INPUT_METER_NAME => {
-                elem_value.set_int(&self.0 .0);
+                let params = &self.0;
+                elem_value.set_int(&params.0);
                 Ok(true)
             }
             STREAM_INPUT_METER_NAME => {
-                elem_value.set_int(&self.1.stream_inputs);
+                let params = &self.1;
+                elem_value.set_int(&params.stream_inputs);
                 Ok(true)
             }
             MIXER_OUTPUT_METER_NAME => {
-                elem_value.set_int(&self.1.mixer_outputs);
+                let params = &self.1;
+                elem_value.set_int(&params.mixer_outputs);
                 Ok(true)
             }
             _ => Ok(false),
