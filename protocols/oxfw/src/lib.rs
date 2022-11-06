@@ -17,9 +17,10 @@ use {
         FwFcp, FwNode, FwReq, FwTcode,
     },
     oxford::*,
-    ta1394_avc_audio::*,
+    ta1394_avc_audio::{amdtp::*, *},
     ta1394_avc_ccm::*,
     ta1394_avc_general::{general::*, *},
+    ta1394_avc_stream_format::*,
 };
 
 /// The implementation of AV/C transaction.
@@ -219,5 +220,189 @@ where
         }
         prev.0 = params.0;
         Ok(())
+    }
+}
+
+/// Parameters for stream formats.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct OxfwStreamFormatState {
+    /// Direction for packet stream.
+    pub direction: PlugDirection,
+    /// Available stream formats.
+    pub format_entries: Vec<CompoundAm824Stream>,
+    /// Whether to assumed or not.
+    pub assumed: bool,
+}
+
+fn compound_am824_from_format(stream_format: &StreamFormat) -> Result<&CompoundAm824Stream, Error> {
+    stream_format.as_compound_am824_stream().ok_or_else(|| {
+        let msg = "Compound AM824 stream format is not available";
+        Error::new(FileError::Nxio, &msg)
+    })
+}
+
+const SUPPORTED_RATES: &[u32] = &[32000, 44100, 48000, 88200, 96000, 176400, 192000];
+
+/// Operation for stream format.
+pub trait OxfwStreamFormatOperation<T>
+where
+    T: Ta1394Avc<Error>,
+{
+    /// Detect available stream formats.
+    fn detect_stream_formats(
+        avc: &mut T,
+        params: &mut OxfwStreamFormatState,
+        is_output: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let direction = if is_output {
+            PlugDirection::Output
+        } else {
+            PlugDirection::Input
+        };
+        let plug_addr = PlugAddr {
+            direction,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0,
+            }),
+        };
+
+        let mut op = ExtendedStreamFormatList::new(&plug_addr, 0);
+
+        if avc.status(&AvcAddr::Unit, &mut op, timeout_ms).is_ok() {
+            loop {
+                compound_am824_from_format(&op.stream_format)
+                    .map(|stream_format| params.format_entries.push(stream_format.clone()))?;
+
+                op.index += 1;
+                if let Err(err) = avc.status(&AvcAddr::Unit, &mut op, timeout_ms) {
+                    if err == Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus) {
+                        break;
+                    } else {
+                        Err(from_avc_err(err))?;
+                    }
+                }
+            }
+
+            params.assumed = false;
+        } else {
+            // Fallback. At first, retrieve current format information.
+            let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+            avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))?;
+
+            let stream_format = compound_am824_from_format(&op.stream_format)?;
+
+            // Next, inquire supported sampling rates and make entries.
+            SUPPORTED_RATES.iter().for_each(|&freq| {
+                let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, freq).into();
+                let fmt = PlugSignalFormat {
+                    plug_id: 0,
+                    fmt: FMT_IS_AMDTP,
+                    fdf,
+                };
+
+                if direction == PlugDirection::Input {
+                    let mut op = InputPlugSignalFormat(fmt);
+                    if avc
+                        .specific_inquiry(&AvcAddr::Unit, &mut op, timeout_ms)
+                        .is_err()
+                    {
+                        return;
+                    }
+                } else {
+                    let mut op = OutputPlugSignalFormat(fmt);
+                    if avc
+                        .specific_inquiry(&AvcAddr::Unit, &mut op, timeout_ms)
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+
+                let mut entry = stream_format.clone();
+                entry.freq = freq;
+                params.format_entries.push(entry);
+            });
+
+            params.assumed = true;
+        }
+
+        params.direction = direction;
+
+        Ok(())
+    }
+
+    /// Read current stream format.
+    fn read_stream_format(
+        avc: &mut T,
+        params: &OxfwStreamFormatState,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        let plug_addr = PlugAddr {
+            direction: params.direction,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0,
+            }),
+        };
+        let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
+        let stream_format = compound_am824_from_format(&op.stream_format)?;
+        params
+            .format_entries
+            .iter()
+            .position(|fmt| stream_format.eq(fmt))
+            .ok_or_else(|| {
+                let msg = "Detected stream format is not matched";
+                Error::new(FileError::Nxio, &msg)
+            })
+    }
+
+    /// Write stream format to change parameters of isochronous packet streaming.
+    fn write_stream_format(
+        avc: &mut T,
+        params: &OxfwStreamFormatState,
+        format_index: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let format = params
+            .format_entries
+            .iter()
+            .nth(format_index)
+            .cloned()
+            .unwrap();
+
+        if !params.assumed {
+            let plug_addr = PlugAddr {
+                direction: params.direction,
+                mode: PlugAddrMode::Unit(UnitPlugData {
+                    unit_type: UnitPlugType::Pcr,
+                    plug_id: 0,
+                }),
+            };
+            let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+            op.stream_format = StreamFormat::Am(AmStream::CompoundAm824(format));
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))
+        } else {
+            let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, format.freq).into();
+            let fmt = PlugSignalFormat {
+                plug_id: 0,
+                fmt: FMT_IS_AMDTP,
+                fdf,
+            };
+            if params.direction == PlugDirection::Input {
+                let mut op = InputPlugSignalFormat(fmt);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map_err(|err| from_avc_err(err))
+            } else {
+                let mut op = OutputPlugSignalFormat(fmt);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map_err(|err| from_avc_err(err))
+            }
+        }
     }
 }

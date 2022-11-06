@@ -85,6 +85,8 @@ pub struct FireoneProtocol;
 
 impl OxfordOperation for FireoneProtocol {}
 
+impl OxfwStreamFormatOperation<TascamAvc> for FireoneProtocol {}
+
 fn serialize_display_mode(mode: &FireoneDisplayMode, val: &mut u8) -> Result<(), String> {
     *val = match mode {
         FireoneDisplayMode::Off => 0,

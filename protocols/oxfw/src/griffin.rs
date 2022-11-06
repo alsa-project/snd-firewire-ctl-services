@@ -13,6 +13,8 @@ pub struct FirewaveProtocol;
 
 impl OxfordOperation for FirewaveProtocol {}
 
+impl OxfwStreamFormatOperation<OxfwAvc> for FirewaveProtocol {}
+
 impl OxfwAudioFbSpecification for FirewaveProtocol {
     const VOLUME_FB_ID: u8 = 0x02;
     const MUTE_FB_ID: u8 = 0x01;
