@@ -30,6 +30,8 @@ pub struct DuetFwProtocol;
 
 impl OxfordOperation for DuetFwProtocol {}
 
+impl OxfwStreamFormatOperation<OxfwAvc> for DuetFwProtocol {}
+
 /// Serializer and deserializer for parameters.
 pub trait DuetFwParamsSerdes<T> {
     /// Build commands for AV/C status operation.

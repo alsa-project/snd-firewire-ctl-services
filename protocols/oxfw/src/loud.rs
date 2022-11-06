@@ -29,6 +29,8 @@ pub struct LinkFwProtocol;
 
 impl OxfordOperation for LinkFwProtocol {}
 
+impl OxfwStreamFormatOperation<OxfwAvc> for LinkFwProtocol {}
+
 impl LinkFwProtocol {
     const SIG_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: AvcAddrSubunit {
