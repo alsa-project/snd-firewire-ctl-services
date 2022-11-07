@@ -27,6 +27,7 @@ use {
     protocols::*,
     std::{convert::TryFrom, fmt::Debug, sync::mpsc},
     ta1394_avc_general::config_rom::*,
+    tracing::{debug, debug_span, Level},
 };
 
 enum Event {
@@ -64,7 +65,14 @@ impl Drop for OxfwRuntime {
 }
 
 impl RuntimeOperation<u32> for OxfwRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let cdev = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndUnit::new();
         unit.open(&cdev, 0)?;
@@ -115,19 +123,24 @@ impl RuntimeOperation<u32> for OxfwRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
 
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
+        enter.exit();
 
         Ok(())
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -138,9 +151,20 @@ impl RuntimeOperation<u32> for OxfwRuntime {
                 Event::Shutdown => break,
                 Event::Disconnected => break,
                 Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
                     if elem_id.name() != Self::TIMER_NAME {
                         let _ = self.model.dispatch_elem_event(
                             &mut self.unit,
@@ -166,11 +190,13 @@ impl RuntimeOperation<u32> for OxfwRuntime {
                     }
                 }
                 Event::Timer => {
+                    let _enter = debug_span!("timer").entered();
                     let _ = self
                         .model
                         .measure_elems(&mut self.unit, &mut self.card_cntr);
                 }
                 Event::StreamLock(locked) => {
+                    let _enter = debug_span!("stream-lock").entered();
                     let _ = self.model.dispatch_notification(
                         &mut self.unit,
                         &mut self.card_cntr,
@@ -179,6 +205,9 @@ impl RuntimeOperation<u32> for OxfwRuntime {
                 }
             }
         }
+
+        enter.exit();
+
         Ok(())
     }
 }
