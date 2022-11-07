@@ -153,7 +153,9 @@ impl SpecificCtl {
         [FireoneInputMode::Stereo, FireoneInputMode::Monaural];
 
     fn cache(&mut self, avc: &mut TascamAvc, timeout_ms: u32) -> Result<(), Error> {
-        FireoneProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = FireoneProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -241,7 +243,9 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIDI_MESSAGE_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -254,7 +258,9 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -267,7 +273,9 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = FireoneProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
