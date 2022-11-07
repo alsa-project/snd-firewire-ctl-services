@@ -6,12 +6,10 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct CommonModel {
     avc: OxfwAvc,
-    common_ctl: CommonCtl<OxfwAvc>,
+    common_ctl: CommonCtl<OxfwAvc, Protocol>,
 }
 
-impl CommonModel {
-    const FCP_TIMEOUT_MS: u32 = 100;
-}
+const FCP_TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<(SndUnit, FwNode)> for CommonModel {
     fn load(
@@ -21,8 +19,10 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
-        self.common_ctl
-            .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.common_ctl.detect(&mut self.avc, FCP_TIMEOUT_MS)?;
+
+        self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        self.common_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -33,10 +33,7 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)?
-        {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -52,7 +49,7 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
     ) -> Result<bool, Error> {
         if self
             .common_ctl
-            .write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)?
+            .write(&unit.0, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -63,10 +60,17 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
 
 impl NotifyModel<(SndUnit, FwNode), bool> for CommonModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
+        if locked {
+            self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
@@ -76,7 +80,11 @@ impl NotifyModel<(SndUnit, FwNode), bool> for CommonModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl
-            .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
+
+#[derive(Default, Debug)]
+struct Protocol;
+
+impl OxfwStreamFormatOperation<OxfwAvc> for Protocol {}

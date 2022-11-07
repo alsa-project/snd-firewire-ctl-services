@@ -13,7 +13,7 @@ mod common_ctl;
 use {
     alsactl::{prelude::*, *},
     common_ctl::*,
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    core::{card_cntr::*, dispatcher::*, *},
     firewire_oxfw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{

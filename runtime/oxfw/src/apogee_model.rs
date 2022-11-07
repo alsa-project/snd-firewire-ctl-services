@@ -7,7 +7,7 @@ use {super::*, protocols::apogee::*};
 pub struct ApogeeModel {
     req: FwReq,
     avc: OxfwAvc,
-    common_ctl: CommonCtl<OxfwAvc>,
+    common_ctl: CommonCtl<OxfwAvc, DuetFwProtocol>,
     meter_ctl: MeterCtl,
     knob_ctl: KnobCtl,
     output_ctl: OutputCtl,
@@ -20,10 +20,6 @@ const TIMEOUT_MS: u32 = 50;
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-impl ApogeeModel {
-    const FCP_TIMEOUT_MS: u32 = FCP_TIMEOUT_MS;
-}
-
 impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
     fn load(
         &mut self,
@@ -32,6 +28,9 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
+        self.common_ctl.detect(&mut self.avc, FCP_TIMEOUT_MS)?;
+
+        self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.knob_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
@@ -39,8 +38,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
         self.mixer_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.display_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.common_ctl
-            .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.common_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.knob_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
@@ -57,10 +55,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)?
-        {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -88,7 +83,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
     ) -> Result<bool, Error> {
         if self
             .common_ctl
-            .write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)?
+            .write(&unit.0, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -160,10 +155,17 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
 
 impl NotifyModel<(SndUnit, FwNode), bool> for ApogeeModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
+        if locked {
+            self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
@@ -173,8 +175,7 @@ impl NotifyModel<(SndUnit, FwNode), bool> for ApogeeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl
-            .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
 
