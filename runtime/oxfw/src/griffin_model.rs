@@ -12,12 +12,8 @@ pub struct GriffinModel {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+impl GriffinModel {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.common_ctl.detect(&mut self.avc, FCP_TIMEOUT_MS)?;
@@ -25,6 +21,12 @@ impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
         self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
 
+        Ok(())
+    }
+}
+
+impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
+    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
 

@@ -115,6 +115,8 @@ impl RuntimeOperation<u32> for OxfwRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.cache(&mut self.unit)?;
+
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
