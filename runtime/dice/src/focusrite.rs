@@ -117,12 +117,8 @@ where
         match elem_id.name().as_str() {
             VOL_NAME => {
                 let params = &self.0;
-                let vols: Vec<i32> = params
-                    .vols
-                    .iter()
-                    .map(|&v| Self::LEVEL_MAX - (v as i32))
-                    .collect();
-                elem_value.set_int(&vols);
+                let vals: Vec<i32> = params.vols.iter().map(|&vol| vol as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             VOL_MUTE_NAME => {
