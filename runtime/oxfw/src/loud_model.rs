@@ -113,7 +113,9 @@ impl SpecificCtl {
     const SRCS: [LinkFwInputSource; 2] = [LinkFwInputSource::Analog, LinkFwInputSource::Digital];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        LinkFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = LinkFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -153,7 +155,9 @@ impl SpecificCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                LinkFwProtocol::update(avc, &src, &mut self.0, timeout_ms).map(|_| true)
+                let res = LinkFwProtocol::update(avc, &src, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
