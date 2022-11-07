@@ -194,8 +194,12 @@ impl MeterCtl {
     const MIXER_OUTPUT_LABELS: [&'static str; 2] = ["mixer-output-1", "mixer-output-2"];
 
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache_meter(req, node, &mut self.0, timeout_ms)?;
-        DuetFwProtocol::cache_meter(req, node, &mut self.1, timeout_ms)?;
+        let res = DuetFwProtocol::cache_meter(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res?;
+        let res = DuetFwProtocol::cache_meter(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res?;
         Ok(())
     }
 
@@ -288,7 +292,9 @@ impl KnobCtl {
     ];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = DuetFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -367,7 +373,9 @@ impl OutputCtl {
     ];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = DuetFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -480,12 +488,16 @@ impl OutputCtl {
             OUTPUT_MUTE_NAME => {
                 let mut params = self.0.clone();
                 params.mute = elem_value.boolean()[0];
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_VOLUME_NAME => {
                 let mut params = self.0.clone();
                 params.volume = elem_value.int()[0] as u8;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_SRC_NAME => {
                 let mut params = self.0.clone();
@@ -498,7 +510,9 @@ impl OutputCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_NOMINAL_LEVEL_NAME => {
                 let mut params = self.0.clone();
@@ -511,7 +525,9 @@ impl OutputCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_MUTE_FOR_LINE_OUT => {
                 let mut params = self.0.clone();
@@ -524,7 +540,9 @@ impl OutputCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             OUTPUT_MUTE_FOR_HP_OUT => {
                 let mut params = self.0.clone();
@@ -537,7 +555,9 @@ impl OutputCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -582,7 +602,9 @@ impl InputCtl {
     ];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = DuetFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -699,7 +721,9 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_POLARITY_NAME => {
                 let mut params = self.0.clone();
@@ -708,7 +732,9 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(polarity, val)| *polarity = val);
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_XLR_NOMINAL_LEVEL_NAME => {
                 let mut params = self.0.clone();
@@ -728,7 +754,9 @@ impl InputCtl {
                             })
                             .map(|&level| *xlr_nominal_level = level)
                     })?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_PHANTOM_NAME => {
                 let mut params = self.0.clone();
@@ -737,7 +765,9 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(enabled, val)| *enabled = val);
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_SOURCE_NAME => {
                 let mut params = self.0.clone();
@@ -756,12 +786,16 @@ impl InputCtl {
                             })
                             .map(|&s| *src = s)
                     })?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_CLICKLESS_NAME => {
                 let mut params = self.0.clone();
                 params.clickless = elem_value.boolean()[0];
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -783,7 +817,9 @@ impl MixerCtl {
     ];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = DuetFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -844,7 +880,9 @@ impl MixerCtl {
                     .chain(&mut mixer.analog_inputs)
                     .zip(elem_value.int())
                     .for_each(|(coef, &val)| *coef = val as u16);
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -894,7 +932,9 @@ impl DisplayCtl {
     ];
 
     fn cache(&mut self, avc: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
-        DuetFwProtocol::cache(avc, &mut self.0, timeout_ms)
+        let res = DuetFwProtocol::cache(avc, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -968,7 +1008,9 @@ impl DisplayCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| params.target = t)?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DISPLAY_MODE_NAME => {
                 let mut params = self.0.clone();
@@ -981,7 +1023,9 @@ impl DisplayCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&m| params.mode = m)?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             DISPLAY_OVERHOLDS_NAME => {
                 let mut params = self.0.clone();
@@ -994,7 +1038,9 @@ impl DisplayCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&o| params.overhold = o)?;
-                DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms).map(|_| true)
+                let res = DuetFwProtocol::update(avc, &params, &mut self.0, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
