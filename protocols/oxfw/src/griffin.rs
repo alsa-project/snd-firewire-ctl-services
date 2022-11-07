@@ -11,6 +11,8 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct FirewaveProtocol;
 
+impl OxfordOperation for FirewaveProtocol {}
+
 impl OxfwAudioFbSpecification for FirewaveProtocol {
     const VOLUME_FB_ID: u8 = 0x02;
     const MUTE_FB_ID: u8 = 0x01;

@@ -27,6 +27,8 @@ impl Default for LinkFwInputSource {
 #[derive(Default, Debug)]
 pub struct LinkFwProtocol;
 
+impl OxfordOperation for LinkFwProtocol {}
+
 impl LinkFwProtocol {
     const SIG_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: AvcAddrSubunit {

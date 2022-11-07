@@ -5,21 +5,22 @@
 
 use super::*;
 
-/// The implementation for protocol of FW970/971 ASICs.
-#[derive(Default, Debug)]
-pub struct OxfordProtocol;
-
 const CSR_REGISTER_BASE: u64 = 0xfffff0000000;
 const FIRMWARE_ID_OFFSET: u64 = 0x50000;
 const HARDWARE_ID_OFFSET: u64 = 0x90020;
 
-impl OxfordProtocol {
-    pub const HARDWARE_ID_IS_FW970: u32 = 0x39443841; // '9', 'D', '8', 'A'
-    pub const HARDWARE_ID_IS_FW971: u32 = 0x39373100; // '9', '7', '1', '\0'
+/// Operation specific to Oxford ASICs.
+pub trait OxfordOperation {
+    /// The numeric identifier of hardware with FW970 ASIC.
+    const HARDWARE_ID_IS_FW970: u32 = 0x39443841; // '9', 'D', '8', 'A'
+                                                  //
+    /// The numeric identifier of hardware with FW971 ASIC.
+    const HARDWARE_ID_IS_FW971: u32 = 0x39373100; // '9', '7', '1', '\0'
 
-    pub fn read_firmware_id(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    /// Read numeric identifier of firmware.
+    fn read_firmware_id(
+        req: &FwReq,
+        node: &FwNode,
         firmware_id: &mut u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -35,9 +36,10 @@ impl OxfordProtocol {
         .map(|_| *firmware_id = u32::from_be_bytes(quadlet))
     }
 
-    pub fn read_hardware_id(
-        req: &mut FwReq,
-        node: &mut FwNode,
+    /// Read numeric identifier of hardware.
+    fn read_hardware_id(
+        req: &FwReq,
+        node: &FwNode,
         hardware_id: &mut u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
