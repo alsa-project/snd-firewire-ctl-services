@@ -6,7 +6,7 @@ use {super::*, protocols::lacie::*};
 #[derive(Default, Debug)]
 pub struct LacieModel {
     avc: OxfwAvc,
-    common_ctl: CommonCtl<OxfwAvc>,
+    common_ctl: CommonCtl<OxfwAvc, FwSpeakersProtocol>,
     output_ctl: OutputCtl<OxfwAvc, FwSpeakersProtocol>,
 }
 
@@ -20,9 +20,12 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
     ) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
+        self.common_ctl.detect(&mut self.avc, FCP_TIMEOUT_MS)?;
+
+        self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.common_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
 
         Ok(())
@@ -34,10 +37,7 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -55,7 +55,7 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
     ) -> Result<bool, Error> {
         if self
             .common_ctl
-            .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write(&unit.0, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -71,10 +71,17 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
 
 impl NotifyModel<(SndUnit, FwNode), bool> for LacieModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_id_list);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
+        if locked {
+            self.common_ctl.cache(&mut self.avc, FCP_TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
@@ -84,7 +91,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for LacieModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl
-            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.common_ctl.read(elem_id, elem_value)
     }
 }
