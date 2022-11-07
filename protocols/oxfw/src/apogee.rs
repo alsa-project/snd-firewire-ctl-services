@@ -28,6 +28,8 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct DuetFwProtocol;
 
+impl OxfordOperation for DuetFwProtocol {}
+
 /// Serializer and deserializer for parameters.
 pub trait DuetFwParamsSerdes<T> {
     /// Build commands for AV/C status operation.

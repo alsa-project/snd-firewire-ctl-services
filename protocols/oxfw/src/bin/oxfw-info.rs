@@ -11,6 +11,10 @@ use {
 
 const TIMEOUT_MS: u32 = 20;
 
+struct Protocol;
+
+impl OxfordOperation for Protocol {}
+
 fn main() {
     let code = std::env::args().nth(1)
         .ok_or("At least one argument is required for path to special file of FireWire character device".to_string())
@@ -54,9 +58,9 @@ fn main() {
                 let mut hardware_id = 0;
 
                 let mut req = FwReq::new();
-                OxfordProtocol::read_firmware_id(&mut req, &mut node, &mut firmware_id, TIMEOUT_MS)
+                Protocol::read_firmware_id(&mut req, &mut node, &mut firmware_id, TIMEOUT_MS)
                     .map_err(|e| e.to_string())?;
-                OxfordProtocol::read_hardware_id(&mut req, &mut node, &mut hardware_id, TIMEOUT_MS)
+                Protocol::read_hardware_id(&mut req, &mut node, &mut hardware_id, TIMEOUT_MS)
                     .map_err(|e| e.to_string())?;
 
                 println!("firmware: 0x{:08x}", firmware_id);

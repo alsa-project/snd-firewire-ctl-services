@@ -16,6 +16,7 @@ use {
         prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,
     },
+    oxford::*,
     ta1394_avc_audio::*,
     ta1394_avc_ccm::*,
     ta1394_avc_general::{general::*, *},

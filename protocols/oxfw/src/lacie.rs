@@ -11,6 +11,8 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct FwSpeakersProtocol;
 
+impl OxfordOperation for FwSpeakersProtocol {}
+
 impl OxfwAudioFbSpecification for FwSpeakersProtocol {
     const VOLUME_FB_ID: u8 = 0x01;
     const MUTE_FB_ID: u8 = 0x01;
