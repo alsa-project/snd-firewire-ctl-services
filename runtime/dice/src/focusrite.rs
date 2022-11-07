@@ -15,12 +15,12 @@ use {
 };
 
 const VOL_NAME: &str = "output-group-volume";
-const VOL_HWCTL_NAME: &str = "output-group-volume-hwctl";
+const VOL_TARGET_NAME: &str = "output-group-volume-target";
 const VOL_MUTE_NAME: &str = "output-group-volume-mute";
 const MUTE_NAME: &str = "output-group-mute";
 const DIM_NAME: &str = "output-group-dim";
-const DIM_HWCTL_NAME: &str = "output-group-dim-hwctl";
-const MUTE_HWCTL_NAME: &str = "output-group-mute-hwctl";
+const DIM_TARGET_NAME: &str = "output-group-dim-target";
+const MUTE_TARGET_NAME: &str = "output-group-mute-target";
 
 #[derive(Debug)]
 pub struct OutGroupCtl<T>(OutGroupState, Vec<ElemId>, PhantomData<T>)
@@ -100,14 +100,14 @@ where
         card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
         if T::HAS_VOL_HWCTL {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_HWCTL_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_TARGET_NAME, 0);
             card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
         }
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_HWCTL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_TARGET_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_HWCTL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_TARGET_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
         Ok(())
@@ -126,7 +126,7 @@ where
                 elem_value.set_bool(&params.vol_mutes);
                 Ok(true)
             }
-            VOL_HWCTL_NAME => {
+            VOL_TARGET_NAME => {
                 let params = &self.0;
                 elem_value.set_bool(&params.vol_hwctls);
                 Ok(true)
@@ -136,7 +136,7 @@ where
                 elem_value.set_bool(&[params.mute_enabled]);
                 Ok(true)
             }
-            MUTE_HWCTL_NAME => {
+            MUTE_TARGET_NAME => {
                 let params = &self.0;
                 elem_value.set_bool(&params.mute_hwctls);
                 Ok(true)
@@ -146,7 +146,7 @@ where
                 elem_value.set_bool(&[params.dim_enabled]);
                 Ok(true)
             }
-            DIM_HWCTL_NAME => {
+            DIM_TARGET_NAME => {
                 let params = &self.0;
                 elem_value.set_bool(&params.dim_hwctls);
                 Ok(true)
@@ -204,7 +204,7 @@ where
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
-            VOL_HWCTL_NAME => {
+            VOL_TARGET_NAME => {
                 let mut params = self.0.clone();
                 params
                     .vol_hwctls
@@ -238,7 +238,7 @@ where
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
-            MUTE_HWCTL_NAME => {
+            MUTE_TARGET_NAME => {
                 let mut params = self.0.clone();
                 params
                     .mute_hwctls
@@ -272,7 +272,7 @@ where
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
-            DIM_HWCTL_NAME => {
+            DIM_TARGET_NAME => {
                 let mut params = self.0.clone();
                 params
                     .dim_hwctls
