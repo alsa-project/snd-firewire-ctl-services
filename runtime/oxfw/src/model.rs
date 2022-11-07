@@ -42,6 +42,17 @@ impl OxfwModel {
         Ok(model)
     }
 
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        match &mut self.ctl_model {
+            OxfwCtlModel::Fireone(m) => m.cache(unit),
+            OxfwCtlModel::Duet(m) => m.cache(unit),
+            OxfwCtlModel::Firewave(m) => m.cache(unit),
+            OxfwCtlModel::Speaker(m) => m.cache(unit),
+            OxfwCtlModel::TapcoLinkFw(m) => m.cache(unit),
+            OxfwCtlModel::Common(m) => m.cache(unit),
+        }
+    }
+
     pub fn load(
         &mut self,
         unit: &mut (SndUnit, FwNode),
