@@ -53,8 +53,8 @@ where
         + TcatExtensionSectionPartialMutableParamsOperation<OutGroupState>
         + TcatExtensionSectionNotifiedParamsOperation<OutGroupState>,
 {
-    const LEVEL_MIN: i32 = 0x00;
-    const LEVEL_MAX: i32 = 0x7f;
+    const LEVEL_MIN: i32 = T::VOL_MIN as i32;
+    const LEVEL_MAX: i32 = T::VOL_MAX as i32;
     const LEVEL_STEP: i32 = 0x01;
 
     fn cache(

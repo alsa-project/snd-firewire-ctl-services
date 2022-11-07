@@ -46,7 +46,7 @@ pub trait SaffireproSwNoticeOperation: TcatExtensionOperation {
 /// controlled by single software/hardware operation if enabled.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct OutGroupState {
-    /// Volume of each analog output.
+    /// Volume of each analog output, between 0x00 and 0x7f.
     pub vols: Vec<i8>,
 
     /// Whether to mute each analog output.
@@ -73,6 +73,9 @@ pub struct OutGroupState {
 }
 
 const OUT_GROUP_STATE_SIZE: usize = 0x50;
+
+const VOL_MIN: i8 = 0;
+const VOL_MAX: i8 = i8::MAX;
 
 fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= OUT_GROUP_STATE_SIZE);
@@ -197,6 +200,12 @@ pub trait SaffireproOutGroupSpecification: SaffireproSwNoticeOperation {
 
     /// Software notification for dim and mute of output group.
     const DIM_MUTE_NOTICE: u32;
+
+    /// The minimum value of volume.
+    const VOL_MIN: i8 = VOL_MIN;
+
+    /// The maximum value of volume.
+    const VOL_MAX: i8 = VOL_MAX;
 
     /// Instantiate structure for output group state.
     fn create_out_group_state() -> OutGroupState {
