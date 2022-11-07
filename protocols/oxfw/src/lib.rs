@@ -40,10 +40,12 @@ impl Ta1394Avc<Error> for OxfwAvc {
 }
 
 impl OxfwAvc {
+    /// Bind FCP protocol to the given node for AV/C operation.
     pub fn bind(&self, node: &impl IsA<FwNode>) -> Result<(), Error> {
         self.0.bind(node)
     }
 
+    /// Request AV/C control operation and wait for response.
     pub fn control<O: AvcOp + AvcControl>(
         &self,
         addr: &AvcAddr,
@@ -53,6 +55,7 @@ impl OxfwAvc {
         Ta1394Avc::<Error>::control(self, addr, op, timeout_ms).map_err(|err| from_avc_err(err))
     }
 
+    /// Request AV/C status operation and wait for response.
     pub fn status<O: AvcOp + AvcStatus>(
         &self,
         addr: &AvcAddr,
