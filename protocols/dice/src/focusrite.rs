@@ -84,8 +84,15 @@ fn serialize_out_group_state(state: &OutGroupState, raw: &mut [u8]) -> Result<()
     serialize_bool(&state.dim_enabled, &mut raw[0x04..0x08]);
 
     (0..(state.vols.len() / 2)).for_each(|i| {
-        let mut val = state.vols[2 * i] as u32;
-        val |= (state.vols[2 * i + 1] as u32) << 8;
+        let mut val = 0u32;
+        state.vols[(i * 2)..(i * 2 + 2)]
+            .iter()
+            .enumerate()
+            .for_each(|(j, &vol)| {
+                // NOTE: inverted.
+                let v = VOL_MAX - vol;
+                val |= (v as u32) << (8 * j);
+            });
         let pos = 0x08 + i * 4;
         serialize_u32(&val, &mut raw[pos..(pos + 4)]);
     });
@@ -140,8 +147,14 @@ fn deserialize_out_group_state(state: &mut OutGroupState, raw: &[u8]) -> Result<
         let pos = 0x08 + i * 4;
         let mut val = 0u32;
         deserialize_u32(&mut val, &raw[pos..(pos + 4)]);
-        state.vols[2 * i] = (val & 0x000000ff) as i8;
-        state.vols[2 * i + 1] = ((val & 0x0000ff00) >> 8) as i8;
+        state.vols[(i * 2)..(i * 2 + 2)]
+            .iter_mut()
+            .enumerate()
+            .for_each(|(j, vol)| {
+                let v = ((val >> (j * 8)) & 0xff) as i8;
+                // NOTE: inverted.
+                *vol = VOL_MAX - v;
+            });
     });
 
     (0..(state.vol_hwctls.len() / 2)).for_each(|i| {
