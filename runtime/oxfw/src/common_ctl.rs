@@ -31,8 +31,13 @@ where
     T: Debug + OxfwStreamFormatOperation<P>,
 {
     pub fn detect(&mut self, avc: &mut P, timeout_ms: u32) -> Result<(), Error> {
-        T::detect_stream_formats(avc, &mut self.output_fmts, true, timeout_ms)?;
-        T::detect_stream_formats(avc, &mut self.input_fmts, false, timeout_ms)?;
+        let res = T::detect_stream_formats(avc, &mut self.output_fmts, true, timeout_ms);
+        debug!(params = ?self.output_fmts, ?res);
+        res?;
+
+        let res = T::detect_stream_formats(avc, &mut self.input_fmts, false, timeout_ms);
+        debug!(params = ?self.input_fmts, ?res);
+        res?;
 
         let mut avail_freqs = Vec::new();
         self.output_fmts
@@ -52,11 +57,17 @@ where
 
     pub fn cache(&mut self, avc: &mut P, timeout_ms: u32) -> Result<(), Error> {
         if self.output_fmts.format_entries.len() > 0 {
-            self.curr_output_fmt = T::read_stream_format(avc, &self.output_fmts, timeout_ms)?;
+            let res = T::read_stream_format(avc, &self.output_fmts, timeout_ms)
+                .map(|idx| self.curr_output_fmt = idx);
+            debug!(params = ?self.curr_output_fmt, ?res);
+            res?;
         }
 
         if self.input_fmts.format_entries.len() > 0 {
-            self.curr_input_fmt = T::read_stream_format(avc, &self.input_fmts, timeout_ms)?;
+            let res = T::read_stream_format(avc, &self.input_fmts, timeout_ms)
+                .map(|idx| self.curr_input_fmt = idx);
+            debug!(params = ?self.curr_input_fmt, ?res);
+            res?;
         }
 
         Ok(())
@@ -123,8 +134,10 @@ where
                             freq,
                             self.curr_output_fmt,
                         )?;
-                        T::write_stream_format(avc, &self.output_fmts, idx, timeout_ms)
-                            .map(|_| self.curr_output_fmt = idx)?;
+                        let res = T::write_stream_format(avc, &self.output_fmts, idx, timeout_ms)
+                            .map(|_| self.curr_output_fmt = idx);
+                        debug!(params = ?self.curr_output_fmt, ?res);
+                        res?;
                     }
                     if self.input_fmts.format_entries.len() > 0 {
                         let idx = detect_index(
@@ -132,8 +145,10 @@ where
                             freq,
                             self.curr_input_fmt,
                         )?;
-                        T::write_stream_format(avc, &self.input_fmts, idx, timeout_ms)
-                            .map(|_| self.curr_input_fmt = idx)?;
+                        let res = T::write_stream_format(avc, &self.input_fmts, idx, timeout_ms)
+                            .map(|_| self.curr_input_fmt = idx);
+                        debug!(params = ?self.curr_input_fmt, ?res);
+                        res?;
                     }
                     Ok(())
                 };
@@ -239,8 +254,12 @@ where
 
     pub fn cache(&mut self, avc: &mut P, timeout_ms: u32) -> Result<(), Error> {
         if self.voluntary {
-            T::cache(avc, &mut self.volume, timeout_ms)?;
-            T::cache(avc, &mut self.mute, timeout_ms)?;
+            let res = T::cache(avc, &mut self.volume, timeout_ms);
+            debug!(params = ?self.volume, ?res);
+            res?;
+            let res = T::cache(avc, &mut self.mute, timeout_ms);
+            debug!(params = ?self.mute, ?res);
+            res?;
         }
         Ok(())
     }
@@ -307,12 +326,16 @@ where
                         .iter_mut()
                         .zip(elem_value.int())
                         .for_each(|(vol, &val)| *vol = val as i16);
-                    T::update(avc, &params, &mut self.volume, timeout_ms).map(|_| true)
+                    let res = T::update(avc, &params, &mut self.volume, timeout_ms);
+                    debug!(params = ?self.volume, ?res);
+                    res.map(|_| true)
                 }
                 MUTE_NAME => {
                     let mut params = self.mute.clone();
                     params.0 = elem_value.boolean()[0];
-                    T::update(avc, &params, &mut self.mute, timeout_ms).map(|_| true)
+                    let res = T::update(avc, &params, &mut self.mute, timeout_ms);
+                    debug!(params = ?self.volume, ?res);
+                    res.map(|_| true)
                 }
                 _ => Ok(false),
             }
