@@ -408,7 +408,7 @@ fn compute_params_size(ranges: &[Range<usize>]) -> usize {
 }
 
 fn generate_err(name: &str, cause: &str, raw: &[u8]) -> Error {
-    let msg = format!("parms: {}, cause: {}, raw: {:02x?}", name, cause, raw);
+    let msg = format!("params: {}, cause: {}, raw: {:02x?}", name, cause, raw);
     Error::new(GeneralProtocolError::VendorDependent, &msg)
 }
 
