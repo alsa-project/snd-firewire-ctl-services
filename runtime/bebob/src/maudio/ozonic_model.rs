@@ -159,7 +159,7 @@ impl MaudioNormalMixerCtlOperation<OzonicMixerProtocol> for MixerCtl {
 }
 
 impl OzonicModel {
-    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_input_ctl
@@ -169,6 +169,9 @@ impl OzonicModel {
         self.phys_input_ctl
             .cache_balances(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
+
+        self.meter_ctl
+            .cache_meter(&self.req, &unit.1, &self.avc, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -191,7 +194,7 @@ impl CtlModel<(SndUnit, FwNode)> for OzonicModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.meter_ctl
-            .load_meter(card_cntr, &self.req, &unit.1, TIMEOUT_MS)
+            .load_meter(card_cntr)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_input_ctl.load_level(card_cntr)?;
@@ -285,7 +288,7 @@ impl MeasureModel<(SndUnit, FwNode)> for OzonicModel {
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
-            .measure_meter(&self.req, &unit.1, &self.avc, TIMEOUT_MS)
+            .cache_meter(&self.req, &unit.1, &self.avc, TIMEOUT_MS)
     }
 
     fn measure_elem(

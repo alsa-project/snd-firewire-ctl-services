@@ -46,15 +46,7 @@ trait MaudioNormalMeterCtlOperation<O: MaudioNormalMeterProtocol> {
     fn state(&self) -> &MaudioNormalMeter;
     fn state_mut(&mut self) -> &mut MaudioNormalMeter;
 
-    fn load_meter(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        req: &FwReq,
-        node: &FwNode,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        O::read_meter(req, node, self.state_mut(), timeout_ms)?;
-
+    fn load_meter(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut measure_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
@@ -170,7 +162,7 @@ trait MaudioNormalMeterCtlOperation<O: MaudioNormalMeterProtocol> {
         Ok(measure_elem_id_list)
     }
 
-    fn measure_meter(
+    fn cache_meter(
         &mut self,
         req: &FwReq,
         node: &FwNode,
