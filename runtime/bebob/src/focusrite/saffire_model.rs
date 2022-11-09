@@ -141,6 +141,8 @@ struct ReverbCtl(SaffireReverbParameters);
 
 impl SaffireModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -159,11 +161,9 @@ impl SaffireModel {
 impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

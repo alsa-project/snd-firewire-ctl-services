@@ -232,7 +232,9 @@ impl AvcSelectorCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
 }
 
 impl Phase88Model {
-    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.mixer_phys_src_ctl
@@ -260,11 +262,9 @@ impl Phase88Model {
 impl CtlModel<(SndUnit, FwNode)> for Phase88Model {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

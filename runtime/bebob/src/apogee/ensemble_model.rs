@@ -60,7 +60,9 @@ fn input_output_copy_from_meter(model: &mut EnsembleModel) {
 }
 
 impl EnsembleModel {
-    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.avc, FCP_TIMEOUT_MS)?;
@@ -78,11 +80,9 @@ impl EnsembleModel {
 impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

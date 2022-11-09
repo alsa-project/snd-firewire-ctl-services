@@ -352,6 +352,8 @@ impl MaudioNormalMixerCtlOperation<Fw410MixerProtocol> for MixerCtl {
 
 impl Fw410Model {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_input_ctl
@@ -381,11 +383,9 @@ impl Fw410Model {
 impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

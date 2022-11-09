@@ -469,7 +469,9 @@ impl InputSwitchCtl {
 }
 
 impl Inspire1394Model {
-    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
@@ -497,11 +499,9 @@ impl Inspire1394Model {
 impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

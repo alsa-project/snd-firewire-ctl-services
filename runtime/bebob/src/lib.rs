@@ -131,6 +131,10 @@ impl RuntimeOperation<u32> for BebobRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
+        self.model.cache(&mut self.unit)?;
+        enter.exit();
+
         let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
@@ -144,10 +148,6 @@ impl RuntimeOperation<u32> for BebobRuntime {
     }
 
     fn run(&mut self) -> Result<(), Error> {
-        let enter = debug_span!("cache").entered();
-        self.model.cache(&mut self.unit)?;
-        enter.exit();
-
         let enter = debug_span!("event").entered();
 
         loop {

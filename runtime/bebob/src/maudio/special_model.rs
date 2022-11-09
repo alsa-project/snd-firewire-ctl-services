@@ -44,6 +44,8 @@ struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
 impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         self.input_ctl
             .cache(&self.req, &unit.1, &mut self.cache, TIMEOUT_MS)?;
@@ -61,11 +63,9 @@ impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
 impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

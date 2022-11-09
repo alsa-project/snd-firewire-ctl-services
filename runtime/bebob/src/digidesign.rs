@@ -48,6 +48,8 @@ impl SamplingClkSrcCtlOperation<Mbox2proClkProtocol> for ClkCtl {
 
 impl Mbox2proModel {
     pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         let req = FwReq::default();
         Mbox2proIoProtocol::init(&req, &unit.1, TIMEOUT_MS)?;
 
@@ -61,11 +63,9 @@ impl Mbox2proModel {
 impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

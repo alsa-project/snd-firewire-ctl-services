@@ -156,7 +156,9 @@ where
     T: AvcLevelOperation + AvcLrBalanceOperation,
     MixerAnalogSourceCtl<T>: AvcLevelCtlOperation<T> + AvcLrBalanceCtlOperation<T>,
 {
-    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         self.analog_in_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
         self.analog_in_ctl
@@ -173,11 +175,9 @@ where
 {
     fn load(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
         self.analog_in_ctl.load_balance(card_cntr)?;
