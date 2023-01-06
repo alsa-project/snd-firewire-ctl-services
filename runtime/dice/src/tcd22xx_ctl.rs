@@ -1223,9 +1223,9 @@ where
         self.real_meter
             .resize_with(real_blk_dsts.len(), Default::default);
         self.stream_meter
-            .resize_with(real_blk_dsts.len(), Default::default);
+            .resize_with(stream_blk_dsts.len(), Default::default);
         self.mixer_meter
-            .resize_with(real_blk_dsts.len(), Default::default);
+            .resize_with(mixer_blk_dsts.len(), Default::default);
 
         let real_meter = &mut self.real_meter;
         let stream_meter = &mut self.stream_meter;
