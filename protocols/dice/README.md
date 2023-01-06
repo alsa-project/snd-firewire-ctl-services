@@ -95,6 +95,7 @@ This is the list of models currently supported.
  * Focusrite Saffire Pro 26
  * PreSonus FireStudio
  * PreSonus FireStudio Project
+ * PreSonus FireStudio Tube
  * PreSonus FireStudio Mobile
 
 For the other models, implementation for common and extension protocol is available without any
