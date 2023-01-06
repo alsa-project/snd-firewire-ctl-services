@@ -234,6 +234,7 @@ your device, please contact to developer.
   * Focusrite Saffire Pro 26
   * PreSonus FireStudio
   * PreSonus FireStudio Project
+  * PreSonus FireStudio Tube
   * PreSonus FireStudio Mobile
   * For the others, common controls are available. If supported, control extension is also available.
 

@@ -8,9 +8,9 @@ use {
         focusrite::spro26_model::*, focusrite::spro40_model::*, io_fw_model::*, ionix_model::*,
         mbox3_model::*, minimal_model::*, pfire_model::*, presonus::fstudio_model::*,
         presonus::fstudiomobile_model::*, presonus::fstudioproject_model::*,
-        tcelectronic::desktopk6_model::*, tcelectronic::itwin_model::*,
-        tcelectronic::k24d_model::*, tcelectronic::k8_model::*, tcelectronic::klive_model::*,
-        tcelectronic::studiok48_model::*, *,
+        presonus::fstudiotube_model::*, tcelectronic::desktopk6_model::*,
+        tcelectronic::itwin_model::*, tcelectronic::k24d_model::*, tcelectronic::k8_model::*,
+        tcelectronic::klive_model::*, tcelectronic::studiok48_model::*, *,
     },
     ieee1212_config_rom::*,
     protocols::tcat::config_rom::*,
@@ -41,6 +41,7 @@ enum Model {
     FocusriteSPro14(SPro14Model),
     FocusriteSPro26(SPro26Model),
     PresonusFStudioProject(FStudioProjectModel),
+    PresonusFStudioTube(FStudioTubeModel),
     PresonusFStudioMobile(FStudioMobileModel),
 }
 
@@ -96,6 +97,7 @@ impl DiceModel {
             (0x00130e, 0x000009) => Model::FocusriteSPro14(Default::default()),
             (0x00130e, 0x000012) => Model::FocusriteSPro26(SPro26Model::default()),
             (0x000a92, 0x00000b) => Model::PresonusFStudioProject(FStudioProjectModel::default()),
+            (0x000a92, 0x00000c) => Model::PresonusFStudioTube(FStudioTubeModel::default()),
             (0x000a92, 0x000011) => Model::PresonusFStudioMobile(FStudioMobileModel::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             (0x000595, 0x000000) |  // Alesis MultiMix 8/12/16 FireWire.
@@ -152,6 +154,7 @@ impl DiceModel {
             Model::FocusriteSPro14(m) => m.cache(unit),
             Model::FocusriteSPro26(m) => m.cache(unit),
             Model::PresonusFStudioProject(m) => m.cache(unit),
+            Model::PresonusFStudioTube(m) => m.cache(unit),
             Model::PresonusFStudioMobile(m) => m.cache(unit),
         }
     }
@@ -185,6 +188,7 @@ impl DiceModel {
             Model::FocusriteSPro14(m) => m.load(unit, card_cntr),
             Model::FocusriteSPro26(m) => m.load(unit, card_cntr),
             Model::PresonusFStudioProject(m) => m.load(unit, card_cntr),
+            Model::PresonusFStudioTube(m) => m.load(unit, card_cntr),
             Model::PresonusFStudioMobile(m) => m.load(unit, card_cntr),
         }?;
 
@@ -214,6 +218,7 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => {
                 m.get_notified_elem_list(&mut self.notified_elem_list)
             }
+            Model::PresonusFStudioTube(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::PresonusFStudioMobile(m) => {
                 m.get_notified_elem_list(&mut self.notified_elem_list)
             }
@@ -245,6 +250,7 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => {
                 m.get_measure_elem_list(&mut self.measured_elem_list)
             }
+            Model::PresonusFStudioTube(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::PresonusFStudioMobile(m) => {
                 m.get_measure_elem_list(&mut self.measured_elem_list)
             }
@@ -288,6 +294,9 @@ impl DiceModel {
             Model::FocusriteSPro14(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteSPro26(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFStudioProject(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
+            Model::PresonusFStudioTube(m) => {
                 card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
             Model::PresonusFStudioMobile(m) => {
@@ -372,6 +381,9 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => {
                 card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
+            Model::PresonusFStudioTube(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
             Model::PresonusFStudioMobile(m) => {
                 card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
@@ -413,6 +425,9 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => {
                 card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
+            Model::PresonusFStudioTube(m) => {
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
+            }
             Model::PresonusFStudioMobile(m) => {
                 card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
@@ -433,6 +448,7 @@ impl DiceModel {
             Model::FocusriteSPro14(m) => m.store_configuration(node),
             Model::FocusriteSPro26(m) => m.store_configuration(node),
             Model::PresonusFStudioProject(m) => m.store_configuration(node),
+            Model::PresonusFStudioTube(m) => m.store_configuration(node),
             Model::PresonusFStudioMobile(m) => m.store_configuration(node),
             _ => Ok(()),
         }

@@ -4,5 +4,6 @@ pub mod fstudio_model;
 
 pub mod fstudiomobile_model;
 pub mod fstudioproject_model;
+pub mod fstudiotube_model;
 
 use super::*;
