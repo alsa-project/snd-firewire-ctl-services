@@ -10,5 +10,6 @@ pub mod fstudio;
 
 pub mod fstudiomobile;
 pub mod fstudioproject;
+pub mod fstudiotube;
 
 use super::{tcat::*, *};
