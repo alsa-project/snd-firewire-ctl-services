@@ -724,7 +724,7 @@ impl<O: TcatExtensionOperation + SaffireproIoParamsSpecification>
             req,
             node,
             &sections.application,
-            IO_PARAMS_SIZE,
+            IO_PARAMS_OFFSET,
             &mut raw,
             timeout_ms,
         )?;
