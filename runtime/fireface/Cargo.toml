@@ -12,7 +12,7 @@ publish = false
 
 [dependencies]
 glib = "0.15"
-nix = "0.17"
+nix = "0"
 hinawa = "0.7"
 hitaki = "0.2"
 alsactl = "0.4"

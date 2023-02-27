@@ -12,7 +12,7 @@ publish = false
 
 [dependencies]
 libc = "0.2"
-nix = "0.17"
+nix = "0"
 glib = "0.15"
 hinawa = "0.7"
 hitaki = "0.2"

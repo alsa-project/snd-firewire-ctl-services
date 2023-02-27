@@ -11,7 +11,7 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dependencies]
-nix = "0.17"
+nix = "0"
 glib = "0.15"
 hinawa = "0.7"
 hitaki = "0.2"
