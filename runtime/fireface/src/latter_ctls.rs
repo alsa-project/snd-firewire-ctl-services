@@ -282,17 +282,21 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
             }
             INPUT_LINE_LEVEL_NAME => {
                 let mut state = self.state().input.clone();
-                let vals = &elem_value.enumerated()[..state.line_levels.len()];
-                vals.iter().enumerate().try_for_each(|(i, &pos)| {
-                    Self::LINE_LEVELS
-                        .iter()
-                        .nth(pos as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of input nominal level: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| state.line_levels[i] = l)
-                })?;
+                state
+                    .line_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::LINE_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of input nominal level: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
@@ -507,17 +511,21 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
             }
             LINE_LEVEL_NAME => {
                 let mut state = self.state().output.clone();
-                let vals = elem_value.enumerated();
-                vals.iter().enumerate().try_for_each(|(i, &pos)| {
-                    Self::LINE_LEVELS
-                        .iter()
-                        .nth(pos as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid for index of output nominal level: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| state.line_levels[i] = l)
-                })?;
+                state
+                    .line_levels
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
+                        Self::LINE_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid for index of output nominal level: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| *level = l)
+                    })?;
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
