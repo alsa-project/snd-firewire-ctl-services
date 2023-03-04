@@ -776,6 +776,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
     const PHYS_OUTPUT_BALANCE_STEP: i32 = 1;
 
     const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
+    const OUTPUT_PAIR_COUNT: usize = Self::OUTPUT_COUNT / 2;
 
     fn init_output(
         req: &mut FwReq,
@@ -802,16 +803,16 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
     }
 
     fn output_state_to_cmds(state: &FfLatterOutputState) -> Vec<u32> {
-        assert_eq!(state.vols.len(), Self::PHYS_INPUT_COUNT);
-        assert_eq!(state.stereo_balance.len(), Self::PHYS_INPUT_COUNT / 2);
-        assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
-        assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
+        assert_eq!(state.vols.len(), Self::OUTPUT_COUNT);
+        assert_eq!(state.stereo_balance.len(), Self::OUTPUT_PAIR_COUNT);
+        assert_eq!(state.stereo_links.len(), Self::OUTPUT_PAIR_COUNT);
+        assert_eq!(state.invert_phases.len(), Self::OUTPUT_COUNT);
         assert_eq!(state.line_levels.len(), Self::LINE_OUTPUT_COUNT);
 
         let mut cmds = Vec::new();
 
         state.vols.iter().enumerate().for_each(|(i, &vol)| {
-            let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+            let ch = Self::CH_OFFSET + i as u8;
             cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
         });
 
@@ -820,7 +821,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
             .iter()
             .enumerate()
             .for_each(|(i, &balance)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i * 2) as u8;
+                let ch = Self::CH_OFFSET + i as u8;
                 cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
             });
 
@@ -829,7 +830,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
             .iter()
             .enumerate()
             .for_each(|(i, &link)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i * 2) as u8;
+                let ch = Self::CH_OFFSET + i as u8;
                 cmds.push(create_phys_port_cmd(
                     ch,
                     OUTPUT_STEREO_LINK_CMD,
@@ -842,7 +843,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
             .iter()
             .enumerate()
             .for_each(|(i, &invert_phase)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                let ch = Self::CH_OFFSET + i as u8;
                 cmds.push(create_phys_port_cmd(
                     ch,
                     OUTPUT_INVERT_PHASE_CMD,
@@ -855,7 +856,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
             .iter()
             .enumerate()
             .for_each(|(i, &line_level)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                let ch = Self::CH_OFFSET + i as u8;
                 cmds.push(create_phys_port_cmd(
                     ch,
                     OUTPUT_LINE_LEVEL_CMD,
