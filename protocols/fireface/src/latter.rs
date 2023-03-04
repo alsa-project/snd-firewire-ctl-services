@@ -636,7 +636,8 @@ pub struct FfLatterInputState {
     pub line_gains: Vec<i16>,
     /// The nominal level of analog line input.
     pub line_levels: Vec<LatterInNominalLevel>,
-    /// Whether to enable powering for mic input.
+    /// Whether to enable powering for mic input. This setting has no effect when the microphone is
+    /// used for instrument.
     pub mic_powers: Vec<bool>,
     /// Whether to use mic input for instrument.
     pub mic_insts: Vec<bool>,
@@ -718,18 +719,18 @@ pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
                 cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
             });
 
-        state.mic_powers.iter().enumerate().for_each(|(i, &power)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, power as i16));
-        });
+        (0..Self::MIC_INPUT_COUNT).for_each(|i| {
+            // NOTE: The offset is required for microphone inputs.
+            let ch = (Self::LINE_INPUT_COUNT + i) as u8;
 
-        state.mic_insts.iter().enumerate().for_each(|(i, &inst)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(
-                ch as u8,
-                INPUT_MIC_INST_CMD,
-                inst as i16,
-            ));
+            let cmd = create_phys_port_cmd(ch, INPUT_MIC_INST_CMD, state.mic_insts[i] as i16);
+            cmds.push(cmd);
+
+            // NOTE: When enabling the setting for instrument, the setting for phantom powering is
+            // disabled automatically.
+            let powering = state.mic_powers[i] && !state.mic_insts[i];
+            let cmd = create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, powering as i16);
+            cmds.push(cmd);
         });
 
         cmds

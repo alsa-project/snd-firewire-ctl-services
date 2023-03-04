@@ -195,7 +195,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
         let _ = card_cntr.add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_POWER_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::LINE_INPUT_COUNT, true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_INST_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
