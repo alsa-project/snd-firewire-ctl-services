@@ -14,9 +14,9 @@ pub struct Ff800Model {
     req: FwReq,
     meter_ctl: FormerMeterCtl<Ff800Protocol>,
     out_ctl: FormerOutputCtl<Ff800Protocol>,
+    mixer_ctl: FormerMixerCtl<Ff800Protocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
-    mixer_ctl: MixerCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -30,9 +30,12 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.out_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
         self.status_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(
@@ -42,8 +45,6 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
             card_cntr,
             TIMEOUT_MS,
         )?;
-        self.mixer_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -58,9 +59,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
             Ok(true)
         } else if self.out_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.cfg_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.mixer_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -86,7 +87,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -122,19 +123,6 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff800Model {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerCtl(FormerMixerState);
-
-impl FormerMixerCtlOperation<Ff800Protocol> for MixerCtl {
-    fn state(&self) -> &FormerMixerState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut FormerMixerState {
-        &mut self.0
     }
 }
 
