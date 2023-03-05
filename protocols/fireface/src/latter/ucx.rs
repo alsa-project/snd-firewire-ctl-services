@@ -36,25 +36,23 @@ impl Default for FfUcxClkSrc {
     }
 }
 
-impl FfUcxClkSrc {
-    fn build(&self, quad: &mut u32) {
-        *quad |= match self {
-            Self::WordClk => CFG_CLK_SRC_WORD_CLK_FLAG,
-            Self::Opt => CFG_CLK_SRC_OPT_IFACE_FLAG,
-            Self::Coax => CFG_CLK_SRC_COAX_IFACE_FLAG,
-            Self::Internal => CFG_CLK_SRC_INTERNAL_FLAG,
-        };
-    }
+fn serialize_clock_source(src: &FfUcxClkSrc, quad: &mut u32) {
+    *quad |= match src {
+        FfUcxClkSrc::WordClk => CFG_CLK_SRC_WORD_CLK_FLAG,
+        FfUcxClkSrc::Opt => CFG_CLK_SRC_OPT_IFACE_FLAG,
+        FfUcxClkSrc::Coax => CFG_CLK_SRC_COAX_IFACE_FLAG,
+        FfUcxClkSrc::Internal => CFG_CLK_SRC_INTERNAL_FLAG,
+    };
+}
 
-    fn parse(&mut self, quad: &u32) {
-        match *quad & CFG_CLK_SRC_MASK {
-            CFG_CLK_SRC_WORD_CLK_FLAG => Self::WordClk,
-            CFG_CLK_SRC_OPT_IFACE_FLAG => Self::Opt,
-            CFG_CLK_SRC_COAX_IFACE_FLAG => Self::Coax,
-            CFG_CLK_SRC_INTERNAL_FLAG => Self::Internal,
-            _ => unreachable!(),
-        };
-    }
+fn deserialize_clock_source(src: &mut FfUcxClkSrc, quad: &u32) {
+    *src = match *quad & CFG_CLK_SRC_MASK {
+        CFG_CLK_SRC_WORD_CLK_FLAG => FfUcxClkSrc::WordClk,
+        CFG_CLK_SRC_OPT_IFACE_FLAG => FfUcxClkSrc::Opt,
+        CFG_CLK_SRC_COAX_IFACE_FLAG => FfUcxClkSrc::Coax,
+        CFG_CLK_SRC_INTERNAL_FLAG => FfUcxClkSrc::Internal,
+        _ => unreachable!(),
+    };
 }
 
 /// Configuration for UCX.
@@ -79,7 +77,7 @@ pub struct FfUcxConfig {
 impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
     fn serialize(&self, quad: &mut u32) {
         serialize_midi_tx_low_offset(&self.midi_tx_low_offset, quad);
-        self.clk_src.build(quad);
+        serialize_clock_source(&self.clk_src, quad);
 
         if self.opt_out_signal == OpticalOutputSignal::Spdif {
             *quad |= CFG_SPDIF_OUT_TO_OPT_IFACE_MASK;
@@ -104,7 +102,7 @@ impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
 
     fn deserialize(&mut self, quad: &u32) {
         deserialize_midi_tx_low_offset(&mut self.midi_tx_low_offset, quad);
-        self.clk_src.parse(quad);
+        deserialize_clock_source(&mut self.clk_src, quad);
 
         self.opt_out_signal = if *quad & CFG_SPDIF_OUT_TO_OPT_IFACE_MASK > 0 {
             OpticalOutputSignal::Spdif
@@ -140,9 +138,11 @@ const STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32 = 0x00000600;
 const STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG: u32 = 0x00000400;
 const STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG: u32 = 0x00000200;
 const STATUS_OPT_OUT_IFACE_FOR_ADAT: u32 = 0x00000100;
+const STATUS_SYNC_MASK: u32 = 0x00000070;
 const STATUS_SYNC_WORD_CLK_MASK: u32 = 0x00000040;
 const STATUS_SYNC_OPT_IFACE_MASK: u32 = 0x00000020;
 const STATUS_SYNC_COAX_IFACE_MASK: u32 = 0x00000010;
+const STATUS_LOCK_MASK: u32 = 0x00000007;
 const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000004;
 const STATUS_LOCK_OPT_IFACE_MASK: u32 = 0x00000002;
 const STATUS_LOCK_COAX_IFACE_MASK: u32 = 0x00000001;
@@ -155,24 +155,23 @@ pub struct FfUcxExtLockStatus {
     pub coax_iface: bool,
 }
 
-impl FfUcxExtLockStatus {
-    fn build(&self, quad: &mut u32) {
-        if self.word_clk {
-            *quad |= STATUS_LOCK_WORD_CLK_MASK;
-        }
-        if self.opt_iface {
-            *quad |= STATUS_LOCK_OPT_IFACE_MASK;
-        }
-        if self.coax_iface {
-            *quad |= STATUS_LOCK_COAX_IFACE_MASK;
-        }
+fn serialize_external_lock_status(status: &FfUcxExtLockStatus, quad: &mut u32) {
+    *quad &= !STATUS_LOCK_MASK;
+    if status.word_clk {
+        *quad |= STATUS_LOCK_WORD_CLK_MASK;
     }
+    if status.opt_iface {
+        *quad |= STATUS_LOCK_OPT_IFACE_MASK;
+    }
+    if status.coax_iface {
+        *quad |= STATUS_LOCK_COAX_IFACE_MASK;
+    }
+}
 
-    fn parse(&mut self, quad: &u32) {
-        self.word_clk = *quad & STATUS_LOCK_WORD_CLK_MASK > 0;
-        self.opt_iface = *quad & STATUS_LOCK_OPT_IFACE_MASK > 0;
-        self.coax_iface = *quad & STATUS_LOCK_COAX_IFACE_MASK > 0;
-    }
+fn deserialize_external_lock_status(status: &mut FfUcxExtLockStatus, quad: &u32) {
+    status.word_clk = *quad & STATUS_LOCK_WORD_CLK_MASK > 0;
+    status.opt_iface = *quad & STATUS_LOCK_OPT_IFACE_MASK > 0;
+    status.coax_iface = *quad & STATUS_LOCK_COAX_IFACE_MASK > 0;
 }
 
 /// Sync status of UCX.
@@ -183,24 +182,23 @@ pub struct FfUcxExtSyncStatus {
     pub coax_iface: bool,
 }
 
-impl FfUcxExtSyncStatus {
-    fn build(&self, quad: &mut u32) {
-        if self.word_clk {
-            *quad |= STATUS_SYNC_WORD_CLK_MASK;
-        }
-        if self.opt_iface {
-            *quad |= STATUS_SYNC_OPT_IFACE_MASK;
-        }
-        if self.coax_iface {
-            *quad |= STATUS_SYNC_COAX_IFACE_MASK;
-        }
+fn serialize_external_sync_status(status: &FfUcxExtSyncStatus, quad: &mut u32) {
+    *quad &= !STATUS_SYNC_MASK;
+    if status.word_clk {
+        *quad |= STATUS_SYNC_WORD_CLK_MASK;
     }
+    if status.opt_iface {
+        *quad |= STATUS_SYNC_OPT_IFACE_MASK;
+    }
+    if status.coax_iface {
+        *quad |= STATUS_SYNC_COAX_IFACE_MASK;
+    }
+}
 
-    fn parse(&mut self, quad: &u32) {
-        self.word_clk = *quad & STATUS_SYNC_WORD_CLK_MASK > 0;
-        self.opt_iface = *quad & STATUS_SYNC_OPT_IFACE_MASK > 0;
-        self.coax_iface = *quad & STATUS_SYNC_COAX_IFACE_MASK > 0;
-    }
+fn deserialize_external_sync_status(status: &mut FfUcxExtSyncStatus, quad: &u32) {
+    status.word_clk = *quad & STATUS_SYNC_WORD_CLK_MASK > 0;
+    status.opt_iface = *quad & STATUS_SYNC_OPT_IFACE_MASK > 0;
+    status.coax_iface = *quad & STATUS_SYNC_COAX_IFACE_MASK > 0;
 }
 
 /// Sync status of UCX.
@@ -211,29 +209,43 @@ pub struct FfUcxExtRateStatus {
     pub coax_iface: Option<ClkNominalRate>,
 }
 
-impl FfUcxExtRateStatus {
-    fn build(&self, quad: &mut u32) {
-        serialize_clock_rate_optional(&self.word_clk, quad, 20);
-        serialize_clock_rate_optional(&self.opt_iface, quad, 16);
-        serialize_clock_rate_optional(&self.coax_iface, quad, 12);
-    }
+fn serialize_external_rate(
+    rate: &Option<ClkNominalRate>,
+    quad: &mut u32,
+    shift: usize,
+    lock_flag: u32,
+) {
+    serialize_clock_rate_optional(rate, quad, shift);
 
-    fn parse(&mut self, quad: &u32) {
-        if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
-            deserialize_clock_rate_optional(&mut self.word_clk, quad, 20);
-        } else {
-            self.word_clk = None;
-        }
-        if *quad & (STATUS_SYNC_OPT_IFACE_MASK | STATUS_LOCK_OPT_IFACE_MASK) > 0 {
-            deserialize_clock_rate_optional(&mut self.opt_iface, quad, 16);
-        } else {
-            self.opt_iface = None;
-        }
-        if *quad & (STATUS_SYNC_COAX_IFACE_MASK | STATUS_LOCK_COAX_IFACE_MASK) > 0 {
-            deserialize_clock_rate_optional(&mut self.coax_iface, quad, 12);
-        } else {
-            self.coax_iface = None;
-        }
+    // NOTE: The lock flag should stand.
+    if rate.is_some() {
+        *quad |= lock_flag;
+    }
+}
+
+fn serialize_external_rate_status(status: &FfUcxExtRateStatus, quad: &mut u32) {
+    *quad &=
+        !(STATUS_WORD_CLK_RATE_MASK | STATUS_OPT_IFACE_RATE_MASK | STATUS_COAX_IFACE_RATE_MASK);
+    serialize_external_rate(&status.word_clk, quad, 20, STATUS_LOCK_WORD_CLK_MASK);
+    serialize_external_rate(&status.opt_iface, quad, 16, STATUS_LOCK_OPT_IFACE_MASK);
+    serialize_external_rate(&status.coax_iface, quad, 12, STATUS_LOCK_COAX_IFACE_MASK);
+}
+
+fn deserialize_external_rate_status(status: &mut FfUcxExtRateStatus, quad: &u32) {
+    if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
+        deserialize_clock_rate_optional(&mut status.word_clk, quad, 20);
+    } else {
+        status.word_clk = None;
+    }
+    if *quad & (STATUS_SYNC_OPT_IFACE_MASK | STATUS_LOCK_OPT_IFACE_MASK) > 0 {
+        deserialize_clock_rate_optional(&mut status.opt_iface, quad, 16);
+    } else {
+        status.opt_iface = None;
+    }
+    if *quad & (STATUS_SYNC_COAX_IFACE_MASK | STATUS_LOCK_COAX_IFACE_MASK) > 0 {
+        deserialize_clock_rate_optional(&mut status.coax_iface, quad, 12);
+    } else {
+        status.coax_iface = None;
     }
 }
 
@@ -250,16 +262,18 @@ pub struct FfUcxStatus {
 
 impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
     fn serialize(&self, quad: &mut u32) {
-        self.ext_lock.build(quad);
-        self.ext_sync.build(quad);
-        self.ext_rate.build(quad);
+        serialize_external_lock_status(&self.ext_lock, quad);
+        serialize_external_sync_status(&self.ext_sync, quad);
+        serialize_external_rate_status(&self.ext_rate, quad);
 
+        *quad &= !STATUS_OPT_OUT_IFACE_FOR_ADAT;
         if self.opt_out_signal == OpticalOutputSignal::Adat {
             *quad |= STATUS_OPT_OUT_IFACE_FOR_ADAT;
         }
 
         serialize_clock_rate(&self.active_clk_rate, quad, 24);
 
+        *quad &= !STATUS_ACTIVE_CLK_SRC_MASK;
         let val = match self.active_clk_src {
             FfUcxClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
             FfUcxClkSrc::Coax => STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG,
@@ -270,9 +284,9 @@ impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
     }
 
     fn deserialize(&mut self, quad: &u32) {
-        self.ext_lock.parse(quad);
-        self.ext_sync.parse(quad);
-        self.ext_rate.parse(quad);
+        deserialize_external_lock_status(&mut self.ext_lock, quad);
+        deserialize_external_sync_status(&mut self.ext_sync, quad);
+        deserialize_external_rate_status(&mut self.ext_rate, quad);
 
         self.opt_out_signal = if *quad & STATUS_OPT_OUT_IFACE_FOR_ADAT > 0 {
             OpticalOutputSignal::Adat
@@ -329,4 +343,122 @@ impl RmeFfLatterDspOperation for FfUcxProtocol {
     const HP_OUTPUT_COUNT: usize = HP_OUTPUT_COUNT;
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn clock_source_serdes() {
+        [
+            FfUcxClkSrc::WordClk,
+            FfUcxClkSrc::Opt,
+            FfUcxClkSrc::Coax,
+            FfUcxClkSrc::Internal,
+        ]
+        .iter()
+        .for_each(|orig| {
+            let mut quad = 0;
+            serialize_clock_source(&orig, &mut quad);
+            let mut target = FfUcxClkSrc::default();
+            deserialize_clock_source(&mut target, &quad);
+
+            assert_eq!(&target, orig);
+        });
+    }
+
+    #[test]
+    fn config_serdes() {
+        let orig = FfUcxConfig {
+            midi_tx_low_offset: FfLatterMidiTxLowOffset::A0180,
+            clk_src: FfUcxClkSrc::Opt,
+            opt_out_signal: OpticalOutputSignal::Spdif,
+            word_out_single: true,
+            effect_on_inputs: true,
+            word_in_terminate: true,
+            spdif_out_format: SpdifFormat::Professional,
+        };
+        let mut quad = 0;
+        orig.serialize(&mut quad);
+        let mut target = FfUcxConfig::default();
+        target.deserialize(&quad);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn external_lock_status_serdes() {
+        let orig = FfUcxExtLockStatus {
+            word_clk: true,
+            opt_iface: true,
+            coax_iface: true,
+        };
+        let mut quad = 0;
+        serialize_external_lock_status(&orig, &mut quad);
+        let mut target = FfUcxExtLockStatus::default();
+        deserialize_external_lock_status(&mut target, &quad);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn external_sync_status_serdes() {
+        let orig = FfUcxExtSyncStatus {
+            word_clk: true,
+            opt_iface: true,
+            coax_iface: true,
+        };
+        let mut quad = 0;
+        serialize_external_sync_status(&orig, &mut quad);
+        let mut target = FfUcxExtSyncStatus::default();
+        deserialize_external_sync_status(&mut target, &quad);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn external_rate_status_serdes() {
+        let orig = FfUcxExtRateStatus {
+            word_clk: Some(ClkNominalRate::R88200),
+            opt_iface: Some(ClkNominalRate::R192000),
+            coax_iface: Some(ClkNominalRate::R44100),
+        };
+        let mut quad = 0;
+        serialize_external_rate_status(&orig, &mut quad);
+        let mut target = FfUcxExtRateStatus::default();
+        deserialize_external_rate_status(&mut target, &quad);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn status_serdes() {
+        let orig = FfUcxStatus {
+            ext_lock: FfUcxExtLockStatus {
+                word_clk: true,
+                opt_iface: false,
+                coax_iface: true,
+            },
+            ext_sync: FfUcxExtSyncStatus {
+                word_clk: false,
+                opt_iface: false,
+                coax_iface: true,
+            },
+            ext_rate: FfUcxExtRateStatus {
+                word_clk: Some(ClkNominalRate::R176400),
+                opt_iface: None,
+                coax_iface: Some(ClkNominalRate::R48000),
+            },
+            opt_out_signal: OpticalOutputSignal::Spdif,
+            active_clk_src: FfUcxClkSrc::Opt,
+            active_clk_rate: ClkNominalRate::R88200,
+        };
+        let mut quad = 0;
+        orig.serialize(&mut quad);
+        let mut target = FfUcxStatus::default();
+        target.deserialize(&quad);
+
+        assert_eq!(target, orig);
+    }
 }
