@@ -12,9 +12,9 @@ use {
 #[derive(Default, Debug)]
 pub struct Ff802Model {
     req: FwReq,
+    meter_ctl: LatterMeterCtl<Ff802Protocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
-    meter_ctl: MeterCtl,
     dsp_ctl: DspCtl,
 }
 
@@ -26,13 +26,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.meter_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr)?;
+
         self.cfg_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.status_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
-        self.meter_ctl
-            .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.dsp_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         Ok(())
@@ -44,7 +45,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.cfg_ctl.read(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.dsp_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -78,14 +81,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
 
 impl MeasureModel<(SndUnit, FwNode)> for Ff802Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.status_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
@@ -96,26 +99,13 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff802Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.status_ctl.read_measured_elem(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.status_ctl.read_measured_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MeterCtl(FfLatterMeterState, Vec<ElemId>);
-
-impl FfLatterMeterCtlOperation<Ff802Protocol> for MeterCtl {
-    fn meter(&self) -> &FfLatterMeterState {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut FfLatterMeterState {
-        &mut self.0
     }
 }
 
