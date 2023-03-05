@@ -50,26 +50,24 @@ impl RmeFfFormerMeterOperation for Ff400Protocol {
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
 
-impl Ff400Protocol {
-    pub fn write_amp_cmd(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: u8,
-        level: i8,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
-        let mut raw = [0; 4];
-        raw.copy_from_slice(&cmd.to_le_bytes());
-        req.transaction_sync(
-            node,
-            FwTcode::WriteQuadletRequest,
-            AMP_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-    }
+fn write_amp_cmd(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    ch: u8,
+    level: i8,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
+    let mut raw = [0; 4];
+    raw.copy_from_slice(&cmd.to_le_bytes());
+    req.transaction_sync(
+        node,
+        FwTcode::WriteQuadletRequest,
+        AMP_OFFSET as u64,
+        raw.len(),
+        &mut raw,
+        timeout_ms,
+    )
 }
 
 /// Status of input gains of Fireface 400.
@@ -91,7 +89,7 @@ impl Ff400Protocol {
         gain: i8,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_amp_cmd(req, node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
+        write_amp_cmd(req, node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
     }
 
     pub fn write_input_line_gain(
@@ -101,7 +99,7 @@ impl Ff400Protocol {
         gain: i8,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_amp_cmd(
+        write_amp_cmd(
             req,
             node,
             AMP_LINE_IN_CH_OFFSET + ch as u8,
@@ -191,7 +189,7 @@ impl RmeFormerOutputOperation for Ff400Protocol {
             // (=mute) to +6 dB.
             let level = (0x3f * (vol as i64) / (0x00010000 as i64)) as i8;
             let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
-            Self::write_amp_cmd(req, node, amp_offset, level, timeout_ms)
+            write_amp_cmd(req, node, amp_offset, level, timeout_ms)
         })
     }
 }
@@ -292,11 +290,35 @@ pub struct Ff400ClkLockStatus {
 }
 
 impl Ff400ClkLockStatus {
-    fn parse(&mut self, quads: &[u32]) {
-        self.adat = quads[0] & Q0_LOCK_ADAT_MASK > 0;
-        self.spdif = quads[0] & Q0_LOCK_SPDIF_MASK > 0;
-        self.word_clock = quads[0] & Q0_LOCK_WORD_CLOCK_MASK > 0;
+    const QUADLET_COUNT: usize = 1;
+}
+
+#[cfg(test)]
+fn serialize_lock_status(status: &Ff400ClkLockStatus, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400ClkLockStatus::QUADLET_COUNT);
+
+    quads[0] &= !Q0_LOCK_ADAT_MASK;
+    if status.adat {
+        quads[0] |= Q0_LOCK_ADAT_MASK;
     }
+
+    quads[0] &= !Q0_LOCK_SPDIF_MASK;
+    if status.spdif {
+        quads[0] |= Q0_LOCK_SPDIF_MASK;
+    }
+
+    quads[0] &= !Q0_LOCK_WORD_CLOCK_MASK;
+    if status.word_clock {
+        quads[0] |= Q0_LOCK_WORD_CLOCK_MASK;
+    }
+}
+
+fn deserialize_lock_status(status: &mut Ff400ClkLockStatus, quads: &[u32]) {
+    assert!(quads.len() >= Ff400ClkLockStatus::QUADLET_COUNT);
+
+    status.adat = quads[0] & Q0_LOCK_ADAT_MASK > 0;
+    status.spdif = quads[0] & Q0_LOCK_SPDIF_MASK > 0;
+    status.word_clock = quads[0] & Q0_LOCK_WORD_CLOCK_MASK > 0;
 }
 
 /// Status of clock synchronization.
@@ -308,11 +330,35 @@ pub struct Ff400ClkSyncStatus {
 }
 
 impl Ff400ClkSyncStatus {
-    fn parse(&mut self, quads: &[u32]) {
-        self.adat = quads[0] & Q0_SYNC_ADAT_MASK > 0;
-        self.spdif = quads[0] & Q0_SYNC_SPDIF_MASK > 0;
-        self.word_clock = quads[0] & Q0_SYNC_WORD_CLOCK_MASK > 0;
+    const QUADLET_COUNT: usize = 1;
+}
+
+#[cfg(test)]
+fn serialize_sync_status(status: &Ff400ClkSyncStatus, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400ClkSyncStatus::QUADLET_COUNT);
+
+    quads[0] &= !Q0_SYNC_ADAT_MASK;
+    if status.adat {
+        quads[0] |= Q0_SYNC_ADAT_MASK;
     }
+
+    quads[0] &= !Q0_SYNC_SPDIF_MASK;
+    if status.spdif {
+        quads[0] |= Q0_SYNC_SPDIF_MASK;
+    }
+
+    quads[0] &= !Q0_SYNC_WORD_CLOCK_MASK;
+    if status.word_clock {
+        quads[0] |= Q0_SYNC_WORD_CLOCK_MASK;
+    }
+}
+
+fn deserialize_sync_status(status: &mut Ff400ClkSyncStatus, quads: &[u32]) {
+    assert!(quads.len() >= Ff400ClkSyncStatus::QUADLET_COUNT);
+
+    status.adat = quads[0] & Q0_SYNC_ADAT_MASK > 0;
+    status.spdif = quads[0] & Q0_SYNC_SPDIF_MASK > 0;
+    status.word_clock = quads[0] & Q0_SYNC_WORD_CLOCK_MASK > 0;
 }
 
 /// Status of clock synchronization.
@@ -340,90 +386,189 @@ pub struct Ff400Status {
 
 impl Ff400Status {
     const QUADLET_COUNT: usize = 2;
+}
 
-    fn parse(&mut self, quads: &[u32]) {
-        assert_eq!(quads.len(), Self::QUADLET_COUNT);
+#[cfg(test)]
+fn serialize_status(status: &Ff400Status, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
 
-        self.lock.parse(&quads);
-        self.sync.parse(&quads);
+    serialize_lock_status(&status.lock, quads);
+    serialize_sync_status(&status.sync, quads);
 
-        self.spdif_rate = match quads[0] & Q0_SPDIF_RATE_MASK {
-            Q0_SPDIF_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
-            Q0_SPDIF_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
-            Q0_SPDIF_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
-            Q0_SPDIF_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
-            Q0_SPDIF_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
-            Q0_SPDIF_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
-            Q0_SPDIF_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
-            Q0_SPDIF_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
-            Q0_SPDIF_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
-            _ => None,
+    quads[0] &= !Q0_SPDIF_RATE_MASK;
+    if let Some(rate) = &status.spdif_rate {
+        let flag = match rate {
+            ClkNominalRate::R32000 => Q0_SPDIF_RATE_32000_FLAG,
+            ClkNominalRate::R44100 => Q0_SPDIF_RATE_44100_FLAG,
+            ClkNominalRate::R48000 => Q0_SPDIF_RATE_48000_FLAG,
+            ClkNominalRate::R64000 => Q0_SPDIF_RATE_64000_FLAG,
+            ClkNominalRate::R88200 => Q0_SPDIF_RATE_88200_FLAG,
+            ClkNominalRate::R96000 => Q0_SPDIF_RATE_96000_FLAG,
+            ClkNominalRate::R128000 => Q0_SPDIF_RATE_128000_FLAG,
+            ClkNominalRate::R176400 => Q0_SPDIF_RATE_176400_FLAG,
+            ClkNominalRate::R192000 => Q0_SPDIF_RATE_192000_FLAG,
         };
-
-        self.active_clk_src = match quads[0] & Q0_ACTIVE_CLK_SRC_MASK {
-            Q0_ACTIVE_CLK_SRC_ADAT_FLAG => Ff400ClkSrc::Adat,
-            Q0_ACTIVE_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
-            Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
-            Q0_ACTIVE_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
-            Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
-            _ => unreachable!(),
-        };
-
-        self.external_clk_rate = match quads[0] & Q0_EXT_CLK_RATE_MASK {
-            Q0_EXT_CLK_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
-            Q0_EXT_CLK_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
-            Q0_EXT_CLK_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
-            Q0_EXT_CLK_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
-            Q0_EXT_CLK_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
-            Q0_EXT_CLK_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
-            Q0_EXT_CLK_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
-            Q0_EXT_CLK_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
-            Q0_EXT_CLK_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
-            _ => None,
-        };
-
-        self.spdif_in.iface = if quads[1] & Q1_SPDIF_IN_IFACE_MASK > 0 {
-            SpdifIface::Optical
-        } else {
-            SpdifIface::Coaxial
-        };
-
-        self.spdif_out.format = if quads[1] & Q1_SPDIF_OUT_FMT_MASK > 0 {
-            SpdifFormat::Professional
-        } else {
-            SpdifFormat::Consumer
-        };
-
-        self.spdif_out.emphasis = quads[1] & Q1_SPDIF_OUT_EMPHASIS_MASK > 0;
-
-        self.opt_out_signal = if quads[1] & Q1_OPT_OUT_SIGNAL_MASK > 0 {
-            OpticalOutputSignal::Spdif
-        } else {
-            OpticalOutputSignal::Adat
-        };
-
-        self.word_out_single = quads[1] & Q1_WORD_OUT_SINGLE_MASK > 0;
-
-        self.configured_clk_src = match quads[1] & Q1_CONF_CLK_SRC_MASK {
-            Q1_CONF_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
-            Q1_CONF_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
-            Q1_CONF_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
-            Q1_CONF_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
-            Q1_CONF_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
-        };
-
-        self.configured_clk_rate = match quads[1] & Q1_CONF_CLK_RATE_MASK {
-            Q1_CONF_CLK_RATE_32000_FLAG => ClkNominalRate::R32000,
-            Q1_CONF_CLK_RATE_48000_FLAG => ClkNominalRate::R48000,
-            Q1_CONF_CLK_RATE_64000_FLAG => ClkNominalRate::R64000,
-            Q1_CONF_CLK_RATE_88200_FLAG => ClkNominalRate::R88200,
-            Q1_CONF_CLK_RATE_96000_FLAG => ClkNominalRate::R96000,
-            Q1_CONF_CLK_RATE_128000_FLAG => ClkNominalRate::R128000,
-            Q1_CONF_CLK_RATE_176400_FLAG => ClkNominalRate::R176400,
-            Q1_CONF_CLK_RATE_192000_FLAG => ClkNominalRate::R192000,
-            Q1_CONF_CLK_RATE_44100_FLAG | _ => ClkNominalRate::R44100,
-        };
+        quads[0] |= flag;
     }
+
+    quads[0] &= !Q0_ACTIVE_CLK_SRC_MASK;
+    let flag = match status.active_clk_src {
+        Ff400ClkSrc::Adat => Q0_ACTIVE_CLK_SRC_ADAT_FLAG,
+        Ff400ClkSrc::Spdif => Q0_ACTIVE_CLK_SRC_SPDIF_FLAG,
+        Ff400ClkSrc::WordClock => Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
+        Ff400ClkSrc::Ltc => Q0_ACTIVE_CLK_SRC_LTC_FLAG,
+        Ff400ClkSrc::Internal => Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG,
+    };
+    quads[0] |= flag;
+
+    quads[0] &= !Q0_EXT_CLK_RATE_MASK;
+    if let Some(rate) = &status.external_clk_rate {
+        let flag = match rate {
+            ClkNominalRate::R32000 => Q0_EXT_CLK_RATE_32000_FLAG,
+            ClkNominalRate::R44100 => Q0_EXT_CLK_RATE_44100_FLAG,
+            ClkNominalRate::R48000 => Q0_EXT_CLK_RATE_48000_FLAG,
+            ClkNominalRate::R64000 => Q0_EXT_CLK_RATE_64000_FLAG,
+            ClkNominalRate::R88200 => Q0_EXT_CLK_RATE_88200_FLAG,
+            ClkNominalRate::R96000 => Q0_EXT_CLK_RATE_96000_FLAG,
+            ClkNominalRate::R128000 => Q0_EXT_CLK_RATE_128000_FLAG,
+            ClkNominalRate::R176400 => Q0_EXT_CLK_RATE_176400_FLAG,
+            ClkNominalRate::R192000 => Q0_EXT_CLK_RATE_192000_FLAG,
+        };
+        quads[0] |= flag;
+    }
+
+    quads[1] &= !Q1_SPDIF_IN_IFACE_MASK;
+    if status.spdif_in.iface == SpdifIface::Optical {
+        quads[1] |= Q1_SPDIF_IN_IFACE_MASK;
+    }
+
+    quads[1] &= !Q1_SPDIF_OUT_FMT_MASK;
+    if status.spdif_out.format == SpdifFormat::Professional {
+        quads[1] |= Q1_SPDIF_OUT_FMT_MASK;
+    }
+
+    quads[1] &= !Q1_SPDIF_OUT_EMPHASIS_MASK;
+    if status.spdif_out.emphasis {
+        quads[1] |= Q1_SPDIF_OUT_EMPHASIS_MASK;
+    }
+
+    quads[1] &= !Q1_OPT_OUT_SIGNAL_MASK;
+    if status.opt_out_signal == OpticalOutputSignal::Spdif {
+        quads[1] |= Q1_OPT_OUT_SIGNAL_MASK;
+    }
+
+    quads[1] &= !Q1_WORD_OUT_SINGLE_MASK;
+    if status.word_out_single {
+        quads[1] |= Q1_WORD_OUT_SINGLE_MASK;
+    }
+
+    quads[1] &= !Q1_CONF_CLK_SRC_MASK;
+    let flag = match status.configured_clk_src {
+        Ff400ClkSrc::Internal => Q1_CONF_CLK_SRC_INTERNAL_FLAG,
+        Ff400ClkSrc::Spdif => Q1_CONF_CLK_SRC_SPDIF_FLAG,
+        Ff400ClkSrc::WordClock => Q1_CONF_CLK_SRC_WORD_CLK_FLAG,
+        Ff400ClkSrc::Ltc => Q1_CONF_CLK_SRC_LTC_FLAG,
+        Ff400ClkSrc::Adat => Q1_CONF_CLK_SRC_ADAT_FLAG,
+    };
+    quads[1] |= flag;
+
+    quads[1] &= !Q1_CONF_CLK_RATE_MASK;
+    let flag = match status.configured_clk_rate {
+        ClkNominalRate::R32000 => Q1_CONF_CLK_RATE_32000_FLAG,
+        ClkNominalRate::R48000 => Q1_CONF_CLK_RATE_48000_FLAG,
+        ClkNominalRate::R64000 => Q1_CONF_CLK_RATE_64000_FLAG,
+        ClkNominalRate::R88200 => Q1_CONF_CLK_RATE_88200_FLAG,
+        ClkNominalRate::R96000 => Q1_CONF_CLK_RATE_96000_FLAG,
+        ClkNominalRate::R128000 => Q1_CONF_CLK_RATE_128000_FLAG,
+        ClkNominalRate::R176400 => Q1_CONF_CLK_RATE_176400_FLAG,
+        ClkNominalRate::R192000 => Q1_CONF_CLK_RATE_192000_FLAG,
+        ClkNominalRate::R44100 => Q1_CONF_CLK_RATE_44100_FLAG,
+    };
+    quads[1] |= flag;
+}
+
+fn deserialize_status(status: &mut Ff400Status, quads: &[u32]) {
+    assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
+
+    deserialize_lock_status(&mut status.lock, quads);
+    deserialize_sync_status(&mut status.sync, quads);
+
+    status.spdif_rate = match quads[0] & Q0_SPDIF_RATE_MASK {
+        Q0_SPDIF_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+        Q0_SPDIF_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+        Q0_SPDIF_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+        Q0_SPDIF_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+        Q0_SPDIF_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+        Q0_SPDIF_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+        Q0_SPDIF_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+        Q0_SPDIF_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+        Q0_SPDIF_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+        _ => None,
+    };
+
+    status.active_clk_src = match quads[0] & Q0_ACTIVE_CLK_SRC_MASK {
+        Q0_ACTIVE_CLK_SRC_ADAT_FLAG => Ff400ClkSrc::Adat,
+        Q0_ACTIVE_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+        Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+        Q0_ACTIVE_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+        Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+        _ => unreachable!(),
+    };
+
+    status.external_clk_rate = match quads[0] & Q0_EXT_CLK_RATE_MASK {
+        Q0_EXT_CLK_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+        Q0_EXT_CLK_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+        Q0_EXT_CLK_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+        Q0_EXT_CLK_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+        Q0_EXT_CLK_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+        Q0_EXT_CLK_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+        Q0_EXT_CLK_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+        Q0_EXT_CLK_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+        Q0_EXT_CLK_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+        _ => None,
+    };
+
+    status.spdif_in.iface = if quads[1] & Q1_SPDIF_IN_IFACE_MASK > 0 {
+        SpdifIface::Optical
+    } else {
+        SpdifIface::Coaxial
+    };
+
+    status.spdif_out.format = if quads[1] & Q1_SPDIF_OUT_FMT_MASK > 0 {
+        SpdifFormat::Professional
+    } else {
+        SpdifFormat::Consumer
+    };
+
+    status.spdif_out.emphasis = quads[1] & Q1_SPDIF_OUT_EMPHASIS_MASK > 0;
+
+    status.opt_out_signal = if quads[1] & Q1_OPT_OUT_SIGNAL_MASK > 0 {
+        OpticalOutputSignal::Spdif
+    } else {
+        OpticalOutputSignal::Adat
+    };
+
+    status.word_out_single = quads[1] & Q1_WORD_OUT_SINGLE_MASK > 0;
+
+    status.configured_clk_src = match quads[1] & Q1_CONF_CLK_SRC_MASK {
+        Q1_CONF_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+        Q1_CONF_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+        Q1_CONF_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+        Q1_CONF_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+        Q1_CONF_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
+    };
+
+    status.configured_clk_rate = match quads[1] & Q1_CONF_CLK_RATE_MASK {
+        Q1_CONF_CLK_RATE_32000_FLAG => ClkNominalRate::R32000,
+        Q1_CONF_CLK_RATE_48000_FLAG => ClkNominalRate::R48000,
+        Q1_CONF_CLK_RATE_64000_FLAG => ClkNominalRate::R64000,
+        Q1_CONF_CLK_RATE_88200_FLAG => ClkNominalRate::R88200,
+        Q1_CONF_CLK_RATE_96000_FLAG => ClkNominalRate::R96000,
+        Q1_CONF_CLK_RATE_128000_FLAG => ClkNominalRate::R128000,
+        Q1_CONF_CLK_RATE_176400_FLAG => ClkNominalRate::R176400,
+        Q1_CONF_CLK_RATE_192000_FLAG => ClkNominalRate::R192000,
+        Q1_CONF_CLK_RATE_44100_FLAG | _ => ClkNominalRate::R44100,
+    };
 }
 
 impl Ff400Protocol {
@@ -450,7 +595,7 @@ impl Ff400Protocol {
                 quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                 *quad = u32::from_le_bytes(quadlet);
             });
-            status.parse(&quads)
+            deserialize_status(status, &quads)
         })
     }
 }
@@ -534,44 +679,59 @@ impl Default for Ff400ClkConfig {
 }
 
 impl Ff400ClkConfig {
-    fn build(&self, quads: &mut [u32]) {
-        let mask = match self.primary_src {
-            Ff400ClkSrc::Internal => Q2_CLK_SRC_INTERNAL_FLAG,
-            Ff400ClkSrc::Ltc => Q2_CLK_SRC_LTC_FLAG,
-            Ff400ClkSrc::WordClock => Q2_CLK_SRC_WORD_CLK_FLAG,
-            Ff400ClkSrc::Adat => Q2_CLK_SRC_ADAT_FLAG,
-            Ff400ClkSrc::Spdif => Q2_CLK_SRC_SPDIF_FLAG,
-        };
-        quads[2] |= mask;
+    const QUADLET_COUNT: usize = 3;
+}
 
-        if self.avail_rate_44100 {
-            quads[2] |= Q2_CLK_AVAIL_RATE_BASE_44100_MASK;
-        }
-        if self.avail_rate_48000 {
-            quads[2] |= Q2_CLK_AVAIL_RATE_BASE_48000_MASK;
-        }
-        if self.avail_rate_double {
-            quads[2] |= Q2_CLK_AVAIL_RATE_DOUBLE_MASK;
-        }
-        if self.avail_rate_quadruple {
-            quads[2] |= Q2_CLK_AVAIL_RATE_QUADRUPLE_MASK;
-        }
+fn serialize_clock_config(config: &Ff400ClkConfig, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400ClkConfig::QUADLET_COUNT);
+
+    quads[2] &= !Q2_CLK_SRC_MASK;
+    let flag = match config.primary_src {
+        Ff400ClkSrc::Internal => Q2_CLK_SRC_INTERNAL_FLAG,
+        Ff400ClkSrc::Ltc => Q2_CLK_SRC_LTC_FLAG,
+        Ff400ClkSrc::WordClock => Q2_CLK_SRC_WORD_CLK_FLAG,
+        Ff400ClkSrc::Adat => Q2_CLK_SRC_ADAT_FLAG,
+        Ff400ClkSrc::Spdif => Q2_CLK_SRC_SPDIF_FLAG,
+    };
+    quads[2] |= flag;
+
+    quads[2] &= !Q2_CLK_AVAIL_RATE_BASE_44100_MASK;
+    if config.avail_rate_44100 {
+        quads[2] |= Q2_CLK_AVAIL_RATE_BASE_44100_MASK;
     }
 
-    fn parse(&mut self, quads: &[u32]) {
-        self.primary_src = match quads[2] & Q2_CLK_SRC_MASK {
-            Q2_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
-            Q2_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
-            Q2_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
-            Q2_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
-            Q2_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
-        };
-
-        self.avail_rate_44100 = quads[2] & Q2_CLK_AVAIL_RATE_BASE_44100_MASK > 0;
-        self.avail_rate_48000 = quads[2] & Q2_CLK_AVAIL_RATE_BASE_48000_MASK > 0;
-        self.avail_rate_double = quads[2] & Q2_CLK_AVAIL_RATE_DOUBLE_MASK > 0;
-        self.avail_rate_quadruple = quads[2] & Q2_CLK_AVAIL_RATE_QUADRUPLE_MASK > 0;
+    quads[2] &= !Q2_CLK_AVAIL_RATE_BASE_48000_MASK;
+    if config.avail_rate_48000 {
+        quads[2] |= Q2_CLK_AVAIL_RATE_BASE_48000_MASK;
     }
+
+    quads[2] &= !Q2_CLK_AVAIL_RATE_DOUBLE_MASK;
+    if config.avail_rate_double {
+        quads[2] |= Q2_CLK_AVAIL_RATE_DOUBLE_MASK;
+    }
+
+    quads[2] &= !Q2_CLK_AVAIL_RATE_QUADRUPLE_MASK;
+    if config.avail_rate_quadruple {
+        quads[2] |= Q2_CLK_AVAIL_RATE_QUADRUPLE_MASK;
+    }
+}
+
+#[cfg(test)]
+fn deserialize_clock_config(config: &mut Ff400ClkConfig, quads: &[u32]) {
+    assert!(quads.len() >= Ff400ClkConfig::QUADLET_COUNT);
+
+    config.primary_src = match quads[2] & Q2_CLK_SRC_MASK {
+        Q2_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+        Q2_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+        Q2_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+        Q2_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+        Q2_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
+    };
+
+    config.avail_rate_44100 = quads[2] & Q2_CLK_AVAIL_RATE_BASE_44100_MASK > 0;
+    config.avail_rate_48000 = quads[2] & Q2_CLK_AVAIL_RATE_BASE_48000_MASK > 0;
+    config.avail_rate_double = quads[2] & Q2_CLK_AVAIL_RATE_DOUBLE_MASK > 0;
+    config.avail_rate_quadruple = quads[2] & Q2_CLK_AVAIL_RATE_QUADRUPLE_MASK > 0;
 }
 
 /// Configuration for analog inputs.
@@ -588,73 +748,83 @@ pub struct Ff400AnalogInConfig {
 }
 
 impl Ff400AnalogInConfig {
-    fn build(&self, quads: &mut [u32]) {
-        match self.line_level {
-            FormerLineInNominalLevel::Low => {
-                quads[0] |= Q0_LINE_IN_LEVEL_LOW_FLAG;
-                quads[1] |= Q1_LINE_IN_LEVEL_LOW_FLAG;
-            }
-            FormerLineInNominalLevel::Consumer => {
-                quads[0] |= Q0_LINE_IN_LEVEL_CON_FLAG;
-                quads[1] |= Q1_LINE_IN_LEVEL_CON_FLAG;
-            }
-            FormerLineInNominalLevel::Professional => {
-                quads[0] |= Q0_LINE_IN_LEVEL_PRO_FLAG;
-                quads[1] |= Q1_LINE_IN_LEVEL_PRO_FLAG;
-            }
-        }
+    const QUADLET_COUNT: usize = 2;
+}
 
-        if self.phantom_powering[0] {
-            quads[0] |= Q0_INPUT_0_POWERING_MASK;
-        }
-        if self.phantom_powering[1] {
-            quads[0] |= Q0_INPUT_1_POWERING_MASK;
-        }
+fn serialize_analog_input_config(config: &Ff400AnalogInConfig, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400AnalogInConfig::QUADLET_COUNT);
 
-        if self.insts[0] {
-            quads[0] |= Q0_INPUT_2_INST_MASK;
+    quads[0] &= !Q0_LINE_IN_LEVEL_MASK;
+    quads[1] &= !Q1_LINE_IN_LEVEL_MASK;
+    match config.line_level {
+        FormerLineInNominalLevel::Low => {
+            quads[0] |= Q0_LINE_IN_LEVEL_LOW_FLAG;
+            quads[1] |= Q1_LINE_IN_LEVEL_LOW_FLAG;
         }
-        if self.insts[1] {
-            quads[0] |= Q0_INPUT_3_INST_MASK;
+        FormerLineInNominalLevel::Consumer => {
+            quads[0] |= Q0_LINE_IN_LEVEL_CON_FLAG;
+            quads[1] |= Q1_LINE_IN_LEVEL_CON_FLAG;
         }
-
-        if self.pad[0] {
-            quads[0] |= Q0_INPUT_2_PAD_MASK;
-        }
-        if self.pad[1] {
-            quads[0] |= Q0_INPUT_3_PAD_MASK;
+        FormerLineInNominalLevel::Professional => {
+            quads[0] |= Q0_LINE_IN_LEVEL_PRO_FLAG;
+            quads[1] |= Q1_LINE_IN_LEVEL_PRO_FLAG;
         }
     }
 
-    fn parse(&mut self, quads: &[u32]) {
-        let pair = (
-            quads[0] & Q0_LINE_IN_LEVEL_MASK,
-            quads[1] & Q1_LINE_IN_LEVEL_MASK,
-        );
-        self.line_level = match pair {
-            (Q0_LINE_IN_LEVEL_LOW_FLAG, Q1_LINE_IN_LEVEL_LOW_FLAG) => FormerLineInNominalLevel::Low,
-            (Q0_LINE_IN_LEVEL_CON_FLAG, Q1_LINE_IN_LEVEL_CON_FLAG) => {
-                FormerLineInNominalLevel::Consumer
-            }
-            (Q0_LINE_IN_LEVEL_PRO_FLAG, Q1_LINE_IN_LEVEL_PRO_FLAG) => {
-                FormerLineInNominalLevel::Professional
-            }
-            _ => unreachable!(),
-        };
-
-        self.phantom_powering[0] = quads[0] & Q0_INPUT_0_POWERING_MASK > 0;
-        self.phantom_powering[1] = quads[0] & Q0_INPUT_1_POWERING_MASK > 0;
-
-        self.insts[0] = quads[0] & Q0_INPUT_2_INST_MASK > 0;
-        self.insts[1] = quads[0] & Q0_INPUT_3_INST_MASK > 0;
-
-        self.pad[0] = quads[0] & Q0_INPUT_2_PAD_MASK > 0;
-        self.pad[1] = quads[0] & Q0_INPUT_3_PAD_MASK > 0;
+    if config.phantom_powering[0] {
+        quads[0] |= Q0_INPUT_0_POWERING_MASK;
     }
+    if config.phantom_powering[1] {
+        quads[0] |= Q0_INPUT_1_POWERING_MASK;
+    }
+
+    if config.insts[0] {
+        quads[0] |= Q0_INPUT_2_INST_MASK;
+    }
+    if config.insts[1] {
+        quads[0] |= Q0_INPUT_3_INST_MASK;
+    }
+
+    if config.pad[0] {
+        quads[0] |= Q0_INPUT_2_PAD_MASK;
+    }
+    if config.pad[1] {
+        quads[0] |= Q0_INPUT_3_PAD_MASK;
+    }
+}
+
+#[cfg(test)]
+fn deserialize_analog_input_config(config: &mut Ff400AnalogInConfig, quads: &[u32]) {
+    assert!(quads.len() >= Ff400AnalogInConfig::QUADLET_COUNT);
+
+    let pair = (
+        quads[0] & Q0_LINE_IN_LEVEL_MASK,
+        quads[1] & Q1_LINE_IN_LEVEL_MASK,
+    );
+    config.line_level = match pair {
+        (Q0_LINE_IN_LEVEL_LOW_FLAG, Q1_LINE_IN_LEVEL_LOW_FLAG) => FormerLineInNominalLevel::Low,
+        (Q0_LINE_IN_LEVEL_CON_FLAG, Q1_LINE_IN_LEVEL_CON_FLAG) => {
+            FormerLineInNominalLevel::Consumer
+        }
+        (Q0_LINE_IN_LEVEL_PRO_FLAG, Q1_LINE_IN_LEVEL_PRO_FLAG) => {
+            FormerLineInNominalLevel::Professional
+        }
+        _ => unreachable!(),
+    };
+
+    config.phantom_powering[0] = quads[0] & Q0_INPUT_0_POWERING_MASK > 0;
+    config.phantom_powering[1] = quads[0] & Q0_INPUT_1_POWERING_MASK > 0;
+
+    config.insts[0] = quads[0] & Q0_INPUT_2_INST_MASK > 0;
+    config.insts[1] = quads[0] & Q0_INPUT_3_INST_MASK > 0;
+
+    config.pad[0] = quads[0] & Q0_INPUT_2_PAD_MASK > 0;
+    config.pad[1] = quads[0] & Q0_INPUT_3_PAD_MASK > 0;
 }
 
 /// Low offset of destination address for MIDI messages.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[allow(dead_code)]
 enum Ff400MidiTxLowOffset {
     /// Between 0x0000 to 0x007c.
     A0000,
@@ -673,23 +843,31 @@ impl Default for Ff400MidiTxLowOffset {
 }
 
 impl Ff400MidiTxLowOffset {
-    fn build(&self, quads: &mut [u32]) {
-        quads[2] |= match self {
-            Self::A0000 => Q2_MIDI_TX_LOW_OFFSET_0000_FLAG,
-            Self::A0080 => Q2_MIDI_TX_LOW_OFFSET_0080_FLAG,
-            Self::A0100 => Q2_MIDI_TX_LOW_OFFSET_0100_FLAG,
-            Self::A0180 => Q2_MIDI_TX_LOW_OFFSET_0180_FLAG,
-        };
-    }
+    const QUADLET_COUNT: usize = 3;
+}
 
-    fn parse(&mut self, quads: &[u32]) {
-        *self = match quads[2] & Q2_MIDI_TX_LOW_OFFSET_MASK {
-            Q2_MIDI_TX_LOW_OFFSET_0180_FLAG => Self::A0180,
-            Q2_MIDI_TX_LOW_OFFSET_0100_FLAG => Self::A0100,
-            Q2_MIDI_TX_LOW_OFFSET_0080_FLAG => Self::A0080,
-            Q2_MIDI_TX_LOW_OFFSET_0000_FLAG => Self::A0000,
-            _ => unreachable!(),
-        }
+fn serialize_midi_tx_low_offset(offset: &Ff400MidiTxLowOffset, quads: &mut [u32]) {
+    assert!(quads.len() >= Ff400MidiTxLowOffset::QUADLET_COUNT);
+
+    quads[2] &= !Q2_MIDI_TX_LOW_OFFSET_MASK;
+    quads[2] |= match offset {
+        Ff400MidiTxLowOffset::A0000 => Q2_MIDI_TX_LOW_OFFSET_0000_FLAG,
+        Ff400MidiTxLowOffset::A0080 => Q2_MIDI_TX_LOW_OFFSET_0080_FLAG,
+        Ff400MidiTxLowOffset::A0100 => Q2_MIDI_TX_LOW_OFFSET_0100_FLAG,
+        Ff400MidiTxLowOffset::A0180 => Q2_MIDI_TX_LOW_OFFSET_0180_FLAG,
+    };
+}
+
+#[cfg(test)]
+fn deserialize_midi_tx_low_offset(offset: &mut Ff400MidiTxLowOffset, quads: &[u32]) {
+    assert!(quads.len() >= Ff400MidiTxLowOffset::QUADLET_COUNT);
+
+    *offset = match quads[2] & Q2_MIDI_TX_LOW_OFFSET_MASK {
+        Q2_MIDI_TX_LOW_OFFSET_0180_FLAG => Ff400MidiTxLowOffset::A0180,
+        Q2_MIDI_TX_LOW_OFFSET_0100_FLAG => Ff400MidiTxLowOffset::A0100,
+        Q2_MIDI_TX_LOW_OFFSET_0080_FLAG => Ff400MidiTxLowOffset::A0080,
+        Q2_MIDI_TX_LOW_OFFSET_0000_FLAG => Ff400MidiTxLowOffset::A0000,
+        _ => unreachable!(),
     }
 }
 
@@ -741,131 +919,6 @@ impl Default for Ff400Config {
 impl Ff400Config {
     const QUADLET_COUNT: usize = 3;
 
-    fn build(&self, quads: &mut [u32]) {
-        assert_eq!(quads.len(), Self::QUADLET_COUNT);
-
-        self.midi_tx_low_offset.build(quads);
-
-        if !self.midi_tx_enable {
-            quads[2] |= Q2_MIDI_TX_SUPPRESS_MASK;
-        }
-
-        self.clk.build(quads);
-        self.analog_in.build(quads);
-
-        match self.line_out_level {
-            LineOutNominalLevel::High => {
-                quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
-                quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
-            }
-            LineOutNominalLevel::Consumer => {
-                quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
-                quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
-            }
-            LineOutNominalLevel::Professional => {
-                quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
-                quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
-            }
-        }
-
-        match self.hp_out_level {
-            LineOutNominalLevel::High => {
-                quads[0] |= Q0_HP_OUT_LEVEL_HIGH_FLAG;
-            }
-            LineOutNominalLevel::Consumer => {
-                quads[0] |= Q0_HP_OUT_LEVEL_CON_FLAG;
-            }
-            LineOutNominalLevel::Professional => {
-                quads[0] |= Q0_HP_OUT_LEVEL_PRO_FLAG;
-            }
-        }
-
-        if self.spdif_in.iface == SpdifIface::Optical {
-            quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
-        }
-        if self.spdif_in.use_preemble {
-            quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
-        }
-
-        if self.opt_out_signal == OpticalOutputSignal::Spdif {
-            quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
-        }
-        if self.spdif_out.format == SpdifFormat::Professional {
-            quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
-        }
-        if self.spdif_out.emphasis {
-            quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
-        }
-        if self.spdif_out.non_audio {
-            quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
-        }
-
-        if self.word_out_single {
-            quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
-        }
-
-        if self.continue_at_errors {
-            quads[2] |= Q2_CONTINUE_AT_ERRORS;
-        }
-    }
-
-    #[allow(dead_code)]
-    fn parse(&mut self, quads: &[u32]) {
-        assert_eq!(quads.len(), Self::QUADLET_COUNT);
-
-        self.midi_tx_low_offset.parse(quads);
-        self.midi_tx_enable = quads[2] & Q2_MIDI_TX_SUPPRESS_MASK == 0;
-
-        self.clk.parse(quads);
-        self.analog_in.parse(quads);
-
-        let pair = (
-            quads[0] & Q0_LINE_OUT_LEVEL_MASK,
-            quads[1] & Q1_LINE_OUT_LEVEL_MASK,
-        );
-        self.line_out_level = match pair {
-            (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
-            (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => {
-                LineOutNominalLevel::Consumer
-            }
-            (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
-                LineOutNominalLevel::Professional
-            }
-            _ => unreachable!(),
-        };
-
-        self.hp_out_level = match quads[0] & Q0_HP_OUT_LEVEL_MASK {
-            Q0_HP_OUT_LEVEL_HIGH_FLAG => LineOutNominalLevel::High,
-            Q0_HP_OUT_LEVEL_CON_FLAG => LineOutNominalLevel::Consumer,
-            Q0_HP_OUT_LEVEL_PRO_FLAG => LineOutNominalLevel::Professional,
-            _ => unreachable!(),
-        };
-
-        self.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
-            SpdifIface::Optical
-        } else {
-            SpdifIface::Coaxial
-        };
-        self.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
-
-        self.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
-            SpdifFormat::Professional
-        } else {
-            SpdifFormat::Consumer
-        };
-        self.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
-        self.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
-
-        self.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
-            OpticalOutputSignal::Spdif
-        } else {
-            OpticalOutputSignal::Adat
-        };
-
-        self.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
-        self.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
-    }
-
     /// Although the configuration registers are write-only, some of them are available in status
     /// registers.
     pub fn init(&mut self, status: &Ff400Status) {
@@ -877,6 +930,133 @@ impl Ff400Config {
     }
 }
 
+fn serialize_config(config: &Ff400Config, quads: &mut [u32]) {
+    assert_eq!(quads.len(), Ff400Config::QUADLET_COUNT);
+
+    serialize_midi_tx_low_offset(&config.midi_tx_low_offset, quads);
+
+    quads[2] &= !Q2_MIDI_TX_SUPPRESS_MASK;
+    if !config.midi_tx_enable {
+        quads[2] |= Q2_MIDI_TX_SUPPRESS_MASK;
+    }
+
+    serialize_clock_config(&config.clk, quads);
+    serialize_analog_input_config(&config.analog_in, quads);
+
+    quads[0] &= !Q0_LINE_OUT_LEVEL_MASK;
+    quads[1] &= !Q1_LINE_OUT_LEVEL_MASK;
+    match &config.line_out_level {
+        LineOutNominalLevel::High => {
+            quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
+            quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
+        }
+        LineOutNominalLevel::Consumer => {
+            quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
+            quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
+        }
+        LineOutNominalLevel::Professional => {
+            quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
+            quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
+        }
+    }
+
+    quads[0] &= !Q0_HP_OUT_LEVEL_MASK;
+    match &config.hp_out_level {
+        LineOutNominalLevel::High => {
+            quads[0] |= Q0_HP_OUT_LEVEL_HIGH_FLAG;
+        }
+        LineOutNominalLevel::Consumer => {
+            quads[0] |= Q0_HP_OUT_LEVEL_CON_FLAG;
+        }
+        LineOutNominalLevel::Professional => {
+            quads[0] |= Q0_HP_OUT_LEVEL_PRO_FLAG;
+        }
+    }
+
+    if config.spdif_in.iface == SpdifIface::Optical {
+        quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
+    }
+    if config.spdif_in.use_preemble {
+        quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
+    }
+
+    if config.opt_out_signal == OpticalOutputSignal::Spdif {
+        quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
+    }
+    if config.spdif_out.format == SpdifFormat::Professional {
+        quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
+    }
+    if config.spdif_out.emphasis {
+        quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
+    }
+    if config.spdif_out.non_audio {
+        quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
+    }
+
+    if config.word_out_single {
+        quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
+    }
+
+    if config.continue_at_errors {
+        quads[2] |= Q2_CONTINUE_AT_ERRORS;
+    }
+}
+
+#[cfg(test)]
+fn deserialize_config(config: &mut Ff400Config, quads: &[u32]) {
+    assert_eq!(quads.len(), Ff400Config::QUADLET_COUNT);
+
+    deserialize_midi_tx_low_offset(&mut config.midi_tx_low_offset, quads);
+    config.midi_tx_enable = quads[2] & Q2_MIDI_TX_SUPPRESS_MASK == 0;
+
+    deserialize_clock_config(&mut config.clk, quads);
+    deserialize_analog_input_config(&mut config.analog_in, quads);
+
+    let pair = (
+        quads[0] & Q0_LINE_OUT_LEVEL_MASK,
+        quads[1] & Q1_LINE_OUT_LEVEL_MASK,
+    );
+    config.line_out_level = match pair {
+        (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
+        (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => LineOutNominalLevel::Consumer,
+        (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
+            LineOutNominalLevel::Professional
+        }
+        _ => unreachable!(),
+    };
+
+    config.hp_out_level = match quads[0] & Q0_HP_OUT_LEVEL_MASK {
+        Q0_HP_OUT_LEVEL_HIGH_FLAG => LineOutNominalLevel::High,
+        Q0_HP_OUT_LEVEL_CON_FLAG => LineOutNominalLevel::Consumer,
+        Q0_HP_OUT_LEVEL_PRO_FLAG => LineOutNominalLevel::Professional,
+        _ => unreachable!(),
+    };
+
+    config.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
+        SpdifIface::Optical
+    } else {
+        SpdifIface::Coaxial
+    };
+    config.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
+
+    config.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
+        SpdifFormat::Professional
+    } else {
+        SpdifFormat::Consumer
+    };
+    config.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
+    config.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
+
+    config.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
+        OpticalOutputSignal::Spdif
+    } else {
+        OpticalOutputSignal::Adat
+    };
+
+    config.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
+    config.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+}
+
 impl Ff400Protocol {
     pub fn write_cfg(
         req: &mut FwReq,
@@ -885,7 +1065,7 @@ impl Ff400Protocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quads = [0u32; 3];
-        cfg.build(&mut quads);
+        serialize_config(cfg, &mut quads);
 
         let mut raw = [0; 12];
         quads.iter().enumerate().for_each(|(i, quad)| {
@@ -900,5 +1080,126 @@ impl Ff400Protocol {
             &mut raw,
             timeout_ms,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn lock_status_serdes() {
+        let orig = Ff400ClkLockStatus {
+            adat: true,
+            spdif: true,
+            word_clock: true,
+        };
+        let mut quads = [0; Ff400ClkLockStatus::QUADLET_COUNT];
+        serialize_lock_status(&orig, &mut quads);
+        let mut target = Ff400ClkLockStatus::default();
+        deserialize_lock_status(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn sync_status_serdes() {
+        let orig = Ff400ClkSyncStatus {
+            adat: true,
+            spdif: true,
+            word_clock: true,
+        };
+        let mut quads = [0; Ff400ClkSyncStatus::QUADLET_COUNT];
+        serialize_sync_status(&orig, &mut quads);
+        let mut target = Ff400ClkSyncStatus::default();
+        deserialize_sync_status(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn status_serdes() {
+        let orig = Ff400Status {
+            spdif_in: SpdifInput {
+                iface: SpdifIface::Optical,
+                // Not readable.
+                use_preemble: false,
+            },
+            spdif_out: FormerSpdifOutput {
+                format: SpdifFormat::Professional,
+                emphasis: true,
+                // Not readable.
+                non_audio: false,
+            },
+            opt_out_signal: OpticalOutputSignal::Spdif,
+            word_out_single: true,
+            spdif_rate: Some(ClkNominalRate::R96000),
+            active_clk_src: Ff400ClkSrc::Ltc,
+            external_clk_rate: Some(ClkNominalRate::R88200),
+            configured_clk_src: Ff400ClkSrc::Spdif,
+            configured_clk_rate: ClkNominalRate::R176400,
+            ..Default::default()
+        };
+        let mut quads = [0; Ff400Status::QUADLET_COUNT];
+        serialize_status(&orig, &mut quads);
+        let mut target = Ff400Status::default();
+        deserialize_status(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn clock_config_serdes() {
+        let orig = Ff400ClkConfig {
+            primary_src: Ff400ClkSrc::Adat,
+            avail_rate_44100: true,
+            avail_rate_48000: true,
+            avail_rate_double: true,
+            avail_rate_quadruple: true,
+        };
+        let mut quads = [0; Ff400ClkConfig::QUADLET_COUNT];
+        serialize_clock_config(&orig, &mut quads);
+        let mut target = Ff400ClkConfig::default();
+        deserialize_clock_config(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn analog_input_config_serdes() {
+        let orig = Ff400AnalogInConfig {
+            line_level: FormerLineInNominalLevel::Professional,
+            phantom_powering: [true; 2],
+            insts: [true; 2],
+            pad: [true; 2],
+        };
+        let mut quads = [0; Ff400AnalogInConfig::QUADLET_COUNT];
+        serialize_analog_input_config(&orig, &mut quads);
+        let mut target = Ff400AnalogInConfig::default();
+        deserialize_analog_input_config(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn midi_tx_low_offset_serdes() {
+        let orig = Ff400MidiTxLowOffset::A0180;
+        let mut quads = [0; Ff400MidiTxLowOffset::QUADLET_COUNT];
+        serialize_midi_tx_low_offset(&orig, &mut quads);
+        let mut target = Ff400MidiTxLowOffset::default();
+        deserialize_midi_tx_low_offset(&mut target, &quads);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn config_serdes() {
+        let orig = Ff400Config::default();
+        let mut quads = [0; Ff400Config::QUADLET_COUNT];
+        serialize_config(&orig, &mut quads);
+        let mut target = Ff400Config::default();
+        deserialize_config(&mut target, &quads);
+
+        assert_eq!(target, orig);
     }
 }
