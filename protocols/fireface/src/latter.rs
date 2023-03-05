@@ -42,31 +42,30 @@ impl Default for FfLatterMidiTxLowOffset {
     }
 }
 
-impl FfLatterMidiTxLowOffset {
-    fn build(&self, quad: &mut u32) {
-        *quad |= match self {
-            Self::A0000 => CFG_MIDI_TX_LOW_OFFSET_0000_FLAG,
-            Self::A0080 => CFG_MIDI_TX_LOW_OFFSET_0080_FLAG,
-            Self::A0100 => CFG_MIDI_TX_LOW_OFFSET_0100_FLAG,
-            Self::A0180 => CFG_MIDI_TX_LOW_OFFSET_0180_FLAG,
-        };
-    }
+fn serialize_midi_tx_low_offset(offset: &FfLatterMidiTxLowOffset, quad: &mut u32) {
+    *quad &= !CFG_MIDI_TX_LOW_OFFSET_MASK;
+    *quad |= match offset {
+        FfLatterMidiTxLowOffset::A0000 => CFG_MIDI_TX_LOW_OFFSET_0000_FLAG,
+        FfLatterMidiTxLowOffset::A0080 => CFG_MIDI_TX_LOW_OFFSET_0080_FLAG,
+        FfLatterMidiTxLowOffset::A0100 => CFG_MIDI_TX_LOW_OFFSET_0100_FLAG,
+        FfLatterMidiTxLowOffset::A0180 => CFG_MIDI_TX_LOW_OFFSET_0180_FLAG,
+    };
+}
 
-    fn parse(&mut self, quad: &u32) {
-        *self = match *quad & CFG_MIDI_TX_LOW_OFFSET_MASK {
-            CFG_MIDI_TX_LOW_OFFSET_0180_FLAG => Self::A0180,
-            CFG_MIDI_TX_LOW_OFFSET_0100_FLAG => Self::A0100,
-            CFG_MIDI_TX_LOW_OFFSET_0080_FLAG => Self::A0080,
-            CFG_MIDI_TX_LOW_OFFSET_0000_FLAG => Self::A0000,
-            _ => unreachable!(),
-        }
+fn deserialize_midi_tx_low_offset(offset: &mut FfLatterMidiTxLowOffset, quad: &u32) {
+    *offset = match *quad & CFG_MIDI_TX_LOW_OFFSET_MASK {
+        CFG_MIDI_TX_LOW_OFFSET_0180_FLAG => FfLatterMidiTxLowOffset::A0180,
+        CFG_MIDI_TX_LOW_OFFSET_0100_FLAG => FfLatterMidiTxLowOffset::A0100,
+        CFG_MIDI_TX_LOW_OFFSET_0080_FLAG => FfLatterMidiTxLowOffset::A0080,
+        CFG_MIDI_TX_LOW_OFFSET_0000_FLAG => FfLatterMidiTxLowOffset::A0000,
+        _ => unreachable!(),
     }
 }
 
 /// Operation for configuration structure.
 pub trait RmeFfLatterRegisterValueOperation {
-    fn build(&self, quad: &mut u32);
-    fn parse(&mut self, quad: &u32);
+    fn serialize(&self, quad: &mut u32);
+    fn deserialize(&mut self, quad: &u32);
 }
 
 /// Configuration protocol.
@@ -78,7 +77,7 @@ pub trait RmeFfLatterConfigOperation<U: RmeFfLatterRegisterValueOperation> {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quad = 0u32;
-        cfg.build(&mut quad);
+        cfg.serialize(&mut quad);
 
         let mut raw = [0; 4];
         raw.copy_from_slice(&quad.to_le_bytes());
@@ -105,8 +104,8 @@ const STATUS_CLK_RATE_176400: u32 = 0x09;
 const STATUS_CLK_RATE_192000: u32 = 0x0a;
 const STATUS_CLK_RATE_NONE: u32 = 0x0f;
 
-fn val_from_clk_rate(clk_rate: &ClkNominalRate, quad: &mut u32, shift: usize) {
-    let val = match clk_rate {
+fn serialize_clock_rate(clock_rate: &ClkNominalRate, quad: &mut u32, shift: usize) {
+    let val = match clock_rate {
         ClkNominalRate::R32000 => STATUS_CLK_RATE_32000,
         ClkNominalRate::R44100 => STATUS_CLK_RATE_44100,
         ClkNominalRate::R48000 => STATUS_CLK_RATE_48000,
@@ -120,8 +119,8 @@ fn val_from_clk_rate(clk_rate: &ClkNominalRate, quad: &mut u32, shift: usize) {
     *quad |= val << shift;
 }
 
-fn val_to_clk_rate(clk_rate: &mut ClkNominalRate, quad: &u32, shift: usize) {
-    *clk_rate = match (*quad >> shift) & 0x0000000f {
+fn deserialize_clock_rate(clock_rate: &mut ClkNominalRate, quad: &u32, shift: usize) {
+    *clock_rate = match (*quad >> shift) & 0x0000000f {
         STATUS_CLK_RATE_32000 => ClkNominalRate::R32000,
         STATUS_CLK_RATE_44100 => ClkNominalRate::R44100,
         STATUS_CLK_RATE_48000 => ClkNominalRate::R48000,
@@ -135,21 +134,29 @@ fn val_to_clk_rate(clk_rate: &mut ClkNominalRate, quad: &u32, shift: usize) {
     };
 }
 
-fn optional_val_from_clk_rate(clk_rate: &Option<ClkNominalRate>, quad: &mut u32, shift: usize) {
-    if let Some(r) = clk_rate {
-        val_from_clk_rate(r, quad, shift)
+fn serialize_clock_rate_optional(
+    clock_rate: &Option<ClkNominalRate>,
+    quad: &mut u32,
+    shift: usize,
+) {
+    if let Some(r) = clock_rate {
+        serialize_clock_rate(r, quad, shift)
     } else {
         *quad |= STATUS_CLK_RATE_NONE << shift;
     }
 }
 
-fn optional_val_to_clk_rate(clk_rate: &mut Option<ClkNominalRate>, quad: &u32, shift: usize) {
+fn deserialize_clock_rate_optional(
+    clock_rate: &mut Option<ClkNominalRate>,
+    quad: &u32,
+    shift: usize,
+) {
     if (*quad >> shift) & 0x0000000f != STATUS_CLK_RATE_NONE {
         let mut r = ClkNominalRate::default();
-        val_to_clk_rate(&mut r, quad, shift);
-        *clk_rate = Some(r);
+        deserialize_clock_rate(&mut r, quad, shift);
+        *clock_rate = Some(r);
     } else {
-        *clk_rate = None;
+        *clock_rate = None;
     };
 }
 
@@ -175,7 +182,7 @@ where
         )
         .map(|_| {
             let quad = u32::from_le_bytes(raw);
-            status.parse(&quad)
+            status.deserialize(&quad)
         })
     }
 }
@@ -246,7 +253,7 @@ pub trait RmeFfLatterMeterOperation {
                 &mut raw,
                 timeout_ms,
             )
-            .map(|_| Self::parse_meter(state, &raw))
+            .map(|_| Self::deserialize_meter(state, &raw))
         })
     }
 
@@ -264,7 +271,7 @@ pub trait RmeFfLatterMeterOperation {
     //  0x66666666 - hardware inputs
     //
     //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
-    fn parse_meter(s: &mut FfLatterMeterState, raw: &[u8]) {
+    fn deserialize_meter(s: &mut FfLatterMeterState, raw: &[u8]) {
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&raw[388..]);
         let target = u32::from_le_bytes(quadlet);
@@ -1970,3 +1977,51 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
 }
 
 impl<O: RmeFfLatterDspOperation> RmeFfLatterFxOperation for O {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn midi_tx_low_offset_serdes() {
+        [
+            FfLatterMidiTxLowOffset::A0000,
+            FfLatterMidiTxLowOffset::A0080,
+            FfLatterMidiTxLowOffset::A0100,
+            FfLatterMidiTxLowOffset::A0180,
+        ]
+        .iter()
+        .for_each(|orig| {
+            let mut quad = 0;
+            serialize_midi_tx_low_offset(orig, &mut quad);
+            let mut target = FfLatterMidiTxLowOffset::default();
+            deserialize_midi_tx_low_offset(&mut target, &quad);
+
+            assert_eq!(&target, orig);
+        });
+    }
+
+    #[test]
+    fn clock_rate_serdes() {
+        [
+            ClkNominalRate::R32000,
+            ClkNominalRate::R44100,
+            ClkNominalRate::R48000,
+            ClkNominalRate::R64000,
+            ClkNominalRate::R88200,
+            ClkNominalRate::R96000,
+            ClkNominalRate::R128000,
+            ClkNominalRate::R176400,
+            ClkNominalRate::R192000,
+        ]
+        .iter()
+        .for_each(|orig| {
+            let mut quad = 0;
+            serialize_clock_rate(orig, &mut quad, 0);
+            let mut target = ClkNominalRate::default();
+            deserialize_clock_rate(&mut target, &quad, 0);
+
+            assert_eq!(&target, orig);
+        });
+    }
+}
