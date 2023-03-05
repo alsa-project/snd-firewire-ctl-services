@@ -7,9 +7,9 @@ pub mod ff802;
 pub mod ucx;
 
 use {
+    super::*,
     glib::Error,
     hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
-    super::*,
 };
 
 const CFG_OFFSET: usize = 0xffff00000014;

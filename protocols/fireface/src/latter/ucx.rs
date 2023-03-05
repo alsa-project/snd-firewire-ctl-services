@@ -3,13 +3,10 @@
 
 //! Protocol defined by RME GmbH for Fireface UCX.
 
-use {
-    super::*,
-    crate::*,
-};
+use super::*;
 
 /// Unique protocol for UCX.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug)]
 pub struct FfUcxProtocol;
 
 // For configuration register (0x'ffff'0000'0014).

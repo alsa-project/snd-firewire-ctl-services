@@ -4,13 +4,13 @@
 //! Protocol defined by RME GmbH for Fireface 400.
 
 use {
+    super::*,
     glib::Error,
     hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
-    super::*,
 };
 
 /// The protocol implementation for Fireface 400.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Ff400Protocol;
 
 const MIXER_OFFSET: usize = 0x000080080000;
