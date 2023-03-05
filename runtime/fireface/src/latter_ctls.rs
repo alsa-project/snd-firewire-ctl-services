@@ -49,7 +49,9 @@ impl<T: RmeFfLatterMeterOperation> LatterMeterCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_meter(req, node, &mut self.1, timeout_ms)
+        let res = T::read_meter(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -287,7 +289,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_input(req, node, &mut self.0, timeout_ms)
+        let res = T::init_input(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load_input(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -391,7 +395,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
                 let mut params = self.0.input.clone();
@@ -400,7 +406,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
                 let mut params = self.0.input.clone();
@@ -419,7 +427,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
                 let mut params = self.0.input.clone();
@@ -428,7 +438,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
                 let mut params = self.0.input.clone();
@@ -437,7 +449,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
                 let mut params = self.0.input.clone();
@@ -446,7 +460,9 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_input(req, node, &mut self.0, params, timeout_ms).map(|_| true)
+                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -479,7 +495,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_output(req, node, &mut self.0, timeout_ms)
+        let res = T::init_output(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load_output(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -586,8 +604,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_output(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             STEREO_BALANCE_NAME => {
                 let mut params = self.0.output.clone();
@@ -596,8 +615,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_output(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             STEREO_LINK_NAME => {
                 let mut params = self.0.output.clone();
@@ -606,8 +626,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_output(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             INVERT_PHASE_NAME => {
                 let mut params = self.0.output.clone();
@@ -616,8 +637,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                T::write_output(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             LINE_LEVEL_NAME => {
                 let mut params = self.0.output.clone();
@@ -637,8 +659,9 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::write_output(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -665,7 +688,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_mixers(req, node, &mut self.0, timeout_ms)
+        let res = T::init_mixers(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load_mixer(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -806,8 +831,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(req, node, &mut self.0, index, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -817,8 +843,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(req, node, &mut self.0, index, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -828,8 +855,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(req, node, &mut self.0, index, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -839,8 +867,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(req, node, &mut self.0, index, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -850,8 +879,9 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(req, node, &mut self.0, index, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -931,7 +961,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_ch_strip(req, node, self.state_mut(), timeout_ms)
+        let res = T::init_ch_strip(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?T::ch_strip(self.state()), ?res);
+        res
     }
 
     fn load_ch_strip(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1486,8 +1518,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            res.map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
             let mut params = T::ch_strip(self.state()).hpf.clone();
             params
@@ -1495,8 +1528,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(dst, &val)| *dst = val as u16);
-            T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            res.map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
             let mut params = T::ch_strip(self.state()).hpf.clone();
             params
@@ -1514,8 +1548,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&l| *level = l)
                 })?;
-            T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1523,8 +1558,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()));
+            res.map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1542,8 +1578,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1561,8 +1598,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1570,8 +1608,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1579,8 +1618,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1588,8 +1628,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1597,8 +1638,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1606,8 +1648,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1615,8 +1658,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1624,8 +1668,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1633,8 +1678,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
             let mut params = T::ch_strip(self.state()).eq.clone();
             params
@@ -1642,8 +1688,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1651,8 +1698,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1660,8 +1708,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1669,8 +1718,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(attack, &val)| *attack = val as u16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1678,8 +1728,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(release, &val)| *release = val as u16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1687,8 +1738,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1696,8 +1748,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1705,8 +1758,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
             let mut params = T::ch_strip(self.state()).dynamics.clone();
             params
@@ -1714,8 +1768,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            res.map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
             let mut params = T::ch_strip(self.state()).autolevel.clone();
             params
@@ -1723,8 +1778,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            res.map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
             let mut params = T::ch_strip(self.state()).autolevel.clone();
             params
@@ -1732,8 +1788,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as u16);
-            T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            res.map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
             let mut params = T::ch_strip(self.state()).autolevel.clone();
             params
@@ -1741,8 +1798,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(headroom, &val)| *headroom = val as u16);
-            T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            res.map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
             let mut params = T::ch_strip(self.state()).autolevel.clone();
             params
@@ -1750,8 +1808,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(time, &val)| *time = val as u16);
-            T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms)?;
-            Ok(true)
+            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            res.map(|_| true)
         } else {
             Ok(false)
         }
@@ -1975,7 +2034,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_fx(req, node, &mut self.0, timeout_ms)
+        let res = T::init_fx(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load_fx(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -2458,8 +2519,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx, ?res);
+                res.map(|_| true)
             }
             MIC_SRC_GAIN_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2468,8 +2530,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx, ?res);
+                res.map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2478,8 +2541,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx, ?res);
+                res.map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2488,8 +2552,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx, ?res);
+                res.map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2498,8 +2563,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx, ?res);
+                res.map(|_| true)
             }
             LINE_OUT_VOL_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2508,8 +2574,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx);
+                res.map(|_| true)
             }
             HP_OUT_VOL_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2518,8 +2585,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx);
+                res.map(|_| true)
             }
             SPDIF_OUT_VOL_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2528,8 +2596,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx);
+                res.map(|_| true)
             }
             ADAT_OUT_VOL_NAME => {
                 let mut params = self.0.fx.clone();
@@ -2538,8 +2607,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms)?;
-                Ok(true)
+                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0.fx);
+                res.map(|_| true)
             }
             REVERB_ACTIVATE_NAME => self
                 .update_reverb(req, node, timeout_ms, |params| {
@@ -2713,7 +2783,9 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
     {
         let mut params = self.0.fx.reverb.clone();
         cb(&mut params)?;
-        T::write_fx_reverb(req, node, &mut self.0, &params, timeout_ms)
+        let res = T::write_fx_reverb(req, node, &mut self.0, &params, timeout_ms);
+        debug!(?params, ?res);
+        res
     }
 
     fn update_echo<F>(
@@ -2728,6 +2800,8 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
     {
         let mut params = self.0.fx.echo.clone();
         cb(&mut params)?;
-        T::write_fx_echo(req, node, &mut self.0, &params, timeout_ms)
+        let res = T::write_fx_echo(req, node, &mut self.0, &params, timeout_ms);
+        debug!(?params, ?res);
+        res
     }
 }
