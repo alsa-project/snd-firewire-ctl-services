@@ -12,11 +12,11 @@ use {
 #[derive(Default, Debug)]
 pub struct Ff800Model {
     req: FwReq,
+    meter_ctl: FormerMeterCtl<Ff800Protocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     out_ctl: OutputCtl,
     mixer_ctl: MixerCtl,
-    meter_ctl: MeterCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -27,6 +27,10 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.meter_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        self.meter_ctl.load(card_cntr)?;
         self.status_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(
@@ -40,9 +44,6 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
-        self.meter_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -53,7 +54,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.cfg_ctl.read(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -94,14 +97,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
 
 impl MeasureModel<(SndUnit, FwNode)> for Ff800Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
-        self.status_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
@@ -112,26 +115,13 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff800Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.status_ctl.measure_elem(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.measure_elem(elem_id, elem_value)? {
+        } else if self.status_ctl.measure_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MeterCtl(FormerMeterState, Vec<ElemId>);
-
-impl FormerMeterCtlOperation<Ff800Protocol> for MeterCtl {
-    fn meter(&self) -> &FormerMeterState {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut FormerMeterState {
-        &mut self.0
     }
 }
 
