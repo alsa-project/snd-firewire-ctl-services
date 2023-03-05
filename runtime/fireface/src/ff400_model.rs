@@ -13,7 +13,7 @@ use {
 #[derive(Default, Debug)]
 pub struct Ff400Model {
     req: FwReq,
-    meter_ctl: MeterCtl,
+    meter_ctl: FormerMeterCtl<Ff400Protocol>,
     out_ctl: OutputCtl,
     input_gain_ctl: InputGainCtl,
     mixer_ctl: MixerCtl,
@@ -30,8 +30,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.meter_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
+        self.meter_ctl.load(card_cntr)?;
         self.out_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl
@@ -56,7 +57,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.out_ctl.read(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -104,13 +107,13 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
 
 impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -122,26 +125,13 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.meter_ctl.measure_elem(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.status_ctl.measure_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MeterCtl(FormerMeterState, Vec<ElemId>);
-
-impl FormerMeterCtlOperation<Ff400Protocol> for MeterCtl {
-    fn meter(&self) -> &FormerMeterState {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut FormerMeterState {
-        &mut self.0
     }
 }
 

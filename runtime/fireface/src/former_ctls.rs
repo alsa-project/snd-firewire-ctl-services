@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::former::*};
+use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::former::*, std::marker::PhantomData};
 
 const VOL_NAME: &str = "output-volume";
 
@@ -274,10 +274,24 @@ const ANALOG_OUTPUT_NAME: &str = "meter:analog-output";
 const SPDIF_OUTPUT_NAME: &str = "meter:spdif-output";
 const ADAT_OUTPUT_NAME: &str = "meter:adat-output";
 
-pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
-    fn meter(&self) -> &FormerMeterState;
-    fn meter_mut(&mut self) -> &mut FormerMeterState;
+#[derive(Debug)]
+pub struct FormerMeterCtl<T: RmeFfFormerMeterOperation>(
+    pub Vec<ElemId>,
+    FormerMeterState,
+    PhantomData<T>,
+);
 
+impl<T: RmeFfFormerMeterOperation> Default for FormerMeterCtl<T> {
+    fn default() -> Self {
+        Self(
+            Default::default(),
+            T::create_meter_state(),
+            Default::default(),
+        )
+    }
+}
+
+impl<T: RmeFfFormerMeterOperation> FormerMeterCtl<T> {
     const LEVEL_TLV: DbInterval = DbInterval {
         min: -9003,
         max: 600,
@@ -285,19 +299,16 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
         mute_avail: false,
     };
 
-    fn load(
+    pub fn cache(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
-        card_cntr: &mut CardCntr,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        let mut meter = T::create_meter_state();
-        T::read_meter(req, &mut unit.1, &mut meter, timeout_ms)?;
-        *self.meter_mut() = meter;
+    ) -> Result<(), Error> {
+        T::read_meter(req, node, &mut self.1, timeout_ms)
+    }
 
-        let mut measured_elem_id_list = Vec::new();
-
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (ANALOG_INPUT_NAME, T::ANALOG_INPUT_COUNT),
             (SPDIF_INPUT_NAME, T::SPDIF_INPUT_COUNT),
@@ -321,48 +332,38 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
                     Some(&Vec::<u32>::from(&Self::LEVEL_TLV)),
                     false,
                 )
-                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
         })
-        .map(|_| measured_elem_id_list)
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.1, self.meter_mut(), timeout_ms)
-    }
-
-    fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             ANALOG_INPUT_NAME => {
-                elem_value.set_int(&self.meter().analog_inputs);
+                elem_value.set_int(&self.1.analog_inputs);
                 Ok(true)
             }
             SPDIF_INPUT_NAME => {
-                elem_value.set_int(&self.meter().spdif_inputs);
+                elem_value.set_int(&self.1.spdif_inputs);
                 Ok(true)
             }
             ADAT_INPUT_NAME => {
-                elem_value.set_int(&self.meter().adat_inputs);
+                elem_value.set_int(&self.1.adat_inputs);
                 Ok(true)
             }
             STREAM_INPUT_NAME => {
-                elem_value.set_int(&self.meter().stream_inputs);
+                elem_value.set_int(&self.1.stream_inputs);
                 Ok(true)
             }
             ANALOG_OUTPUT_NAME => {
-                elem_value.set_int(&self.meter().analog_outputs);
+                elem_value.set_int(&self.1.analog_outputs);
                 Ok(true)
             }
             SPDIF_OUTPUT_NAME => {
-                elem_value.set_int(&self.meter().spdif_outputs);
+                elem_value.set_int(&self.1.spdif_outputs);
                 Ok(true)
             }
             ADAT_OUTPUT_NAME => {
-                elem_value.set_int(&self.meter().adat_outputs);
+                elem_value.set_int(&self.1.adat_outputs);
                 Ok(true)
             }
             _ => Ok(false),
