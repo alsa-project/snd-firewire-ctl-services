@@ -34,21 +34,19 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
         self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.mixer_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.input_gain_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.status_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.cfg_ctl
+            .cache(&mut self.req, &mut unit.1, &self.status_ctl.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.out_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
-        self.input_gain_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
-        self.status_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
-        self.cfg_ctl.load(
-            unit,
-            &mut self.req,
-            &self.status_ctl.status,
-            card_cntr,
-            TIMEOUT_MS,
-        )?;
+        self.input_gain_ctl.load(card_cntr)?;
+        self.status_ctl.load(card_cntr)?;
+        self.cfg_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -66,6 +64,8 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
             Ok(true)
         } else if self.input_gain_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.status_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
@@ -77,7 +77,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
@@ -92,12 +92,12 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
             Ok(true)
         } else if self
             .input_gain_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .cfg_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -109,14 +109,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
 impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
-        elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.status_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.status_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -128,7 +128,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.status_ctl.measure_elem(elem_id, elem_value)? {
+        } else if self.status_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -137,9 +137,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
 }
 
 #[derive(Default, Debug)]
-struct InputGainCtl {
-    status: Ff400InputGainStatus,
-}
+struct InputGainCtl(Vec<ElemId>, Ff400InputGainStatus);
 
 const MIC_GAIN_NAME: &str = "mic-input-gain";
 const LINE_GAIN_NAME: &str = "line-input-gain";
@@ -165,38 +163,38 @@ impl InputGainCtl {
         mute_avail: false,
     };
 
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        card_cntr: &mut CardCntr,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Ff400Protocol::init_input_gains(req, &mut unit.1, &mut self.status, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Ff400Protocol::init_input_gains(req, node, &mut self.1, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            Self::MIC_GAIN_MIN,
-            Self::MIC_GAIN_MAX,
-            Self::MIC_GAIN_STEP,
-            2,
-            Some(&Vec::<u32>::from(&Self::MIC_GAIN_TLV)),
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::MIC_GAIN_MIN,
+                Self::MIC_GAIN_MAX,
+                Self::MIC_GAIN_STEP,
+                2,
+                Some(&Vec::<u32>::from(&Self::MIC_GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LINE_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            Self::LINE_GAIN_MIN,
-            Self::LINE_GAIN_MAX,
-            Self::LINE_GAIN_STEP,
-            2,
-            Some(&Vec::<u32>::from(&Self::LINE_GAIN_TLV)),
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LINE_GAIN_MIN,
+                Self::LINE_GAIN_MAX,
+                Self::LINE_GAIN_STEP,
+                2,
+                Some(&Vec::<u32>::from(&Self::LINE_GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -204,12 +202,12 @@ impl InputGainCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals: Vec<i32> = self.status.mic.iter().map(|&gain| gain as i32).collect();
+                let vals: Vec<i32> = self.1.mic.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             LINE_GAIN_NAME => {
-                let vals: Vec<i32> = self.status.line.iter().map(|&gain| gain as i32).collect();
+                let vals: Vec<i32> = self.1.line.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
@@ -219,33 +217,41 @@ impl InputGainCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals = &elem_value.int()[..2];
-                let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
+                let mut params = self.1.clone();
+                params
+                    .mic
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as i8);
                 Ff400Protocol::write_input_mic_gains(
                     req,
-                    &mut unit.1,
-                    &mut self.status,
-                    &gains,
+                    node,
+                    &mut self.1,
+                    &params.mic,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             LINE_GAIN_NAME => {
-                let vals = &elem_value.int()[..2];
-                let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
+                let mut params = self.1.clone();
+                params
+                    .line
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as i8);
                 Ff400Protocol::write_input_line_gains(
                     req,
-                    &mut unit.1,
-                    &mut self.status,
-                    &gains,
+                    node,
+                    &mut self.1,
+                    &params.line,
                     timeout_ms,
                 )
                 .map(|_| true)
@@ -266,26 +272,8 @@ fn clk_src_to_string(src: &Ff400ClkSrc) -> String {
     .to_string()
 }
 
-fn update_cfg<F>(
-    unit: &mut (SndUnit, FwNode),
-    req: &mut FwReq,
-    cfg: &mut Ff400Config,
-    timeout_ms: u32,
-    cb: F,
-) -> Result<(), Error>
-where
-    F: Fn(&mut Ff400Config) -> Result<(), Error>,
-{
-    let mut cache = cfg.clone();
-    cb(&mut cache)?;
-    Ff400Protocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
-}
-
 #[derive(Default, Debug)]
-struct StatusCtl {
-    status: Ff400Status,
-    measured_elem_list: Vec<ElemId>,
-}
+struct StatusCtl(Vec<ElemId>, Ff400Status);
 
 const EXT_SRC_LOCK_NAME: &'static str = "external-source-lock";
 const EXT_SRC_SYNC_NAME: &'static str = "external-source-sync";
@@ -314,15 +302,11 @@ impl StatusCtl {
         Some(ClkNominalRate::R192000),
     ];
 
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        card_cntr: &mut CardCntr,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Ff400Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Ff400Protocol::read_status(req, node, &mut self.1, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = CfgCtl::CLK_SRCS
             .iter()
             .map(|s| clk_src_to_string(s))
@@ -336,7 +320,7 @@ impl StatusCtl {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
                 card_cntr
                     .add_bool_elems(&elem_id, 1, Self::EXT_SRCS.len(), false)
-                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+                    .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
             })?;
 
         let labels: Vec<String> = Self::EXT_SRC_RATES
@@ -346,67 +330,50 @@ impl StatusCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_SRC_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EXT_SRC_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Ff400Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
-    }
-
-    fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             EXT_SRC_LOCK_NAME => {
-                let vals = [
-                    self.status.lock.spdif,
-                    self.status.lock.adat,
-                    self.status.lock.word_clock,
-                ];
+                let vals = [self.1.lock.spdif, self.1.lock.adat, self.1.lock.word_clock];
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             EXT_SRC_SYNC_NAME => {
-                let vals = [
-                    self.status.sync.spdif,
-                    self.status.sync.adat,
-                    self.status.sync.word_clock,
-                ];
+                let vals = [self.1.sync.spdif, self.1.sync.adat, self.1.sync.word_clock];
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             SPDIF_SRC_RATE_NAME => {
                 let pos = Self::EXT_SRC_RATES
                     .iter()
-                    .position(|r| r.eq(&self.status.spdif_rate))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                    .position(|r| r.eq(&self.1.spdif_rate))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
                 Ok(true)
             }
             EXT_SRC_RATE_NAME => {
                 let pos = Self::EXT_SRC_RATES
                     .iter()
-                    .position(|r| r.eq(&self.status.external_clk_rate))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                    .position(|r| r.eq(&self.1.external_clk_rate))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
                 Ok(true)
             }
             ACTIVE_CLK_SRC_NAME => {
                 let pos = CfgCtl::CLK_SRCS
                     .iter()
-                    .position(|s| s.eq(&self.status.active_clk_src))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                    .position(|s| s.eq(&self.1.active_clk_src))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -460,17 +427,18 @@ impl CfgCtl {
     const OPT_OUT_SIGNALS: [OpticalOutputSignal; 2] =
         [OpticalOutputSignal::Adat, OpticalOutputSignal::Spdif];
 
-    fn load(
+    fn cache(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         status: &Ff400Status,
-        card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.0.init(&status);
-        Ff400Protocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
+        Ff400Protocol::write_cfg(req, node, &self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
             .map(|s| clk_src_to_string(s))
@@ -585,16 +553,16 @@ impl CfgCtl {
                 let pos = Self::CLK_SRCS
                     .iter()
                     .position(|s| s.eq(&self.0.clk.primary_src))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
                 Ok(true)
             }
             LINE_INPUT_LEVEL_NAME => {
                 let pos = Self::LINE_INPUT_LEVELS
                     .iter()
                     .position(|l| l.eq(&self.0.analog_in.line_level))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
                 Ok(true)
             }
             MIC_POWER_NAME => {
@@ -609,42 +577,42 @@ impl CfgCtl {
                 elem_value.set_bool(&self.0.analog_in.pad);
                 Ok(true)
             }
-            LINE_OUTPUT_LEVEL_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            LINE_OUTPUT_LEVEL_NAME => {
                 let pos = Self::LINE_OUTPUT_LEVELS
                     .iter()
                     .position(|l| l.eq(&self.0.line_out_level))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            HP_OUTPUT_LEVEL_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            HP_OUTPUT_LEVEL_NAME => {
                 let pos = Self::LINE_OUTPUT_LEVELS
                     .iter()
-                    .position(|l| l.eq(&self.0.line_out_level))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            SPDIF_INPUT_IFACE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    .position(|l| l.eq(&self.0.hp_out_level))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            SPDIF_INPUT_IFACE_NAME => {
                 let pos = Self::SPDIF_IFACES
                     .iter()
                     .position(|i| i.eq(&self.0.spdif_in.iface))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
             SPDIF_INPUT_USE_PREEMBLE_NAME => {
                 elem_value.set_bool(&[self.0.spdif_in.use_preemble]);
                 Ok(true)
             }
-            SPDIF_OUTPUT_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            SPDIF_OUTPUT_FMT_NAME => {
                 let pos = Self::SPDIF_FMTS
                     .iter()
                     .position(|f| f.eq(&self.0.spdif_out.format))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
             SPDIF_OUTPUT_EMPHASIS_NAME => {
                 elem_value.set_bool(&[self.0.spdif_out.emphasis]);
                 Ok(true)
@@ -653,14 +621,14 @@ impl CfgCtl {
                 elem_value.set_bool(&[self.0.spdif_out.non_audio]);
                 Ok(true)
             }
-            OPT_OUTPUT_SIGNAL_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            OPT_OUTPUT_SIGNAL_NAME => {
                 let pos = Self::OPT_OUT_SIGNALS
                     .iter()
                     .position(|f| f.eq(&self.0.opt_out_signal))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 elem_value.set_bool(&[self.0.word_out_single]);
                 Ok(true)
@@ -671,170 +639,184 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            PRIMARY_CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                Self::CLK_SRCS
+            PRIMARY_CLK_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.clk.primary_src = Self::CLK_SRCS
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock source: {}", val);
+                        let msg = format!("Invalid value for index of clock source: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .and_then(|&src| {
-                        update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                            Ok(cfg.clk.primary_src = src)
-                        })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            LINE_INPUT_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.analog_in.line_level = Self::LINE_INPUT_LEVELS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of line input level: {}", pos);
+                        Error::new(FileError::Inval, &msg)
                     })
-            })
-            .map(|_| true),
-            LINE_INPUT_LEVEL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::LINE_INPUT_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid value for index of line input level: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| cfg.analog_in.line_level = l)
-                })
-            })
-            .map(|_| true),
-            MIC_POWER_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                cfg.analog_in
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            MIC_POWER_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .analog_in
                     .phantom_powering
                     .iter_mut()
-                    .zip(new.boolean())
-                    .for_each(|(d, s)| *d = s);
-                Ok(())
-            })
-            .map(|_| true),
-            LINE_INST_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                cfg.analog_in
+                    .zip(elem_value.boolean())
+                    .for_each(|(enabled, val)| *enabled = val);
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            LINE_INST_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .analog_in
                     .insts
                     .iter_mut()
-                    .zip(new.boolean())
-                    .for_each(|(d, s)| *d = s);
-                Ok(())
-            })
-            .map(|_| true),
-            LINE_PAD_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                cfg.analog_in
+                    .zip(elem_value.boolean())
+                    .for_each(|(enabled, val)| *enabled = val);
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            LINE_PAD_NAME => {
+                let mut params = self.0.clone();
+                params
+                    .analog_in
                     .pad
                     .iter_mut()
-                    .zip(new.boolean())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                Ok(())
-            })
-            .map(|_| true),
-            LINE_OUTPUT_LEVEL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::LINE_OUTPUT_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid value for index of line output level: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| cfg.line_out_level = l)
-                })
-            })
-            .map(|_| true),
-            HP_OUTPUT_LEVEL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::LINE_OUTPUT_LEVELS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid value for index of line output level: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| cfg.line_out_level = l)
-                })
-            })
-            .map(|_| true),
-            SPDIF_INPUT_IFACE_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::SPDIF_IFACES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of S/PDIF iface: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&i| cfg.spdif_in.iface = i)
-                })
-            })
-            .map(|_| true),
-            SPDIF_INPUT_USE_PREEMBLE_NAME => {
-                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                    ElemValueAccessor::<bool>::get_val(new, |val| {
-                        cfg.spdif_in.use_preemble = val;
-                        Ok(())
-                    })
-                })
-                .map(|_| true)
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
             }
-            SPDIF_OUTPUT_FMT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::SPDIF_FMTS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of S/PDIF format: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&f| cfg.spdif_out.format = f)
-                })
-            })
-            .map(|_| true),
-            SPDIF_OUTPUT_EMPHASIS_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    cfg.spdif_out.emphasis = val;
-                    Ok(())
-                })
-            })
-            .map(|_| true),
-            SPDIF_OUTPUT_NON_AUDIO_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    cfg.spdif_out.non_audio = val;
-                    Ok(())
-                })
-            })
-            .map(|_| true),
-            OPT_OUTPUT_SIGNAL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    Self::OPT_OUT_SIGNALS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!(
-                                "Invalid value for index of optical output signal: {}",
-                                val
-                            );
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| cfg.opt_out_signal = s)
-                })
-            })
-            .map(|_| true),
-            WORD_CLOCK_SINGLE_SPPED_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    cfg.word_out_single = val;
-                    Ok(())
-                })
-            })
-            .map(|_| true),
+            LINE_OUTPUT_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.line_out_level = Self::LINE_OUTPUT_LEVELS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of line output level: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            HP_OUTPUT_LEVEL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.hp_out_level = Self::LINE_OUTPUT_LEVELS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid value for index of headphone output level: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_INPUT_IFACE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.spdif_in.iface = Self::SPDIF_IFACES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of S/PDIF iface: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_INPUT_USE_PREEMBLE_NAME => {
+                let mut params = self.0.clone();
+                params.spdif_in.use_preemble = elem_value.boolean()[0];
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_OUTPUT_FMT_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.spdif_out.format = Self::SPDIF_FMTS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of S/PDIF format: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_OUTPUT_EMPHASIS_NAME => {
+                let mut params = self.0.clone();
+                params.spdif_out.emphasis = elem_value.boolean()[0];
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_OUTPUT_NON_AUDIO_NAME => {
+                let mut params = self.0.clone();
+                params.spdif_out.non_audio = elem_value.boolean()[0];
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            OPT_OUTPUT_SIGNAL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.opt_out_signal = Self::OPT_OUT_SIGNALS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid value for index of optical output signal: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
+                let mut params = self.0.clone();
+                params.word_out_single = elem_value.boolean()[0];
+                Ff400Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
