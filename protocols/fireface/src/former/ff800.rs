@@ -5,10 +5,9 @@
 use hinawa::{FwNode, FwReq};
 
 use super::*;
-use crate::*;
 
 /// Unique protocol for Fireface 800.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug)]
 pub struct Ff800Protocol;
 
 const MIXER_OFFSET: usize = 0x000080080000;

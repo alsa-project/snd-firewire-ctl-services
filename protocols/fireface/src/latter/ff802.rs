@@ -3,13 +3,10 @@
 
 //! Protocol defined by RME GmbH for Fireface 802.
 
-use {
-    super::*,
-    crate::*,
-};
+use super::*;
 
 /// Unique protocol for 802.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug)]
 pub struct Ff802Protocol;
 
 // For configuration register (0x'ffff'0000'0014).

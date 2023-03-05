@@ -7,9 +7,9 @@ pub mod ff400;
 pub mod ff800;
 
 use {
+    super::*,
     glib::Error,
     hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
-    super::*,
 };
 
 /// State of hardware meter.

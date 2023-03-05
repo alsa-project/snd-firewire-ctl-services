@@ -4,7 +4,10 @@
 use {
     firewire_fireface_protocols as protocols,
     glib::FileError,
-    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError},
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwNodeError,
+    },
     ieee1212_config_rom::*,
     protocols::*,
     std::{convert::TryFrom, io::Read},
