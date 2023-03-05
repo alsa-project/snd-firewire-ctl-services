@@ -29,13 +29,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.dsp_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.cfg_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.status_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.dsp_ctl.load(card_cntr)?;
-        self.cfg_ctl
-            .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
-        self.status_ctl
-            .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.cfg_ctl.load(card_cntr)?;
+        self.status_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -51,6 +52,8 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
             Ok(true)
         } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.status_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -61,16 +64,16 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .dsp_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .cfg_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -82,14 +85,14 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
 impl MeasureModel<(SndUnit, FwNode)> for Ff802Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
-        elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.status_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.status_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -101,7 +104,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff802Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.status_ctl.read_measured_elem(elem_id, elem_value)? {
+        } else if self.status_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -126,21 +129,6 @@ fn ff802_spdif_iface_to_string(iface: &Ff802SpdifIface) -> String {
         Ff802SpdifIface::Optical => "Optical",
     }
     .to_string()
-}
-
-fn update_cfg<F>(
-    unit: &mut (SndUnit, FwNode),
-    req: &mut FwReq,
-    cfg: &mut Ff802Config,
-    timeout_ms: u32,
-    cb: F,
-) -> Result<(), Error>
-where
-    F: Fn(&mut Ff802Config) -> Result<(), Error>,
-{
-    let mut cache = cfg.clone();
-    cb(&mut cache)?;
-    Ff802Protocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -181,15 +169,11 @@ impl CfgCtl {
 
     const SPDIF_FMTS: [SpdifFormat; 2] = [SpdifFormat::Consumer, SpdifFormat::Professional];
 
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        Ff802Protocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Ff802Protocol::write_cfg(req, node, &self.0, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
             .map(|s| clk_src_to_string(s))
@@ -230,42 +214,42 @@ impl CfgCtl {
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            PRIMARY_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            PRIMARY_CLK_SRC_NAME => {
                 let pos = Self::CLK_SRCS
                     .iter()
-                    .position(|s| s.eq(&self.0.clk_src))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            SPDIF_INPUT_IFACE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    .position(|src| self.0.clk_src.eq(src))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            SPDIF_INPUT_IFACE_NAME => {
                 let pos = Self::SPDIF_IFACES
                     .iter()
-                    .position(|i| i.eq(&self.0.spdif_in_iface))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            OPT_OUTPUT_SIGNAL_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    .position(|iface| self.0.spdif_in_iface.eq(iface))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            OPT_OUTPUT_SIGNAL_NAME => {
                 let pos = Self::OPT_OUT_SIGNALS
                     .iter()
-                    .position(|f| f.eq(&self.0.opt_out_signal))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .position(|fmt| self.0.opt_out_signal.eq(fmt))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
             EFFECT_ON_INPUT_NAME => {
                 elem_value.set_bool(&[self.0.effect_on_inputs]);
                 Ok(true)
             }
-            SPDIF_OUTPUT_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            SPDIF_OUTPUT_FMT_NAME => {
                 let pos = Self::SPDIF_FMTS
                     .iter()
-                    .position(|f| f.eq(&self.0.spdif_out_format))
-                    .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                    .position(|fmt| self.0.spdif_out_format.eq(fmt))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 elem_value.set_bool(&[self.0.word_out_single]);
                 Ok(true)
@@ -276,88 +260,95 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            PRIMARY_CLK_SRC_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    let src = Self::CLK_SRCS.iter().nth(val as usize).ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock source: {}", val);
+            PRIMARY_CLK_SRC_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.clk_src = Self::CLK_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock source: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                    cfg.clk_src = *src;
-                    Ok(())
-                })
-            })
-            .map(|_| true),
-            SPDIF_INPUT_IFACE_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::SPDIF_IFACES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of S/PDIF iface: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&i| cfg.spdif_in_iface = i)
-                })
-            })
-            .map(|_| true),
-            OPT_OUTPUT_SIGNAL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::OPT_OUT_SIGNALS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!(
-                                "Invalid value for index of optical output signal: {}",
-                                val
-                            );
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&s| cfg.opt_out_signal = s)
-                })
-            })
-            .map(|_| true),
-            EFFECT_ON_INPUT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                cfg.effect_on_inputs = elem_value.boolean()[0];
-                Ok(())
-            })
-            .map(|_| true),
-            SPDIF_OUTPUT_FMT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::SPDIF_FMTS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of S/PDIF format: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&f| cfg.spdif_out_format = f)
-                })
-            })
-            .map(|_| true),
-            WORD_CLOCK_SINGLE_SPPED_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    cfg.word_out_single = val;
-                    Ok(())
-                })
-            })
-            .map(|_| true),
+                    })
+                    .copied()?;
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_INPUT_IFACE_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.spdif_in_iface = Self::SPDIF_IFACES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of S/PDIF iface: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            OPT_OUTPUT_SIGNAL_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.opt_out_signal = Self::OPT_OUT_SIGNALS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid value for index of optical output signal: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            EFFECT_ON_INPUT_NAME => {
+                let mut params = self.0.clone();
+                params.effect_on_inputs = elem_value.boolean()[0];
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            SPDIF_OUTPUT_FMT_NAME => {
+                let mut params = self.0.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                params.spdif_out_format = Self::SPDIF_FMTS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of S/PDIF format: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
+                let mut params = self.0.clone();
+                params.word_out_single = elem_value.boolean()[0];
+                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                self.0 = params;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 }
 
 #[derive(Default, Debug)]
-struct StatusCtl {
-    status: Ff802Status,
-    measured_elem_list: Vec<ElemId>,
-}
+struct StatusCtl(Vec<ElemId>, Ff802Status);
 
 const EXT_SRC_LOCK_NAME: &str = "external-source-lock";
 const EXT_SRC_SYNC_NAME: &str = "external-source-sync";
@@ -386,22 +377,18 @@ impl StatusCtl {
         Some(ClkNominalRate::R192000),
     ];
 
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        Ff802Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Ff802Protocol::read_status(req, node, &mut self.1, timeout_ms)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME]
             .iter()
             .try_for_each(|name| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
                 card_cntr
                     .add_bool_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), false)
-                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+                    .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
             })?;
 
         let labels: Vec<String> = Self::EXT_CLK_RATES
@@ -411,7 +398,7 @@ impl StatusCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EXT_SRC_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), &labels, None, false)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS
             .iter()
@@ -420,7 +407,7 @@ impl StatusCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ACTIVE_CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = CfgCtl::CLK_RATES
             .iter()
@@ -429,48 +416,39 @@ impl StatusCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ACTIVE_CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn measure_states(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Ff802Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
-    }
-
-    fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             EXT_SRC_LOCK_NAME => {
                 let vals = [
-                    self.status.ext_lock.adat_a,
-                    self.status.ext_lock.adat_b,
-                    self.status.ext_lock.spdif,
-                    self.status.ext_lock.word_clk,
+                    self.1.ext_lock.adat_a,
+                    self.1.ext_lock.adat_b,
+                    self.1.ext_lock.spdif,
+                    self.1.ext_lock.word_clk,
                 ];
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             EXT_SRC_SYNC_NAME => {
                 let vals = [
-                    self.status.ext_sync.adat_a,
-                    self.status.ext_sync.adat_b,
-                    self.status.ext_sync.spdif,
-                    self.status.ext_sync.word_clk,
+                    self.1.ext_sync.adat_a,
+                    self.1.ext_sync.adat_b,
+                    self.1.ext_sync.spdif,
+                    self.1.ext_sync.word_clk,
                 ];
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
             EXT_SRC_RATE_NAME => {
                 let vals: Vec<u32> = [
-                    self.status.ext_rate.adat_a,
-                    self.status.ext_rate.adat_b,
-                    self.status.ext_rate.spdif,
-                    self.status.ext_rate.word_clk,
+                    self.1.ext_rate.adat_a,
+                    self.1.ext_rate.adat_b,
+                    self.1.ext_rate.spdif,
+                    self.1.ext_rate.word_clk,
                 ]
                 .iter()
                 .map(|rate| {
@@ -487,7 +465,7 @@ impl StatusCtl {
             ACTIVE_CLK_SRC_NAME => {
                 let pos = CfgCtl::CLK_SRCS
                     .iter()
-                    .position(|r| r.eq(&self.status.active_clk_src))
+                    .position(|r| r.eq(&self.1.active_clk_src))
                     .map(|p| p as u32)
                     .unwrap();
                 elem_value.set_enum(&[pos]);
@@ -496,7 +474,7 @@ impl StatusCtl {
             ACTIVE_CLK_RATE_NAME => {
                 let pos = CfgCtl::CLK_RATES
                     .iter()
-                    .position(|r| r.eq(&self.status.active_clk_rate))
+                    .position(|r| r.eq(&self.1.active_clk_rate))
                     .map(|p| p as u32)
                     .unwrap();
                 elem_value.set_enum(&[pos]);
