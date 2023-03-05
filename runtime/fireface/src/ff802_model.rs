@@ -172,7 +172,9 @@ impl CfgCtl {
     const SPDIF_FMTS: [SpdifFormat; 2] = [SpdifFormat::Consumer, SpdifFormat::Professional];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Ff802Protocol::write_cfg(req, node, &self.0, timeout_ms)
+        let res = Ff802Protocol::write_cfg(req, node, &self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -280,9 +282,10 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             SPDIF_INPUT_IFACE_NAME => {
                 let mut params = self.0.clone();
@@ -295,9 +298,10 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             OPT_OUTPUT_SIGNAL_NAME => {
                 let mut params = self.0.clone();
@@ -311,16 +315,18 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             EFFECT_ON_INPUT_NAME => {
                 let mut params = self.0.clone();
                 params.effect_on_inputs = elem_value.boolean()[0];
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             SPDIF_OUTPUT_FMT_NAME => {
                 let mut params = self.0.clone();
@@ -333,16 +339,18 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 let mut params = self.0.clone();
                 params.word_out_single = elem_value.boolean()[0];
-                Ff802Protocol::write_cfg(req, node, &params, timeout_ms)?;
+                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                debug!(?params, ?res);
                 self.0 = params;
-                Ok(true)
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -380,7 +388,9 @@ impl StatusCtl {
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Ff802Protocol::read_status(req, node, &mut self.1, timeout_ms)
+        let res = Ff802Protocol::read_status(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
