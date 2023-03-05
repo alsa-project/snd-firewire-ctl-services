@@ -94,8 +94,8 @@ pub struct Ff802Config {
 }
 
 impl RmeFfLatterRegisterValueOperation for Ff802Config {
-    fn build(&self, quad: &mut u32) {
-        self.midi_tx_low_offset.build(quad);
+    fn serialize(&self, quad: &mut u32) {
+        serialize_midi_tx_low_offset(&self.midi_tx_low_offset, quad);
         self.clk_src.build(quad);
 
         if self.spdif_in_iface == Ff802SpdifIface::Optical {
@@ -119,8 +119,8 @@ impl RmeFfLatterRegisterValueOperation for Ff802Config {
         }
     }
 
-    fn parse(&mut self, quad: &u32) {
-        self.midi_tx_low_offset.parse(quad);
+    fn deserialize(&mut self, quad: &u32) {
+        deserialize_midi_tx_low_offset(&mut self.midi_tx_low_offset, quad);
         self.clk_src.parse(quad);
 
         self.spdif_in_iface = if *quad & CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK > 0 {
@@ -250,30 +250,30 @@ pub struct Ff802ExtRateStatus {
 
 impl Ff802ExtRateStatus {
     fn build(&self, quad: &mut u32) {
-        optional_val_from_clk_rate(&self.word_clk, quad, 12);
-        optional_val_from_clk_rate(&self.spdif, quad, 16);
-        optional_val_from_clk_rate(&self.adat_b, quad, 24);
-        optional_val_from_clk_rate(&self.adat_a, quad, 20);
+        serialize_clock_rate_optional(&self.word_clk, quad, 12);
+        serialize_clock_rate_optional(&self.spdif, quad, 16);
+        serialize_clock_rate_optional(&self.adat_b, quad, 24);
+        serialize_clock_rate_optional(&self.adat_a, quad, 20);
     }
 
     fn parse(&mut self, quad: &u32) {
         if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.word_clk, quad, 12);
+            deserialize_clock_rate_optional(&mut self.word_clk, quad, 12);
         } else {
             self.word_clk = None;
         }
         if *quad & (STATUS_SYNC_SPDIF_MASK | STATUS_LOCK_SPDIF_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.spdif, quad, 16);
+            deserialize_clock_rate_optional(&mut self.spdif, quad, 16);
         } else {
             self.spdif = None;
         }
         if *quad & (STATUS_SYNC_ADAT_B_MASK | STATUS_LOCK_ADAT_B_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.adat_b, quad, 24);
+            deserialize_clock_rate_optional(&mut self.adat_b, quad, 24);
         } else {
             self.adat_b = None;
         }
         if *quad & (STATUS_SYNC_ADAT_A_MASK | STATUS_LOCK_ADAT_A_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.adat_a, quad, 20);
+            deserialize_clock_rate_optional(&mut self.adat_a, quad, 20);
         } else {
             self.adat_a = None;
         }
@@ -291,12 +291,12 @@ pub struct Ff802Status {
 }
 
 impl RmeFfLatterRegisterValueOperation for Ff802Status {
-    fn build(&self, quad: &mut u32) {
+    fn serialize(&self, quad: &mut u32) {
         self.ext_lock.build(quad);
         self.ext_sync.build(quad);
         self.ext_rate.build(quad);
 
-        val_from_clk_rate(&self.active_clk_rate, quad, 28);
+        serialize_clock_rate(&self.active_clk_rate, quad, 28);
 
         let val = match self.active_clk_src {
             Ff802ClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
@@ -308,12 +308,12 @@ impl RmeFfLatterRegisterValueOperation for Ff802Status {
         *quad |= val;
     }
 
-    fn parse(&mut self, quad: &u32) {
+    fn deserialize(&mut self, quad: &u32) {
         self.ext_lock.parse(quad);
         self.ext_sync.parse(quad);
         self.ext_rate.parse(quad);
 
-        val_to_clk_rate(&mut self.active_clk_rate, quad, 28);
+        deserialize_clock_rate(&mut self.active_clk_rate, quad, 28);
 
         self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
             STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff802ClkSrc::Internal,

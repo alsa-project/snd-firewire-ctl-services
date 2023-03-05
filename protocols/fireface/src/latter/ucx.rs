@@ -77,8 +77,8 @@ pub struct FfUcxConfig {
 }
 
 impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
-    fn build(&self, quad: &mut u32) {
-        self.midi_tx_low_offset.build(quad);
+    fn serialize(&self, quad: &mut u32) {
+        serialize_midi_tx_low_offset(&self.midi_tx_low_offset, quad);
         self.clk_src.build(quad);
 
         if self.opt_out_signal == OpticalOutputSignal::Spdif {
@@ -102,8 +102,8 @@ impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
         }
     }
 
-    fn parse(&mut self, quad: &u32) {
-        self.midi_tx_low_offset.parse(quad);
+    fn deserialize(&mut self, quad: &u32) {
+        deserialize_midi_tx_low_offset(&mut self.midi_tx_low_offset, quad);
         self.clk_src.parse(quad);
 
         self.opt_out_signal = if *quad & CFG_SPDIF_OUT_TO_OPT_IFACE_MASK > 0 {
@@ -213,24 +213,24 @@ pub struct FfUcxExtRateStatus {
 
 impl FfUcxExtRateStatus {
     fn build(&self, quad: &mut u32) {
-        optional_val_from_clk_rate(&self.word_clk, quad, 20);
-        optional_val_from_clk_rate(&self.opt_iface, quad, 16);
-        optional_val_from_clk_rate(&self.coax_iface, quad, 12);
+        serialize_clock_rate_optional(&self.word_clk, quad, 20);
+        serialize_clock_rate_optional(&self.opt_iface, quad, 16);
+        serialize_clock_rate_optional(&self.coax_iface, quad, 12);
     }
 
     fn parse(&mut self, quad: &u32) {
         if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.word_clk, quad, 20);
+            deserialize_clock_rate_optional(&mut self.word_clk, quad, 20);
         } else {
             self.word_clk = None;
         }
         if *quad & (STATUS_SYNC_OPT_IFACE_MASK | STATUS_LOCK_OPT_IFACE_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.opt_iface, quad, 16);
+            deserialize_clock_rate_optional(&mut self.opt_iface, quad, 16);
         } else {
             self.opt_iface = None;
         }
         if *quad & (STATUS_SYNC_COAX_IFACE_MASK | STATUS_LOCK_COAX_IFACE_MASK) > 0 {
-            optional_val_to_clk_rate(&mut self.coax_iface, quad, 12);
+            deserialize_clock_rate_optional(&mut self.coax_iface, quad, 12);
         } else {
             self.coax_iface = None;
         }
@@ -249,7 +249,7 @@ pub struct FfUcxStatus {
 }
 
 impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
-    fn build(&self, quad: &mut u32) {
+    fn serialize(&self, quad: &mut u32) {
         self.ext_lock.build(quad);
         self.ext_sync.build(quad);
         self.ext_rate.build(quad);
@@ -258,7 +258,7 @@ impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
             *quad |= STATUS_OPT_OUT_IFACE_FOR_ADAT;
         }
 
-        val_from_clk_rate(&self.active_clk_rate, quad, 24);
+        serialize_clock_rate(&self.active_clk_rate, quad, 24);
 
         let val = match self.active_clk_src {
             FfUcxClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
@@ -269,7 +269,7 @@ impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
         *quad |= val;
     }
 
-    fn parse(&mut self, quad: &u32) {
+    fn deserialize(&mut self, quad: &u32) {
         self.ext_lock.parse(quad);
         self.ext_sync.parse(quad);
         self.ext_rate.parse(quad);
@@ -280,7 +280,7 @@ impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
             OpticalOutputSignal::Spdif
         };
 
-        val_to_clk_rate(&mut self.active_clk_rate, quad, 24);
+        deserialize_clock_rate(&mut self.active_clk_rate, quad, 24);
 
         self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
             STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => FfUcxClkSrc::Internal,
