@@ -5,10 +5,22 @@ use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::former::*, std::marker
 
 const VOL_NAME: &str = "output-volume";
 
-pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
-    fn state(&self) -> &FormerOutputVolumeState;
-    fn state_mut(&mut self) -> &mut FormerOutputVolumeState;
+#[derive(Debug)]
+pub struct FormerOutputCtl<T: RmeFormerOutputOperation>(
+    pub Vec<ElemId>,
+    FormerOutputVolumeState,
+    PhantomData<T>,
+);
 
+impl<T: RmeFormerOutputOperation> Default for FormerOutputCtl<T> {
+    fn default() -> Self {
+        let mut state = T::create_output_volume_state();
+        state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
+        Self(Default::default(), state, Default::default())
+    }
+}
+
+impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
     const VOL_TLV: DbInterval = DbInterval {
         min: -9000,
         max: 600,
@@ -16,56 +28,62 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
         mute_avail: false,
     };
 
-    fn load(
+    pub fn cache(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
-        card_cntr: &mut CardCntr,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut state = T::create_output_volume_state();
-        state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
-        T::init_output_vols(req, &mut unit.1, &mut state, timeout_ms)?;
-        *self.state_mut() = state;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::VOL_MIN,
-            T::VOL_MAX,
-            T::VOL_STEP,
-            self.state().0.len(),
-            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-            true,
-        )?;
-
-        Ok(())
+        T::init_output_vols(req, node, &mut self.1, timeout_ms)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::VOL_MIN,
+                T::VOL_MAX,
+                T::VOL_STEP,
+                T::PHYS_OUTPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
+    }
+
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             VOL_NAME => {
-                elem_value.set_int(&self.state().0);
+                let params = self.1.clone();
+                elem_value.set_int(&params.0);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             VOL_NAME => {
-                let vals = &new.int()[..self.state().0.len()];
-                T::write_output_vols(req, &mut unit.1, self.state_mut(), &vals, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.1.clone();
+                params
+                    .0
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(vol, &val)| *vol = val);
+                T::write_output_vols(req, node, &mut self.1, &params.0, timeout_ms).map(|_| {
+                    self.1 = params;
+                    true
+                })
             }
             _ => Ok(false),
         }

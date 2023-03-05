@@ -13,9 +13,9 @@ use {
 pub struct Ff800Model {
     req: FwReq,
     meter_ctl: FormerMeterCtl<Ff800Protocol>,
+    out_ctl: FormerOutputCtl<Ff800Protocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
-    out_ctl: OutputCtl,
     mixer_ctl: MixerCtl,
 }
 
@@ -29,8 +29,10 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
     ) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
+        self.out_ctl.load(card_cntr)?;
         self.status_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(
@@ -40,8 +42,6 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
             card_cntr,
             TIMEOUT_MS,
         )?;
-        self.out_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
 
@@ -56,9 +56,9 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.cfg_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.out_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -75,13 +75,13 @@ impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
-            .cfg_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+            .out_ctl
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
-            .out_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .cfg_ctl
+            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -122,19 +122,6 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff800Model {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct OutputCtl(FormerOutputVolumeState);
-
-impl FormerOutputCtlOperation<Ff800Protocol> for OutputCtl {
-    fn state(&self) -> &FormerOutputVolumeState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut FormerOutputVolumeState {
-        &mut self.0
     }
 }
 
