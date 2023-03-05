@@ -14,7 +14,7 @@ use {
 pub struct Ff400Model {
     req: FwReq,
     meter_ctl: FormerMeterCtl<Ff400Protocol>,
-    out_ctl: OutputCtl,
+    out_ctl: FormerOutputCtl<Ff400Protocol>,
     input_gain_ctl: InputGainCtl,
     mixer_ctl: MixerCtl,
     status_ctl: StatusCtl,
@@ -31,10 +31,10 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
     ) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
-        self.out_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.out_ctl.load(card_cntr)?;
         self.mixer_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.input_gain_ctl
@@ -81,7 +81,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
     ) -> Result<bool, Error> {
         if self
             .out_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -132,19 +132,6 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct OutputCtl(FormerOutputVolumeState);
-
-impl FormerOutputCtlOperation<Ff400Protocol> for OutputCtl {
-    fn state(&self) -> &FormerOutputVolumeState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut FormerOutputVolumeState {
-        &mut self.0
     }
 }
 
