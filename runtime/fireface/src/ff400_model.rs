@@ -15,8 +15,8 @@ pub struct Ff400Model {
     req: FwReq,
     meter_ctl: FormerMeterCtl<Ff400Protocol>,
     out_ctl: FormerOutputCtl<Ff400Protocol>,
+    mixer_ctl: FormerMixerCtl<Ff400Protocol>,
     input_gain_ctl: InputGainCtl,
-    mixer_ctl: MixerCtl,
     status_ctl: StatusCtl,
     cfg_ctl: CfgCtl,
 }
@@ -32,11 +32,12 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.meter_ctl.load(card_cntr)?;
         self.out_ctl.load(card_cntr)?;
-        self.mixer_ctl
-            .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.mixer_ctl.load(card_cntr)?;
         self.input_gain_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.status_ctl
@@ -86,7 +87,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -132,19 +133,6 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerCtl(FormerMixerState);
-
-impl FormerMixerCtlOperation<Ff400Protocol> for MixerCtl {
-    fn state(&self) -> &FormerMixerState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut FormerMixerState {
-        &mut self.0
     }
 }
 
