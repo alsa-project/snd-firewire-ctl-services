@@ -24,6 +24,7 @@ use {
     model::*,
     nix::sys::signal,
     std::sync::mpsc,
+    tracing::{debug, debug_span, Level},
 };
 
 enum Event {
@@ -45,7 +46,14 @@ pub struct FfRuntime {
 }
 
 impl RuntimeOperation<u32> for FfRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let unit = SndUnit::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;
@@ -82,7 +90,11 @@ impl RuntimeOperation<u32> for FfRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
+
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measured_elem_list.len() > 0 {
@@ -90,19 +102,33 @@ impl RuntimeOperation<u32> for FfRuntime {
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
+        enter.exit();
+
         Ok(())
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             if let Ok(ev) = self.rx.recv() {
                 match ev {
                     Event::Shutdown => break,
                     Event::Disconnected => break,
                     Event::BusReset(generation) => {
-                        println!("IEEE 1394 bus is updated: {}", generation);
+                        debug!("IEEE 1394 bus is updated: {}", generation);
                     }
                     Event::Elem(elem_id, events) => {
+                        let _enter = debug_span!("element").entered();
+
+                        debug!(
+                            numid = elem_id.numid(),
+                            name = elem_id.name().as_str(),
+                            iface = ?elem_id.iface(),
+                            device_id = elem_id.device_id(),
+                            subdevice_id = elem_id.subdevice_id(),
+                            index = elem_id.index(),
+                        );
+
                         if elem_id.name() != Self::TIMER_NAME {
                             let _ = self.model.dispatch_elem_event(
                                 &mut self.unit,
@@ -127,6 +153,7 @@ impl RuntimeOperation<u32> for FfRuntime {
                         }
                     }
                     Event::Timer => {
+                        let _enter = debug_span!("timer").entered();
                         let _ = self
                             .model
                             .measure_elems(&mut self.unit, &mut self.card_cntr);
@@ -134,6 +161,9 @@ impl RuntimeOperation<u32> for FfRuntime {
                 }
             }
         }
+
+        enter.exit();
+
         Ok(())
     }
 }
