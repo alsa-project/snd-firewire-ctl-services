@@ -20,12 +20,8 @@ pub struct Ff802Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+impl Ff802Model {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.dsp_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -33,6 +29,12 @@ impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
         self.status_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
+        Ok(())
+    }
+}
+
+impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
+    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meter_ctl.load(card_cntr)?;
         self.dsp_ctl.load(card_cntr)?;
         self.cfg_ctl.load(card_cntr)?;

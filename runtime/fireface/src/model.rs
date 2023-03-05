@@ -46,6 +46,15 @@ impl FfModel {
         })
     }
 
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        match &mut self.model {
+            Model::Ff800(m) => m.cache(unit),
+            Model::Ff400(m) => m.cache(unit),
+            Model::Ucx(m) => m.cache(unit),
+            Model::Ff802(m) => m.cache(unit),
+        }
+    }
+
     pub fn load(
         &mut self,
         unit: &mut (SndUnit, FwNode),
