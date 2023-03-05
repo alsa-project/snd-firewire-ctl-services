@@ -34,7 +34,9 @@ impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_output_vols(req, node, &mut self.1, timeout_ms)
+        let res = T::init_output_vols(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -80,10 +82,10 @@ impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val);
-                T::write_output_vols(req, node, &mut self.1, &params.0, timeout_ms).map(|_| {
-                    self.1 = params;
-                    true
-                })
+                let res = T::write_output_vols(req, node, &mut self.1, &params.0, timeout_ms);
+                debug!(?params, ?res);
+                self.1 = params;
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -140,8 +142,11 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        (0..T::DST_COUNT)
-            .try_for_each(|i| T::init_mixer_src_gains(req, node, &mut self.0, i, timeout_ms))
+        (0..T::DST_COUNT).try_for_each(|i| {
+            let res = T::init_mixer_src_gains(req, node, &mut self.0, i, timeout_ms);
+            debug!(params = ?self.0, ?res);
+            res
+        })
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -216,18 +221,17 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::write_mixer_analog_gains(
+                let res = T::write_mixer_analog_gains(
                     req,
                     node,
                     &mut self.0,
                     index,
                     &params.0[index].analog_gains,
                     timeout_ms,
-                )
-                .map(|_| {
-                    self.0 = params;
-                    true
-                })
+                );
+                debug!(?params, ?res);
+                self.0 = params;
+                res.map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -237,18 +241,17 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::write_mixer_spdif_gains(
+                let res = T::write_mixer_spdif_gains(
                     req,
                     node,
                     &mut self.0,
                     index,
                     &params.0[index].spdif_gains,
                     timeout_ms,
-                )
-                .map(|_| {
-                    self.0 = params;
-                    true
-                })
+                );
+                debug!(?params, ?res);
+                self.0 = params;
+                res.map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -258,18 +261,17 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::write_mixer_adat_gains(
+                let res = T::write_mixer_adat_gains(
                     req,
                     node,
                     &mut self.0,
                     index,
                     &params.0[index].adat_gains,
                     timeout_ms,
-                )
-                .map(|_| {
-                    self.0 = params;
-                    true
-                })
+                );
+                debug!(?params, ?res);
+                self.0 = params;
+                res.map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
@@ -279,18 +281,17 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                T::write_mixer_stream_gains(
+                let res = T::write_mixer_stream_gains(
                     req,
                     node,
                     &mut self.0,
                     index,
                     &params.0[index].stream_gains,
                     timeout_ms,
-                )
-                .map(|_| {
-                    self.0 = params;
-                    true
-                })
+                );
+                debug!(?params, ?res);
+                self.0 = params;
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -337,7 +338,9 @@ impl<T: RmeFfFormerMeterOperation> FormerMeterCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_meter(req, node, &mut self.1, timeout_ms)
+        let res = T::read_meter(req, node, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
