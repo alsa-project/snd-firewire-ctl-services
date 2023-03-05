@@ -13,9 +13,9 @@ use {
 pub struct UcxModel {
     req: FwReq,
     meter_ctl: LatterMeterCtl<FfUcxProtocol>,
+    dsp_ctl: LatterDspCtl<FfUcxProtocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
-    dsp_ctl: DspCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -28,13 +28,13 @@ impl CtlModel<(SndUnit, FwNode)> for UcxModel {
     ) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr)?;
+        self.dsp_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
+        self.meter_ctl.load(card_cntr)?;
+        self.dsp_ctl.load(card_cntr)?;
         self.cfg_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.status_ctl
-            .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
-        self.dsp_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
@@ -47,9 +47,9 @@ impl CtlModel<(SndUnit, FwNode)> for UcxModel {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.cfg_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.dsp_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -64,12 +64,12 @@ impl CtlModel<(SndUnit, FwNode)> for UcxModel {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
-            .cfg_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .dsp_ctl
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
-            .dsp_ctl
+            .cfg_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -106,19 +106,6 @@ impl MeasureModel<(SndUnit, FwNode)> for UcxModel {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct DspCtl(FfLatterDspState);
-
-impl FfLatterDspCtlOperation<FfUcxProtocol> for DspCtl {
-    fn state(&self) -> &FfLatterDspState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut FfLatterDspState {
-        &mut self.0
     }
 }
 
