@@ -10,7 +10,7 @@ use super::*;
 pub struct Ff400Protocol;
 
 const MIXER_OFFSET: u64 = 0x000080080000;
-const OUTPUT_OFFSET: usize = 0x000080080f80;
+const OUTPUT_OFFSET: u64 = 0x000080080f80;
 const METER_OFFSET: u64 = 0x000080100000;
 const CFG_OFFSET: u64 = 0x000080100514;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
@@ -151,6 +151,85 @@ impl Ff400Protocol {
     }
 }
 
+const OUTPUT_AMP_MAX: u64 = 0x3f;
+
+fn write_output_amp_cmd(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    ch: usize,
+    raw: &[u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    assert_eq!(raw.len(), 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(&raw);
+    let vol = i32::from_le_bytes(quadlet);
+
+    // The value for level is between 0x3f to 0x00 by step 1 to represent -57 dB (=mute) to +6 dB.
+    let level = (OUTPUT_AMP_MAX * (vol as u64) / (Ff400Protocol::VOL_MAX as u64)) as i8;
+    let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
+    write_amp_cmd(req, node, amp_offset, level, timeout_ms)
+}
+
+impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FormerOutputVolumeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = Self::serialize(params);
+        req.transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            OUTPUT_OFFSET,
+            raw.len(),
+            &mut raw,
+            timeout_ms,
+        )?;
+
+        (0..Self::PHYS_OUTPUT_COUNT).try_for_each(|i| {
+            let pos = i * 4;
+            write_output_amp_cmd(req, node, i, &raw[pos..(pos + 4)], timeout_ms)
+        })
+    }
+}
+
+impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Protocol {
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut FormerOutputVolumeState,
+        update: FormerOutputVolumeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(params);
+        let mut new = Self::serialize(&update);
+
+        (0..(new.len() / 4))
+            .try_for_each(|i| {
+                let pos = i * 4;
+                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteBlockRequest,
+                        OUTPUT_OFFSET + pos as u64,
+                        4,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                    .and_then(|_| {
+                        write_output_amp_cmd(req, node, i, &new[pos..(pos + 4)], timeout_ms)
+                    })
+                } else {
+                    Ok(())
+                }
+            })
+            .map(|_| *params = update)
+    }
+}
+
 impl RmeFormerOutputOperation for Ff400Protocol {
     fn write_output_vol(
         req: &mut FwReq,
@@ -164,7 +243,7 @@ impl RmeFormerOutputOperation for Ff400Protocol {
         req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
-            (OUTPUT_OFFSET + ch * 4) as u64,
+            OUTPUT_OFFSET + 4 * ch as u64,
             raw.len(),
             &mut raw,
             timeout_ms,
