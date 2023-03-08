@@ -145,6 +145,17 @@ pub trait RmeFfWhollyUpdatableParamsOperation<T> {
     ) -> Result<(), Error>;
 }
 
+/// Operation for parameters which can be updated partially.
+pub trait RmeFfPartiallyUpdatableParamsOperation<T> {
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 /// Operation for parameters which can be cached wholly at once.
 pub trait RmeFfCacheableParamsOperation<T> {
     /// Cache whole parameters from registers.
