@@ -350,21 +350,6 @@ impl RmeFfCacheableParamsOperation<FfUcxStatus> for FfUcxProtocol {
     }
 }
 
-impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
-    fn serialize(&self, quad: &mut u32) {
-        let raw = FfUcxProtocol::serialize(self);
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        *quad = u32::from_le_bytes(quadlet);
-    }
-
-    fn deserialize(&mut self, quad: &u32) {
-        FfUcxProtocol::deserialize(self, &quad.to_le_bytes());
-    }
-}
-
-impl RmeFfLatterStatusOperation<FfUcxStatus> for FfUcxProtocol {}
-
 const LINE_INPUT_COUNT: usize = 6;
 const MIC_INPUT_COUNT: usize = 2;
 const SPDIF_INPUT_COUNT: usize = 2;
