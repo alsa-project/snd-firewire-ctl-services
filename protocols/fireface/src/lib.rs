@@ -117,3 +117,15 @@ impl Default for LineOutNominalLevel {
         Self::High
     }
 }
+
+/// Parameters deserializer.
+pub trait RmeFfParamsDeserialize<T, U> {
+    /// Deserialize parameters into raw data.
+    fn deserialize(params: &mut T, raw: &[U]);
+}
+
+/// Parameters serializer.
+pub trait RmeFfParamsSerialize<T, U> {
+    /// Serialize parameters from raw data.
+    fn serialize(params: &T) -> Vec<U>;
+}
