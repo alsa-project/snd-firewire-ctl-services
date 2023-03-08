@@ -16,15 +16,6 @@ const CFG_OFFSET: u64 = 0x000080100514;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
 const AMP_OFFSET: usize = 0x0000801c0180;
 
-const ANALOG_INPUT_COUNT: usize = 8;
-const SPDIF_INPUT_COUNT: usize = 2;
-const ADAT_INPUT_COUNT: usize = 8;
-const STREAM_INPUT_COUNT: usize = 18;
-
-const ANALOG_OUTPUT_COUNT: usize = 8;
-const SPDIF_OUTPUT_COUNT: usize = 2;
-const ADAT_OUTPUT_COUNT: usize = 8;
-
 // TODO: 12 quadlets are read at once for 6 octuple of timecode detected from line input 3.
 #[allow(dead_code)]
 const LTC_STATUS_OFFSET: usize = 0x0000801f0000;
@@ -33,17 +24,19 @@ const AMP_MIC_IN_CH_OFFSET: u8 = 0;
 const AMP_LINE_IN_CH_OFFSET: u8 = 2;
 const AMP_OUT_CH_OFFSET: u8 = 4;
 
+impl RmeFfFormerSpecification for Ff400Protocol {
+    const ANALOG_INPUT_COUNT: usize = 8;
+    const SPDIF_INPUT_COUNT: usize = 2;
+    const ADAT_INPUT_COUNT: usize = 8;
+    const STREAM_INPUT_COUNT: usize = 18;
+
+    const ANALOG_OUTPUT_COUNT: usize = 8;
+    const SPDIF_OUTPUT_COUNT: usize = 2;
+    const ADAT_OUTPUT_COUNT: usize = 8;
+}
+
 impl RmeFfFormerMeterOperation for Ff400Protocol {
     const METER_OFFSET: usize = METER_OFFSET;
-
-    const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
 
 fn write_amp_cmd(
@@ -159,10 +152,6 @@ impl Ff400Protocol {
 }
 
 impl RmeFormerOutputOperation for Ff400Protocol {
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-
     fn write_output_vol(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -191,15 +180,6 @@ impl RmeFormerOutputOperation for Ff400Protocol {
 }
 
 impl RmeFormerMixerOperation for Ff400Protocol {
-    const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-
     const MIXER_OFFSET: usize = MIXER_OFFSET as usize;
     const AVAIL_COUNT: usize = 18;
 }
