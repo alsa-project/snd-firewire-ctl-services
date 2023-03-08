@@ -2052,6 +2052,105 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxOperation for O {}
 
+impl<O: RmeFfLatterFxOperation> RmeFfParamsSerialize<FfLatterFxState, u32> for O {
+    fn serialize(state: &FfLatterFxState) -> Vec<u32> {
+        assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
+        assert_eq!(state.spdif_input_gains.len(), Self::SPDIF_INPUT_COUNT);
+        assert_eq!(state.adat_input_gains.len(), Self::ADAT_INPUT_COUNT);
+        assert_eq!(state.stream_input_gains.len(), Self::STREAM_INPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state
+            .line_input_gains
+            .iter()
+            .chain(&state.mic_input_gains)
+            .chain(&state.spdif_input_gains)
+            .chain(&state.adat_input_gains)
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
+            });
+
+        state
+            .stream_input_gains
+            .iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                cmds.push(create_virt_port_cmd(
+                    Self::MIXER_STEP,
+                    FX_MIXER_0,
+                    Self::STREAM_OFFSET + i as u16,
+                    gain,
+                ));
+                cmds.push(create_virt_port_cmd(
+                    Self::MIXER_STEP,
+                    FX_MIXER_1,
+                    Self::STREAM_OFFSET + i as u16,
+                    gain,
+                ));
+            });
+
+        assert_eq!(state.line_output_vols.len(), Self::LINE_OUTPUT_COUNT);
+        assert_eq!(state.hp_output_vols.len(), Self::HP_OUTPUT_COUNT);
+        assert_eq!(state.spdif_output_vols.len(), Self::SPDIF_OUTPUT_COUNT);
+        assert_eq!(state.adat_output_vols.len(), Self::ADAT_OUTPUT_COUNT);
+
+        state
+            .line_output_vols
+            .iter()
+            .chain(&state.hp_output_vols)
+            .chain(&state.spdif_output_vols)
+            .chain(&state.adat_output_vols)
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
+            });
+
+        cmds.append(&mut reverb_state_to_cmds(&state.reverb));
+        cmds.append(&mut echo_state_to_cmds(&state.echo));
+
+        cmds
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterFxState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterFxState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterFxState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterFxState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterFxState,
+        update: FfLatterFxState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
