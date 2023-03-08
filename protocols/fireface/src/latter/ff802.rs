@@ -330,34 +330,46 @@ pub struct Ff802Status {
     pub active_clk_rate: ClkNominalRate,
 }
 
-impl RmeFfLatterRegisterValueOperation for Ff802Status {
-    fn serialize(&self, quad: &mut u32) {
-        serialize_external_lock_status(&self.ext_lock, quad);
-        serialize_external_sync_status(&self.ext_sync, quad);
-        serialize_external_rate_status(&self.ext_rate, quad);
+impl RmeFfParamsSerialize<Ff802Status, u8> for Ff802Protocol {
+    fn serialize(status: &Ff802Status) -> Vec<u8> {
+        let mut quad = 0;
 
-        *quad &= !STATUS_ACTIVE_CLK_RATE_MASK;
-        serialize_clock_rate(&self.active_clk_rate, quad, 28);
+        serialize_external_lock_status(&status.ext_lock, &mut quad);
+        serialize_external_sync_status(&status.ext_sync, &mut quad);
+        serialize_external_rate_status(&status.ext_rate, &mut quad);
 
-        *quad &= !STATUS_ACTIVE_CLK_SRC_MASK;
-        let val = match self.active_clk_src {
+        quad &= !STATUS_ACTIVE_CLK_RATE_MASK;
+        serialize_clock_rate(&status.active_clk_rate, &mut quad, 28);
+
+        quad &= !STATUS_ACTIVE_CLK_SRC_MASK;
+        let val = match status.active_clk_src {
             Ff802ClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
             Ff802ClkSrc::AdatA => STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG,
             Ff802ClkSrc::AdatB => STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG,
             Ff802ClkSrc::AesEbu => STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG,
             Ff802ClkSrc::WordClk => STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
         };
-        *quad |= val;
+        quad |= val;
+
+        quad.to_le_bytes().to_vec()
     }
+}
 
-    fn deserialize(&mut self, quad: &u32) {
-        deserialize_external_lock_status(&mut self.ext_lock, quad);
-        deserialize_external_sync_status(&mut self.ext_sync, quad);
-        deserialize_external_rate_status(&mut self.ext_rate, quad);
+impl RmeFfParamsDeserialize<Ff802Status, u8> for Ff802Protocol {
+    fn deserialize(status: &mut Ff802Status, raw: &[u8]) {
+        assert!(raw.len() >= LATTER_STATUS_SIZE);
 
-        deserialize_clock_rate(&mut self.active_clk_rate, quad, 28);
+        let mut r = [0; 4];
+        r.copy_from_slice(&raw[..4]);
+        let quad = u32::from_le_bytes(r);
 
-        self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
+        deserialize_external_lock_status(&mut status.ext_lock, &quad);
+        deserialize_external_sync_status(&mut status.ext_sync, &quad);
+        deserialize_external_rate_status(&mut status.ext_rate, &quad);
+
+        deserialize_clock_rate(&mut status.active_clk_rate, &quad, 28);
+
+        status.active_clk_src = match quad & STATUS_ACTIVE_CLK_SRC_MASK {
             STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff802ClkSrc::Internal,
             STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG => Ff802ClkSrc::AdatA,
             STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG => Ff802ClkSrc::AdatB,
@@ -365,6 +377,19 @@ impl RmeFfLatterRegisterValueOperation for Ff802Status {
             STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff802ClkSrc::WordClk,
             _ => unreachable!(),
         };
+    }
+}
+
+impl RmeFfLatterRegisterValueOperation for Ff802Status {
+    fn serialize(&self, quad: &mut u32) {
+        let raw = Ff802Protocol::serialize(self);
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        *quad = u32::from_le_bytes(quadlet);
+    }
+
+    fn deserialize(&mut self, quad: &u32) {
+        Ff802Protocol::deserialize(self, &quad.to_le_bytes());
     }
 }
 
@@ -521,10 +546,9 @@ mod test {
             active_clk_src: Ff802ClkSrc::AdatA,
             active_clk_rate: ClkNominalRate::R96000,
         };
-        let mut quad = 0;
-        orig.serialize(&mut quad);
+        let raw = Ff802Protocol::serialize(&orig);
         let mut target = Ff802Status::default();
-        target.deserialize(&quad);
+        Ff802Protocol::deserialize(&mut target, &raw);
 
         assert_eq!(target, orig);
     }

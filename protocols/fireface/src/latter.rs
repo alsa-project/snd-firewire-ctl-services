@@ -152,6 +152,8 @@ fn deserialize_clock_rate_optional(
     };
 }
 
+const LATTER_STATUS_SIZE: usize = 4;
+
 /// Status protocol.
 pub trait RmeFfLatterStatusOperation<U>
 where
