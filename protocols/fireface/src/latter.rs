@@ -1334,8 +1334,8 @@ pub struct FfLatterChStripState {
     pub autolevel: FfLatterAutolevelState,
 }
 
-/// Channel strip protocol.
-pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspSpecification {
+/// The specification of channel strip.
+pub trait RmeFfLatterChStripSpecification<T>: RmeFfLatterDspSpecification {
     const CH_COUNT: usize;
     const CH_OFFSET: u8;
 
@@ -1390,109 +1390,17 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspSpecification {
     const AUTOLEVEL_RISE_TIME_MIN: i32 = 1;
     const AUTOLEVEL_RISE_TIME_MAX: i32 = 99;
     const AUTOLEVEL_RISE_TIME_STEP: i32 = 1;
-
-    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState;
-    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState;
-
-    fn init_ch_strip(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FfLatterDspState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut cmds = Vec::new();
-        cmds.append(&mut hpf_state_to_cmds(
-            &Self::ch_strip(state).hpf,
-            Self::CH_OFFSET,
-        ));
-        cmds.append(&mut eq_state_to_cmds(
-            &Self::ch_strip(state).eq,
-            Self::CH_OFFSET,
-        ));
-        cmds.append(&mut dyn_state_to_cmds(
-            &Self::ch_strip(state).dynamics,
-            Self::CH_OFFSET,
-        ));
-        cmds.append(&mut autolevel_state_to_cmds(
-            &Self::ch_strip(state).autolevel,
-            Self::CH_OFFSET,
-        ));
-
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-
-    fn write_ch_strip_hpf(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        hpf: FfLatterHpfState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = hpf_state_to_cmds(&Self::ch_strip(state).hpf, Self::CH_OFFSET);
-        let new = hpf_state_to_cmds(&hpf, Self::CH_OFFSET);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms)
-            .map(|_| Self::ch_strip_mut(state).hpf = hpf)
-    }
-
-    fn write_ch_strip_eq(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        eq: FfLatterEqState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = eq_state_to_cmds(&Self::ch_strip(state).eq, Self::CH_OFFSET);
-        let new = eq_state_to_cmds(&eq, Self::CH_OFFSET);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| Self::ch_strip_mut(state).eq = eq)
-    }
-
-    fn write_ch_strip_dynamics(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        dynamics: FfLatterDynState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = dyn_state_to_cmds(&Self::ch_strip(state).dynamics, Self::CH_OFFSET);
-        let new = dyn_state_to_cmds(&dynamics, Self::CH_OFFSET);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms)
-            .map(|_| Self::ch_strip_mut(state).dynamics = dynamics)
-    }
-
-    fn write_ch_strip_autolevel(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        autolevel: FfLatterAutolevelState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = autolevel_state_to_cmds(&Self::ch_strip(state).autolevel, Self::CH_OFFSET);
-        let new = autolevel_state_to_cmds(&autolevel, Self::CH_OFFSET);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms)
-            .map(|_| Self::ch_strip_mut(state).autolevel = autolevel)
-    }
 }
 
 /// State of input channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterInputChStripState(pub FfLatterChStripState);
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterInputChStripState> for O {
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripSpecification<FfLatterInputChStripState>
+    for O
+{
     const CH_COUNT: usize = Self::PHYS_INPUT_COUNT;
     const CH_OFFSET: u8 = 0x00;
-
-    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState {
-        &state.input_ch_strip.0
-    }
-
-    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState {
-        &mut state.input_ch_strip.0
-    }
 }
 
 impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
@@ -1509,7 +1417,7 @@ impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
 
 impl<O> RmeFfParamsSerialize<FfLatterInputChStripState, u32> for O
 where
-    O: RmeFfLatterChStripOperation<FfLatterInputChStripState>,
+    O: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
     fn serialize(state: &FfLatterInputChStripState) -> Vec<u32> {
         [
@@ -1563,17 +1471,11 @@ where
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterOutputChStripState> for O {
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
+    for O
+{
     const CH_COUNT: usize = Self::OUTPUT_COUNT;
     const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
-
-    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState {
-        &state.output_ch_strip.0
-    }
-
-    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState {
-        &mut state.output_ch_strip.0
-    }
 }
 
 impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
