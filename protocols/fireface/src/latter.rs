@@ -1495,6 +1495,70 @@ impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterInputCh
     }
 }
 
+impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
+    fn as_ref(&self) -> &FfLatterChStripState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
+    fn as_mut(&mut self) -> &mut FfLatterChStripState {
+        &mut self.0
+    }
+}
+
+impl<O> RmeFfParamsSerialize<FfLatterInputChStripState, u32> for O
+where
+    O: RmeFfLatterChStripOperation<FfLatterInputChStripState>,
+{
+    fn serialize(state: &FfLatterInputChStripState) -> Vec<u32> {
+        [
+            hpf_state_to_cmds(&state.0.hpf, 0),
+            eq_state_to_cmds(&state.0.eq, 0),
+            dyn_state_to_cmds(&state.0.dynamics, 0),
+            autolevel_state_to_cmds(&state.0.autolevel, 0),
+        ]
+        .iter()
+        .flatten()
+        .copied()
+        .collect()
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterInputChStripState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterInputChStripState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterInputChStripState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterInputChStripState,
+        update: FfLatterInputChStripState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
+    }
+}
+
 /// State of output channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
@@ -1509,6 +1573,72 @@ impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterOutputC
 
     fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState {
         &mut state.output_ch_strip.0
+    }
+}
+
+impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
+    fn as_ref(&self) -> &FfLatterChStripState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterChStripState> for FfLatterOutputChStripState {
+    fn as_mut(&mut self) -> &mut FfLatterChStripState {
+        &mut self.0
+    }
+}
+
+impl<O: RmeFfLatterSpecification> RmeFfParamsSerialize<FfLatterOutputChStripState, u32> for O {
+    fn serialize(state: &FfLatterOutputChStripState) -> Vec<u32> {
+        let ch_offset: u8 = (Self::LINE_INPUT_COUNT
+            + Self::MIC_INPUT_COUNT
+            + Self::SPDIF_INPUT_COUNT
+            + Self::ADAT_INPUT_COUNT) as u8;
+
+        [
+            hpf_state_to_cmds(&state.0.hpf, ch_offset),
+            eq_state_to_cmds(&state.0.eq, ch_offset),
+            dyn_state_to_cmds(&state.0.dynamics, ch_offset),
+            autolevel_state_to_cmds(&state.0.autolevel, ch_offset),
+        ]
+        .iter()
+        .flatten()
+        .copied()
+        .collect()
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterOutputChStripState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterOutputChStripState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterOutputChStripState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterOutputChStripState,
+        update: FfLatterOutputChStripState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
 }
 
