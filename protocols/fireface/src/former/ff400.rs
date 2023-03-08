@@ -9,7 +9,7 @@ use super::*;
 #[derive(Default, Debug)]
 pub struct Ff400Protocol;
 
-const MIXER_OFFSET: usize = 0x000080080000;
+const MIXER_OFFSET: u64 = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080080f80;
 const METER_OFFSET: u64 = 0x000080100000;
 const CFG_OFFSET: u64 = 0x000080100514;
@@ -180,7 +180,7 @@ impl RmeFormerOutputOperation for Ff400Protocol {
 }
 
 impl RmeFormerMixerOperation for Ff400Protocol {
-    const MIXER_OFFSET: usize = MIXER_OFFSET as usize;
+    const MIXER_OFFSET: u64 = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 18;
 }
 
