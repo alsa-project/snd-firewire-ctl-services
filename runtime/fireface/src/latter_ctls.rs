@@ -138,7 +138,9 @@ where
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfLatterMixerOperation
+        + RmeFfLatterMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation;
@@ -152,7 +154,9 @@ where
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfLatterMixerOperation
+        + RmeFfLatterMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation,
@@ -165,18 +169,13 @@ where
             .iter_mut()
             .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_MAX as i16);
 
-        state
-            .mixer
-            .0
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, mixer)| {
-                mixer
-                    .stream_gains
-                    .iter_mut()
-                    .nth(i)
-                    .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
-            });
+        state.mixer.0.iter_mut().enumerate().for_each(|(i, mixer)| {
+            mixer
+                .stream_gains
+                .iter_mut()
+                .nth(i)
+                .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
+        });
 
         Self(state, Default::default())
     }
@@ -191,7 +190,9 @@ where
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfLatterMixerOperation
+        + RmeFfLatterMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation,
@@ -702,7 +703,12 @@ const MIXER_SPDIF_SRC_GAIN_NAME: &str = "mixer:spdif-source-gain";
 const MIXER_ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
 const MIXER_STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 
-impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
+impl<T> LatterDspCtl<T>
+where
+    T: RmeFfLatterMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>,
+{
     const SRC_GAIN_TLV: DbInterval = DbInterval {
         min: -6500,
         max: 600,
@@ -716,8 +722,8 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_mixers(req, node, &mut self.0, timeout_ms);
-        debug!(params = ?self.0, ?res);
+        let res = T::update_wholly(req, node, &mut self.0.mixer, timeout_ms);
+        debug!(params = ?self.0.mixer, ?res);
         res
     }
 
@@ -790,51 +796,51 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer.0[index]
-                    .line_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer.line_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer.0[index]
-                    .mic_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer.mic_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer.0[index]
-                    .spdif_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer.spdif_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer.0[index]
-                    .adat_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer.adat_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer.0[index]
-                    .stream_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = mixer.stream_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
@@ -853,62 +859,82 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.0[index].clone();
-                params
+                let mut params = self.0.mixer.clone();
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .line_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
+                debug!(params = ?self.0.mixer, ?res);
                 res.map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.0[index].clone();
-                params
+                let mut params = self.0.mixer.clone();
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .mic_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
+                debug!(params = ?self.0.mixer, ?res);
                 res.map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.0[index].clone();
-                params
+                let mut params = self.0.mixer.clone();
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .spdif_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
+                debug!(params = ?self.0.mixer, ?res);
                 res.map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.0[index].clone();
-                params
+                let mut params = self.0.mixer.clone();
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .adat_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
+                debug!(params = ?self.0.mixer, ?res);
                 res.map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.0[index].clone();
-                params
+                let mut params = self.0.mixer.clone();
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .stream_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_mixer(req, node, &mut self.0, index, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
+                debug!(params = ?self.0.mixer, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
