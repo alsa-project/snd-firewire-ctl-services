@@ -1076,44 +1076,6 @@ impl RmeFfWhollyUpdatableParamsOperation<Ff400Config> for Ff400Protocol {
     }
 }
 
-fn serialize_config(config: &Ff400Config, quads: &mut [u32]) {
-    assert_eq!(quads.len(), Ff400Config::QUADLET_COUNT);
-
-    let raw = Ff400Protocol::serialize(config);
-    let mut quadlet = [0; 4];
-    quads.iter_mut().enumerate().for_each(|(i, quad)| {
-        let pos = i * 4;
-        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-        *quad = u32::from_le_bytes(quadlet);
-    });
-}
-
-impl Ff400Protocol {
-    pub fn write_cfg(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        cfg: &Ff400Config,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quads = [0u32; 3];
-        serialize_config(cfg, &mut quads);
-
-        let mut raw = [0; 12];
-        quads.iter().enumerate().for_each(|(i, quad)| {
-            let pos = i * 4;
-            raw[pos..(pos + 4)].copy_from_slice(&quad.to_le_bytes())
-        });
-        req.transaction_sync(
-            node,
-            FwTcode::WriteBlockRequest,
-            CFG_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
