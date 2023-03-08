@@ -84,30 +84,6 @@ pub trait RmeFfLatterRegisterValueOperation {
     fn deserialize(&mut self, quad: &u32);
 }
 
-/// Configuration protocol.
-pub trait RmeFfLatterConfigOperation<U: RmeFfLatterRegisterValueOperation> {
-    fn write_cfg(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        cfg: &U,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut quad = 0u32;
-        cfg.serialize(&mut quad);
-
-        let mut raw = [0; 4];
-        raw.copy_from_slice(&quad.to_le_bytes());
-        req.transaction_sync(
-            node,
-            FwTcode::WriteQuadletRequest,
-            CFG_OFFSET,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-    }
-}
-
 // For status register (0x'ffff'0000'001c).
 const STATUS_CLK_RATE_32000: u32 = 0x00;
 const STATUS_CLK_RATE_44100: u32 = 0x01;

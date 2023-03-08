@@ -144,21 +144,6 @@ impl RmeFfWhollyUpdatableParamsOperation<FfUcxConfig> for FfUcxProtocol {
     }
 }
 
-impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
-    fn serialize(&self, quad: &mut u32) {
-        let raw = FfUcxProtocol::serialize(self);
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        *quad = u32::from_le_bytes(quadlet);
-    }
-
-    fn deserialize(&mut self, quad: &u32) {
-        FfUcxProtocol::deserialize(self, &quad.to_le_bytes());
-    }
-}
-
-impl RmeFfLatterConfigOperation<FfUcxConfig> for FfUcxProtocol {}
-
 // For status register (0x'ffff'0000'001c).
 #[allow(dead_code)]
 const STATUS_ACTIVE_CLK_RATE_MASK: u32 = 0x0f000000;

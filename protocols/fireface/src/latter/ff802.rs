@@ -171,22 +171,6 @@ impl RmeFfWhollyUpdatableParamsOperation<Ff802Config> for Ff802Protocol {
         write_config::<Ff802Protocol, Ff802Config>(req, node, params, timeout_ms)
     }
 }
-
-impl RmeFfLatterRegisterValueOperation for Ff802Config {
-    fn serialize(&self, quad: &mut u32) {
-        let raw = Ff802Protocol::serialize(self);
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        *quad = u32::from_le_bytes(quadlet);
-    }
-
-    fn deserialize(&mut self, quad: &u32) {
-        Ff802Protocol::deserialize(self, &quad.to_le_bytes());
-    }
-}
-
-impl RmeFfLatterConfigOperation<Ff802Config> for Ff802Protocol {}
-
 // For status register (0x'ffff'0000'001c).
 const STATUS_ACTIVE_CLK_RATE_MASK: u32 = 0xf0000000;
 const STATUS_ADAT_B_RATE_MASK: u32 = 0x0f000000;
