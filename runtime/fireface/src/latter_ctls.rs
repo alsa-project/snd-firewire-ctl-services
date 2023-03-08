@@ -147,7 +147,9 @@ where
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfLatterFxOperation;
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>;
 
 impl<T> Default for LatterDspCtl<T>
 where
@@ -167,7 +169,9 @@ where
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfLatterFxOperation,
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
 {
     fn default() -> Self {
         let mut state = T::create_dsp_state();
@@ -207,7 +211,9 @@ where
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
         + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfLatterFxOperation,
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
 {
     pub fn cache(
         &mut self,
@@ -2153,7 +2159,12 @@ const ECHO_LPF_FREQ_NAME: &str = "fx:echo-lpf-freq";
 const ECHO_VOL_NAME: &str = "fx:echo-volume";
 const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 
-impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
+impl<T> LatterDspCtl<T>
+where
+    T: RmeFfLatterFxSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
+{
     const PHYS_LEVEL_TLV: DbInterval = DbInterval {
         min: -6500,
         max: 000,
@@ -2206,8 +2217,8 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_fx(req, node, &mut self.0, timeout_ms);
-        debug!(params = ?self.0, ?res);
+        let res = T::update_wholly(req, node, &mut self.0.fx, timeout_ms);
+        debug!(params = ?self.0.fx, ?res);
         res
     }
 
@@ -2691,7 +2702,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx, ?res);
                 res.map(|_| true)
             }
@@ -2702,7 +2713,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx, ?res);
                 res.map(|_| true)
             }
@@ -2713,7 +2724,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx, ?res);
                 res.map(|_| true)
             }
@@ -2724,7 +2735,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx, ?res);
                 res.map(|_| true)
             }
@@ -2735,7 +2746,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::write_fx_input_gains(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx, ?res);
                 res.map(|_| true)
             }
@@ -2746,7 +2757,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx);
                 res.map(|_| true)
             }
@@ -2757,7 +2768,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx);
                 res.map(|_| true)
             }
@@ -2768,7 +2779,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx);
                 res.map(|_| true)
             }
@@ -2779,7 +2790,7 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_fx_output_volumes(req, node, &mut self.0, params, timeout_ms);
+                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
                 debug!(params = ?self.0.fx);
                 res.map(|_| true)
             }
@@ -2953,10 +2964,10 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
     where
         F: Fn(&mut FfLatterFxReverbState) -> Result<(), Error>,
     {
-        let mut params = self.0.fx.reverb.clone();
-        cb(&mut params)?;
-        let res = T::write_fx_reverb(req, node, &mut self.0, &params, timeout_ms);
-        debug!(?params, ?res);
+        let mut params = self.0.fx.clone();
+        cb(&mut params.reverb)?;
+        let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
+        debug!(params = ?self.0.fx, ?res);
         res
     }
 
@@ -2970,10 +2981,10 @@ impl<T: RmeFfLatterFxOperation> LatterDspCtl<T> {
     where
         F: Fn(&mut FfLatterFxEchoState) -> Result<(), Error>,
     {
-        let mut params = self.0.fx.echo.clone();
-        cb(&mut params)?;
-        let res = T::write_fx_echo(req, node, &mut self.0, &params, timeout_ms);
-        debug!(?params, ?res);
+        let mut params = self.0.fx.clone();
+        cb(&mut params.echo)?;
+        let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
+        debug!(params = ?self.0.fx, ?res);
         res
     }
 }
