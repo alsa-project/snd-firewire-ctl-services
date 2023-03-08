@@ -14,7 +14,7 @@ const OUTPUT_OFFSET: u64 = 0x000080080f80;
 const METER_OFFSET: u64 = 0x000080100000;
 const CFG_OFFSET: u64 = 0x000080100514;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
-const AMP_OFFSET: usize = 0x0000801c0180;
+const AMP_OFFSET: u64 = 0x0000801c0180;
 
 // TODO: 12 quadlets are read at once for 6 octuple of timecode detected from line input 3.
 #[allow(dead_code)]
@@ -52,7 +52,7 @@ fn write_amp_cmd(
     req.transaction_sync(
         node,
         FwTcode::WriteQuadletRequest,
-        AMP_OFFSET as u64,
+        AMP_OFFSET,
         raw.len(),
         &mut raw,
         timeout_ms,
@@ -70,6 +70,51 @@ pub struct Ff400InputGainStatus {
     pub line: [i8; 2],
 }
 
+impl RmeFfWhollyUpdatableParamsOperation<Ff400InputGainStatus> for Ff400Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Ff400InputGainStatus,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        [
+            (&params.mic, AMP_MIC_IN_CH_OFFSET),
+            (&params.line, AMP_LINE_IN_CH_OFFSET),
+        ]
+        .iter()
+        .try_for_each(|(gains, offset)| {
+            gains.iter().enumerate().try_for_each(|(i, &gain)| {
+                write_amp_cmd(req, node, offset + i as u8, gain, timeout_ms)
+            })
+        })
+    }
+}
+
+impl RmeFfPartiallyUpdatableParamsOperation<Ff400InputGainStatus> for Ff400Protocol {
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Ff400InputGainStatus,
+        update: Ff400InputGainStatus,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        [
+            (&mut params.mic, update.mic, AMP_MIC_IN_CH_OFFSET),
+            (&mut params.line, update.line, AMP_LINE_IN_CH_OFFSET),
+        ]
+        .iter_mut()
+        .try_for_each(|(states, changes, offset)| {
+            states
+                .iter_mut()
+                .zip(changes.iter())
+                .enumerate()
+                .filter(|(_, (s, c))| !s.eq(c))
+                .try_for_each(|(i, (s, c))| {
+                    write_amp_cmd(req, node, *offset + i as u8, *c, timeout_ms).map(|_| *s = *c)
+                })
+        })
+    }
+}
 impl Ff400Protocol {
     pub fn write_input_mic_gain(
         req: &mut FwReq,
