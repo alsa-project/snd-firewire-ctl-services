@@ -144,3 +144,14 @@ pub trait RmeFfWhollyUpdatableParamsOperation<T> {
         timeout_ms: u32,
     ) -> Result<(), Error>;
 }
+
+/// Operation for parameters which can be cached wholly at once.
+pub trait RmeFfCacheableParamsOperation<T> {
+    /// Cache whole parameters from registers.
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
