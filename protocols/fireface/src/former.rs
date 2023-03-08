@@ -334,6 +334,8 @@ pub trait RmeFormerMixerOperation {
     }
 }
 
+const FORMER_CONFIG_SIZE: usize = 12;
+
 /// Configuration of S/PDIF output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FormerSpdifOutput {

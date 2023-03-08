@@ -632,7 +632,6 @@ fn serialize_clock_config(config: &Ff800ClkConfig, quads: &mut [u32]) {
     }
 }
 
-#[cfg(test)]
 fn deserialize_clock_config(config: &mut Ff800ClkConfig, quads: &[u32]) {
     assert!(quads.len() >= Ff800ClkConfig::QUADLET_COUNT);
 
@@ -687,7 +686,6 @@ fn serialize_instrument_config(config: &Ff800InstConfig, quads: &mut [u32]) {
     }
 }
 
-#[cfg(test)]
 fn deserialize_instrument_config(config: &mut Ff800InstConfig, quads: &[u32]) {
     assert!(quads.len() >= Ff800InstConfig::QUADLET_COUNT);
 
@@ -780,7 +778,6 @@ fn serialize_analog_input_config(config: &Ff800AnalogInConfig, quads: &mut [u32]
     serialize_instrument_config(&config.inst, quads);
 }
 
-#[cfg(test)]
 fn deserialize_analog_input_config(config: &mut Ff800AnalogInConfig, quads: &[u32]) {
     assert!(quads.len() >= Ff800AnalogInConfig::QUADLET_COUNT);
 
@@ -860,7 +857,7 @@ impl Default for Ff800Config {
 }
 
 impl Ff800Config {
-    const QUADLET_COUNT: usize = 3;
+    const QUADLET_COUNT: usize = FORMER_CONFIG_SIZE / 4;
 
     /// Although the configuration registers are write-only, some of them are available in status
     /// registers.
@@ -873,113 +870,139 @@ impl Ff800Config {
     }
 }
 
-fn serialize_config(config: &Ff800Config, quads: &mut [u32]) {
-    assert_eq!(quads.len(), Ff800Config::QUADLET_COUNT);
+impl RmeFfParamsSerialize<Ff800Config, u8> for Ff800Protocol {
+    fn serialize(params: &Ff800Config) -> Vec<u8> {
+        let mut quads = [0; Ff800Config::QUADLET_COUNT];
 
-    serialize_clock_config(&config.clk, quads);
-    serialize_analog_input_config(&config.analog_in, quads);
+        serialize_clock_config(&params.clk, &mut quads);
+        serialize_analog_input_config(&params.analog_in, &mut quads);
 
-    quads[0] &= !Q0_LINE_OUT_LEVEL_MASK;
-    quads[1] &= !Q1_LINE_OUT_LEVEL_MASK;
-    match config.line_out_level {
-        LineOutNominalLevel::High => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
+        quads[0] &= !Q0_LINE_OUT_LEVEL_MASK;
+        quads[1] &= !Q1_LINE_OUT_LEVEL_MASK;
+        match params.line_out_level {
+            LineOutNominalLevel::High => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
+            }
+            LineOutNominalLevel::Consumer => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
+            }
+            LineOutNominalLevel::Professional => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
+            }
         }
-        LineOutNominalLevel::Consumer => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
+
+        quads[2] &= !Q2_SPDIF_IN_IFACE_OPT_MASK;
+        if params.spdif_in.iface == SpdifIface::Optical {
+            quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
         }
-        LineOutNominalLevel::Professional => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
+
+        quads[2] &= !Q2_SPDIF_IN_USE_PREEMBLE;
+        if params.spdif_in.use_preemble {
+            quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
         }
-    }
 
-    quads[2] &= !Q2_SPDIF_IN_IFACE_OPT_MASK;
-    if config.spdif_in.iface == SpdifIface::Optical {
-        quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
-    }
+        quads[2] &= !Q2_OPT_OUT_SIGNAL_MASK;
+        if params.opt_out_signal == OpticalOutputSignal::Spdif {
+            quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
+        }
 
-    quads[2] &= !Q2_SPDIF_IN_USE_PREEMBLE;
-    if config.spdif_in.use_preemble {
-        quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
-    }
+        quads[2] &= !Q2_SPDIF_OUT_FMT_PRO_MASK;
+        if params.spdif_out.format == SpdifFormat::Professional {
+            quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
+        }
 
-    quads[2] &= !Q2_OPT_OUT_SIGNAL_MASK;
-    if config.opt_out_signal == OpticalOutputSignal::Spdif {
-        quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
-    }
+        quads[2] &= !Q2_SPDIF_OUT_EMPHASIS_MASK;
+        if params.spdif_out.emphasis {
+            quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
+        }
 
-    quads[2] &= !Q2_SPDIF_OUT_FMT_PRO_MASK;
-    if config.spdif_out.format == SpdifFormat::Professional {
-        quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
-    }
+        quads[2] &= !Q2_SPDIF_OUT_NON_AUDIO_MASK;
+        if params.spdif_out.non_audio {
+            quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
+        }
 
-    quads[2] &= !Q2_SPDIF_OUT_EMPHASIS_MASK;
-    if config.spdif_out.emphasis {
-        quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
-    }
+        quads[2] &= !Q2_WORD_OUT_SINGLE_SPEED_MASK;
+        if params.word_out_single {
+            quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
+        }
 
-    quads[2] &= !Q2_SPDIF_OUT_NON_AUDIO_MASK;
-    if config.spdif_out.non_audio {
-        quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
-    }
+        quads[2] &= !Q2_CONTINUE_AT_ERRORS;
+        if params.continue_at_errors {
+            quads[2] |= Q2_CONTINUE_AT_ERRORS;
+        }
 
-    quads[2] &= !Q2_WORD_OUT_SINGLE_SPEED_MASK;
-    if config.word_out_single {
-        quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
-    }
-
-    quads[2] &= !Q2_CONTINUE_AT_ERRORS;
-    if config.continue_at_errors {
-        quads[2] |= Q2_CONTINUE_AT_ERRORS;
+        quads.iter().flat_map(|quad| quad.to_le_bytes()).collect()
     }
 }
 
-#[cfg(test)]
-fn deserialize_config(config: &mut Ff800Config, quads: &[u32]) {
+impl RmeFfParamsDeserialize<Ff800Config, u8> for Ff800Protocol {
+    fn deserialize(params: &mut Ff800Config, raw: &[u8]) {
+        let mut quads = [0; Ff800Config::QUADLET_COUNT];
+
+        let mut quadlet = [0; 4];
+        quads.iter_mut().enumerate().for_each(|(i, quad)| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            *quad = u32::from_le_bytes(quadlet);
+        });
+
+        deserialize_clock_config(&mut params.clk, &quads);
+        deserialize_analog_input_config(&mut params.analog_in, &quads);
+
+        let pair = (
+            quads[0] & Q0_LINE_OUT_LEVEL_MASK,
+            quads[1] & Q1_LINE_OUT_LEVEL_MASK,
+        );
+        params.line_out_level = match pair {
+            (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
+            (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => {
+                LineOutNominalLevel::Consumer
+            }
+            (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
+                LineOutNominalLevel::Professional
+            }
+            _ => unreachable!(),
+        };
+
+        params.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
+            SpdifIface::Optical
+        } else {
+            SpdifIface::Coaxial
+        };
+        params.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
+
+        params.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
+            SpdifFormat::Professional
+        } else {
+            SpdifFormat::Consumer
+        };
+        params.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
+        params.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
+
+        params.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
+            OpticalOutputSignal::Spdif
+        } else {
+            OpticalOutputSignal::Adat
+        };
+
+        params.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
+        params.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    }
+}
+
+fn serialize_config(config: &Ff800Config, quads: &mut [u32]) {
     assert_eq!(quads.len(), Ff800Config::QUADLET_COUNT);
 
-    deserialize_clock_config(&mut config.clk, quads);
-    deserialize_analog_input_config(&mut config.analog_in, quads);
-
-    let pair = (
-        quads[0] & Q0_LINE_OUT_LEVEL_MASK,
-        quads[1] & Q1_LINE_OUT_LEVEL_MASK,
-    );
-    config.line_out_level = match pair {
-        (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
-        (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => LineOutNominalLevel::Consumer,
-        (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
-            LineOutNominalLevel::Professional
-        }
-        _ => unreachable!(),
-    };
-
-    config.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
-        SpdifIface::Optical
-    } else {
-        SpdifIface::Coaxial
-    };
-    config.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
-
-    config.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
-        SpdifFormat::Professional
-    } else {
-        SpdifFormat::Consumer
-    };
-    config.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
-    config.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
-
-    config.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
-        OpticalOutputSignal::Spdif
-    } else {
-        OpticalOutputSignal::Adat
-    };
-
-    config.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
-    config.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    let raw = Ff800Protocol::serialize(config);
+    let mut quadlet = [0; 4];
+    quads.iter_mut().enumerate().for_each(|(i, quad)| {
+        let pos = i * 4;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        *quad = u32::from_le_bytes(quadlet);
+    });
 }
 
 impl Ff800Protocol {
@@ -1430,79 +1453,90 @@ mod test {
         assert_eq!(cfg, orig);
     }
 
+    fn config_to_quads(raw: &[u8]) -> Vec<u32> {
+        let mut quadlet = [0; 4];
+        (0..Ff800Config::QUADLET_COUNT)
+            .map(|i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                u32::from_le_bytes(quadlet)
+            })
+            .collect()
+    }
+
     #[test]
     fn config_serdes() {
         let mut orig = Ff800Config::default();
         let mut cfg = Ff800Config::default();
 
         orig.line_out_level = LineOutNominalLevel::High;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000408, 0x000008b0, 0x8000001e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000408, 0x000008b0, 0x8000001e]);
 
         orig.line_out_level = LineOutNominalLevel::Consumer;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00001008, 0x000008a8, 0x8000001e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00001008, 0x000008a8, 0x8000001e]);
 
         orig.line_out_level = LineOutNominalLevel::Professional;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000001e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000001e]);
 
         orig.spdif_in.iface = SpdifIface::Optical;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000021e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000021e]);
 
         orig.spdif_in.use_preemble = true;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000021e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000021e]);
 
         orig.opt_out_signal = OpticalOutputSignal::Spdif;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000031e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000031e]);
 
         orig.spdif_out.format = SpdifFormat::Professional;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000033e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000033e]);
 
         orig.spdif_out.emphasis = true;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000037e]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000037e]);
 
         orig.spdif_out.non_audio = true;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00003fe]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00003fe]);
 
         orig.word_out_single = true;
-        let mut quads = [0u32; 3];
-        serialize_config(&orig, &mut quads);
-        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00023fe]);
-        deserialize_config(&mut cfg, &quads);
+        let raw = Ff800Protocol::serialize(&orig);
+        Ff800Protocol::deserialize(&mut cfg, &raw);
         assert_eq!(cfg, orig);
+        let quads = config_to_quads(&raw);
+        assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00023fe]);
     }
 }
