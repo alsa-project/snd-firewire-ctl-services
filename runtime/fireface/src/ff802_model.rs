@@ -172,7 +172,7 @@ impl CfgCtl {
     const SPDIF_FMTS: [SpdifFormat; 2] = [SpdifFormat::Consumer, SpdifFormat::Professional];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = Ff802Protocol::write_cfg(req, node, &self.0, timeout_ms);
+        let res = Ff802Protocol::update_wholly(req, node, &self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -282,7 +282,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -298,7 +298,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -315,7 +315,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -323,7 +323,7 @@ impl CfgCtl {
             EFFECT_ON_INPUT_NAME => {
                 let mut params = self.0.clone();
                 params.effect_on_inputs = elem_value.boolean()[0];
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -339,7 +339,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -347,7 +347,7 @@ impl CfgCtl {
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 let mut params = self.0.clone();
                 params.word_out_single = elem_value.boolean()[0];
-                let res = Ff802Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff802Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
