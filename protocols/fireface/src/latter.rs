@@ -358,7 +358,7 @@ where
 pub struct FfLatterDspState {
     pub input: FfLatterInputState,
     pub output: FfLatterOutputState,
-    pub mixer: Vec<FfLatterMixerState>,
+    pub mixer: FfLatterMixerState,
     pub input_ch_strip: FfLatterInputChStripState,
     pub output_ch_strip: FfLatterOutputChStripState,
     pub fx: FfLatterFxState,
@@ -445,8 +445,9 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
                 invert_phases: vec![Default::default(); Self::OUTPUT_COUNT],
                 line_levels: vec![Default::default(); Self::LINE_OUTPUT_COUNT],
             },
-            mixer: vec![
-                FfLatterMixerState {
+
+            mixer: FfLatterMixerState(vec![
+                FfLatterMixer {
                     line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
                     mic_gains: vec![Default::default(); Self::MIC_INPUT_COUNT],
                     spdif_gains: vec![Default::default(); Self::SPDIF_INPUT_COUNT],
@@ -454,7 +455,7 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
                     stream_gains: vec![Default::default(); Self::STREAM_INPUT_COUNT],
                 };
                 Self::OUTPUT_COUNT
-            ],
+            ]),
             input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
                 hpf: FfLatterHpfState {
                     activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
@@ -907,18 +908,27 @@ where
     }
 }
 
-/// State of mixer.
+/// State of sources for mixer.
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
 /// through 0.00 dB.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterMixerState {
+pub struct FfLatterMixer {
+    /// The gain of sources from line inputs.
     pub line_gains: Vec<u16>,
+    /// The gain of sources from microphone inputs.
     pub mic_gains: Vec<u16>,
+    /// The gain of sources from S/PDIF inputs.
     pub spdif_gains: Vec<u16>,
+    /// The gain of sources from ADAT inputs.
     pub adat_gains: Vec<u16>,
+    /// The gain of sources from stream inputs.
     pub stream_gains: Vec<u16>,
 }
+
+/// State of mixers.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterMixerState(pub Vec<FfLatterMixer>);
 
 /// Mixer protocol.
 pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
@@ -933,9 +943,7 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
         state: &FfLatterDspState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mixers = &state.mixer;
-
-        mixers.iter().enumerate().try_for_each(|(i, mixer)| {
+        state.mixer.0.iter().enumerate().try_for_each(|(i, mixer)| {
             let ch = i as u16;
             let cmds = Self::mixer_state_to_cmds(&mixer, ch);
             cmds.iter()
@@ -948,31 +956,31 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
         node: &mut FwNode,
         state: &mut FfLatterDspState,
         index: usize,
-        mixer: FfLatterMixerState,
+        mixer: FfLatterMixer,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::mixer_state_to_cmds(&state.mixer[index], index as u16);
+        let old = Self::mixer_state_to_cmds(&state.mixer.0[index], index as u16);
         let new = Self::mixer_state_to_cmds(&mixer, index as u16);
 
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.mixer[index] = mixer)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.mixer.0[index] = mixer)
     }
 
-    fn mixer_state_to_cmds(state: &FfLatterMixerState, index: u16) -> Vec<u32> {
+    fn mixer_state_to_cmds(sources: &FfLatterMixer, index: u16) -> Vec<u32> {
         let mut cmds = Vec::new();
 
-        state
+        sources
             .line_gains
             .iter()
-            .chain(&state.mic_gains)
-            .chain(&state.spdif_gains)
-            .chain(&state.adat_gains)
+            .chain(&sources.mic_gains)
+            .chain(&sources.spdif_gains)
+            .chain(&sources.adat_gains)
             .enumerate()
             .for_each(|(i, &gain)| {
                 let ch = i as u16;
                 cmds.push(create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain));
             });
 
-        state
+        sources
             .stream_gains
             .iter()
             .enumerate()
