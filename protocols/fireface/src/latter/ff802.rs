@@ -92,60 +92,85 @@ pub struct Ff802Config {
     pub word_out_single: bool,
 }
 
-impl RmeFfLatterRegisterValueOperation for Ff802Config {
-    fn serialize(&self, quad: &mut u32) {
-        serialize_midi_tx_low_offset(&self.midi_tx_low_offset, quad);
-        serialize_clock_source(&self.clk_src, quad);
+impl RmeFfParamsSerialize<Ff802Config, u8> for Ff802Protocol {
+    fn serialize(state: &Ff802Config) -> Vec<u8> {
+        let mut quad = 0;
 
-        *quad &= !CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK;
-        if self.spdif_in_iface == Ff802SpdifIface::Optical {
-            *quad |= CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK;
+        serialize_midi_tx_low_offset(&state.midi_tx_low_offset, &mut quad);
+        serialize_clock_source(&state.clk_src, &mut quad);
+
+        quad &= !CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK;
+        if state.spdif_in_iface == Ff802SpdifIface::Optical {
+            quad |= CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK;
         }
 
-        *quad &= !CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK;
-        if self.opt_out_signal == OpticalOutputSignal::Spdif {
-            *quad |= CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK;
+        quad &= !CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK;
+        if state.opt_out_signal == OpticalOutputSignal::Spdif {
+            quad |= CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK;
         }
 
-        *quad &= !CFG_DSP_EFFECT_ON_INPUT_MASK;
-        if self.effect_on_inputs {
-            *quad |= CFG_DSP_EFFECT_ON_INPUT_MASK;
+        quad &= !CFG_DSP_EFFECT_ON_INPUT_MASK;
+        if state.effect_on_inputs {
+            quad |= CFG_DSP_EFFECT_ON_INPUT_MASK;
         }
 
-        *quad &= !CFG_AESEBU_OUT_PRO_MASK;
-        if self.spdif_out_format == SpdifFormat::Professional {
-            *quad |= CFG_AESEBU_OUT_PRO_MASK;
+        quad &= !CFG_AESEBU_OUT_PRO_MASK;
+        if state.spdif_out_format == SpdifFormat::Professional {
+            quad |= CFG_AESEBU_OUT_PRO_MASK;
         }
 
-        *quad &= !CFG_WORD_OUT_SINGLE_MASK;
-        if self.word_out_single {
-            *quad |= CFG_WORD_OUT_SINGLE_MASK;
+        quad &= !CFG_WORD_OUT_SINGLE_MASK;
+        if state.word_out_single {
+            quad |= CFG_WORD_OUT_SINGLE_MASK;
         }
+
+        quad.to_le_bytes().to_vec()
     }
+}
 
-    fn deserialize(&mut self, quad: &u32) {
-        deserialize_midi_tx_low_offset(&mut self.midi_tx_low_offset, quad);
-        deserialize_clock_source(&mut self.clk_src, quad);
+impl RmeFfParamsDeserialize<Ff802Config, u8> for Ff802Protocol {
+    fn deserialize(state: &mut Ff802Config, raw: &[u8]) {
+        assert!(raw.len() >= LATTER_CONFIG_SIZE);
 
-        self.spdif_in_iface = if *quad & CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK > 0 {
+        let mut r = [0; 4];
+        r.copy_from_slice(&raw[..4]);
+        let quad = u32::from_le_bytes(r);
+
+        deserialize_midi_tx_low_offset(&mut state.midi_tx_low_offset, &quad);
+        deserialize_clock_source(&mut state.clk_src, &quad);
+
+        state.spdif_in_iface = if quad & CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK > 0 {
             Ff802SpdifIface::Optical
         } else {
             Ff802SpdifIface::Xlr
         };
 
-        self.opt_out_signal = if *quad & CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK > 0 {
+        state.opt_out_signal = if quad & CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK > 0 {
             OpticalOutputSignal::Spdif
         } else {
             OpticalOutputSignal::Adat
         };
 
-        self.effect_on_inputs = *quad & CFG_DSP_EFFECT_ON_INPUT_MASK > 0;
-        self.spdif_out_format = if *quad & CFG_AESEBU_OUT_PRO_MASK > 0 {
+        state.effect_on_inputs = quad & CFG_DSP_EFFECT_ON_INPUT_MASK > 0;
+        state.spdif_out_format = if quad & CFG_AESEBU_OUT_PRO_MASK > 0 {
             SpdifFormat::Professional
         } else {
             SpdifFormat::Consumer
         };
-        self.word_out_single = *quad & CFG_WORD_OUT_SINGLE_MASK > 0;
+        state.word_out_single = quad & CFG_WORD_OUT_SINGLE_MASK > 0;
+    }
+}
+
+impl RmeFfLatterRegisterValueOperation for Ff802Config {
+    fn serialize(&self, quad: &mut u32) {
+        let raw = Ff802Protocol::serialize(self);
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        *quad = u32::from_le_bytes(quadlet);
+    }
+
+    fn deserialize(&mut self, quad: &u32) {
+        Ff802Protocol::deserialize(self, &quad.to_le_bytes());
     }
 }
 
@@ -422,10 +447,9 @@ mod test {
             spdif_out_format: SpdifFormat::Professional,
             word_out_single: true,
         };
-        let mut quad = 0;
-        orig.serialize(&mut quad);
+        let quads = Ff802Protocol::serialize(&orig);
         let mut target = Ff802Config::default();
-        target.deserialize(&quad);
+        Ff802Protocol::deserialize(&mut target, &quads);
 
         assert_eq!(target, orig);
     }
