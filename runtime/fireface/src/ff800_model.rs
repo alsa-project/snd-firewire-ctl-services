@@ -339,7 +339,7 @@ impl CfgCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.0.init(&status);
-        let res = Ff800Protocol::write_cfg(req, node, &self.0, timeout_ms);
+        let res = Ff800Protocol::update_wholly(req, node, &self.0, timeout_ms);
         debug!(params = ?self.0, ?res);
         res
     }
@@ -548,7 +548,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -571,7 +571,7 @@ impl CfgCtl {
                             })
                             .map(|j| *jack = *j)
                     })?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -587,7 +587,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -600,7 +600,7 @@ impl CfgCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -608,7 +608,7 @@ impl CfgCtl {
             INPUT_INST_DRIVE_NAME => {
                 let mut params = self.0.clone();
                 params.analog_in.inst.drive = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -616,7 +616,7 @@ impl CfgCtl {
             INPUT_INST_LIMITTER_NAME => {
                 let mut params = self.0.clone();
                 params.analog_in.inst.limitter = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -624,7 +624,7 @@ impl CfgCtl {
             INPUT_INST_SPKR_EMU_NAME => {
                 let mut params = self.0.clone();
                 params.analog_in.inst.speaker_emulation = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -640,7 +640,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -656,7 +656,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -664,7 +664,7 @@ impl CfgCtl {
             SPDIF_INPUT_USE_PREEMBLE_NAME => {
                 let mut params = self.0.clone();
                 params.spdif_in.use_preemble = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -680,7 +680,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -688,7 +688,7 @@ impl CfgCtl {
             SPDIF_OUTPUT_EMPHASIS_NAME => {
                 let mut params = self.0.clone();
                 params.spdif_out.emphasis = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -696,7 +696,7 @@ impl CfgCtl {
             SPDIF_OUTPUT_NON_AUDIO_NAME => {
                 let mut params = self.0.clone();
                 params.spdif_out.non_audio = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -713,7 +713,7 @@ impl CfgCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
@@ -721,7 +721,7 @@ impl CfgCtl {
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 let mut params = self.0.clone();
                 params.word_out_single = elem_value.boolean()[0];
-                let res = Ff800Protocol::write_cfg(req, node, &params, timeout_ms);
+                let res = Ff800Protocol::update_wholly(req, node, &params, timeout_ms);
                 debug!(?params, ?res);
                 self.0 = params;
                 res.map(|_| true)
