@@ -894,6 +894,108 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputOperation for O {}
 
+impl<O: RmeFfLatterOutputOperation> RmeFfParamsSerialize<FfLatterOutputState, u32> for O {
+    fn serialize(state: &FfLatterOutputState) -> Vec<u32> {
+        assert_eq!(state.vols.len(), Self::OUTPUT_COUNT);
+        assert_eq!(state.stereo_balance.len(), Self::OUTPUT_COUNT / 2);
+        assert_eq!(state.stereo_links.len(), Self::OUTPUT_COUNT / 2);
+        assert_eq!(state.invert_phases.len(), Self::OUTPUT_COUNT);
+        assert_eq!(state.line_levels.len(), Self::LINE_OUTPUT_COUNT);
+
+        let mut cmds = Vec::new();
+        let ch_offset = Self::PHYS_INPUT_COUNT as u8;
+
+        state.vols.iter().enumerate().for_each(|(i, &vol)| {
+            let ch = ch_offset + i as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
+        });
+
+        state
+            .stereo_balance
+            .iter()
+            .enumerate()
+            .for_each(|(i, &balance)| {
+                let ch = ch_offset + i as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
+            });
+
+        state
+            .stereo_links
+            .iter()
+            .enumerate()
+            .for_each(|(i, &link)| {
+                let ch = ch_offset + i as u8;
+                cmds.push(create_phys_port_cmd(
+                    ch,
+                    OUTPUT_STEREO_LINK_CMD,
+                    link as i16,
+                ));
+            });
+
+        state
+            .invert_phases
+            .iter()
+            .enumerate()
+            .for_each(|(i, &invert_phase)| {
+                let ch = ch_offset + i as u8;
+                cmds.push(create_phys_port_cmd(
+                    ch,
+                    OUTPUT_INVERT_PHASE_CMD,
+                    invert_phase as i16,
+                ));
+            });
+
+        state
+            .line_levels
+            .iter()
+            .enumerate()
+            .for_each(|(i, &line_level)| {
+                let ch = ch_offset + i as u8;
+                cmds.push(create_phys_port_cmd(
+                    ch,
+                    OUTPUT_LINE_LEVEL_CMD,
+                    line_level as i16,
+                ));
+            });
+
+        cmds
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterOutputState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterOutputState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterOutputState,
+        update: FfLatterOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
+    }
+}
+
 /// State of mixer.
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
