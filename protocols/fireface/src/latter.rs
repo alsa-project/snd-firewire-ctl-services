@@ -58,6 +58,8 @@ fn deserialize_midi_tx_low_offset(offset: &mut FfLatterMidiTxLowOffset, quad: &u
     }
 }
 
+const LATTER_CONFIG_SIZE: usize = 4;
+
 /// Operation for configuration structure.
 pub trait RmeFfLatterRegisterValueOperation {
     fn serialize(&self, quad: &mut u32);
