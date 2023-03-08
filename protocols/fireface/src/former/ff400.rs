@@ -589,42 +589,6 @@ impl RmeFfCacheableParamsOperation<Ff400Status> for Ff400Protocol {
     }
 }
 
-fn deserialize_status(status: &mut Ff400Status, quads: &[u32]) {
-    assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
-
-    let raw: Vec<u8> = quads.iter().flat_map(|quad| quad.to_le_bytes()).collect();
-    Ff400Protocol::deserialize(status, &raw);
-}
-
-impl Ff400Protocol {
-    pub fn read_status(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &mut Ff400Status,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 8];
-        req.transaction_sync(
-            node,
-            FwTcode::ReadBlockRequest,
-            STATUS_OFFSET,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| {
-            let mut quadlet = [0; 4];
-            let mut quads = [0u32; 2];
-            quads.iter_mut().enumerate().for_each(|(i, quad)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                *quad = u32::from_le_bytes(quadlet);
-            });
-            deserialize_status(status, &quads)
-        })
-    }
-}
-
 // NOTE: for first quadlet of configuration quadlets.
 const Q0_HP_OUT_LEVEL_MASK: u32 = 0x00060000;
 const Q0_HP_OUT_LEVEL_HIGH_FLAG: u32 = 0x00040000;
