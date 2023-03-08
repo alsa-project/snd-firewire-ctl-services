@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::former::*, std::marker::PhantomData};
+use {
+    super::*,
+    alsa_ctl_tlv_codec::DbInterval,
+    protocols::{former::*, *},
+    std::marker::PhantomData,
+};
 
 const VOL_NAME: &str = "output-volume";
 
@@ -308,13 +313,11 @@ const SPDIF_OUTPUT_NAME: &str = "meter:spdif-output";
 const ADAT_OUTPUT_NAME: &str = "meter:adat-output";
 
 #[derive(Debug)]
-pub struct FormerMeterCtl<T: RmeFfFormerMeterOperation>(
-    pub Vec<ElemId>,
-    FormerMeterState,
-    PhantomData<T>,
-);
+pub struct FormerMeterCtl<T>(pub Vec<ElemId>, FormerMeterState, PhantomData<T>)
+where
+    T: RmeFfFormerMeterSpecification + RmeFfCacheableParamsOperation<FormerMeterState>;
 
-impl<T: RmeFfFormerMeterOperation> Default for FormerMeterCtl<T> {
+impl<T: RmeFfFormerMeterSpecification> Default for FormerMeterCtl<T> {
     fn default() -> Self {
         Self(
             Default::default(),
@@ -324,7 +327,10 @@ impl<T: RmeFfFormerMeterOperation> Default for FormerMeterCtl<T> {
     }
 }
 
-impl<T: RmeFfFormerMeterOperation> FormerMeterCtl<T> {
+impl<T> FormerMeterCtl<T>
+where
+    T: RmeFfFormerMeterSpecification + RmeFfCacheableParamsOperation<FormerMeterState>,
+{
     const LEVEL_TLV: DbInterval = DbInterval {
         min: -9003,
         max: 600,
@@ -338,7 +344,7 @@ impl<T: RmeFfFormerMeterOperation> FormerMeterCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::read_meter(req, node, &mut self.1, timeout_ms);
+        let res = T::cache_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }

@@ -11,7 +11,7 @@ pub struct Ff800Protocol;
 
 const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080081f80;
-const METER_OFFSET: usize = 0x000080100000;
+const METER_OFFSET: u64 = 0x000080100000;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
 const CFG_OFFSET: u64 = 0x0000fc88f014;
 
@@ -34,8 +34,8 @@ impl RmeFfFormerSpecification for Ff800Protocol {
     const ADAT_OUTPUT_COUNT: usize = 16;
 }
 
-impl RmeFfFormerMeterOperation for Ff800Protocol {
-    const METER_OFFSET: usize = METER_OFFSET;
+impl RmeFfFormerMeterSpecification for Ff800Protocol {
+    const METER_OFFSET: u64 = METER_OFFSET;
 }
 
 impl RmeFormerOutputOperation for Ff800Protocol {

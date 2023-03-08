@@ -40,18 +40,25 @@ pub trait RmeFfFormerSpecification {
 /// 0.00 dB. When reaching saturation, 1 byte in LSB side represent ratio of overload.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerMeterState {
+    /// The detected levels for analog (line and microphone) inputs.
     pub analog_inputs: Vec<i32>,
+    /// The detected levels for S/PDIF inputs.
     pub spdif_inputs: Vec<i32>,
+    /// The detected levels for ADAT inputs.
     pub adat_inputs: Vec<i32>,
+    /// The detected levels for stream inputs.
     pub stream_inputs: Vec<i32>,
+    /// The detected levels for analog outputs.
     pub analog_outputs: Vec<i32>,
+    /// The detected levels for S/PDIF outputs.
     pub spdif_outputs: Vec<i32>,
+    /// The detected levels for ADAT outputs.
     pub adat_outputs: Vec<i32>,
 }
 
-/// Meter protocol of Fireface 400.
-pub trait RmeFfFormerMeterOperation: RmeFfFormerSpecification {
-    const METER_OFFSET: usize;
+/// The specification of hardware metering in former models.
+pub trait RmeFfFormerMeterSpecification: RmeFfFormerSpecification {
+    const METER_OFFSET: u64;
 
     const LEVEL_MIN: i32 = 0x00000000;
     const LEVEL_MAX: i32 = 0x7fffff00;
@@ -67,41 +74,6 @@ pub trait RmeFfFormerMeterOperation: RmeFfFormerSpecification {
             spdif_outputs: vec![0; Self::SPDIF_OUTPUT_COUNT],
             adat_outputs: vec![0; Self::ADAT_OUTPUT_COUNT],
         }
-    }
-
-    fn read_meter(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMeterState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        // NOTE:
-        // Each of the first octuples is for level of corresponding source to mixer.
-        // Each of the following octuples is for level of corresponding output from mixer (pre-fader).
-        // Each of the following octuples is for level of corresponding output from mixer (post-fader).
-        // Each of the following quadlets is for level of corresponding physical input.
-        // Each of the following quadlets is for level of corresponding stream input.
-        // Each of the following quadlets is for level of corresponding physical output.
-        let length = 8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2)
-            + 4 * (Self::PHYS_INPUT_COUNT + Self::STREAM_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT);
-        let mut raw = vec![0; length];
-        req.transaction_sync(
-            node,
-            FwTcode::ReadBlockRequest,
-            Self::METER_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| {
-            deserialize_meter(
-                state,
-                &raw,
-                Self::PHYS_INPUT_COUNT,
-                Self::STREAM_INPUT_COUNT,
-                Self::PHYS_OUTPUT_COUNT,
-            )
-        })
     }
 }
 
@@ -178,7 +150,7 @@ impl<O: RmeFfFormerSpecification> RmeFfParamsSerialize<FormerMeterState, u8> for
     }
 }
 
-impl<O: RmeFfFormerSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> for O {
+impl<O: RmeFfFormerMeterSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> for O {
     fn deserialize(params: &mut FormerMeterState, raw: &[u8]) {
         deserialize_meter(
             params,
@@ -190,7 +162,7 @@ impl<O: RmeFfFormerSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> f
     }
 }
 
-impl<O: RmeFfFormerMeterOperation + RmeFfParamsDeserialize<FormerMeterState, u8>>
+impl<O: RmeFfFormerMeterSpecification + RmeFfParamsDeserialize<FormerMeterState, u8>>
     RmeFfCacheableParamsOperation<FormerMeterState> for O
 {
     fn cache_wholly(
@@ -212,7 +184,7 @@ impl<O: RmeFfFormerMeterOperation + RmeFfParamsDeserialize<FormerMeterState, u8>
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
-            Self::METER_OFFSET as u64,
+            Self::METER_OFFSET,
             raw.len(),
             &mut raw,
             timeout_ms,

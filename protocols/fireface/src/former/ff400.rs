@@ -11,7 +11,7 @@ pub struct Ff400Protocol;
 
 const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080080f80;
-const METER_OFFSET: usize = 0x000080100000;
+const METER_OFFSET: u64 = 0x000080100000;
 const CFG_OFFSET: u64 = 0x000080100514;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
 const AMP_OFFSET: usize = 0x0000801c0180;
@@ -35,8 +35,8 @@ impl RmeFfFormerSpecification for Ff400Protocol {
     const ADAT_OUTPUT_COUNT: usize = 8;
 }
 
-impl RmeFfFormerMeterOperation for Ff400Protocol {
-    const METER_OFFSET: usize = METER_OFFSET;
+impl RmeFfFormerMeterSpecification for Ff400Protocol {
+    const METER_OFFSET: u64 = METER_OFFSET;
 }
 
 fn write_amp_cmd(
