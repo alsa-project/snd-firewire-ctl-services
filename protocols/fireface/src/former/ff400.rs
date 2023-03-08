@@ -70,6 +70,22 @@ pub struct Ff400InputGainStatus {
     pub line: [i8; 2],
 }
 
+impl Ff400Protocol {
+    /// The minimum value of gain for microphone input.
+    pub const MIC_INPUT_GAIN_MIN: i8 = 0;
+    /// The maximum value of gain for microphone input.
+    pub const MIC_INPUT_GAIN_MAX: i8 = 65;
+    /// The step value of gain for microphone input.
+    pub const MIC_INPUT_GAIN_STEP: i8 = 1;
+
+    /// The minimum value of gain for line input.
+    pub const LINE_INPUT_GAIN_MIN: i8 = 0;
+    /// The maximum value of gain for line input.
+    pub const LINE_INPUT_GAIN_MAX: i8 = 36;
+    /// The step value of gain for line input.
+    pub const LINE_INPUT_GAIN_STEP: i8 = 1;
+}
+
 impl RmeFfWhollyUpdatableParamsOperation<Ff400InputGainStatus> for Ff400Protocol {
     fn update_wholly(
         req: &mut FwReq,
@@ -113,86 +129,6 @@ impl RmeFfPartiallyUpdatableParamsOperation<Ff400InputGainStatus> for Ff400Proto
                     write_amp_cmd(req, node, *offset + i as u8, *c, timeout_ms).map(|_| *s = *c)
                 })
         })
-    }
-}
-impl Ff400Protocol {
-    pub fn write_input_mic_gain(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: usize,
-        gain: i8,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_amp_cmd(req, node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
-    }
-
-    pub fn write_input_line_gain(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: usize,
-        gain: i8,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_amp_cmd(
-            req,
-            node,
-            AMP_LINE_IN_CH_OFFSET + ch as u8,
-            gain,
-            timeout_ms,
-        )
-    }
-
-    pub fn init_input_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &Ff400InputGainStatus,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        status.mic.iter().enumerate().try_for_each(|(i, gain)| {
-            Self::write_input_mic_gain(req, node, i, *gain, timeout_ms)
-        })?;
-
-        status.line.iter().enumerate().try_for_each(|(i, gain)| {
-            Self::write_input_line_gain(req, node, i, *gain, timeout_ms)
-        })?;
-
-        Ok(())
-    }
-
-    pub fn write_input_mic_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &mut Ff400InputGainStatus,
-        gains: &[i8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        status
-            .mic
-            .iter_mut()
-            .zip(gains)
-            .enumerate()
-            .filter(|(_, (o, n))| !o.eq(n))
-            .try_for_each(|(i, (o, n))| {
-                Self::write_input_mic_gain(req, node, i, *n, timeout_ms).map(|_| *o = *n)
-            })
-    }
-
-    pub fn write_input_line_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &mut Ff400InputGainStatus,
-        gains: &[i8],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        status
-            .line
-            .iter_mut()
-            .zip(gains)
-            .enumerate()
-            .filter(|(_, (o, n))| !o.eq(n))
-            .try_for_each(|(i, (o, n))| {
-                Self::write_input_line_gain(req, node, i, *n, timeout_ms).map(|_| *o = *n)
-            })
     }
 }
 

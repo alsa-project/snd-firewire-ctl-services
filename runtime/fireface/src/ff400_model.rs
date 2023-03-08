@@ -145,9 +145,9 @@ const MIC_GAIN_NAME: &str = "mic-input-gain";
 const LINE_GAIN_NAME: &str = "line-input-gain";
 
 impl InputGainCtl {
-    const MIC_GAIN_MIN: i32 = 0;
-    const MIC_GAIN_MAX: i32 = 65;
-    const MIC_GAIN_STEP: i32 = 1;
+    const MIC_GAIN_MIN: i32 = Ff400Protocol::MIC_INPUT_GAIN_MIN as i32;
+    const MIC_GAIN_MAX: i32 = Ff400Protocol::MIC_INPUT_GAIN_MAX as i32;
+    const MIC_GAIN_STEP: i32 = Ff400Protocol::MIC_INPUT_GAIN_STEP as i32;
     const MIC_GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 6500,
@@ -155,9 +155,9 @@ impl InputGainCtl {
         mute_avail: false,
     };
 
-    const LINE_GAIN_MIN: i32 = 0;
-    const LINE_GAIN_MAX: i32 = 36;
-    const LINE_GAIN_STEP: i32 = 1;
+    const LINE_GAIN_MIN: i32 = Ff400Protocol::LINE_INPUT_GAIN_MIN as i32;
+    const LINE_GAIN_MAX: i32 = Ff400Protocol::LINE_INPUT_GAIN_MAX as i32;
+    const LINE_GAIN_STEP: i32 = Ff400Protocol::LINE_INPUT_GAIN_STEP as i32;
     const LINE_GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 18000,
@@ -166,7 +166,7 @@ impl InputGainCtl {
     };
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = Ff400Protocol::init_input_gains(req, node, &mut self.1, timeout_ms);
+        let res = Ff400Protocol::update_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }
@@ -235,15 +235,9 @@ impl InputGainCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as i8);
-                let res = Ff400Protocol::write_input_mic_gains(
-                    req,
-                    node,
-                    &mut self.1,
-                    &params.mic,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.1 = params;
+                let res =
+                    Ff400Protocol::update_partially(req, node, &mut self.1, params, timeout_ms);
+                debug!(params = ?self.1, ?res);
                 res.map(|_| true)
             }
             LINE_GAIN_NAME => {
@@ -253,15 +247,9 @@ impl InputGainCtl {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as i8);
-                let res = Ff400Protocol::write_input_line_gains(
-                    req,
-                    node,
-                    &mut self.1,
-                    &params.line,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.1 = params;
+                let res =
+                    Ff400Protocol::update_partially(req, node, &mut self.1, params, timeout_ms);
+                debug!(params = ?self.1, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
