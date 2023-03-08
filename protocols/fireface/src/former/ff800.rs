@@ -23,33 +23,22 @@ const TCO_STATUS_OFFSET: usize = 0x0000801f0000;
 #[allow(dead_code)]
 const TCO_CFG_OFFSET: usize = 0x0000810f0020;
 
-const ANALOG_INPUT_COUNT: usize = 10;
-const SPDIF_INPUT_COUNT: usize = 2;
-const ADAT_INPUT_COUNT: usize = 16;
-const STREAM_INPUT_COUNT: usize = 28;
+impl RmeFfFormerSpecification for Ff800Protocol {
+    const ANALOG_INPUT_COUNT: usize = 10;
+    const SPDIF_INPUT_COUNT: usize = 2;
+    const ADAT_INPUT_COUNT: usize = 16;
+    const STREAM_INPUT_COUNT: usize = 28;
 
-const ANALOG_OUTPUT_COUNT: usize = 10;
-const SPDIF_OUTPUT_COUNT: usize = 2;
-const ADAT_OUTPUT_COUNT: usize = 16;
+    const ANALOG_OUTPUT_COUNT: usize = 10;
+    const SPDIF_OUTPUT_COUNT: usize = 2;
+    const ADAT_OUTPUT_COUNT: usize = 16;
+}
 
 impl RmeFfFormerMeterOperation for Ff800Protocol {
     const METER_OFFSET: usize = METER_OFFSET;
-
-    const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
 
 impl RmeFormerOutputOperation for Ff800Protocol {
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-
     fn write_output_vol(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -71,15 +60,6 @@ impl RmeFormerOutputOperation for Ff800Protocol {
 }
 
 impl RmeFormerMixerOperation for Ff800Protocol {
-    const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-
     const MIXER_OFFSET: usize = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 32;
 }

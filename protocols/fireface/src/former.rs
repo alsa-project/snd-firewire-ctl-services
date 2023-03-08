@@ -8,6 +8,32 @@ pub mod ff800;
 
 use super::*;
 
+/// The specification of former model.
+pub trait RmeFfFormerSpecification {
+    /// The number of analog (line and microphone) inputs.
+    const ANALOG_INPUT_COUNT: usize;
+    /// The number of S/PDIF inputs.
+    const SPDIF_INPUT_COUNT: usize;
+    /// The number of ADAT inputs.
+    const ADAT_INPUT_COUNT: usize;
+    /// The number of stream inputs.
+    const STREAM_INPUT_COUNT: usize;
+
+    /// The number of analog outputs.
+    const ANALOG_OUTPUT_COUNT: usize;
+    /// The number of S/PDIF outputs.
+    const SPDIF_OUTPUT_COUNT: usize;
+    /// The number of ADAT outputs.
+    const ADAT_OUTPUT_COUNT: usize;
+
+    /// The number of physical inputs (line, microphone, S/PDIF, and ADAT).
+    const PHYS_INPUT_COUNT: usize =
+        Self::ANALOG_INPUT_COUNT + Self::SPDIF_INPUT_COUNT + Self::ADAT_INPUT_COUNT;
+    /// The number of physical outputs (line, S/PDIF, and ADAT).
+    const PHYS_OUTPUT_COUNT: usize =
+        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+}
+
 /// State of hardware meter.
 ///
 /// Each value of 32 bit integer is between 0x00000000 and 0x7fffff00 to represent -90.03 and
@@ -24,22 +50,8 @@ pub struct FormerMeterState {
 }
 
 /// Meter protocol of Fireface 400.
-pub trait RmeFfFormerMeterOperation {
+pub trait RmeFfFormerMeterOperation: RmeFfFormerSpecification {
     const METER_OFFSET: usize;
-
-    const ANALOG_INPUT_COUNT: usize;
-    const SPDIF_INPUT_COUNT: usize;
-    const ADAT_INPUT_COUNT: usize;
-    const STREAM_INPUT_COUNT: usize;
-
-    const ANALOG_OUTPUT_COUNT: usize;
-    const SPDIF_OUTPUT_COUNT: usize;
-    const ADAT_OUTPUT_COUNT: usize;
-
-    const PHYS_INPUT_COUNT: usize =
-        Self::ANALOG_INPUT_COUNT + Self::SPDIF_INPUT_COUNT + Self::ADAT_INPUT_COUNT;
-    const PHYS_OUTPUT_COUNT: usize =
-        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
 
     const LEVEL_MIN: i32 = 0x00000000;
     const LEVEL_MAX: i32 = 0x7fffff00;
@@ -114,14 +126,7 @@ pub trait RmeFfFormerMeterOperation {
 pub struct FormerOutputVolumeState(pub Vec<i32>);
 
 /// Output protocol specific to former models of RME Fireface.
-pub trait RmeFormerOutputOperation {
-    const ANALOG_OUTPUT_COUNT: usize;
-    const SPDIF_OUTPUT_COUNT: usize;
-    const ADAT_OUTPUT_COUNT: usize;
-
-    const PHYS_OUTPUT_COUNT: usize =
-        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
-
+pub trait RmeFormerOutputOperation: RmeFfFormerSpecification {
     const VOL_MIN: i32 = 0x00000000;
     const VOL_ZERO: i32 = 0x00008000;
     const VOL_MAX: i32 = 0x00010000;
@@ -188,16 +193,7 @@ pub struct FormerMixerSrc {
 pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
 /// Mixer protocol specific to former models of RME Fireface.
-pub trait RmeFormerMixerOperation {
-    const ANALOG_INPUT_COUNT: usize;
-    const SPDIF_INPUT_COUNT: usize;
-    const ADAT_INPUT_COUNT: usize;
-    const STREAM_INPUT_COUNT: usize;
-
-    const ANALOG_OUTPUT_COUNT: usize;
-    const SPDIF_OUTPUT_COUNT: usize;
-    const ADAT_OUTPUT_COUNT: usize;
-
+pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
     const MIXER_OFFSET: usize;
     const AVAIL_COUNT: usize;
 

@@ -78,12 +78,6 @@ fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
     )
 }
 
-/// Operation for configuration structure.
-pub trait RmeFfLatterRegisterValueOperation {
-    fn serialize(&self, quad: &mut u32);
-    fn deserialize(&mut self, quad: &u32);
-}
-
 // For status register (0x'ffff'0000'001c).
 const STATUS_CLK_RATE_32000: u32 = 0x00;
 const STATUS_CLK_RATE_44100: u32 = 0x01;
