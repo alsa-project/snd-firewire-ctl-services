@@ -414,7 +414,7 @@ fn write_dsp_cmds(
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
 /// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
 /// bit in its most significant bit against the rest of bits.
-pub trait RmeFfLatterDspOperation: RmeFfLatterSpecification {
+pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
     const PHYS_INPUT_COUNT: usize = Self::LINE_INPUT_COUNT
         + Self::MIC_INPUT_COUNT
         + Self::SPDIF_INPUT_COUNT
@@ -546,7 +546,7 @@ pub trait RmeFfLatterDspOperation: RmeFfLatterSpecification {
     }
 }
 
-impl<O: RmeFfLatterSpecification> RmeFfLatterDspOperation for O {}
+impl<O: RmeFfLatterSpecification> RmeFfLatterDspSpecification for O {}
 
 const INPUT_TO_FX_CMD: u8 = 0x01;
 const INPUT_STEREO_LINK_CMD: u8 = 0x02;
@@ -656,7 +656,7 @@ pub struct FfLatterInputState {
 }
 
 /// Input protocol.
-pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
+pub trait RmeFfLatterInputOperation: RmeFfLatterDspSpecification {
     const PHYS_INPUT_GAIN_MIN: i32 = 0;
     const PHYS_INPUT_GAIN_MAX: i32 = 120;
     const PHYS_INPUT_GAIN_STEP: i32 = 1;
@@ -749,7 +749,7 @@ pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
     }
 }
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterInputOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputOperation for O {}
 
 impl From<LineOutNominalLevel> for i16 {
     fn from(level: LineOutNominalLevel) -> Self {
@@ -778,7 +778,7 @@ pub struct FfLatterOutputState {
 }
 
 /// Output protocol.
-pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
+pub trait RmeFfLatterOutputOperation: RmeFfLatterDspSpecification {
     const PHYS_OUTPUT_VOL_MIN: i32 = -650;
     const PHYS_OUTPUT_VOL_MAX: i32 = 60;
     const PHYS_OUTPUT_VOL_STEP: i32 = 1;
@@ -880,7 +880,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
     }
 }
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterOutputOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputOperation for O {}
 
 /// State of mixer.
 ///
@@ -896,7 +896,7 @@ pub struct FfLatterMixerState {
 }
 
 /// Mixer protocol.
-pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
+pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
     const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
     const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
     const MIXER_INPUT_GAIN_MAX: i32 = 0xa000;
@@ -960,7 +960,7 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
     }
 }
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterMixerOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerOperation for O {}
 
 /// Level of roll off in high pass filter.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -1298,7 +1298,7 @@ pub struct FfLatterChStripState {
 }
 
 /// Channel strip protocol.
-pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
+pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspSpecification {
     const CH_COUNT: usize;
     const CH_OFFSET: u8;
 
@@ -1445,7 +1445,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterInputChStripState(pub FfLatterChStripState);
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterInputChStripState> for O {
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterInputChStripState> for O {
     const CH_COUNT: usize = Self::PHYS_INPUT_COUNT;
     const CH_OFFSET: u8 = 0x00;
 
@@ -1462,7 +1462,7 @@ impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterInputChStri
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterOutputChStripState> for O {
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripOperation<FfLatterOutputChStripState> for O {
     const CH_COUNT: usize = Self::OUTPUT_COUNT;
     const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
 
@@ -1781,7 +1781,7 @@ const FX_MIXER_0: u16 = 0x1e;
 const FX_MIXER_1: u16 = 0x1f;
 
 /// Mixer protocol.
-pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
+pub trait RmeFfLatterFxOperation: RmeFfLatterDspSpecification {
     const FX_PHYS_LEVEL_MIN: i32 = -650;
     const FX_PHYS_LEVEL_MAX: i32 = 0;
     const FX_PHYS_LEVEL_STEP: i32 = 1;
@@ -1981,7 +1981,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
     }
 }
 
-impl<O: RmeFfLatterDspOperation> RmeFfLatterFxOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxOperation for O {}
 
 #[cfg(test)]
 mod test {

@@ -131,7 +131,7 @@ where
 #[derive(Debug)]
 pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
 where
-    T: RmeFfLatterDspOperation
+    T: RmeFfLatterDspSpecification
         + RmeFfLatterInputOperation
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
@@ -141,7 +141,7 @@ where
 
 impl<T> Default for LatterDspCtl<T>
 where
-    T: RmeFfLatterDspOperation
+    T: RmeFfLatterDspSpecification
         + RmeFfLatterInputOperation
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
@@ -171,7 +171,7 @@ where
 
 impl<T> LatterDspCtl<T>
 where
-    T: RmeFfLatterDspOperation
+    T: RmeFfLatterDspSpecification
         + RmeFfLatterInputOperation
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
