@@ -11,13 +11,18 @@ use {
 const VOL_NAME: &str = "output-volume";
 
 #[derive(Debug)]
-pub struct FormerOutputCtl<T: RmeFormerOutputOperation>(
-    pub Vec<ElemId>,
-    FormerOutputVolumeState,
-    PhantomData<T>,
-);
+pub struct FormerOutputCtl<T>(pub Vec<ElemId>, FormerOutputVolumeState, PhantomData<T>)
+where
+    T: RmeFormerOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState>
+        + RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState>;
 
-impl<T: RmeFormerOutputOperation> Default for FormerOutputCtl<T> {
+impl<T> Default for FormerOutputCtl<T>
+where
+    T: RmeFormerOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState>
+        + RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState>,
+{
     fn default() -> Self {
         let mut state = T::create_output_volume_state();
         state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
@@ -25,7 +30,12 @@ impl<T: RmeFormerOutputOperation> Default for FormerOutputCtl<T> {
     }
 }
 
-impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
+impl<T> FormerOutputCtl<T>
+where
+    T: RmeFormerOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState>
+        + RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState>,
+{
     const VOL_TLV: DbInterval = DbInterval {
         min: -9000,
         max: 600,
@@ -39,7 +49,7 @@ impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_output_vols(req, node, &mut self.1, timeout_ms);
+        let res = T::update_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }
@@ -87,9 +97,8 @@ impl<T: RmeFormerOutputOperation> FormerOutputCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val);
-                let res = T::write_output_vols(req, node, &mut self.1, &params.0, timeout_ms);
-                debug!(?params, ?res);
-                self.1 = params;
+                let res = T::update_partially(req, node, &mut self.1, params, timeout_ms);
+                debug!(params = ?self.1, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),

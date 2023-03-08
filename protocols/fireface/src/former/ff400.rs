@@ -230,34 +230,6 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Pr
     }
 }
 
-impl RmeFormerOutputOperation for Ff400Protocol {
-    fn write_output_vol(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: usize,
-        vol: i32,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        raw.copy_from_slice(&vol.to_le_bytes());
-        req.transaction_sync(
-            node,
-            FwTcode::WriteBlockRequest,
-            OUTPUT_OFFSET + 4 * ch as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-        .and_then(|_| {
-            // The value for level is between 0x3f to 0x00 by step 1 to represent -57 dB
-            // (=mute) to +6 dB.
-            let level = (0x3f * (vol as i64) / (0x00010000 as i64)) as i8;
-            let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
-            write_amp_cmd(req, node, amp_offset, level, timeout_ms)
-        })
-    }
-}
-
 impl RmeFormerMixerSpecification for Ff400Protocol {
     const MIXER_OFFSET: u64 = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 18;
