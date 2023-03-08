@@ -281,49 +281,74 @@ pub struct FfUcxStatus {
     pub active_clk_rate: ClkNominalRate,
 }
 
-impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
-    fn serialize(&self, quad: &mut u32) {
-        serialize_external_lock_status(&self.ext_lock, quad);
-        serialize_external_sync_status(&self.ext_sync, quad);
-        serialize_external_rate_status(&self.ext_rate, quad);
+impl RmeFfParamsSerialize<FfUcxStatus, u8> for FfUcxProtocol {
+    fn serialize(state: &FfUcxStatus) -> Vec<u8> {
+        let mut quad = 0;
 
-        *quad &= !STATUS_OPT_OUT_IFACE_FOR_ADAT;
-        if self.opt_out_signal == OpticalOutputSignal::Adat {
-            *quad |= STATUS_OPT_OUT_IFACE_FOR_ADAT;
+        serialize_external_lock_status(&state.ext_lock, &mut quad);
+        serialize_external_sync_status(&state.ext_sync, &mut quad);
+        serialize_external_rate_status(&state.ext_rate, &mut quad);
+
+        quad &= !STATUS_OPT_OUT_IFACE_FOR_ADAT;
+        if state.opt_out_signal == OpticalOutputSignal::Adat {
+            quad |= STATUS_OPT_OUT_IFACE_FOR_ADAT;
         }
 
-        serialize_clock_rate(&self.active_clk_rate, quad, 24);
+        serialize_clock_rate(&state.active_clk_rate, &mut quad, 24);
 
-        *quad &= !STATUS_ACTIVE_CLK_SRC_MASK;
-        let val = match self.active_clk_src {
+        quad &= !STATUS_ACTIVE_CLK_SRC_MASK;
+        let val = match state.active_clk_src {
             FfUcxClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
             FfUcxClkSrc::Coax => STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG,
             FfUcxClkSrc::Opt => STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG,
             FfUcxClkSrc::WordClk => STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
         };
-        *quad |= val;
+        quad |= val;
+
+        quad.to_le_bytes().to_vec()
     }
+}
 
-    fn deserialize(&mut self, quad: &u32) {
-        deserialize_external_lock_status(&mut self.ext_lock, quad);
-        deserialize_external_sync_status(&mut self.ext_sync, quad);
-        deserialize_external_rate_status(&mut self.ext_rate, quad);
+impl RmeFfParamsDeserialize<FfUcxStatus, u8> for FfUcxProtocol {
+    fn deserialize(state: &mut FfUcxStatus, raw: &[u8]) {
+        assert!(raw.len() >= LATTER_STATUS_SIZE);
 
-        self.opt_out_signal = if *quad & STATUS_OPT_OUT_IFACE_FOR_ADAT > 0 {
+        let mut r = [0; 4];
+        r.copy_from_slice(&raw[..4]);
+        let quad = u32::from_le_bytes(r);
+
+        deserialize_external_lock_status(&mut state.ext_lock, &quad);
+        deserialize_external_sync_status(&mut state.ext_sync, &quad);
+        deserialize_external_rate_status(&mut state.ext_rate, &quad);
+
+        state.opt_out_signal = if quad & STATUS_OPT_OUT_IFACE_FOR_ADAT > 0 {
             OpticalOutputSignal::Adat
         } else {
             OpticalOutputSignal::Spdif
         };
 
-        deserialize_clock_rate(&mut self.active_clk_rate, quad, 24);
+        deserialize_clock_rate(&mut state.active_clk_rate, &quad, 24);
 
-        self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
+        state.active_clk_src = match quad & STATUS_ACTIVE_CLK_SRC_MASK {
             STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => FfUcxClkSrc::Internal,
             STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG => FfUcxClkSrc::Coax,
             STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG => FfUcxClkSrc::Opt,
             STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG => FfUcxClkSrc::WordClk,
             _ => unreachable!(),
         };
+    }
+}
+
+impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
+    fn serialize(&self, quad: &mut u32) {
+        let raw = FfUcxProtocol::serialize(self);
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        *quad = u32::from_le_bytes(quadlet);
+    }
+
+    fn deserialize(&mut self, quad: &u32) {
+        FfUcxProtocol::deserialize(self, &quad.to_le_bytes());
     }
 }
 
@@ -474,10 +499,9 @@ mod test {
             active_clk_src: FfUcxClkSrc::Opt,
             active_clk_rate: ClkNominalRate::R88200,
         };
-        let mut quad = 0;
-        orig.serialize(&mut quad);
+        let raw = FfUcxProtocol::serialize(&orig);
         let mut target = FfUcxStatus::default();
-        target.deserialize(&quad);
+        FfUcxProtocol::deserialize(&mut target, &raw);
 
         assert_eq!(target, orig);
     }
