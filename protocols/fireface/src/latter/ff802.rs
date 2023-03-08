@@ -391,21 +391,6 @@ impl RmeFfCacheableParamsOperation<Ff802Status> for Ff802Protocol {
     }
 }
 
-impl RmeFfLatterRegisterValueOperation for Ff802Status {
-    fn serialize(&self, quad: &mut u32) {
-        let raw = Ff802Protocol::serialize(self);
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        *quad = u32::from_le_bytes(quadlet);
-    }
-
-    fn deserialize(&mut self, quad: &u32) {
-        Ff802Protocol::deserialize(self, &quad.to_le_bytes());
-    }
-}
-
-impl RmeFfLatterStatusOperation<Ff802Status> for Ff802Protocol {}
-
 const LINE_INPUT_COUNT: usize = 8;
 const MIC_INPUT_COUNT: usize = 4;
 const SPDIF_INPUT_COUNT: usize = 2;

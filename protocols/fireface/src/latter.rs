@@ -172,33 +172,6 @@ fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
     .map(|_| T::deserialize(status, &raw))
 }
 
-/// Status protocol.
-pub trait RmeFfLatterStatusOperation<U>
-where
-    U: RmeFfLatterRegisterValueOperation,
-{
-    fn read_status(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &mut U,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        req.transaction_sync(
-            node,
-            FwTcode::ReadQuadletRequest,
-            DSP_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| {
-            let quad = u32::from_le_bytes(raw);
-            status.deserialize(&quad)
-        })
-    }
-}
-
 /// State of meters.
 ///
 /// Each value is between 0x'0000'0000'0000'0000 and 0x'3fff'ffff'ffff'ffff. 0x'0000'0000'0000'001f

@@ -3,10 +3,7 @@
 
 use {
     super::{latter_ctls::*, *},
-    protocols::{
-        latter::{ucx::*, *},
-        *,
-    },
+    protocols::{latter::ucx::*, *},
 };
 
 #[derive(Default, Debug)]
@@ -357,7 +354,7 @@ impl StatusCtl {
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = FfUcxProtocol::read_status(req, node, &mut self.1, timeout_ms);
+        let res = FfUcxProtocol::cache_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }
