@@ -154,6 +154,24 @@ fn deserialize_clock_rate_optional(
 
 const LATTER_STATUS_SIZE: usize = 4;
 
+fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    status: &mut U,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut raw = [0; 4];
+    req.transaction_sync(
+        node,
+        FwTcode::ReadQuadletRequest,
+        DSP_OFFSET as u64,
+        raw.len(),
+        &mut raw,
+        timeout_ms,
+    )
+    .map(|_| T::deserialize(status, &raw))
+}
+
 /// Status protocol.
 pub trait RmeFfLatterStatusOperation<U>
 where
