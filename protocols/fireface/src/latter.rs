@@ -8,7 +8,7 @@ pub mod ucx;
 
 use super::*;
 
-const CFG_OFFSET: usize = 0xffff00000014;
+const CFG_OFFSET: u64 = 0xffff00000014;
 const DSP_OFFSET: usize = 0xffff0000001c;
 const METER_OFFSET: usize = 0xffffff000000;
 
@@ -60,6 +60,24 @@ fn deserialize_midi_tx_low_offset(offset: &mut FfLatterMidiTxLowOffset, quad: &u
 
 const LATTER_CONFIG_SIZE: usize = 4;
 
+fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    config: &U,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut raw = T::serialize(config);
+
+    req.transaction_sync(
+        node,
+        FwTcode::WriteQuadletRequest,
+        CFG_OFFSET,
+        raw.len(),
+        &mut raw,
+        timeout_ms,
+    )
+}
+
 /// Operation for configuration structure.
 pub trait RmeFfLatterRegisterValueOperation {
     fn serialize(&self, quad: &mut u32);
@@ -82,7 +100,7 @@ pub trait RmeFfLatterConfigOperation<U: RmeFfLatterRegisterValueOperation> {
         req.transaction_sync(
             node,
             FwTcode::WriteQuadletRequest,
-            CFG_OFFSET as u64,
+            CFG_OFFSET,
             raw.len(),
             &mut raw,
             timeout_ms,
