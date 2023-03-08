@@ -508,41 +508,6 @@ impl RmeFfCacheableParamsOperation<Ff800Status> for Ff800Protocol {
     }
 }
 
-fn deserialize_status(status: &mut Ff800Status, quads: &[u32]) {
-    assert!(quads.len() >= Ff800Status::QUADLET_COUNT);
-    let raw: Vec<u8> = quads.iter().flat_map(|quad| quad.to_le_bytes()).collect();
-    Ff800Protocol::deserialize(status, &raw);
-}
-
-impl Ff800Protocol {
-    pub fn read_status(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        status: &mut Ff800Status,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 8];
-        req.transaction_sync(
-            node,
-            FwTcode::ReadBlockRequest,
-            STATUS_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-        .map(|_| {
-            let mut quadlet = [0; 4];
-            let mut quads = [0u32; 2];
-            quads.iter_mut().enumerate().for_each(|(i, quad)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                *quad = u32::from_le_bytes(quadlet);
-            });
-            deserialize_status(status, &quads)
-        })
-    }
-}
-
 // NOTE: for first quadlet of configuration quadlets.
 const Q0_LINE_OUT_LEVEL_MASK: u32 = 0x00001c00;
 const Q0_LINE_OUT_LEVEL_CON_FLAG: u32 = 0x00001000;

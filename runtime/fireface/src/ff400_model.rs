@@ -311,7 +311,7 @@ impl StatusCtl {
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = Ff400Protocol::read_status(req, node, &mut self.1, timeout_ms);
+        let res = Ff400Protocol::cache_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }
