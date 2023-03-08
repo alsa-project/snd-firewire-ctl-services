@@ -1849,8 +1849,8 @@ pub struct FfLatterFxState {
 const FX_MIXER_0: u16 = 0x1e;
 const FX_MIXER_1: u16 = 0x1f;
 
-/// Mixer protocol.
-pub trait RmeFfLatterFxOperation: RmeFfLatterDspSpecification {
+/// The specification of FX.
+pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
     const FX_PHYS_LEVEL_MIN: i32 = -650;
     const FX_PHYS_LEVEL_MAX: i32 = 0;
     const FX_PHYS_LEVEL_STEP: i32 = 1;
@@ -1914,145 +1914,11 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspSpecification {
     const ECHO_STEREO_WIDTH_MIN: i32 = 0;
     const ECHO_STEREO_WIDTH_MAX: i32 = 100;
     const ECHO_STEREO_WIDTH_STEP: i32 = 1;
-
-    fn init_fx(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FfLatterDspState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut cmds = Vec::new();
-        cmds.append(&mut Self::fx_input_state_to_cmds(&state.fx));
-        cmds.append(&mut Self::fx_output_state_to_cmds(&state.fx));
-        cmds.append(&mut reverb_state_to_cmds(&state.fx.reverb));
-        cmds.append(&mut echo_state_to_cmds(&state.fx.echo));
-
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-
-    fn write_fx_input_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        fx: FfLatterFxState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::fx_input_state_to_cmds(&state.fx);
-        let new = Self::fx_input_state_to_cmds(&fx);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.fx = fx)
-    }
-
-    fn write_fx_output_volumes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        fx: FfLatterFxState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::fx_output_state_to_cmds(&state.fx);
-        let new = Self::fx_output_state_to_cmds(&fx);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.fx = fx)
-    }
-
-    fn write_fx_reverb(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        reverb: &FfLatterFxReverbState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = reverb_state_to_cmds(&state.fx.reverb);
-        let new = reverb_state_to_cmds(reverb);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.fx.reverb = *reverb)
-    }
-
-    fn write_fx_echo(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        echo: &FfLatterFxEchoState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = echo_state_to_cmds(&state.fx.echo);
-        let new = echo_state_to_cmds(echo);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.fx.echo = *echo)
-    }
-
-    fn fx_input_state_to_cmds(state: &FfLatterFxState) -> Vec<u32> {
-        assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
-        assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
-        assert_eq!(state.spdif_input_gains.len(), Self::SPDIF_INPUT_COUNT);
-        assert_eq!(state.adat_input_gains.len(), Self::ADAT_INPUT_COUNT);
-        assert_eq!(state.stream_input_gains.len(), Self::STREAM_INPUT_COUNT);
-
-        let mut cmds = Vec::new();
-
-        state
-            .line_input_gains
-            .iter()
-            .chain(&state.mic_input_gains)
-            .chain(&state.spdif_input_gains)
-            .chain(&state.adat_input_gains)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
-            });
-
-        state
-            .stream_input_gains
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                cmds.push(create_virt_port_cmd(
-                    Self::MIXER_STEP,
-                    FX_MIXER_0,
-                    Self::STREAM_OFFSET + i as u16,
-                    gain,
-                ));
-                cmds.push(create_virt_port_cmd(
-                    Self::MIXER_STEP,
-                    FX_MIXER_1,
-                    Self::STREAM_OFFSET + i as u16,
-                    gain,
-                ));
-            });
-
-        cmds
-    }
-
-    fn fx_output_state_to_cmds(state: &FfLatterFxState) -> Vec<u32> {
-        assert_eq!(state.line_output_vols.len(), Self::LINE_OUTPUT_COUNT);
-        assert_eq!(state.hp_output_vols.len(), Self::HP_OUTPUT_COUNT);
-        assert_eq!(state.spdif_output_vols.len(), Self::SPDIF_OUTPUT_COUNT);
-        assert_eq!(state.adat_output_vols.len(), Self::ADAT_OUTPUT_COUNT);
-
-        let mut cmds = Vec::new();
-
-        state
-            .line_output_vols
-            .iter()
-            .chain(&state.hp_output_vols)
-            .chain(&state.spdif_output_vols)
-            .chain(&state.adat_output_vols)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
-                cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
-            });
-
-        cmds
-    }
 }
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
 
-impl<O: RmeFfLatterFxOperation> RmeFfParamsSerialize<FfLatterFxState, u32> for O {
+impl<O: RmeFfLatterFxSpecification> RmeFfParamsSerialize<FfLatterFxState, u32> for O {
     fn serialize(state: &FfLatterFxState) -> Vec<u32> {
         assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
         assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
