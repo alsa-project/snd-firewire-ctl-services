@@ -351,6 +351,8 @@ fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
     )
 }
 
+const FORMER_STATUS_SIZE: usize = 8;
+
 /// Configuration of S/PDIF output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FormerSpdifOutput {
