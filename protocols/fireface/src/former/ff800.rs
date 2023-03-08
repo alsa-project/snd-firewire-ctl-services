@@ -88,27 +88,6 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Pr
     }
 }
 
-impl RmeFormerOutputOperation for Ff800Protocol {
-    fn write_output_vol(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: usize,
-        vol: i32,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        raw.copy_from_slice(&vol.to_le_bytes());
-        req.transaction_sync(
-            node,
-            FwTcode::WriteBlockRequest,
-            OUTPUT_OFFSET + 4 * ch as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-    }
-}
-
 impl RmeFormerMixerSpecification for Ff800Protocol {
     const MIXER_OFFSET: u64 = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 32;

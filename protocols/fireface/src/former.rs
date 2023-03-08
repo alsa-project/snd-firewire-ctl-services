@@ -201,7 +201,7 @@ impl<O: RmeFfFormerMeterSpecification + RmeFfParamsDeserialize<FormerMeterState,
 pub struct FormerOutputVolumeState(pub Vec<i32>);
 
 /// Output protocol specific to former models of RME Fireface.
-pub trait RmeFormerOutputOperation: RmeFfFormerSpecification {
+pub trait RmeFormerOutputSpecification: RmeFfFormerSpecification {
     const VOL_MIN: i32 = 0x00000000;
     const VOL_ZERO: i32 = 0x00008000;
     const VOL_MAX: i32 = 0x00010000;
@@ -210,46 +210,9 @@ pub trait RmeFormerOutputOperation: RmeFfFormerSpecification {
     fn create_output_volume_state() -> FormerOutputVolumeState {
         FormerOutputVolumeState(vec![0; Self::PHYS_OUTPUT_COUNT])
     }
-
-    fn write_output_vol(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        ch: usize,
-        vol: i32,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
-
-    fn init_output_vols(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FormerOutputVolumeState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        state
-            .0
-            .iter()
-            .enumerate()
-            .try_for_each(|(i, vol)| Self::write_output_vol(req, node, i, *vol, timeout_ms))
-    }
-
-    fn write_output_vols(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerOutputVolumeState,
-        vols: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        state
-            .0
-            .iter_mut()
-            .zip(vols)
-            .enumerate()
-            .filter(|(_, (o, n))| !o.eq(n))
-            .try_for_each(|(i, (o, n))| {
-                Self::write_output_vol(req, node, i, *n, timeout_ms).map(|_| *o = *n)
-            })
-    }
 }
+
+impl<O: RmeFfFormerSpecification> RmeFormerOutputSpecification for O {}
 
 fn serialize_output_volumes(params: &FormerOutputVolumeState, phys_output_count: usize) -> Vec<u8> {
     assert!(params.0.len() >= phys_output_count);
@@ -272,13 +235,13 @@ fn deserialize_output_volumes(
     });
 }
 
-impl<O: RmeFormerOutputOperation> RmeFfParamsSerialize<FormerOutputVolumeState, u8> for O {
+impl<O: RmeFormerOutputSpecification> RmeFfParamsSerialize<FormerOutputVolumeState, u8> for O {
     fn serialize(params: &FormerOutputVolumeState) -> Vec<u8> {
         serialize_output_volumes(params, Self::PHYS_OUTPUT_COUNT)
     }
 }
 
-impl<O: RmeFormerOutputOperation> RmeFfParamsDeserialize<FormerOutputVolumeState, u8> for O {
+impl<O: RmeFormerOutputSpecification> RmeFfParamsDeserialize<FormerOutputVolumeState, u8> for O {
     fn deserialize(params: &mut FormerOutputVolumeState, raw: &[u8]) {
         deserialize_output_volumes(params, raw, Self::PHYS_OUTPUT_COUNT)
     }
