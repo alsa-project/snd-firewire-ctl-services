@@ -13,7 +13,7 @@ const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080080f80;
 const METER_OFFSET: usize = 0x000080100000;
 const CFG_OFFSET: u64 = 0x000080100514;
-const STATUS_OFFSET: usize = 0x0000801c0000;
+const STATUS_OFFSET: u64 = 0x0000801c0000;
 const AMP_OFFSET: usize = 0x0000801c0180;
 
 const ANALOG_INPUT_COUNT: usize = 8;
@@ -578,6 +578,17 @@ impl RmeFfParamsDeserialize<Ff400Status, u8> for Ff400Protocol {
     }
 }
 
+impl RmeFfCacheableParamsOperation<Ff400Status> for Ff400Protocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Ff400Status,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_status::<Ff400Protocol, Ff400Status>(req, node, STATUS_OFFSET, params, timeout_ms)
+    }
+}
+
 fn deserialize_status(status: &mut Ff400Status, quads: &[u32]) {
     assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
 
@@ -596,7 +607,7 @@ impl Ff400Protocol {
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
-            STATUS_OFFSET as u64,
+            STATUS_OFFSET,
             raw.len(),
             &mut raw,
             timeout_ms,

@@ -353,6 +353,25 @@ fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
 
 const FORMER_STATUS_SIZE: usize = 8;
 
+fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: u64,
+    status: &mut U,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut raw = [0; FORMER_STATUS_SIZE];
+    req.transaction_sync(
+        node,
+        FwTcode::ReadBlockRequest,
+        offset,
+        raw.len(),
+        &mut raw,
+        timeout_ms,
+    )
+    .map(|_| T::deserialize(status, &raw))
+}
+
 /// Configuration of S/PDIF output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FormerSpdifOutput {

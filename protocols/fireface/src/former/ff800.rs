@@ -12,7 +12,7 @@ pub struct Ff800Protocol;
 const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080081f80;
 const METER_OFFSET: usize = 0x000080100000;
-const STATUS_OFFSET: usize = 0x0000801c0000;
+const STATUS_OFFSET: u64 = 0x0000801c0000;
 const CFG_OFFSET: u64 = 0x0000fc88f014;
 
 // TODO: 4 quadlets are read at once.
@@ -494,6 +494,17 @@ impl RmeFfParamsDeserialize<Ff800Status, u8> for Ff800Protocol {
             Q1_CONF_CLK_RATE_192000_FLAGS => ClkNominalRate::R192000,
             Q1_CONF_CLK_RATE_44100_FLAGS | _ => ClkNominalRate::R44100,
         };
+    }
+}
+
+impl RmeFfCacheableParamsOperation<Ff800Status> for Ff800Protocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Ff800Status,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_status::<Ff800Protocol, Ff800Status>(req, node, STATUS_OFFSET, params, timeout_ms)
     }
 }
 
