@@ -221,49 +221,37 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.cache_input(req, node, timeout_ms)?;
-        self.cache_output(req, node, timeout_ms)?;
-        self.cache_mixer(req, node, timeout_ms)?;
-        FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::cache_ch_strip(
-            self, req, node, timeout_ms,
-        )?;
-        FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::cache_ch_strip(
-            self, req, node, timeout_ms,
-        )?;
-        self.cache_fx(req, node, timeout_ms)?;
+        Self::cache_input(req, node, &mut self.0.input, timeout_ms)?;
+        Self::cache_output(req, node, &mut self.0.output, timeout_ms)?;
+        Self::cache_mixer(req, node, &mut self.0.mixer, timeout_ms)?;
+        Self::cache_ch_strip(req, node, &mut self.0.input_ch_strip, timeout_ms)?;
+        Self::cache_ch_strip(req, node, &mut self.0.output_ch_strip, timeout_ms)?;
+        Self::cache_fx(req, node, &mut self.0.fx, timeout_ms)?;
         Ok(())
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_input(card_cntr)?;
-        self.load_output(card_cntr)?;
-        self.load_mixer(card_cntr)?;
-        FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::load_ch_strip(
-            self, card_cntr,
-        )?;
-        FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::load_ch_strip(
-            self, card_cntr,
-        )?;
-        self.load_fx(card_cntr)?;
+        Self::load_input(card_cntr)?;
+        Self::load_output(card_cntr)?;
+        Self::load_mixer(card_cntr)?;
+        Self::load_ch_strip(card_cntr, &self.0.input_ch_strip)?;
+        Self::load_ch_strip(card_cntr, &self.0.output_ch_strip)?;
+        Self::load_fx(card_cntr)?;
         Ok(())
     }
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_input(elem_id, elem_value)? {
+        if Self::read_input(elem_id, elem_value, &self.0.input)? {
             Ok(true)
-        } else if self.read_output(elem_id, elem_value)? {
+        } else if Self::read_output(elem_id, elem_value, &self.0.output)? {
             Ok(true)
-        } else if self.read_mixer(elem_id, elem_value)? {
+        } else if Self::read_mixer(elem_id, elem_value, &self.0.mixer)? {
             Ok(true)
-        } else if FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::read_ch_strip(
-            self, elem_id, elem_value,
-        )? {
+        } else if Self::read_ch_strip(elem_id, elem_value, &self.0.input_ch_strip)? {
             Ok(true)
-        } else if FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::read_ch_strip(
-            self, elem_id, elem_value,
-        )? {
+        } else if Self::read_ch_strip(elem_id, elem_value, &self.0.output_ch_strip)? {
             Ok(true)
-        } else if self.read_fx(elem_id, elem_value)? {
+        } else if Self::read_fx(elem_id, elem_value, &self.0.fx)? {
             Ok(true)
         } else {
             Ok(false)
@@ -278,21 +266,52 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_input(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.write_output(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.write_mixer(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::write_ch_strip(
-            self, req, node, elem_id, elem_value, timeout_ms,
+        if Self::write_input(
+            req,
+            node,
+            elem_id,
+            elem_value,
+            &mut self.0.input,
+            timeout_ms,
         )? {
             Ok(true)
-        } else if FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::write_ch_strip(
-            self, req, node, elem_id, elem_value, timeout_ms,
+        } else if Self::write_output(
+            req,
+            node,
+            elem_id,
+            elem_value,
+            &mut self.0.output,
+            timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_fx(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if Self::write_mixer(
+            req,
+            node,
+            elem_id,
+            elem_value,
+            &mut self.0.mixer,
+            timeout_ms,
+        )? {
+            Ok(true)
+        } else if Self::write_ch_strip(
+            req,
+            node,
+            elem_id,
+            elem_value,
+            &mut self.0.input_ch_strip,
+            timeout_ms,
+        )? {
+            Ok(true)
+        } else if Self::write_ch_strip(
+            req,
+            node,
+            elem_id,
+            elem_value,
+            &mut self.0.output_ch_strip,
+            timeout_ms,
+        )? {
+            Ok(true)
+        } else if Self::write_fx(req, node, elem_id, elem_value, &mut self.0.fx, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -326,17 +345,17 @@ where
     ];
 
     fn cache_input(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        params: &mut FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, &mut self.0.input, timeout_ms);
-        debug!(params = ?self.0.input, ?res);
+        let res = T::update_wholly(req, node, params, timeout_ms);
+        debug!(?params, ?res);
         res
     }
 
-    fn load_input(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_input(card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_LINK_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::PHYS_INPUT_COUNT / 2, true)?;
 
@@ -371,27 +390,23 @@ where
         Ok(())
     }
 
-    fn read_input(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_input(
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        params: &FfLatterInputState,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                elem_value.set_bool(&self.0.input.stereo_links);
+                elem_value.set_bool(&params.stereo_links);
                 Ok(true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .input
-                    .line_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
+                let vals: Vec<i32> = params.line_gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let vals: Vec<u32> = self
-                    .0
-                    .input
+                let vals: Vec<u32> = params
                     .line_levels
                     .iter()
                     .map(|level| {
@@ -406,15 +421,15 @@ where
                 Ok(true)
             }
             INPUT_MIC_POWER_NAME => {
-                elem_value.set_bool(&self.0.input.mic_powers);
+                elem_value.set_bool(&params.mic_powers);
                 Ok(true)
             }
             INPUT_MIC_INST_NAME => {
-                elem_value.set_bool(&self.0.input.mic_insts);
+                elem_value.set_bool(&params.mic_insts);
                 Ok(true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                elem_value.set_bool(&self.0.input.invert_phases);
+                elem_value.set_bool(&params.invert_phases);
                 Ok(true)
             }
             _ => Ok(false),
@@ -422,38 +437,38 @@ where
     }
 
     fn write_input(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        state: &mut FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .stereo_links
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .line_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .line_levels
                     .iter_mut()
@@ -469,41 +484,41 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .mic_powers
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .mic_insts
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                let mut params = self.0.input.clone();
+                let mut params = state.clone();
                 params
                     .invert_phases
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
-                debug!(params = ?self.0.input, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -537,17 +552,17 @@ where
     ];
 
     fn cache_output(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        params: &mut FfLatterOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, &mut self.0.output, timeout_ms);
-        debug!(params = ?self.0.output, ?res);
+        let res = T::update_wholly(req, node, params, timeout_ms);
+        debug!(?params, ?res);
         res
     }
 
-    fn load_output(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_output(card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -588,17 +603,19 @@ where
         Ok(())
     }
 
-    fn read_output(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_output(
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        params: &FfLatterOutputState,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             VOL_NAME => {
-                let vals: Vec<i32> = self.0.output.vols.iter().map(|&vol| vol as i32).collect();
+                let vals: Vec<i32> = params.vols.iter().map(|&vol| vol as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             STEREO_BALANCE_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .output
+                let vals: Vec<i32> = params
                     .stereo_balance
                     .iter()
                     .map(|&balance| balance as i32)
@@ -607,17 +624,15 @@ where
                 Ok(true)
             }
             STEREO_LINK_NAME => {
-                elem_value.set_bool(&self.0.output.stereo_links);
+                elem_value.set_bool(&params.stereo_links);
                 Ok(true)
             }
             INVERT_PHASE_NAME => {
-                elem_value.set_bool(&self.0.output.invert_phases);
+                elem_value.set_bool(&params.invert_phases);
                 Ok(true)
             }
             LINE_LEVEL_NAME => {
-                let vals: Vec<u32> = self
-                    .0
-                    .output
+                let vals: Vec<u32> = params
                     .line_levels
                     .iter()
                     .map(|level| {
@@ -636,60 +651,60 @@ where
     }
 
     fn write_output(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        state: &mut FfLatterOutputState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             VOL_NAME => {
-                let mut params = self.0.output.clone();
+                let mut params = state.clone();
                 params
                     .vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
-                debug!(params = ?self.0.output, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             STEREO_BALANCE_NAME => {
-                let mut params = self.0.output.clone();
+                let mut params = state.clone();
                 params
                     .stereo_balance
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
-                debug!(params = ?self.0.output, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             STEREO_LINK_NAME => {
-                let mut params = self.0.output.clone();
+                let mut params = state.clone();
                 params
                     .stereo_links
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
-                debug!(params = ?self.0.output, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             INVERT_PHASE_NAME => {
-                let mut params = self.0.output.clone();
+                let mut params = state.clone();
                 params
                     .invert_phases
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
-                debug!(params = ?self.0.output, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             LINE_LEVEL_NAME => {
-                let mut params = self.0.output.clone();
+                let mut params = state.clone();
                 params
                     .line_levels
                     .iter_mut()
@@ -706,8 +721,8 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
-                debug!(params = ?self.0.output, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -735,17 +750,17 @@ where
     };
 
     fn cache_mixer(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        params: &mut FfLatterMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, &mut self.0.mixer, timeout_ms);
-        debug!(params = ?self.0.mixer, ?res);
+        let res = T::update_wholly(req, node, params, timeout_ms);
+        debug!(?params, ?res);
         res
     }
 
-    fn load_mixer(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_mixer(card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_LINE_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -810,11 +825,15 @@ where
         Ok(())
     }
 
-    fn read_mixer(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_mixer(
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        params: &FfLatterMixerState,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                let mixer = params.0.iter().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
                 })?;
@@ -824,7 +843,7 @@ where
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                let mixer = params.0.iter().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
                 })?;
@@ -834,7 +853,7 @@ where
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                let mixer = params.0.iter().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
                 })?;
@@ -844,7 +863,7 @@ where
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                let mixer = params.0.iter().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
                 })?;
@@ -854,7 +873,7 @@ where
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mixer = self.0.mixer.0.iter().nth(index).ok_or_else(|| {
+                let mixer = params.0.iter().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
                 })?;
@@ -867,17 +886,17 @@ where
     }
 
     fn write_mixer(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        state: &mut FfLatterMixerState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.clone();
+                let mut params = state.clone();
                 let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
@@ -887,13 +906,13 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
-                debug!(params = ?self.0.mixer, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.clone();
+                let mut params = state.clone();
                 let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
@@ -903,13 +922,13 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
-                debug!(params = ?self.0.mixer, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.clone();
+                let mut params = state.clone();
                 let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
@@ -919,13 +938,13 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
-                debug!(params = ?self.0.mixer, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.clone();
+                let mut params = state.clone();
                 let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
@@ -935,13 +954,13 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
-                debug!(params = ?self.0.mixer, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer.clone();
+                let mut params = state.clone();
                 let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
                     let msg = format!("Invalid index {} for mixers", index);
                     Error::new(FileError::Inval, &msg)
@@ -951,8 +970,8 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.mixer, params, timeout_ms);
-                debug!(params = ?self.0.mixer, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -1030,21 +1049,18 @@ where
         FfLatterChStripEqType::LowPass,
     ];
 
-    fn state(&self) -> &U;
-    fn state_mut(&mut self) -> &mut U;
-
     fn cache_ch_strip(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        params: &mut U,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, self.state_mut(), timeout_ms);
-        debug!(params = ?self.state(), ?res);
+        let res = T::update_wholly(req, node, params, timeout_ms);
+        debug!(?params, ?res);
         res
     }
 
-    fn load_ch_strip(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_ch_strip(card_cntr: &mut CardCntr, _: &U) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
@@ -1336,18 +1352,17 @@ where
     }
 
     fn read_ch_strip(
-        &mut self,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
+        params: &U,
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            elem_value.set_bool(&self.state().as_ref().hpf.activates);
+            elem_value.set_bool(&params.as_ref().hpf.activates);
             Ok(true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .hpf
                 .cut_offs
@@ -1357,8 +1372,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let vals: Vec<u32> = self
-                .state()
+            let vals: Vec<u32> = params
                 .as_ref()
                 .hpf
                 .roll_offs
@@ -1374,11 +1388,10 @@ where
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            elem_value.set_bool(&self.state().as_ref().eq.activates);
+            elem_value.set_bool(&params.as_ref().eq.activates);
             Ok(true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let vals: Vec<u32> = self
-                .state()
+            let vals: Vec<u32> = params
                 .as_ref()
                 .eq
                 .low_types
@@ -1391,8 +1404,7 @@ where
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let vals: Vec<u32> = self
-                .state()
+            let vals: Vec<u32> = params
                 .as_ref()
                 .eq
                 .high_types
@@ -1405,8 +1417,7 @@ where
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .low_gains
@@ -1416,8 +1427,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .middle_gains
@@ -1427,8 +1437,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .high_gains
@@ -1438,8 +1447,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .low_freqs
@@ -1449,8 +1457,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .middle_freqs
@@ -1460,8 +1467,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .high_freqs
@@ -1471,8 +1477,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .low_qualities
@@ -1482,8 +1487,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .middle_qualities
@@ -1493,8 +1497,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .eq
                 .high_qualities
@@ -1504,11 +1507,10 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            elem_value.set_bool(&self.state().as_ref().dynamics.activates);
+            elem_value.set_bool(&params.as_ref().dynamics.activates);
             Ok(true)
         } else if n == Self::DYN_GAIN_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .gains
@@ -1518,8 +1520,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .attacks
@@ -1529,8 +1530,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .releases
@@ -1540,8 +1540,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .compressor_thresholds
@@ -1551,8 +1550,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .compressor_ratios
@@ -1562,8 +1560,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .expander_thresholds
@@ -1573,8 +1570,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .dynamics
                 .expander_ratios
@@ -1584,12 +1580,11 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let vals = self.state().as_ref().autolevel.activates.clone();
+            let vals = params.as_ref().autolevel.activates.clone();
             elem_value.set_bool(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .autolevel
                 .max_gains
@@ -1599,8 +1594,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .autolevel
                 .headrooms
@@ -1610,8 +1604,7 @@ where
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let vals: Vec<i32> = self
-                .state()
+            let vals: Vec<i32> = params
                 .as_ref()
                 .autolevel
                 .rise_times
@@ -1626,17 +1619,17 @@ where
     }
 
     fn write_ch_strip(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        state: &mut U,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .hpf
@@ -1644,11 +1637,11 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().hpf, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .hpf
@@ -1656,11 +1649,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(dst, &val)| *dst = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().hpf, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .hpf
@@ -1678,11 +1671,11 @@ where
                         })
                         .map(|&l| *level = l)
                 })?;
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().hpf, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1690,11 +1683,11 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1712,11 +1705,11 @@ where
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1734,11 +1727,11 @@ where
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1746,11 +1739,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1758,11 +1751,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1770,11 +1763,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1782,11 +1775,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1794,11 +1787,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1806,11 +1799,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1818,11 +1811,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1830,11 +1823,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .eq
@@ -1842,11 +1835,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().eq, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1854,11 +1847,11 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1866,11 +1859,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1878,11 +1871,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(attack, &val)| *attack = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1890,11 +1883,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(release, &val)| *release = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1902,11 +1895,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1914,11 +1907,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1926,11 +1919,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .dynamics
@@ -1938,11 +1931,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().dynamics, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .autolevel
@@ -1950,11 +1943,11 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().autolevel, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .autolevel
@@ -1962,11 +1955,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().autolevel, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .autolevel
@@ -1974,11 +1967,11 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(headroom, &val)| *headroom = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().autolevel, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let mut params = self.state().clone();
+            let mut params = state.clone();
             params
                 .as_mut()
                 .autolevel
@@ -1986,8 +1979,8 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(time, &val)| *time = val as u16);
-            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?self.state().as_ref().autolevel, ?res);
+            let res = T::update_partially(req, node, state, params, timeout_ms);
+            debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else {
             Ok(false)
@@ -2029,14 +2022,6 @@ where
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "input:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "input:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "input:autolevel-rise-time";
-
-    fn state(&self) -> &FfLatterInputChStripState {
-        &self.0.input_ch_strip
-    }
-
-    fn state_mut(&mut self) -> &mut FfLatterInputChStripState {
-        &mut self.0.input_ch_strip
-    }
 }
 
 impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDspCtl<T>
@@ -2073,14 +2058,6 @@ where
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "output:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "output:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "output:autolevel-rise-time";
-
-    fn state(&self) -> &FfLatterOutputChStripState {
-        &self.0.output_ch_strip
-    }
-
-    fn state_mut(&mut self) -> &mut FfLatterOutputChStripState {
-        &mut self.0.output_ch_strip
-    }
 }
 
 fn fx_reverb_type_to_string(reverb_type: &FfLatterFxReverbType) -> String {
@@ -2212,17 +2189,17 @@ where
     ];
 
     fn cache_fx(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        params: &mut FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, &mut self.0.fx, timeout_ms);
-        debug!(params = ?self.0.fx, ?res);
+        let res = T::update_wholly(req, node, params, timeout_ms);
+        debug!(?params, ?res);
         res
     }
 
-    fn load_fx(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load_fx(card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
             (MIC_SRC_GAIN_NAME, T::MIC_INPUT_COUNT),
@@ -2485,12 +2462,14 @@ where
         Ok(())
     }
 
-    fn read_fx(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_fx(
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        params: &FfLatterFxState,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .line_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2499,9 +2478,7 @@ where
                 Ok(true)
             }
             MIC_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .mic_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2510,9 +2487,7 @@ where
                 Ok(true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .spdif_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2521,9 +2496,7 @@ where
                 Ok(true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .adat_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2532,9 +2505,7 @@ where
                 Ok(true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .stream_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2543,9 +2514,7 @@ where
                 Ok(true)
             }
             LINE_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .line_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2554,9 +2523,7 @@ where
                 Ok(true)
             }
             HP_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .hp_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2565,9 +2532,7 @@ where
                 Ok(true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .spdif_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2576,9 +2541,7 @@ where
                 Ok(true)
             }
             ADAT_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .0
-                    .fx
+                let vals: Vec<i32> = params
                     .adat_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2587,99 +2550,99 @@ where
                 Ok(true)
             }
             REVERB_ACTIVATE_NAME => {
-                elem_value.set_bool(&[self.0.fx.reverb.activate]);
+                elem_value.set_bool(&[params.reverb.activate]);
                 Ok(true)
             }
             REVERB_TYPE_NAME => {
                 let val = Self::REVERB_TYPES
                     .iter()
-                    .position(|t| t.eq(&self.0.fx.reverb.reverb_type))
+                    .position(|t| t.eq(&params.reverb.reverb_type))
                     .unwrap();
                 elem_value.set_enum(&[val as u32]);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.pre_delay as i32]);
+                elem_value.set_int(&[params.reverb.pre_delay as i32]);
                 Ok(true)
             }
             REVERB_PRE_HPF_FREQ_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.pre_hpf as i32]);
+                elem_value.set_int(&[params.reverb.pre_hpf as i32]);
                 Ok(true)
             }
             REVERB_ROOM_SCALE_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.room_scale as i32]);
+                elem_value.set_int(&[params.reverb.room_scale as i32]);
                 Ok(true)
             }
             REVERB_ATTACK_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.attack as i32]);
+                elem_value.set_int(&[params.reverb.attack as i32]);
                 Ok(true)
             }
             REVERB_HOLD_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.hold as i32]);
+                elem_value.set_int(&[params.reverb.hold as i32]);
                 Ok(true)
             }
             REVERB_RELEASE_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.release as i32]);
+                elem_value.set_int(&[params.reverb.release as i32]);
                 Ok(true)
             }
             REVERB_POST_LPF_FREQ_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.post_lpf as i32]);
+                elem_value.set_int(&[params.reverb.post_lpf as i32]);
                 Ok(true)
             }
             REVERB_TIME_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.time as i32]);
+                elem_value.set_int(&[params.reverb.time as i32]);
                 Ok(true)
             }
             REVERB_DAMPING_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.damping as i32]);
+                elem_value.set_int(&[params.reverb.damping as i32]);
                 Ok(true)
             }
             REVERB_SMOOTH_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.smooth as i32]);
+                elem_value.set_int(&[params.reverb.smooth as i32]);
                 Ok(true)
             }
             REVERB_VOL_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.volume as i32]);
+                elem_value.set_int(&[params.reverb.volume as i32]);
                 Ok(true)
             }
             REVERB_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[self.0.fx.reverb.stereo_width as i32]);
+                elem_value.set_int(&[params.reverb.stereo_width as i32]);
                 Ok(true)
             }
             ECHO_ACTIVATE_NAME => {
-                elem_value.set_bool(&[self.0.fx.echo.activate]);
+                elem_value.set_bool(&[params.echo.activate]);
                 Ok(true)
             }
             ECHO_TYPE_NAME => {
                 let pos = Self::ECHO_TYPES
                     .iter()
-                    .position(|t| t.eq(&self.0.fx.echo.echo_type))
+                    .position(|t| t.eq(&params.echo.echo_type))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_DELAY_NAME => {
-                elem_value.set_int(&[self.0.fx.echo.delay as i32]);
+                elem_value.set_int(&[params.echo.delay as i32]);
                 Ok(true)
             }
             ECHO_FEEDBACK_NAME => {
-                elem_value.set_int(&[self.0.fx.echo.feedback as i32]);
+                elem_value.set_int(&[params.echo.feedback as i32]);
                 Ok(true)
             }
             ECHO_LPF_FREQ_NAME => {
                 let pos = Self::ECHO_LPF_FREQS
                     .iter()
-                    .position(|f| f.eq(&self.0.fx.echo.lpf))
+                    .position(|f| f.eq(&params.echo.lpf))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_VOL_NAME => {
-                elem_value.set_int(&[self.0.fx.echo.volume as i32]);
+                elem_value.set_int(&[params.echo.volume as i32]);
                 Ok(true)
             }
             ECHO_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[self.0.fx.echo.stereo_width as i32]);
+                elem_value.set_int(&[params.echo.stereo_width as i32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -2687,119 +2650,118 @@ where
     }
 
     fn write_fx(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
+        state: &mut FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .line_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             MIC_SRC_GAIN_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .mic_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .spdif_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .adat_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .stream_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx, ?res);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
             LINE_OUT_VOL_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .line_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state);
                 res.map(|_| true)
             }
             HP_OUT_VOL_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .hp_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state);
                 res.map(|_| true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .spdif_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state);
                 res.map(|_| true)
             }
             ADAT_OUT_VOL_NAME => {
-                let mut params = self.0.fx.clone();
+                let mut params = state.clone();
                 params
                     .adat_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-                debug!(params = ?self.0.fx);
+                let res = T::update_partially(req, node, state, params, timeout_ms);
+                debug!(params = ?state);
                 res.map(|_| true)
             }
-            REVERB_ACTIVATE_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.activate = elem_value.boolean()[0];
-                    Ok(())
-                })
-                .map(|_| true),
+            REVERB_ACTIVATE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.activate = elem_value.boolean()[0];
+                Ok(())
+            })
+            .map(|_| true),
             REVERB_TYPE_NAME => {
                 let val = elem_value.enumerated()[0];
                 let reverb_type = Self::REVERB_TYPES
@@ -2810,90 +2772,83 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                self.update_reverb(req, node, timeout_ms, |params| {
+                Self::update_reverb(req, node, state, timeout_ms, |params| {
                     params.reverb_type = reverb_type;
                     Ok(())
                 })
                 .map(|_| true)
             }
-            REVERB_PRE_DELAY_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.pre_delay = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_PRE_HPF_FREQ_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
+            REVERB_PRE_DELAY_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.pre_delay = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_PRE_HPF_FREQ_NAME => {
+                Self::update_reverb(req, node, state, timeout_ms, |params| {
                     params.pre_hpf = elem_value.int()[0] as u16;
                     Ok(())
                 })
-                .map(|_| true),
-            REVERB_ROOM_SCALE_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.room_scale = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_ATTACK_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.attack = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_HOLD_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.hold = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_RELEASE_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.release = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_POST_LPF_FREQ_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
+                .map(|_| true)
+            }
+            REVERB_ROOM_SCALE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.room_scale = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_ATTACK_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.attack = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_HOLD_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.hold = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_RELEASE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.release = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_POST_LPF_FREQ_NAME => {
+                Self::update_reverb(req, node, state, timeout_ms, |params| {
                     params.post_lpf = elem_value.int()[0] as u16;
                     Ok(())
                 })
-                .map(|_| true),
-            REVERB_TIME_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.time = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_DAMPING_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.damping = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_SMOOTH_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.smooth = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_VOL_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
-                    params.volume = elem_value.int()[0] as i16;
-                    Ok(())
-                })
-                .map(|_| true),
-            REVERB_STEREO_WIDTH_NAME => self
-                .update_reverb(req, node, timeout_ms, |params| {
+                .map(|_| true)
+            }
+            REVERB_TIME_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.time = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_DAMPING_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.damping = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_SMOOTH_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.smooth = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_VOL_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
+                params.volume = elem_value.int()[0] as i16;
+                Ok(())
+            })
+            .map(|_| true),
+            REVERB_STEREO_WIDTH_NAME => {
+                Self::update_reverb(req, node, state, timeout_ms, |params| {
                     params.stereo_width = elem_value.int()[0] as u16;
                     Ok(())
                 })
-                .map(|_| true),
-            ECHO_ACTIVATE_NAME => self
-                .update_echo(req, node, timeout_ms, |params| {
-                    params.activate = elem_value.boolean()[0];
-                    Ok(())
-                })
-                .map(|_| true),
+                .map(|_| true)
+            }
+            ECHO_ACTIVATE_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
+                params.activate = elem_value.boolean()[0];
+                Ok(())
+            })
+            .map(|_| true),
             ECHO_TYPE_NAME => {
                 let val = elem_value.enumerated()[0];
                 let echo_type = Self::ECHO_TYPES
@@ -2904,24 +2859,22 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                self.update_echo(req, node, timeout_ms, |params| {
+                Self::update_echo(req, node, state, timeout_ms, |params| {
                     params.echo_type = echo_type;
                     Ok(())
                 })?;
                 Ok(true)
             }
-            ECHO_DELAY_NAME => self
-                .update_echo(req, node, timeout_ms, |params| {
-                    params.delay = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
-            ECHO_FEEDBACK_NAME => self
-                .update_echo(req, node, timeout_ms, |params| {
-                    params.feedback = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
+            ECHO_DELAY_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
+                params.delay = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
+            ECHO_FEEDBACK_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
+                params.feedback = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
             ECHO_LPF_FREQ_NAME => {
                 let val = elem_value.enumerated()[0];
                 let lpf = Self::ECHO_LPF_FREQS
@@ -2932,59 +2885,57 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                self.update_echo(req, node, timeout_ms, |params| {
+                Self::update_echo(req, node, state, timeout_ms, |params| {
                     params.lpf = lpf;
                     Ok(())
                 })?;
                 Ok(true)
             }
-            ECHO_VOL_NAME => self
-                .update_echo(req, node, timeout_ms, |params| {
-                    params.volume = elem_value.int()[0] as i16;
-                    Ok(())
-                })
-                .map(|_| true),
-            ECHO_STEREO_WIDTH_NAME => self
-                .update_echo(req, node, timeout_ms, |params| {
-                    params.stereo_width = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true),
+            ECHO_VOL_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
+                params.volume = elem_value.int()[0] as i16;
+                Ok(())
+            })
+            .map(|_| true),
+            ECHO_STEREO_WIDTH_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
+                params.stereo_width = elem_value.int()[0] as u16;
+                Ok(())
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
 
     fn update_reverb<F>(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        state: &mut FfLatterFxState,
         timeout_ms: u32,
         cb: F,
     ) -> Result<(), Error>
     where
         F: Fn(&mut FfLatterFxReverbState) -> Result<(), Error>,
     {
-        let mut params = self.0.fx.clone();
+        let mut params = state.clone();
         cb(&mut params.reverb)?;
-        let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-        debug!(params = ?self.0.fx, ?res);
+        let res = T::update_partially(req, node, state, params, timeout_ms);
+        debug!(params = ?state, ?res);
         res
     }
 
     fn update_echo<F>(
-        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
+        state: &mut FfLatterFxState,
         timeout_ms: u32,
         cb: F,
     ) -> Result<(), Error>
     where
         F: Fn(&mut FfLatterFxEchoState) -> Result<(), Error>,
     {
-        let mut params = self.0.fx.clone();
+        let mut params = state.clone();
         cb(&mut params.echo)?;
-        let res = T::update_partially(req, node, &mut self.0.fx, params, timeout_ms);
-        debug!(params = ?self.0.fx, ?res);
+        let res = T::update_partially(req, node, state, params, timeout_ms);
+        debug!(params = ?state, ?res);
         res
     }
 }
