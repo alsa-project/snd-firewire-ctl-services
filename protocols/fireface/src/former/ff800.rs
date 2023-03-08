@@ -2,7 +2,6 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 //! Protocol defined by RME GmbH for Fireface 800.
-use hinawa::{FwNode, FwReq};
 
 use super::*;
 
@@ -14,7 +13,7 @@ const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080081f80;
 const METER_OFFSET: usize = 0x000080100000;
 const STATUS_OFFSET: usize = 0x0000801c0000;
-const CFG_OFFSET: usize = 0x0000fc88f014;
+const CFG_OFFSET: u64 = 0x0000fc88f014;
 
 // TODO: 4 quadlets are read at once.
 #[allow(dead_code)]
@@ -990,6 +989,17 @@ impl RmeFfParamsDeserialize<Ff800Config, u8> for Ff800Protocol {
 
         params.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
         params.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    }
+}
+
+impl RmeFfWhollyUpdatableParamsOperation<Ff800Config> for Ff800Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Ff800Config,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config::<Ff800Protocol, Ff800Config>(req, node, CFG_OFFSET, params, timeout_ms)
     }
 }
 

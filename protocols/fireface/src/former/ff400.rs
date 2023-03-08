@@ -3,11 +3,7 @@
 
 //! Protocol defined by RME GmbH for Fireface 400.
 
-use {
-    super::*,
-    glib::Error,
-    hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
-};
+use super::*;
 
 /// The protocol implementation for Fireface 400.
 #[derive(Default, Debug)]
@@ -16,7 +12,7 @@ pub struct Ff400Protocol;
 const MIXER_OFFSET: usize = 0x000080080000;
 const OUTPUT_OFFSET: usize = 0x000080080f80;
 const METER_OFFSET: usize = 0x000080100000;
-const CFG_OFFSET: usize = 0x000080100514;
+const CFG_OFFSET: u64 = 0x000080100514;
 const STATUS_OFFSET: usize = 0x0000801c0000;
 const AMP_OFFSET: usize = 0x0000801c0180;
 
@@ -1066,6 +1062,17 @@ impl RmeFfParamsDeserialize<Ff400Config, u8> for Ff400Protocol {
 
         params.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
         params.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    }
+}
+
+impl RmeFfWhollyUpdatableParamsOperation<Ff400Config> for Ff400Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Ff400Config,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config::<Ff400Protocol, Ff400Config>(req, node, CFG_OFFSET, params, timeout_ms)
     }
 }
 

@@ -332,6 +332,25 @@ pub trait RmeFormerMixerOperation {
 
 const FORMER_CONFIG_SIZE: usize = 12;
 
+fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: u64,
+    config: &U,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut raw = T::serialize(config);
+
+    req.transaction_sync(
+        node,
+        FwTcode::WriteBlockRequest,
+        offset,
+        raw.len(),
+        &mut raw,
+        timeout_ms,
+    )
+}
+
 /// Configuration of S/PDIF output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FormerSpdifOutput {
