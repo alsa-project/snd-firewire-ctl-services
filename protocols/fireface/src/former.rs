@@ -190,6 +190,37 @@ impl<O: RmeFfFormerSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> f
     }
 }
 
+impl<O: RmeFfFormerMeterOperation + RmeFfParamsDeserialize<FormerMeterState, u8>>
+    RmeFfCacheableParamsOperation<FormerMeterState> for O
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut FormerMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        // NOTE:
+        // Each of the first octuples is for level of corresponding source to mixer.
+        // Each of the following octuples is for level of corresponding output from mixer (pre-fader).
+        // Each of the following octuples is for level of corresponding output from mixer (post-fader).
+        // Each of the following quadlets is for level of corresponding physical input.
+        // Each of the following quadlets is for level of corresponding stream input.
+        // Each of the following quadlets is for level of corresponding physical output.
+        let length = 8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2)
+            + 4 * (Self::PHYS_INPUT_COUNT + Self::STREAM_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT);
+        let mut raw = vec![0; length];
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            Self::METER_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms,
+        )
+        .map(|_| Self::deserialize(params, &raw))
+    }
+}
+
 /// State of output volumes.
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
