@@ -507,6 +507,42 @@ where
     }
 }
 
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FormerMixerState> for O
+where
+    O: RmeFormerMixerOperation + RmeFfParamsDeserialize<FormerMixerState, u8>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut FormerMixerState,
+        update: FormerMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(params);
+        let mut new = Self::serialize(&update);
+
+        let mixer_length = calculate_mixer_length(Self::AVAIL_COUNT);
+
+        (0..(new.len() / mixer_length))
+            .try_for_each(|i| {
+                let pos = i * mixer_length;
+                if new[pos..(pos + mixer_length)] != old[pos..(pos + mixer_length)] {
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteBlockRequest,
+                        Self::MIXER_OFFSET + pos as u64,
+                        mixer_length,
+                        &mut new[pos..(pos + mixer_length)],
+                        timeout_ms,
+                    )
+                } else {
+                    Ok(())
+                }
+            })
+            .map(|_| *params = update)
+    }
+}
+
 const FORMER_CONFIG_SIZE: usize = 12;
 
 fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
