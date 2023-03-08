@@ -94,27 +94,99 @@ pub trait RmeFfFormerMeterOperation: RmeFfFormerSpecification {
             timeout_ms,
         )
         .map(|_| {
-            // TODO: pick up overload.
-            let mut quadlet = [0; 4];
-            let mut offset = 8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2);
-            [
-                &mut state.analog_inputs[..],
-                &mut state.spdif_inputs[..],
-                &mut state.adat_inputs[..],
-                &mut state.stream_inputs[..],
-                &mut state.analog_outputs[..],
-                &mut state.spdif_outputs[..],
-                &mut state.adat_outputs[..],
-            ]
-            .iter_mut()
-            .for_each(|meters| {
-                meters.iter_mut().for_each(|v| {
-                    quadlet.copy_from_slice(&raw[offset..(offset + 4)]);
-                    *v = i32::from_le_bytes(quadlet) & 0x7fffff00;
-                    offset += 4;
-                });
-            });
+            deserialize_meter(
+                state,
+                &raw,
+                Self::PHYS_INPUT_COUNT,
+                Self::STREAM_INPUT_COUNT,
+                Self::PHYS_OUTPUT_COUNT,
+            )
         })
+    }
+}
+
+const METER_LEVEL_MASK: i32 = 0x7fffff00;
+
+// MEMO: The content of meter appears to consist of three regions. The purpose of each region is
+// still unclear. Let us use the last region.
+fn serialize_meter(
+    params: &FormerMeterState,
+    phys_input_count: usize,
+    stream_input_count: usize,
+    phys_output_count: usize,
+) -> Vec<u8> {
+    let offset = 4 * (phys_input_count + stream_input_count + phys_output_count) * 2;
+    let mut raw = vec![0; offset];
+    raw.reserve(
+        params.analog_inputs.len()
+            + params.spdif_inputs.len()
+            + params.stream_inputs.len()
+            + params.analog_outputs.len()
+            + params.spdif_outputs.len()
+            + params.adat_outputs.len(),
+    );
+    params
+        .analog_inputs
+        .iter()
+        .chain(params.spdif_inputs.iter())
+        .chain(params.adat_inputs.iter())
+        .chain(params.stream_inputs.iter())
+        .chain(params.analog_outputs.iter())
+        .chain(params.spdif_outputs.iter())
+        .chain(params.adat_outputs.iter())
+        .for_each(|meter| {
+            raw.extend_from_slice(&(meter & METER_LEVEL_MASK).to_le_bytes());
+        });
+    raw
+}
+
+fn deserialize_meter(
+    params: &mut FormerMeterState,
+    raw: &[u8],
+    phys_input_count: usize,
+    stream_input_count: usize,
+    phys_output_count: usize,
+) {
+    // TODO: pick up overload.
+    let mut quadlet = [0; 4];
+    let offset = 4 * (phys_input_count + stream_input_count + phys_output_count) * 2;
+    params
+        .analog_inputs
+        .iter_mut()
+        .chain(params.spdif_inputs.iter_mut())
+        .chain(params.adat_inputs.iter_mut())
+        .chain(params.stream_inputs.iter_mut())
+        .chain(params.analog_outputs.iter_mut())
+        .chain(params.spdif_outputs.iter_mut())
+        .chain(params.adat_outputs.iter_mut())
+        .enumerate()
+        .for_each(|(i, meter)| {
+            let pos = offset + i * 4;
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            *meter = i32::from_le_bytes(quadlet) & METER_LEVEL_MASK;
+        });
+}
+
+impl<O: RmeFfFormerSpecification> RmeFfParamsSerialize<FormerMeterState, u8> for O {
+    fn serialize(params: &FormerMeterState) -> Vec<u8> {
+        serialize_meter(
+            params,
+            Self::PHYS_INPUT_COUNT,
+            Self::STREAM_INPUT_COUNT,
+            Self::PHYS_OUTPUT_COUNT,
+        )
+    }
+}
+
+impl<O: RmeFfFormerSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> for O {
+    fn deserialize(params: &mut FormerMeterState, raw: &[u8]) {
+        deserialize_meter(
+            params,
+            raw,
+            Self::PHYS_INPUT_COUNT,
+            Self::STREAM_INPUT_COUNT,
+            Self::PHYS_OUTPUT_COUNT,
+        );
     }
 }
 
@@ -392,5 +464,46 @@ pub enum FormerLineInNominalLevel {
 impl Default for FormerLineInNominalLevel {
     fn default() -> Self {
         Self::Low
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn meter_serdes() {
+        let mut orig = FormerMeterState {
+            analog_inputs: vec![0, 1],
+            spdif_inputs: vec![2, 3],
+            adat_inputs: vec![4, 5],
+            stream_inputs: vec![6, 7],
+            analog_outputs: vec![8, 9],
+            spdif_outputs: vec![10, 11],
+            adat_outputs: vec![12, 13],
+        };
+        orig
+            .analog_inputs
+            .iter_mut()
+            .chain(orig.spdif_inputs.iter_mut())
+            .chain(orig.adat_inputs.iter_mut())
+            .chain(orig.stream_inputs.iter_mut())
+            .chain(orig.analog_outputs.iter_mut())
+            .chain(orig.spdif_outputs.iter_mut())
+            .chain(orig.adat_outputs.iter_mut())
+            .for_each(|gain| *gain <<= 8);
+        let raw = serialize_meter(&orig, 6, 2, 6);
+        let mut target = FormerMeterState {
+            analog_inputs: vec![0; 2],
+            spdif_inputs: vec![0; 2],
+            adat_inputs: vec![0; 2],
+            stream_inputs: vec![0; 2],
+            analog_outputs: vec![0; 2],
+            spdif_outputs: vec![0; 2],
+            adat_outputs: vec![0; 2],
+        };
+        deserialize_meter(&mut target, &raw, 6, 2, 6);
+
+        assert_eq!(target, orig);
     }
 }
