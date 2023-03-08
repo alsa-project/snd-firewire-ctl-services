@@ -289,7 +289,6 @@ impl Ff400ClkLockStatus {
     const QUADLET_COUNT: usize = 1;
 }
 
-#[cfg(test)]
 fn serialize_lock_status(status: &Ff400ClkLockStatus, quads: &mut [u32]) {
     assert!(quads.len() >= Ff400ClkLockStatus::QUADLET_COUNT);
 
@@ -329,7 +328,6 @@ impl Ff400ClkSyncStatus {
     const QUADLET_COUNT: usize = 1;
 }
 
-#[cfg(test)]
 fn serialize_sync_status(status: &Ff400ClkSyncStatus, quads: &mut [u32]) {
     assert!(quads.len() >= Ff400ClkSyncStatus::QUADLET_COUNT);
 
@@ -381,190 +379,210 @@ pub struct Ff400Status {
 }
 
 impl Ff400Status {
-    const QUADLET_COUNT: usize = 2;
+    const QUADLET_COUNT: usize = FORMER_STATUS_SIZE / 4;
 }
 
-#[cfg(test)]
-fn serialize_status(status: &Ff400Status, quads: &mut [u32]) {
-    assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
+impl RmeFfParamsSerialize<Ff400Status, u8> for Ff400Protocol {
+    fn serialize(params: &Ff400Status) -> Vec<u8> {
+        let mut quads = [0; Ff400Status::QUADLET_COUNT];
 
-    serialize_lock_status(&status.lock, quads);
-    serialize_sync_status(&status.sync, quads);
+        serialize_lock_status(&params.lock, &mut quads);
+        serialize_sync_status(&params.sync, &mut quads);
 
-    quads[0] &= !Q0_SPDIF_RATE_MASK;
-    if let Some(rate) = &status.spdif_rate {
-        let flag = match rate {
-            ClkNominalRate::R32000 => Q0_SPDIF_RATE_32000_FLAG,
-            ClkNominalRate::R44100 => Q0_SPDIF_RATE_44100_FLAG,
-            ClkNominalRate::R48000 => Q0_SPDIF_RATE_48000_FLAG,
-            ClkNominalRate::R64000 => Q0_SPDIF_RATE_64000_FLAG,
-            ClkNominalRate::R88200 => Q0_SPDIF_RATE_88200_FLAG,
-            ClkNominalRate::R96000 => Q0_SPDIF_RATE_96000_FLAG,
-            ClkNominalRate::R128000 => Q0_SPDIF_RATE_128000_FLAG,
-            ClkNominalRate::R176400 => Q0_SPDIF_RATE_176400_FLAG,
-            ClkNominalRate::R192000 => Q0_SPDIF_RATE_192000_FLAG,
+        quads[0] &= !Q0_SPDIF_RATE_MASK;
+        if let Some(rate) = &params.spdif_rate {
+            let flag = match rate {
+                ClkNominalRate::R32000 => Q0_SPDIF_RATE_32000_FLAG,
+                ClkNominalRate::R44100 => Q0_SPDIF_RATE_44100_FLAG,
+                ClkNominalRate::R48000 => Q0_SPDIF_RATE_48000_FLAG,
+                ClkNominalRate::R64000 => Q0_SPDIF_RATE_64000_FLAG,
+                ClkNominalRate::R88200 => Q0_SPDIF_RATE_88200_FLAG,
+                ClkNominalRate::R96000 => Q0_SPDIF_RATE_96000_FLAG,
+                ClkNominalRate::R128000 => Q0_SPDIF_RATE_128000_FLAG,
+                ClkNominalRate::R176400 => Q0_SPDIF_RATE_176400_FLAG,
+                ClkNominalRate::R192000 => Q0_SPDIF_RATE_192000_FLAG,
+            };
+            quads[0] |= flag;
+        }
+
+        quads[0] &= !Q0_ACTIVE_CLK_SRC_MASK;
+        let flag = match params.active_clk_src {
+            Ff400ClkSrc::Adat => Q0_ACTIVE_CLK_SRC_ADAT_FLAG,
+            Ff400ClkSrc::Spdif => Q0_ACTIVE_CLK_SRC_SPDIF_FLAG,
+            Ff400ClkSrc::WordClock => Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
+            Ff400ClkSrc::Ltc => Q0_ACTIVE_CLK_SRC_LTC_FLAG,
+            Ff400ClkSrc::Internal => Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG,
         };
         quads[0] |= flag;
-    }
 
-    quads[0] &= !Q0_ACTIVE_CLK_SRC_MASK;
-    let flag = match status.active_clk_src {
-        Ff400ClkSrc::Adat => Q0_ACTIVE_CLK_SRC_ADAT_FLAG,
-        Ff400ClkSrc::Spdif => Q0_ACTIVE_CLK_SRC_SPDIF_FLAG,
-        Ff400ClkSrc::WordClock => Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
-        Ff400ClkSrc::Ltc => Q0_ACTIVE_CLK_SRC_LTC_FLAG,
-        Ff400ClkSrc::Internal => Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG,
-    };
-    quads[0] |= flag;
+        quads[0] &= !Q0_EXT_CLK_RATE_MASK;
+        if let Some(rate) = &params.external_clk_rate {
+            let flag = match rate {
+                ClkNominalRate::R32000 => Q0_EXT_CLK_RATE_32000_FLAG,
+                ClkNominalRate::R44100 => Q0_EXT_CLK_RATE_44100_FLAG,
+                ClkNominalRate::R48000 => Q0_EXT_CLK_RATE_48000_FLAG,
+                ClkNominalRate::R64000 => Q0_EXT_CLK_RATE_64000_FLAG,
+                ClkNominalRate::R88200 => Q0_EXT_CLK_RATE_88200_FLAG,
+                ClkNominalRate::R96000 => Q0_EXT_CLK_RATE_96000_FLAG,
+                ClkNominalRate::R128000 => Q0_EXT_CLK_RATE_128000_FLAG,
+                ClkNominalRate::R176400 => Q0_EXT_CLK_RATE_176400_FLAG,
+                ClkNominalRate::R192000 => Q0_EXT_CLK_RATE_192000_FLAG,
+            };
+            quads[0] |= flag;
+        }
 
-    quads[0] &= !Q0_EXT_CLK_RATE_MASK;
-    if let Some(rate) = &status.external_clk_rate {
-        let flag = match rate {
-            ClkNominalRate::R32000 => Q0_EXT_CLK_RATE_32000_FLAG,
-            ClkNominalRate::R44100 => Q0_EXT_CLK_RATE_44100_FLAG,
-            ClkNominalRate::R48000 => Q0_EXT_CLK_RATE_48000_FLAG,
-            ClkNominalRate::R64000 => Q0_EXT_CLK_RATE_64000_FLAG,
-            ClkNominalRate::R88200 => Q0_EXT_CLK_RATE_88200_FLAG,
-            ClkNominalRate::R96000 => Q0_EXT_CLK_RATE_96000_FLAG,
-            ClkNominalRate::R128000 => Q0_EXT_CLK_RATE_128000_FLAG,
-            ClkNominalRate::R176400 => Q0_EXT_CLK_RATE_176400_FLAG,
-            ClkNominalRate::R192000 => Q0_EXT_CLK_RATE_192000_FLAG,
+        quads[1] &= !Q1_SPDIF_IN_IFACE_MASK;
+        if params.spdif_in.iface == SpdifIface::Optical {
+            quads[1] |= Q1_SPDIF_IN_IFACE_MASK;
+        }
+
+        quads[1] &= !Q1_SPDIF_OUT_FMT_MASK;
+        if params.spdif_out.format == SpdifFormat::Professional {
+            quads[1] |= Q1_SPDIF_OUT_FMT_MASK;
+        }
+
+        quads[1] &= !Q1_SPDIF_OUT_EMPHASIS_MASK;
+        if params.spdif_out.emphasis {
+            quads[1] |= Q1_SPDIF_OUT_EMPHASIS_MASK;
+        }
+
+        quads[1] &= !Q1_OPT_OUT_SIGNAL_MASK;
+        if params.opt_out_signal == OpticalOutputSignal::Spdif {
+            quads[1] |= Q1_OPT_OUT_SIGNAL_MASK;
+        }
+
+        quads[1] &= !Q1_WORD_OUT_SINGLE_MASK;
+        if params.word_out_single {
+            quads[1] |= Q1_WORD_OUT_SINGLE_MASK;
+        }
+
+        quads[1] &= !Q1_CONF_CLK_SRC_MASK;
+        let flag = match params.configured_clk_src {
+            Ff400ClkSrc::Internal => Q1_CONF_CLK_SRC_INTERNAL_FLAG,
+            Ff400ClkSrc::Spdif => Q1_CONF_CLK_SRC_SPDIF_FLAG,
+            Ff400ClkSrc::WordClock => Q1_CONF_CLK_SRC_WORD_CLK_FLAG,
+            Ff400ClkSrc::Ltc => Q1_CONF_CLK_SRC_LTC_FLAG,
+            Ff400ClkSrc::Adat => Q1_CONF_CLK_SRC_ADAT_FLAG,
         };
-        quads[0] |= flag;
+        quads[1] |= flag;
+
+        quads[1] &= !Q1_CONF_CLK_RATE_MASK;
+        let flag = match params.configured_clk_rate {
+            ClkNominalRate::R32000 => Q1_CONF_CLK_RATE_32000_FLAG,
+            ClkNominalRate::R48000 => Q1_CONF_CLK_RATE_48000_FLAG,
+            ClkNominalRate::R64000 => Q1_CONF_CLK_RATE_64000_FLAG,
+            ClkNominalRate::R88200 => Q1_CONF_CLK_RATE_88200_FLAG,
+            ClkNominalRate::R96000 => Q1_CONF_CLK_RATE_96000_FLAG,
+            ClkNominalRate::R128000 => Q1_CONF_CLK_RATE_128000_FLAG,
+            ClkNominalRate::R176400 => Q1_CONF_CLK_RATE_176400_FLAG,
+            ClkNominalRate::R192000 => Q1_CONF_CLK_RATE_192000_FLAG,
+            ClkNominalRate::R44100 => Q1_CONF_CLK_RATE_44100_FLAG,
+        };
+        quads[1] |= flag;
+
+        quads.iter().flat_map(|quad| quad.to_le_bytes()).collect()
     }
+}
 
-    quads[1] &= !Q1_SPDIF_IN_IFACE_MASK;
-    if status.spdif_in.iface == SpdifIface::Optical {
-        quads[1] |= Q1_SPDIF_IN_IFACE_MASK;
+impl RmeFfParamsDeserialize<Ff400Status, u8> for Ff400Protocol {
+    fn deserialize(params: &mut Ff400Status, raw: &[u8]) {
+        assert!(raw.len() >= FORMER_STATUS_SIZE);
+
+        let mut quads = [0; Ff400Status::QUADLET_COUNT];
+        let mut quadlet = [0; 4];
+        quads.iter_mut().enumerate().for_each(|(i, quad)| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            *quad = u32::from_le_bytes(quadlet);
+        });
+
+        deserialize_lock_status(&mut params.lock, &mut quads);
+        deserialize_sync_status(&mut params.sync, &mut quads);
+
+        params.spdif_rate = match quads[0] & Q0_SPDIF_RATE_MASK {
+            Q0_SPDIF_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+            Q0_SPDIF_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+            Q0_SPDIF_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+            Q0_SPDIF_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+            Q0_SPDIF_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+            Q0_SPDIF_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+            Q0_SPDIF_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+            Q0_SPDIF_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+            Q0_SPDIF_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+            _ => None,
+        };
+
+        params.active_clk_src = match quads[0] & Q0_ACTIVE_CLK_SRC_MASK {
+            Q0_ACTIVE_CLK_SRC_ADAT_FLAG => Ff400ClkSrc::Adat,
+            Q0_ACTIVE_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+            Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+            Q0_ACTIVE_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+            Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+            _ => unreachable!(),
+        };
+
+        params.external_clk_rate = match quads[0] & Q0_EXT_CLK_RATE_MASK {
+            Q0_EXT_CLK_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+            Q0_EXT_CLK_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+            Q0_EXT_CLK_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+            Q0_EXT_CLK_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+            Q0_EXT_CLK_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+            Q0_EXT_CLK_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+            Q0_EXT_CLK_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+            Q0_EXT_CLK_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+            Q0_EXT_CLK_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+            _ => None,
+        };
+
+        params.spdif_in.iface = if quads[1] & Q1_SPDIF_IN_IFACE_MASK > 0 {
+            SpdifIface::Optical
+        } else {
+            SpdifIface::Coaxial
+        };
+
+        params.spdif_out.format = if quads[1] & Q1_SPDIF_OUT_FMT_MASK > 0 {
+            SpdifFormat::Professional
+        } else {
+            SpdifFormat::Consumer
+        };
+
+        params.spdif_out.emphasis = quads[1] & Q1_SPDIF_OUT_EMPHASIS_MASK > 0;
+
+        params.opt_out_signal = if quads[1] & Q1_OPT_OUT_SIGNAL_MASK > 0 {
+            OpticalOutputSignal::Spdif
+        } else {
+            OpticalOutputSignal::Adat
+        };
+
+        params.word_out_single = quads[1] & Q1_WORD_OUT_SINGLE_MASK > 0;
+
+        params.configured_clk_src = match quads[1] & Q1_CONF_CLK_SRC_MASK {
+            Q1_CONF_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+            Q1_CONF_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+            Q1_CONF_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+            Q1_CONF_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+            Q1_CONF_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
+        };
+
+        params.configured_clk_rate = match quads[1] & Q1_CONF_CLK_RATE_MASK {
+            Q1_CONF_CLK_RATE_32000_FLAG => ClkNominalRate::R32000,
+            Q1_CONF_CLK_RATE_48000_FLAG => ClkNominalRate::R48000,
+            Q1_CONF_CLK_RATE_64000_FLAG => ClkNominalRate::R64000,
+            Q1_CONF_CLK_RATE_88200_FLAG => ClkNominalRate::R88200,
+            Q1_CONF_CLK_RATE_96000_FLAG => ClkNominalRate::R96000,
+            Q1_CONF_CLK_RATE_128000_FLAG => ClkNominalRate::R128000,
+            Q1_CONF_CLK_RATE_176400_FLAG => ClkNominalRate::R176400,
+            Q1_CONF_CLK_RATE_192000_FLAG => ClkNominalRate::R192000,
+            Q1_CONF_CLK_RATE_44100_FLAG | _ => ClkNominalRate::R44100,
+        };
     }
-
-    quads[1] &= !Q1_SPDIF_OUT_FMT_MASK;
-    if status.spdif_out.format == SpdifFormat::Professional {
-        quads[1] |= Q1_SPDIF_OUT_FMT_MASK;
-    }
-
-    quads[1] &= !Q1_SPDIF_OUT_EMPHASIS_MASK;
-    if status.spdif_out.emphasis {
-        quads[1] |= Q1_SPDIF_OUT_EMPHASIS_MASK;
-    }
-
-    quads[1] &= !Q1_OPT_OUT_SIGNAL_MASK;
-    if status.opt_out_signal == OpticalOutputSignal::Spdif {
-        quads[1] |= Q1_OPT_OUT_SIGNAL_MASK;
-    }
-
-    quads[1] &= !Q1_WORD_OUT_SINGLE_MASK;
-    if status.word_out_single {
-        quads[1] |= Q1_WORD_OUT_SINGLE_MASK;
-    }
-
-    quads[1] &= !Q1_CONF_CLK_SRC_MASK;
-    let flag = match status.configured_clk_src {
-        Ff400ClkSrc::Internal => Q1_CONF_CLK_SRC_INTERNAL_FLAG,
-        Ff400ClkSrc::Spdif => Q1_CONF_CLK_SRC_SPDIF_FLAG,
-        Ff400ClkSrc::WordClock => Q1_CONF_CLK_SRC_WORD_CLK_FLAG,
-        Ff400ClkSrc::Ltc => Q1_CONF_CLK_SRC_LTC_FLAG,
-        Ff400ClkSrc::Adat => Q1_CONF_CLK_SRC_ADAT_FLAG,
-    };
-    quads[1] |= flag;
-
-    quads[1] &= !Q1_CONF_CLK_RATE_MASK;
-    let flag = match status.configured_clk_rate {
-        ClkNominalRate::R32000 => Q1_CONF_CLK_RATE_32000_FLAG,
-        ClkNominalRate::R48000 => Q1_CONF_CLK_RATE_48000_FLAG,
-        ClkNominalRate::R64000 => Q1_CONF_CLK_RATE_64000_FLAG,
-        ClkNominalRate::R88200 => Q1_CONF_CLK_RATE_88200_FLAG,
-        ClkNominalRate::R96000 => Q1_CONF_CLK_RATE_96000_FLAG,
-        ClkNominalRate::R128000 => Q1_CONF_CLK_RATE_128000_FLAG,
-        ClkNominalRate::R176400 => Q1_CONF_CLK_RATE_176400_FLAG,
-        ClkNominalRate::R192000 => Q1_CONF_CLK_RATE_192000_FLAG,
-        ClkNominalRate::R44100 => Q1_CONF_CLK_RATE_44100_FLAG,
-    };
-    quads[1] |= flag;
 }
 
 fn deserialize_status(status: &mut Ff400Status, quads: &[u32]) {
     assert!(quads.len() >= Ff400Status::QUADLET_COUNT);
 
-    deserialize_lock_status(&mut status.lock, quads);
-    deserialize_sync_status(&mut status.sync, quads);
-
-    status.spdif_rate = match quads[0] & Q0_SPDIF_RATE_MASK {
-        Q0_SPDIF_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
-        Q0_SPDIF_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
-        Q0_SPDIF_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
-        Q0_SPDIF_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
-        Q0_SPDIF_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
-        Q0_SPDIF_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
-        Q0_SPDIF_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
-        Q0_SPDIF_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
-        Q0_SPDIF_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
-        _ => None,
-    };
-
-    status.active_clk_src = match quads[0] & Q0_ACTIVE_CLK_SRC_MASK {
-        Q0_ACTIVE_CLK_SRC_ADAT_FLAG => Ff400ClkSrc::Adat,
-        Q0_ACTIVE_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
-        Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
-        Q0_ACTIVE_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
-        Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
-        _ => unreachable!(),
-    };
-
-    status.external_clk_rate = match quads[0] & Q0_EXT_CLK_RATE_MASK {
-        Q0_EXT_CLK_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
-        Q0_EXT_CLK_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
-        Q0_EXT_CLK_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
-        Q0_EXT_CLK_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
-        Q0_EXT_CLK_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
-        Q0_EXT_CLK_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
-        Q0_EXT_CLK_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
-        Q0_EXT_CLK_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
-        Q0_EXT_CLK_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
-        _ => None,
-    };
-
-    status.spdif_in.iface = if quads[1] & Q1_SPDIF_IN_IFACE_MASK > 0 {
-        SpdifIface::Optical
-    } else {
-        SpdifIface::Coaxial
-    };
-
-    status.spdif_out.format = if quads[1] & Q1_SPDIF_OUT_FMT_MASK > 0 {
-        SpdifFormat::Professional
-    } else {
-        SpdifFormat::Consumer
-    };
-
-    status.spdif_out.emphasis = quads[1] & Q1_SPDIF_OUT_EMPHASIS_MASK > 0;
-
-    status.opt_out_signal = if quads[1] & Q1_OPT_OUT_SIGNAL_MASK > 0 {
-        OpticalOutputSignal::Spdif
-    } else {
-        OpticalOutputSignal::Adat
-    };
-
-    status.word_out_single = quads[1] & Q1_WORD_OUT_SINGLE_MASK > 0;
-
-    status.configured_clk_src = match quads[1] & Q1_CONF_CLK_SRC_MASK {
-        Q1_CONF_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
-        Q1_CONF_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
-        Q1_CONF_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
-        Q1_CONF_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
-        Q1_CONF_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
-    };
-
-    status.configured_clk_rate = match quads[1] & Q1_CONF_CLK_RATE_MASK {
-        Q1_CONF_CLK_RATE_32000_FLAG => ClkNominalRate::R32000,
-        Q1_CONF_CLK_RATE_48000_FLAG => ClkNominalRate::R48000,
-        Q1_CONF_CLK_RATE_64000_FLAG => ClkNominalRate::R64000,
-        Q1_CONF_CLK_RATE_88200_FLAG => ClkNominalRate::R88200,
-        Q1_CONF_CLK_RATE_96000_FLAG => ClkNominalRate::R96000,
-        Q1_CONF_CLK_RATE_128000_FLAG => ClkNominalRate::R128000,
-        Q1_CONF_CLK_RATE_176400_FLAG => ClkNominalRate::R176400,
-        Q1_CONF_CLK_RATE_192000_FLAG => ClkNominalRate::R192000,
-        Q1_CONF_CLK_RATE_44100_FLAG | _ => ClkNominalRate::R44100,
-    };
+    let raw: Vec<u8> = quads.iter().flat_map(|quad| quad.to_le_bytes()).collect();
+    Ff400Protocol::deserialize(status, &raw);
 }
 
 impl Ff400Protocol {
@@ -1133,10 +1151,9 @@ mod test {
             configured_clk_rate: ClkNominalRate::R176400,
             ..Default::default()
         };
-        let mut quads = [0; Ff400Status::QUADLET_COUNT];
-        serialize_status(&orig, &mut quads);
+        let raw = Ff400Protocol::serialize(&orig);
         let mut target = Ff400Status::default();
-        deserialize_status(&mut target, &quads);
+        Ff400Protocol::deserialize(&mut target, &raw);
 
         assert_eq!(target, orig);
     }
