@@ -10,7 +10,7 @@ use super::*;
 pub struct Ff800Protocol;
 
 const MIXER_OFFSET: u64 = 0x000080080000;
-const OUTPUT_OFFSET: usize = 0x000080081f80;
+const OUTPUT_OFFSET: u64 = 0x000080081f80;
 const METER_OFFSET: u64 = 0x000080100000;
 const STATUS_OFFSET: u64 = 0x0000801c0000;
 const CFG_OFFSET: u64 = 0x0000fc88f014;
@@ -38,6 +38,56 @@ impl RmeFfFormerMeterSpecification for Ff800Protocol {
     const METER_OFFSET: u64 = METER_OFFSET;
 }
 
+impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FormerOutputVolumeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = Self::serialize(params);
+        req.transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            OUTPUT_OFFSET,
+            raw.len(),
+            &mut raw,
+            timeout_ms,
+        )
+    }
+}
+
+impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Protocol {
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut FormerOutputVolumeState,
+        update: FormerOutputVolumeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(params);
+        let mut new = Self::serialize(&update);
+
+        (0..(new.len() / 4))
+            .try_for_each(|i| {
+                let pos = i * 4;
+                if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteBlockRequest,
+                        OUTPUT_OFFSET + pos as u64,
+                        4,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                } else {
+                    Ok(())
+                }
+            })
+            .map(|_| *params = update)
+    }
+}
+
 impl RmeFormerOutputOperation for Ff800Protocol {
     fn write_output_vol(
         req: &mut FwReq,
@@ -51,7 +101,7 @@ impl RmeFormerOutputOperation for Ff800Protocol {
         req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
-            (OUTPUT_OFFSET + ch * 4) as u64,
+            OUTPUT_OFFSET + 4 * ch as u64,
             raw.len(),
             &mut raw,
             timeout_ms,
