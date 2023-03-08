@@ -995,6 +995,65 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerOperation for O {}
 
+impl<O: RmeFfLatterMixerOperation> RmeFfParamsSerialize<FfLatterMixerState, u32> for O {
+    fn serialize(state: &FfLatterMixerState) -> Vec<u32> {
+        state
+            .0
+            .iter()
+            .enumerate()
+            .flat_map(|(i, mixer)| {
+                let index = i as u16;
+                mixer
+                    .line_gains
+                    .iter()
+                    .chain(&mixer.mic_gains)
+                    .chain(&mixer.spdif_gains)
+                    .chain(&mixer.adat_gains)
+                    .enumerate()
+                    .map(|(j, &gain)| {
+                        let ch = j as u16;
+                        create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain)
+                    })
+                    .collect::<Vec<u32>>()
+            })
+            .collect()
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterMixerState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterMixerState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterMixerState,
+        update: FfLatterMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
+    }
+}
+
 /// Level of roll off in high pass filter.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterHpfRollOffLevel {
