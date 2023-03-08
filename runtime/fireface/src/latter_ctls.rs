@@ -135,7 +135,9 @@ where
         + RmeFfLatterInputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfLatterOutputOperation
+        + RmeFfLatterOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
@@ -147,7 +149,9 @@ where
         + RmeFfLatterInputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfLatterOutputOperation
+        + RmeFfLatterOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
@@ -179,7 +183,9 @@ where
         + RmeFfLatterInputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfLatterOutputOperation
+        + RmeFfLatterOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
@@ -487,7 +493,12 @@ const STEREO_LINK_NAME: &str = "output:stereo-link";
 const INVERT_PHASE_NAME: &str = "output:invert-phase";
 const LINE_LEVEL_NAME: &str = "output:line-level";
 
-impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
+impl<T> LatterDspCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>,
+{
     const VOL_TLV: DbInterval = DbInterval {
         min: -6500,
         max: 600,
@@ -507,8 +518,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_output(req, node, &mut self.0, timeout_ms);
-        debug!(params = ?self.0, ?res);
+        let res = T::update_wholly(req, node, &mut self.0.output, timeout_ms);
+        debug!(params = ?self.0.output, ?res);
         res
     }
 
@@ -616,8 +627,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
+                debug!(params = ?self.0.output, ?res);
                 res.map(|_| true)
             }
             STEREO_BALANCE_NAME => {
@@ -627,8 +638,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
+                debug!(params = ?self.0.output, ?res);
                 res.map(|_| true)
             }
             STEREO_LINK_NAME => {
@@ -638,8 +649,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
+                debug!(params = ?self.0.output, ?res);
                 res.map(|_| true)
             }
             INVERT_PHASE_NAME => {
@@ -649,8 +660,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
+                debug!(params = ?self.0.output, ?res);
                 res.map(|_| true)
             }
             LINE_LEVEL_NAME => {
@@ -671,8 +682,8 @@ impl<T: RmeFfLatterOutputOperation> LatterDspCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::write_output(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.output, params, timeout_ms);
+                debug!(params = ?self.0.output, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
