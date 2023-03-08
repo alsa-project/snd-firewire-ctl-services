@@ -141,8 +141,12 @@ where
         + RmeFfLatterMixerSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfLatterChStripOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation;
 
 impl<T> Default for LatterDspCtl<T>
@@ -157,8 +161,12 @@ where
         + RmeFfLatterMixerSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfLatterChStripOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation,
 {
     fn default() -> Self {
@@ -193,8 +201,12 @@ where
         + RmeFfLatterMixerSpecification
         + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
         + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfLatterChStripOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripOperation<FfLatterOutputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxOperation,
 {
     pub fn cache(
@@ -961,7 +973,13 @@ fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
     .to_string()
 }
 
-pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
+pub trait FfLatterChStripCtlOperation<T, U>
+where
+    T: RmeFfLatterChStripSpecification<U>
+        + RmeFfWhollyUpdatableParamsOperation<U>
+        + RmeFfPartiallyUpdatableParamsOperation<U>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+{
     const HPF_ACTIVATE_NAME: &'static str;
     const HPF_CUT_OFF_NAME: &'static str;
     const HPF_ROLL_OFF_NAME: &'static str;
@@ -1006,8 +1024,8 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
         FfLatterChStripEqType::LowPass,
     ];
 
-    fn state(&self) -> &FfLatterDspState;
-    fn state_mut(&mut self) -> &mut FfLatterDspState;
+    fn state(&self) -> &U;
+    fn state_mut(&mut self) -> &mut U;
 
     fn cache_ch_strip(
         &mut self,
@@ -1015,8 +1033,8 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_ch_strip(req, node, self.state_mut(), timeout_ms);
-        debug!(params = ?T::ch_strip(self.state()), ?res);
+        let res = T::update_wholly(req, node, self.state_mut(), timeout_ms);
+        debug!(params = ?self.state(), ?res);
         res
     }
 
@@ -1319,10 +1337,12 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
         let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            elem_value.set_bool(&T::ch_strip(self.state()).hpf.activates);
+            elem_value.set_bool(&self.state().as_ref().hpf.activates);
             Ok(true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .hpf
                 .cut_offs
                 .iter()
@@ -1331,7 +1351,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let vals: Vec<u32> = T::ch_strip(self.state())
+            let vals: Vec<u32> = self
+                .state()
+                .as_ref()
                 .hpf
                 .roll_offs
                 .iter()
@@ -1346,10 +1368,12 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            elem_value.set_bool(&T::ch_strip(self.state()).eq.activates);
+            elem_value.set_bool(&self.state().as_ref().eq.activates);
             Ok(true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let vals: Vec<u32> = T::ch_strip(self.state())
+            let vals: Vec<u32> = self
+                .state()
+                .as_ref()
                 .eq
                 .low_types
                 .iter()
@@ -1361,7 +1385,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let vals: Vec<u32> = T::ch_strip(self.state())
+            let vals: Vec<u32> = self
+                .state()
+                .as_ref()
                 .eq
                 .high_types
                 .iter()
@@ -1373,7 +1399,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .low_gains
                 .iter()
@@ -1382,7 +1410,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .middle_gains
                 .iter()
@@ -1391,7 +1421,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .high_gains
                 .iter()
@@ -1400,7 +1432,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .low_freqs
                 .iter()
@@ -1409,7 +1443,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .middle_freqs
                 .iter()
@@ -1418,7 +1454,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .high_freqs
                 .iter()
@@ -1427,7 +1465,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .low_qualities
                 .iter()
@@ -1436,7 +1476,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .middle_qualities
                 .iter()
@@ -1445,7 +1487,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .eq
                 .high_qualities
                 .iter()
@@ -1454,10 +1498,12 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            elem_value.set_bool(&T::ch_strip(self.state()).dynamics.activates);
+            elem_value.set_bool(&self.state().as_ref().dynamics.activates);
             Ok(true)
         } else if n == Self::DYN_GAIN_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .gains
                 .iter()
@@ -1466,7 +1512,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .attacks
                 .iter()
@@ -1475,7 +1523,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .releases
                 .iter()
@@ -1484,7 +1534,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .compressor_thresholds
                 .iter()
@@ -1493,7 +1545,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .compressor_ratios
                 .iter()
@@ -1502,7 +1556,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .expander_thresholds
                 .iter()
@@ -1511,7 +1567,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .dynamics
                 .expander_ratios
                 .iter()
@@ -1520,11 +1578,13 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let vals = T::ch_strip(self.state()).autolevel.activates.clone();
+            let vals = self.state().as_ref().autolevel.activates.clone();
             elem_value.set_bool(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .autolevel
                 .max_gains
                 .iter()
@@ -1533,7 +1593,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .autolevel
                 .headrooms
                 .iter()
@@ -1542,7 +1604,9 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let vals: Vec<i32> = T::ch_strip(self.state())
+            let vals: Vec<i32> = self
+                .state()
+                .as_ref()
                 .autolevel
                 .rise_times
                 .iter()
@@ -1566,28 +1630,34 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
         let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            let mut params = T::ch_strip(self.state()).hpf.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .hpf
                 .activates
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let mut params = T::ch_strip(self.state()).hpf.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .hpf
                 .cut_offs
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(dst, &val)| *dst = val as u16);
-            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let mut params = T::ch_strip(self.state()).hpf.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .hpf
                 .roll_offs
                 .iter_mut()
                 .zip(elem_value.enumerated())
@@ -1602,22 +1672,26 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&l| *level = l)
                 })?;
-            let res = T::write_ch_strip_hpf(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).hpf, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .activates
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()));
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .low_types
                 .iter_mut()
                 .zip(elem_value.enumerated())
@@ -1632,12 +1706,14 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .high_types
                 .iter_mut()
                 .zip(elem_value.enumerated())
@@ -1652,218 +1728,260 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .low_gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .middle_gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .high_gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .low_freqs
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .middle_freqs
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .high_freqs
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .low_qualities
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .middle_qualities
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let mut params = T::ch_strip(self.state()).eq.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .eq
                 .high_qualities
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::write_ch_strip_eq(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).eq, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .activates
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .attacks
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(attack, &val)| *attack = val as u16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .releases
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(release, &val)| *release = val as u16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .compressor_thresholds
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .compressor_ratios
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .expander_thresholds
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let mut params = T::ch_strip(self.state()).dynamics.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .dynamics
                 .expander_ratios
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::write_ch_strip_dynamics(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).dynamics, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let mut params = T::ch_strip(self.state()).autolevel.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .autolevel
                 .activates
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let mut params = T::ch_strip(self.state()).autolevel.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .autolevel
                 .max_gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as u16);
-            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let mut params = T::ch_strip(self.state()).autolevel.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .autolevel
                 .headrooms
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(headroom, &val)| *headroom = val as u16);
-            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let mut params = T::ch_strip(self.state()).autolevel.clone();
+            let mut params = self.state().clone();
             params
+                .as_mut()
+                .autolevel
                 .rise_times
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(time, &val)| *time = val as u16);
-            let res = T::write_ch_strip_autolevel(req, node, self.state_mut(), params, timeout_ms);
-            debug!(params = ?T::ch_strip(self.state()).autolevel, ?res);
+            let res = T::update_partially(req, node, self.state_mut(), params, timeout_ms);
+            debug!(params = ?self.state().as_ref().autolevel, ?res);
             res.map(|_| true)
         } else {
             Ok(false)
@@ -1873,7 +1991,7 @@ pub trait FfLatterChStripCtlOperation<T: RmeFfLatterChStripOperation<U>, U> {
 
 impl<T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for LatterDspCtl<T>
 where
-    T: RmeFfLatterChStripOperation<FfLatterInputChStripState>,
+    T: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
     const HPF_ACTIVATE_NAME: &'static str = "input:hpf-activate";
     const HPF_CUT_OFF_NAME: &'static str = "input:hpf-cut-off";
@@ -1906,18 +2024,18 @@ where
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "input:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "input:autolevel-rise-time";
 
-    fn state(&self) -> &FfLatterDspState {
-        &self.0
+    fn state(&self) -> &FfLatterInputChStripState {
+        &self.0.input_ch_strip
     }
 
-    fn state_mut(&mut self) -> &mut FfLatterDspState {
-        &mut self.0
+    fn state_mut(&mut self) -> &mut FfLatterInputChStripState {
+        &mut self.0.input_ch_strip
     }
 }
 
 impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDspCtl<T>
 where
-    T: RmeFfLatterChStripOperation<FfLatterOutputChStripState>,
+    T: RmeFfLatterChStripSpecification<FfLatterOutputChStripState>,
 {
     const HPF_ACTIVATE_NAME: &'static str = "output:hpf-activate";
     const HPF_CUT_OFF_NAME: &'static str = "output:hpf-cut-off";
@@ -1950,12 +2068,12 @@ where
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "output:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "output:autolevel-rise-time";
 
-    fn state(&self) -> &FfLatterDspState {
-        &self.0
+    fn state(&self) -> &FfLatterOutputChStripState {
+        &self.0.output_ch_strip
     }
 
-    fn state_mut(&mut self) -> &mut FfLatterDspState {
-        &mut self.0
+    fn state_mut(&mut self) -> &mut FfLatterOutputChStripState {
+        &mut self.0.output_ch_strip
     }
 }
 
