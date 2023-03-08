@@ -930,72 +930,17 @@ pub struct FfLatterMixer {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterMixerState(pub Vec<FfLatterMixer>);
 
-/// Mixer protocol.
-pub trait RmeFfLatterMixerOperation: RmeFfLatterDspSpecification {
+/// The specification of mixer.
+pub trait RmeFfLatterMixerSpecification: RmeFfLatterDspSpecification {
     const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
     const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
     const MIXER_INPUT_GAIN_MAX: i32 = 0xa000;
     const MIXER_INPUT_GAIN_STEP: i32 = 1;
-
-    fn init_mixers(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FfLatterDspState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        state.mixer.0.iter().enumerate().try_for_each(|(i, mixer)| {
-            let ch = i as u16;
-            let cmds = Self::mixer_state_to_cmds(&mixer, ch);
-            cmds.iter()
-                .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-        })
-    }
-
-    fn write_mixer(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        index: usize,
-        mixer: FfLatterMixer,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::mixer_state_to_cmds(&state.mixer.0[index], index as u16);
-        let new = Self::mixer_state_to_cmds(&mixer, index as u16);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.mixer.0[index] = mixer)
-    }
-
-    fn mixer_state_to_cmds(sources: &FfLatterMixer, index: u16) -> Vec<u32> {
-        let mut cmds = Vec::new();
-
-        sources
-            .line_gains
-            .iter()
-            .chain(&sources.mic_gains)
-            .chain(&sources.spdif_gains)
-            .chain(&sources.adat_gains)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = i as u16;
-                cmds.push(create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain));
-            });
-
-        sources
-            .stream_gains
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = (Self::STREAM_OFFSET as u16) + i as u16;
-                cmds.push(create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain));
-            });
-
-        cmds
-    }
 }
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerSpecification for O {}
 
-impl<O: RmeFfLatterMixerOperation> RmeFfParamsSerialize<FfLatterMixerState, u32> for O {
+impl<O: RmeFfLatterMixerSpecification> RmeFfParamsSerialize<FfLatterMixerState, u32> for O {
     fn serialize(state: &FfLatterMixerState) -> Vec<u32> {
         state
             .0
