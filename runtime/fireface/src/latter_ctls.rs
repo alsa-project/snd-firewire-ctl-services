@@ -165,13 +165,18 @@ where
             .iter_mut()
             .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_MAX as i16);
 
-        state.mixer.iter_mut().enumerate().for_each(|(i, mixer)| {
-            mixer
-                .stream_gains
-                .iter_mut()
-                .nth(i)
-                .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
-        });
+        state
+            .mixer
+            .0
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, mixer)| {
+                mixer
+                    .stream_gains
+                    .iter_mut()
+                    .nth(i)
+                    .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
+            });
 
         Self(state, Default::default())
     }
@@ -785,7 +790,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer[index]
+                let vals: Vec<i32> = self.0.mixer.0[index]
                     .line_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -795,7 +800,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer[index]
+                let vals: Vec<i32> = self.0.mixer.0[index]
                     .mic_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -805,7 +810,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer[index]
+                let vals: Vec<i32> = self.0.mixer.0[index]
                     .spdif_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -815,7 +820,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer[index]
+                let vals: Vec<i32> = self.0.mixer.0[index]
                     .adat_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -825,7 +830,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let vals: Vec<i32> = self.0.mixer[index]
+                let vals: Vec<i32> = self.0.mixer.0[index]
                     .stream_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -848,7 +853,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
         match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer[index].clone();
+                let mut params = self.0.mixer.0[index].clone();
                 params
                     .line_gains
                     .iter_mut()
@@ -860,7 +865,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer[index].clone();
+                let mut params = self.0.mixer.0[index].clone();
                 params
                     .mic_gains
                     .iter_mut()
@@ -872,7 +877,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer[index].clone();
+                let mut params = self.0.mixer.0[index].clone();
                 params
                     .spdif_gains
                     .iter_mut()
@@ -884,7 +889,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer[index].clone();
+                let mut params = self.0.mixer.0[index].clone();
                 params
                     .adat_gains
                     .iter_mut()
@@ -896,7 +901,7 @@ impl<T: RmeFfLatterMixerOperation> LatterDspCtl<T> {
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
-                let mut params = self.0.mixer[index].clone();
+                let mut params = self.0.mixer.0[index].clone();
                 params
                     .stream_gains
                     .iter_mut()
