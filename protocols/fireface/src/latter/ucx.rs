@@ -74,50 +74,75 @@ pub struct FfUcxConfig {
     pub spdif_out_format: SpdifFormat,
 }
 
-impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
-    fn serialize(&self, quad: &mut u32) {
-        serialize_midi_tx_low_offset(&self.midi_tx_low_offset, quad);
-        serialize_clock_source(&self.clk_src, quad);
+impl RmeFfParamsSerialize<FfUcxConfig, u8> for FfUcxProtocol {
+    fn serialize(state: &FfUcxConfig) -> Vec<u8> {
+        let mut quad = 0;
 
-        if self.opt_out_signal == OpticalOutputSignal::Spdif {
-            *quad |= CFG_SPDIF_OUT_TO_OPT_IFACE_MASK;
+        serialize_midi_tx_low_offset(&state.midi_tx_low_offset, &mut quad);
+        serialize_clock_source(&state.clk_src, &mut quad);
+
+        if state.opt_out_signal == OpticalOutputSignal::Spdif {
+            quad |= CFG_SPDIF_OUT_TO_OPT_IFACE_MASK;
         }
 
-        if self.word_out_single {
-            *quad |= CFG_WORD_OUT_SINGLE_MASK;
+        if state.word_out_single {
+            quad |= CFG_WORD_OUT_SINGLE_MASK;
         }
 
-        if self.effect_on_inputs {
-            *quad |= CFG_DSP_EFFECT_ON_INPUT_MASK;
+        if state.effect_on_inputs {
+            quad |= CFG_DSP_EFFECT_ON_INPUT_MASK;
         }
 
-        if self.word_in_terminate {
-            *quad |= CFG_WORD_INPUT_TERMINATE_MASK;
+        if state.word_in_terminate {
+            quad |= CFG_WORD_INPUT_TERMINATE_MASK;
         }
 
-        if self.spdif_out_format == SpdifFormat::Professional {
-            *quad |= CFG_SPDIF_OUT_PRO_MASK;
+        if state.spdif_out_format == SpdifFormat::Professional {
+            quad |= CFG_SPDIF_OUT_PRO_MASK;
         }
+
+        quad.to_le_bytes().to_vec()
     }
+}
 
-    fn deserialize(&mut self, quad: &u32) {
-        deserialize_midi_tx_low_offset(&mut self.midi_tx_low_offset, quad);
-        deserialize_clock_source(&mut self.clk_src, quad);
+impl RmeFfParamsDeserialize<FfUcxConfig, u8> for FfUcxProtocol {
+    fn deserialize(state: &mut FfUcxConfig, raw: &[u8]) {
+        assert!(raw.len() >= LATTER_CONFIG_SIZE);
 
-        self.opt_out_signal = if *quad & CFG_SPDIF_OUT_TO_OPT_IFACE_MASK > 0 {
+        let mut r = [0; 4];
+        r.copy_from_slice(&raw[..4]);
+        let quad = u32::from_le_bytes(r);
+
+        deserialize_midi_tx_low_offset(&mut state.midi_tx_low_offset, &quad);
+        deserialize_clock_source(&mut state.clk_src, &quad);
+
+        state.opt_out_signal = if quad & CFG_SPDIF_OUT_TO_OPT_IFACE_MASK > 0 {
             OpticalOutputSignal::Spdif
         } else {
             OpticalOutputSignal::Adat
         };
 
-        self.word_out_single = *quad & CFG_WORD_OUT_SINGLE_MASK > 0;
-        self.effect_on_inputs = *quad & CFG_DSP_EFFECT_ON_INPUT_MASK > 0;
-        self.word_in_terminate = *quad & CFG_WORD_INPUT_TERMINATE_MASK > 0;
-        self.spdif_out_format = if *quad & CFG_SPDIF_OUT_PRO_MASK > 0 {
+        state.word_out_single = quad & CFG_WORD_OUT_SINGLE_MASK > 0;
+        state.effect_on_inputs = quad & CFG_DSP_EFFECT_ON_INPUT_MASK > 0;
+        state.word_in_terminate = quad & CFG_WORD_INPUT_TERMINATE_MASK > 0;
+        state.spdif_out_format = if quad & CFG_SPDIF_OUT_PRO_MASK > 0 {
             SpdifFormat::Professional
         } else {
             SpdifFormat::Consumer
         };
+    }
+}
+
+impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
+    fn serialize(&self, quad: &mut u32) {
+        let raw = FfUcxProtocol::serialize(self);
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        *quad = u32::from_le_bytes(quadlet);
+    }
+
+    fn deserialize(&mut self, quad: &u32) {
+        FfUcxProtocol::deserialize(self, &quad.to_le_bytes());
     }
 }
 
@@ -379,10 +404,9 @@ mod test {
             word_in_terminate: true,
             spdif_out_format: SpdifFormat::Professional,
         };
-        let mut quad = 0;
-        orig.serialize(&mut quad);
+        let quads = FfUcxProtocol::serialize(&orig);
         let mut target = FfUcxConfig::default();
-        target.deserialize(&quad);
+        FfUcxProtocol::deserialize(&mut target, &quads);
 
         assert_eq!(target, orig);
     }
