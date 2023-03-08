@@ -6,7 +6,11 @@
 pub mod former;
 pub mod latter;
 
-use ieee1212_config_rom::*;
+use {
+    glib::Error,
+    hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
+    ieee1212_config_rom::*,
+};
 
 const RME_OUI: u32 = 0x00000a35;
 
@@ -128,4 +132,15 @@ pub trait RmeFfParamsDeserialize<T, U> {
 pub trait RmeFfParamsSerialize<T, U> {
     /// Serialize parameters from raw data.
     fn serialize(params: &T) -> Vec<U>;
+}
+
+/// Operation for parameters which can be updated wholly at once.
+pub trait RmeFfWhollyUpdatableParamsOperation<T> {
+    /// Update registers for whole parameters.
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
 }
