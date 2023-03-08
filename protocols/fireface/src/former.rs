@@ -251,6 +251,39 @@ pub trait RmeFormerOutputOperation: RmeFfFormerSpecification {
     }
 }
 
+fn serialize_output_volumes(params: &FormerOutputVolumeState, phys_output_count: usize) -> Vec<u8> {
+    assert!(params.0.len() >= phys_output_count);
+
+    params.0.iter().flat_map(|vol| vol.to_le_bytes()).collect()
+}
+
+fn deserialize_output_volumes(
+    params: &mut FormerOutputVolumeState,
+    raw: &[u8],
+    phys_output_count: usize,
+) {
+    assert!(raw.len() >= phys_output_count * 4);
+
+    let mut quadlet = [0; 4];
+    params.0.iter_mut().enumerate().for_each(|(i, vol)| {
+        let pos = i * 4;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        *vol = i32::from_le_bytes(quadlet);
+    });
+}
+
+impl<O: RmeFormerOutputOperation> RmeFfParamsSerialize<FormerOutputVolumeState, u8> for O {
+    fn serialize(params: &FormerOutputVolumeState) -> Vec<u8> {
+        serialize_output_volumes(params, Self::PHYS_OUTPUT_COUNT)
+    }
+}
+
+impl<O: RmeFormerOutputOperation> RmeFfParamsDeserialize<FormerOutputVolumeState, u8> for O {
+    fn deserialize(params: &mut FormerOutputVolumeState, raw: &[u8]) {
+        deserialize_output_volumes(params, raw, Self::PHYS_OUTPUT_COUNT)
+    }
+}
+
 /// Sources of mixer specific to former models of RME Fireface.
 ///
 /// The value is between 0x00000000 and 0x00010000 through 0x00008000 to represent -90.30 and 6.02 dB
@@ -579,6 +612,16 @@ mod test {
             },
         ]);
         deserialize_mixer(&mut target, &raw, 6, 8);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn output_volume_serdes() {
+        let orig = FormerOutputVolumeState(vec![0, 1, 2, 3]);
+        let raw = serialize_output_volumes(&orig, 4);
+        let mut target = FormerOutputVolumeState(vec![0; 4]);
+        deserialize_output_volumes(&mut target, &raw, 4);
 
         assert_eq!(target, orig);
     }
