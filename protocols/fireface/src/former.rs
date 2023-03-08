@@ -401,6 +401,84 @@ pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
     }
 }
 
+fn calculate_mixer_length(avail_count: usize) -> usize {
+    avail_count * 2 * 4
+}
+
+fn calculate_mixer_total_length(dst_count: usize, avail_count: usize) -> usize {
+    calculate_mixer_length(avail_count) * dst_count
+}
+
+fn serialize_mixer(params: &FormerMixerState, dst_count: usize, avail_count: usize) -> Vec<u8> {
+    let mut raw = vec![0; calculate_mixer_total_length(dst_count, avail_count)];
+
+    params.0.iter().enumerate().for_each(|(i, mixer)| {
+        mixer
+            .analog_gains
+            .iter()
+            .chain(mixer.spdif_gains.iter())
+            .chain(mixer.adat_gains.iter())
+            .enumerate()
+            .for_each(|(j, gain)| {
+                let pos = ((avail_count * 2) * i + j) * 4;
+                raw[pos..(pos + 4)].copy_from_slice(&gain.to_le_bytes());
+            });
+
+        mixer.stream_gains.iter().enumerate().for_each(|(j, gain)| {
+            let pos = ((avail_count * 2) * i + (avail_count + j)) * 4;
+            raw[pos..(pos + 4)].copy_from_slice(&gain.to_le_bytes());
+        });
+    });
+
+    raw
+}
+
+fn deserialize_mixer(
+    params: &mut FormerMixerState,
+    raw: &[u8],
+    dst_count: usize,
+    avail_count: usize,
+) {
+    assert!(raw.len() >= calculate_mixer_total_length(dst_count, avail_count));
+
+    let mut quadlet = [0; 4];
+    params.0.iter_mut().enumerate().for_each(|(i, mixer)| {
+        mixer
+            .analog_gains
+            .iter_mut()
+            .chain(mixer.spdif_gains.iter_mut())
+            .chain(mixer.adat_gains.iter_mut())
+            .enumerate()
+            .for_each(|(j, gain)| {
+                let pos = ((avail_count * 2) * i + j) * 4;
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                *gain = i32::from_le_bytes(quadlet)
+            });
+
+        mixer
+            .stream_gains
+            .iter_mut()
+            .enumerate()
+            .for_each(|(j, gain)| {
+                let pos = ((avail_count * 2) * i + (avail_count + j)) * 4;
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                *gain = i32::from_le_bytes(quadlet)
+            });
+    });
+}
+
+impl<O: RmeFormerMixerOperation> RmeFfParamsSerialize<FormerMixerState, u8> for O {
+    fn serialize(params: &FormerMixerState) -> Vec<u8> {
+        serialize_mixer(params, Self::DST_COUNT, Self::AVAIL_COUNT)
+    }
+}
+
+impl<O: RmeFormerMixerOperation> RmeFfParamsDeserialize<FormerMixerState, u8> for O {
+    fn deserialize(params: &mut FormerMixerState, raw: &[u8]) {
+        deserialize_mixer(params, raw, Self::DST_COUNT, Self::AVAIL_COUNT)
+    }
+}
+
 const FORMER_CONFIG_SIZE: usize = 12;
 
 fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
@@ -485,8 +563,7 @@ mod test {
             spdif_outputs: vec![10, 11],
             adat_outputs: vec![12, 13],
         };
-        orig
-            .analog_inputs
+        orig.analog_inputs
             .iter_mut()
             .chain(orig.spdif_inputs.iter_mut())
             .chain(orig.adat_inputs.iter_mut())
@@ -506,6 +583,42 @@ mod test {
             adat_outputs: vec![0; 2],
         };
         deserialize_meter(&mut target, &raw, 6, 2, 6);
+
+        assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn mixer_serdes() {
+        let orig = FormerMixerState(vec![
+            FormerMixerSrc {
+                analog_gains: vec![0, 1],
+                spdif_gains: vec![2, 3],
+                adat_gains: vec![4, 5],
+                stream_gains: vec![6, 7],
+            },
+            FormerMixerSrc {
+                analog_gains: vec![8, 9],
+                spdif_gains: vec![10, 11],
+                adat_gains: vec![12, 13],
+                stream_gains: vec![14, 15],
+            },
+        ]);
+        let raw = serialize_mixer(&orig, 6, 8);
+        let mut target = FormerMixerState(vec![
+            FormerMixerSrc {
+                analog_gains: vec![0; 2],
+                spdif_gains: vec![0; 2],
+                adat_gains: vec![0; 2],
+                stream_gains: vec![0; 2],
+            },
+            FormerMixerSrc {
+                analog_gains: vec![0; 2],
+                spdif_gains: vec![0; 2],
+                adat_gains: vec![0; 2],
+                stream_gains: vec![0; 2],
+            },
+        ]);
+        deserialize_mixer(&mut target, &raw, 6, 8);
 
         assert_eq!(target, orig);
     }
