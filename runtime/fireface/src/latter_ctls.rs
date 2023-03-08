@@ -132,7 +132,9 @@ where
 pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputOperation
+        + RmeFfLatterInputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
@@ -142,7 +144,9 @@ where
 impl<T> Default for LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputOperation
+        + RmeFfLatterInputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
@@ -172,7 +176,9 @@ where
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputOperation
+        + RmeFfLatterInputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputOperation
         + RmeFfLatterMixerOperation
         + RmeFfLatterChStripOperation<FfLatterInputChStripState>
@@ -271,7 +277,12 @@ const INPUT_MIC_POWER_NAME: &str = "input:mic-power";
 const INPUT_MIC_INST_NAME: &str = "input:mic-instrument";
 const INPUT_INVERT_PHASE_NAME: &str = "input:invert-phase";
 
-impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
+impl<T> LatterDspCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>,
+{
     const INPUT_GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 1200,
@@ -290,8 +301,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::init_input(req, node, &mut self.0, timeout_ms);
-        debug!(params = ?self.0, ?res);
+        let res = T::update_wholly(req, node, &mut self.0.input, timeout_ms);
+        debug!(params = ?self.0.input, ?res);
         res
     }
 
@@ -396,8 +407,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
@@ -407,8 +418,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
@@ -428,8 +439,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
@@ -439,8 +450,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
@@ -450,8 +461,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
@@ -461,8 +472,8 @@ impl<T: RmeFfLatterInputOperation> LatterDspCtl<T> {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::write_input(req, node, &mut self.0, params, timeout_ms);
-                debug!(params = ?self.0, ?res);
+                let res = T::update_partially(req, node, &mut self.0.input, params, timeout_ms);
+                debug!(params = ?self.0.input, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),

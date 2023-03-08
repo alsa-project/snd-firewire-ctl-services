@@ -655,103 +655,16 @@ pub struct FfLatterInputState {
     pub mic_insts: Vec<bool>,
 }
 
-/// Input protocol.
-pub trait RmeFfLatterInputOperation: RmeFfLatterDspSpecification {
+/// The specification of inputs.
+pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
     const PHYS_INPUT_GAIN_MIN: i32 = 0;
     const PHYS_INPUT_GAIN_MAX: i32 = 120;
     const PHYS_INPUT_GAIN_STEP: i32 = 1;
-
-    fn init_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FfLatterDspState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::input_state_to_cmds(&state.input);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-
-    fn write_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        input: FfLatterInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::input_state_to_cmds(&state.input);
-        let new = Self::input_state_to_cmds(&input);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.input = input)
-    }
-
-    fn input_state_to_cmds(state: &FfLatterInputState) -> Vec<u32> {
-        assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
-        assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
-        assert_eq!(state.line_gains.len(), Self::LINE_INPUT_COUNT);
-        assert_eq!(state.line_levels.len(), Self::LINE_INPUT_COUNT);
-        assert_eq!(state.mic_powers.len(), Self::MIC_INPUT_COUNT);
-        assert_eq!(state.mic_insts.len(), Self::MIC_INPUT_COUNT);
-
-        let mut cmds = Vec::new();
-
-        state
-            .stereo_links
-            .iter()
-            .enumerate()
-            .for_each(|(i, &link)| {
-                let ch = (i * 2) as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_STEREO_LINK_CMD, link as i16));
-            });
-
-        state
-            .invert_phases
-            .iter()
-            .enumerate()
-            .for_each(|(i, &invert_phase)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(
-                    ch,
-                    INPUT_INVERT_PHASE_CMD,
-                    invert_phase as i16,
-                ));
-            });
-
-        state.line_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
-        });
-
-        state
-            .line_levels
-            .iter()
-            .enumerate()
-            .for_each(|(i, &level)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
-            });
-
-        (0..Self::MIC_INPUT_COUNT).for_each(|i| {
-            // NOTE: The offset is required for microphone inputs.
-            let ch = (Self::LINE_INPUT_COUNT + i) as u8;
-
-            let cmd = create_phys_port_cmd(ch, INPUT_MIC_INST_CMD, state.mic_insts[i] as i16);
-            cmds.push(cmd);
-
-            // NOTE: When enabling the setting for instrument, the setting for phantom powering is
-            // disabled automatically.
-            let powering = state.mic_powers[i] && !state.mic_insts[i];
-            let cmd = create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, powering as i16);
-            cmds.push(cmd);
-        });
-
-        cmds
-    }
 }
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
 
-impl<O: RmeFfLatterInputOperation> RmeFfParamsSerialize<FfLatterInputState, u32> for O {
+impl<O: RmeFfLatterInputSpecification> RmeFfParamsSerialize<FfLatterInputState, u32> for O {
     fn serialize(state: &FfLatterInputState) -> Vec<u32> {
         assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
         assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
