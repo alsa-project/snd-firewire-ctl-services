@@ -133,6 +133,17 @@ impl RmeFfParamsDeserialize<FfUcxConfig, u8> for FfUcxProtocol {
     }
 }
 
+impl RmeFfWhollyUpdatableParamsOperation<FfUcxConfig> for FfUcxProtocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfUcxConfig,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config::<FfUcxProtocol, FfUcxConfig>(req, node, params, timeout_ms)
+    }
+}
+
 impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
     fn serialize(&self, quad: &mut u32) {
         let raw = FfUcxProtocol::serialize(self);

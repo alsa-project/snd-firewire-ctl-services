@@ -161,6 +161,17 @@ impl RmeFfParamsDeserialize<Ff802Config, u8> for Ff802Protocol {
     }
 }
 
+impl RmeFfWhollyUpdatableParamsOperation<Ff802Config> for Ff802Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Ff802Config,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config::<Ff802Protocol, Ff802Config>(req, node, params, timeout_ms)
+    }
+}
+
 impl RmeFfLatterRegisterValueOperation for Ff802Config {
     fn serialize(&self, quad: &mut u32) {
         let raw = Ff802Protocol::serialize(self);
