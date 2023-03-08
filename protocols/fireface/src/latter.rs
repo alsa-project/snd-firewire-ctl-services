@@ -195,14 +195,23 @@ pub trait RmeFfLatterSpecification {
 /// represents negative infinite.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterMeterState {
+    /// The number of line inputs.
     pub line_inputs: Vec<i32>,
+    /// The number of microphone inputs.
     pub mic_inputs: Vec<i32>,
+    /// The number of S/PDIF inputs.
     pub spdif_inputs: Vec<i32>,
+    /// The number of ADAT inputs.
     pub adat_inputs: Vec<i32>,
+    /// The number of stream inputs.
     pub stream_inputs: Vec<i32>,
+    /// The number of line outputs.
     pub line_outputs: Vec<i32>,
+    /// The number of headphone outputs.
     pub hp_outputs: Vec<i32>,
+    /// The number of S/PDIF outputs.
     pub spdif_outputs: Vec<i32>,
+    /// The number of ADAT outputs.
     pub adat_outputs: Vec<i32>,
 }
 
@@ -210,8 +219,8 @@ const METER_CHUNK_SIZE: usize = 392;
 const METER_CHUNK_COUNT: usize = 5;
 const METER32_MASK: i32 = 0x07fffff0;
 
-/// Meter protocol.
-pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
+/// The specification of hardware meter.
+pub trait RmeFfLatterMeterSpecification: RmeFfLatterSpecification {
     const LEVEL_MIN: i32 = 0x0;
     const LEVEL_MAX: i32 = 0x07fffff0;
     const LEVEL_STEP: i32 = 0x10;
@@ -229,110 +238,9 @@ pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
             adat_outputs: vec![Default::default(); Self::ADAT_OUTPUT_COUNT],
         }
     }
-
-    fn read_meter(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterMeterState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        (0..METER_CHUNK_COUNT).try_for_each(|_| {
-            let mut raw = [0; METER_CHUNK_COUNT];
-            req.transaction_sync(
-                node,
-                FwTcode::ReadBlockRequest,
-                METER_OFFSET as u64,
-                raw.len(),
-                &mut raw,
-                timeout_ms,
-            )
-            .map(|_| Self::deserialize_meter(state, &raw))
-        })
-    }
-
-    // Read data retrieved by each block read transaction consists of below chunks in the order:
-    //  32 octlets for meters detected by DSP.
-    //  32 quadlets for meters detected by DSP.
-    //  2 quadlets for unknown meters.
-    //  2 quadlets for tags.
-    //
-    // The first tag represents the set of content:
-    //  0x11111111 - hardware outputs
-    //  0x22222222 - channel strip for hardware inputs
-    //  0x33333333 - stream inputs
-    //  0x55555555 - fx bus
-    //  0x66666666 - hardware inputs
-    //
-    //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
-    fn deserialize_meter(s: &mut FfLatterMeterState, raw: &[u8]) {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[(METER_CHUNK_COUNT - 4)..]);
-        let target = u32::from_le_bytes(quadlet);
-
-        match target {
-            // For phys outputs.
-            0x11111111 => {
-                [
-                    (s.line_outputs.iter_mut(), 0),
-                    (s.hp_outputs.iter_mut(), Self::LINE_OUTPUT_COUNT),
-                    (
-                        s.spdif_outputs.iter_mut(),
-                        Self::LINE_OUTPUT_COUNT + Self::HP_OUTPUT_COUNT,
-                    ),
-                    (
-                        s.adat_outputs.iter_mut(),
-                        Self::LINE_OUTPUT_COUNT + Self::HP_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT,
-                    ),
-                ]
-                .iter_mut()
-                .for_each(|(iter, offset)| {
-                    iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
-                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
-                    });
-                });
-            }
-            // For stream inputs.
-            0x33333333 => {
-                s.stream_inputs
-                    .iter_mut()
-                    .enumerate()
-                    .for_each(|(i, meter)| {
-                        let pos = 256 + i * 4;
-                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
-                    });
-            }
-            // For phys inputs.
-            0x66666666 => {
-                [
-                    (s.line_inputs.iter_mut(), 0),
-                    (s.mic_inputs.iter_mut(), Self::LINE_INPUT_COUNT),
-                    (
-                        s.spdif_inputs.iter_mut(),
-                        Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT,
-                    ),
-                    (
-                        s.adat_inputs.iter_mut(),
-                        Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT + Self::SPDIF_INPUT_COUNT,
-                    ),
-                ]
-                .iter_mut()
-                .for_each(|(iter, offset)| {
-                    iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
-                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
-                    });
-                });
-            }
-            _ => (),
-        }
-    }
 }
 
-impl<O: RmeFfLatterSpecification> RmeFfLatterMeterOperation for O {}
+impl<O: RmeFfLatterSpecification> RmeFfLatterMeterSpecification for O {}
 
 // Read data retrieved by each block read transaction consists of below chunks in the order:
 //  32 octlets for meters detected by DSP.
@@ -348,7 +256,7 @@ impl<O: RmeFfLatterSpecification> RmeFfLatterMeterOperation for O {}
 //  0x66666666 - hardware inputs
 //
 //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
-impl<O: RmeFfLatterMeterOperation> RmeFfParamsDeserialize<FfLatterMeterState, u8> for O {
+impl<O: RmeFfLatterMeterSpecification> RmeFfParamsDeserialize<FfLatterMeterState, u8> for O {
     fn deserialize(state: &mut FfLatterMeterState, raw: &[u8]) {
         assert_eq!(raw.len(), METER_CHUNK_SIZE);
 

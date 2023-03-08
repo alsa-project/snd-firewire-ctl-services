@@ -19,13 +19,11 @@ const SPDIF_OUTPUT_METER: &str = "meter:spdif-output";
 const ADAT_OUTPUT_METER: &str = "meter:adat-output";
 
 #[derive(Debug)]
-pub struct LatterMeterCtl<T: RmeFfLatterMeterOperation>(
-    pub Vec<ElemId>,
-    FfLatterMeterState,
-    PhantomData<T>,
-);
+pub struct LatterMeterCtl<T>(pub Vec<ElemId>, FfLatterMeterState, PhantomData<T>)
+where
+    T: RmeFfLatterMeterSpecification + RmeFfCacheableParamsOperation<FfLatterMeterState>;
 
-impl<T: RmeFfLatterMeterOperation> Default for LatterMeterCtl<T> {
+impl<T: RmeFfLatterMeterSpecification> Default for LatterMeterCtl<T> {
     fn default() -> Self {
         Self(
             Default::default(),
@@ -35,7 +33,10 @@ impl<T: RmeFfLatterMeterOperation> Default for LatterMeterCtl<T> {
     }
 }
 
-impl<T: RmeFfLatterMeterOperation> LatterMeterCtl<T> {
+impl<T> LatterMeterCtl<T>
+where
+    T: RmeFfLatterMeterSpecification + RmeFfCacheableParamsOperation<FfLatterMeterState>,
+{
     const LEVEL_TLV: DbInterval = DbInterval {
         min: -9003,
         max: 600,
@@ -49,7 +50,7 @@ impl<T: RmeFfLatterMeterOperation> LatterMeterCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::read_meter(req, node, &mut self.1, timeout_ms);
+        let res = T::cache_wholly(req, node, &mut self.1, timeout_ms);
         debug!(params = ?self.1, ?res);
         res
     }
