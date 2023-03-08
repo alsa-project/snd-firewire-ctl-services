@@ -257,9 +257,13 @@ pub trait RmeFormerOutputOperation: RmeFfFormerSpecification {
 /// through 0x00008000.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerMixerSrc {
+    /// Gains of sources from analog inputs.
     pub analog_gains: Vec<i32>,
+    /// Gains of sources from S/PDIF inputs.
     pub spdif_gains: Vec<i32>,
+    /// Gains of sources from ADAT inputs.
     pub adat_gains: Vec<i32>,
+    /// Gains of sources from stream inputs.
     pub stream_gains: Vec<i32>,
 }
 
@@ -267,8 +271,8 @@ pub struct FormerMixerSrc {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
-/// Mixer protocol specific to former models of RME Fireface.
-pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
+/// The specification of mixer in former models.
+pub trait RmeFormerMixerSpecification: RmeFfFormerSpecification {
     const MIXER_OFFSET: u64;
     const AVAIL_COUNT: usize;
 
@@ -290,114 +294,6 @@ pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
             };
             Self::DST_COUNT
         ])
-    }
-    fn write_mixer_src_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        mixer: usize,
-        src_offset: usize,
-        gains: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut raw = vec![0; gains.len() * 4];
-        gains.iter().enumerate().for_each(|(i, gain)| {
-            let pos = i * 4;
-            raw[pos..(pos + 4)].copy_from_slice(&gain.to_le_bytes());
-        });
-
-        let offset = ((Self::AVAIL_COUNT * mixer * 2) + src_offset) * 4;
-        req.transaction_sync(
-            node,
-            FwTcode::WriteBlockRequest,
-            Self::MIXER_OFFSET + offset as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms,
-        )
-    }
-
-    fn init_mixer_src_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMixerState,
-        mixer: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        [
-            (&state.0[mixer].analog_gains, 0),
-            (&state.0[mixer].spdif_gains, Self::ANALOG_INPUT_COUNT),
-            (
-                &state.0[mixer].adat_gains,
-                Self::ANALOG_INPUT_COUNT + Self::SPDIF_INPUT_COUNT,
-            ),
-            (&state.0[mixer].stream_gains, Self::AVAIL_COUNT),
-        ]
-        .iter()
-        .try_for_each(|(gains, src_offset)| {
-            Self::write_mixer_src_gains(req, node, mixer, *src_offset, gains, timeout_ms)
-        })
-    }
-
-    fn write_mixer_analog_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMixerState,
-        mixer: usize,
-        gains: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(req, node, mixer, 0, gains, timeout_ms)
-            .map(|_| state.0[mixer].analog_gains.copy_from_slice(&gains))
-    }
-
-    fn write_mixer_spdif_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMixerState,
-        mixer: usize,
-        gains: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(
-            req,
-            node,
-            mixer,
-            Self::ANALOG_INPUT_COUNT,
-            gains,
-            timeout_ms,
-        )
-        .map(|_| state.0[mixer].spdif_gains.copy_from_slice(&gains))
-    }
-
-    fn write_mixer_adat_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMixerState,
-        mixer: usize,
-        gains: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(
-            req,
-            node,
-            mixer,
-            Self::ANALOG_INPUT_COUNT + Self::SPDIF_INPUT_COUNT,
-            gains,
-            timeout_ms,
-        )
-        .map(|_| state.0[mixer].adat_gains.copy_from_slice(&gains))
-    }
-
-    fn write_mixer_stream_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FormerMixerState,
-        mixer: usize,
-        gains: &[i32],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(req, node, mixer, Self::AVAIL_COUNT, gains, timeout_ms)
-            .map(|_| state.0[mixer].stream_gains.copy_from_slice(&gains))
     }
 }
 
@@ -467,13 +363,13 @@ fn deserialize_mixer(
     });
 }
 
-impl<O: RmeFormerMixerOperation> RmeFfParamsSerialize<FormerMixerState, u8> for O {
+impl<O: RmeFormerMixerSpecification> RmeFfParamsSerialize<FormerMixerState, u8> for O {
     fn serialize(params: &FormerMixerState) -> Vec<u8> {
         serialize_mixer(params, Self::DST_COUNT, Self::AVAIL_COUNT)
     }
 }
 
-impl<O: RmeFormerMixerOperation> RmeFfParamsDeserialize<FormerMixerState, u8> for O {
+impl<O: RmeFormerMixerSpecification> RmeFfParamsDeserialize<FormerMixerState, u8> for O {
     fn deserialize(params: &mut FormerMixerState, raw: &[u8]) {
         deserialize_mixer(params, raw, Self::DST_COUNT, Self::AVAIL_COUNT)
     }
@@ -481,7 +377,7 @@ impl<O: RmeFormerMixerOperation> RmeFfParamsDeserialize<FormerMixerState, u8> fo
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FormerMixerState> for O
 where
-    O: RmeFormerMixerOperation + RmeFfParamsDeserialize<FormerMixerState, u8>,
+    O: RmeFormerMixerSpecification + RmeFfParamsDeserialize<FormerMixerState, u8>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -509,7 +405,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FormerMixerState> for O
 where
-    O: RmeFormerMixerOperation + RmeFfParamsDeserialize<FormerMixerState, u8>,
+    O: RmeFormerMixerSpecification + RmeFfParamsDeserialize<FormerMixerState, u8>,
 {
     fn update_partially(
         req: &mut FwReq,

@@ -179,7 +179,7 @@ impl RmeFormerOutputOperation for Ff400Protocol {
     }
 }
 
-impl RmeFormerMixerOperation for Ff400Protocol {
+impl RmeFormerMixerSpecification for Ff400Protocol {
     const MIXER_OFFSET: u64 = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 18;
 }

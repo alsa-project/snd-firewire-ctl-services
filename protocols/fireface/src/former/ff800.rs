@@ -59,7 +59,7 @@ impl RmeFormerOutputOperation for Ff800Protocol {
     }
 }
 
-impl RmeFormerMixerOperation for Ff800Protocol {
+impl RmeFormerMixerSpecification for Ff800Protocol {
     const MIXER_OFFSET: u64 = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 32;
 }

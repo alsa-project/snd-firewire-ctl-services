@@ -103,9 +103,13 @@ const ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
 const STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 
 #[derive(Debug)]
-pub struct FormerMixerCtl<T: RmeFormerMixerOperation>(FormerMixerState, PhantomData<T>);
+pub struct FormerMixerCtl<T>(FormerMixerState, PhantomData<T>)
+where
+    T: RmeFormerMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FormerMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FormerMixerState>;
 
-impl<T: RmeFormerMixerOperation> Default for FormerMixerCtl<T> {
+impl<T: RmeFormerMixerSpecification> Default for FormerMixerCtl<T> {
     fn default() -> Self {
         let mut state = T::create_mixer_state();
 
@@ -133,7 +137,12 @@ impl<T: RmeFormerMixerOperation> Default for FormerMixerCtl<T> {
     }
 }
 
-impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
+impl<T> FormerMixerCtl<T>
+where
+    T: RmeFormerMixerSpecification
+        + RmeFfWhollyUpdatableParamsOperation<FormerMixerState>
+        + RmeFfPartiallyUpdatableParamsOperation<FormerMixerState>,
+{
     const GAIN_TLV: DbInterval = DbInterval {
         min: -9000,
         max: 600,
@@ -147,11 +156,9 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        (0..T::DST_COUNT).try_for_each(|i| {
-            let res = T::init_mixer_src_gains(req, node, &mut self.0, i, timeout_ms);
-            debug!(params = ?self.0, ?res);
-            res
-        })
+        let res = T::update_wholly(req, node, &mut self.0, timeout_ms);
+        debug!(params = ?self.0, ?res);
+        res
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -221,81 +228,65 @@ impl<T: RmeFormerMixerOperation> FormerMixerCtl<T> {
             ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
                 let mut params = self.0.clone();
-                params.0[index]
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .analog_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                let res = T::write_mixer_analog_gains(
-                    req,
-                    node,
-                    &mut self.0,
-                    index,
-                    &params.0[index].analog_gains,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.0 = params;
+                let res = T::update_partially(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
                 let mut params = self.0.clone();
-                params.0[index]
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .spdif_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                let res = T::write_mixer_spdif_gains(
-                    req,
-                    node,
-                    &mut self.0,
-                    index,
-                    &params.0[index].spdif_gains,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.0 = params;
+                let res = T::update_partially(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
                 let mut params = self.0.clone();
-                params.0[index]
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .adat_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                let res = T::write_mixer_adat_gains(
-                    req,
-                    node,
-                    &mut self.0,
-                    index,
-                    &params.0[index].adat_gains,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.0 = params;
+                let res = T::update_partially(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.index() as usize;
                 let mut params = self.0.clone();
-                params.0[index]
+                let mixer = params.0.iter_mut().nth(index).ok_or_else(|| {
+                    let msg = format!("Invalid index {} for mixers", index);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                mixer
                     .stream_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val);
-                let res = T::write_mixer_stream_gains(
-                    req,
-                    node,
-                    &mut self.0,
-                    index,
-                    &params.0[index].stream_gains,
-                    timeout_ms,
-                );
-                debug!(?params, ?res);
-                self.0 = params;
+                let res = T::update_partially(req, node, &mut self.0, params, timeout_ms);
+                debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
