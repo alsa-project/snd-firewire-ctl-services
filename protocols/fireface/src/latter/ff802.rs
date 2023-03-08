@@ -391,41 +391,17 @@ impl RmeFfCacheableParamsOperation<Ff802Status> for Ff802Protocol {
     }
 }
 
-const LINE_INPUT_COUNT: usize = 8;
-const MIC_INPUT_COUNT: usize = 4;
-const SPDIF_INPUT_COUNT: usize = 2;
-const ADAT_INPUT_COUNT: usize = 16;
-const STREAM_INPUT_COUNT: usize = 30;
+impl RmeFfLatterSpecification for Ff802Protocol {
+    const LINE_INPUT_COUNT: usize = 8;
+    const MIC_INPUT_COUNT: usize = 4;
+    const SPDIF_INPUT_COUNT: usize = 2;
+    const ADAT_INPUT_COUNT: usize = 16;
+    const STREAM_INPUT_COUNT: usize = 30;
 
-const LINE_OUTPUT_COUNT: usize = 8;
-const HP_OUTPUT_COUNT: usize = 4;
-const SPDIF_OUTPUT_COUNT: usize = 2;
-const ADAT_OUTPUT_COUNT: usize = 16;
-
-impl RmeFfLatterMeterOperation for Ff802Protocol {
-    const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
-    const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const LINE_OUTPUT_COUNT: usize = LINE_OUTPUT_COUNT;
-    const HP_OUTPUT_COUNT: usize = HP_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-}
-
-impl RmeFfLatterDspOperation for Ff802Protocol {
-    const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
-    const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
-    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
-    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
-    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
-
-    const LINE_OUTPUT_COUNT: usize = LINE_OUTPUT_COUNT;
-    const HP_OUTPUT_COUNT: usize = HP_OUTPUT_COUNT;
-    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
-    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
+    const LINE_OUTPUT_COUNT: usize = 8;
+    const HP_OUTPUT_COUNT: usize = 4;
+    const SPDIF_OUTPUT_COUNT: usize = 2;
+    const ADAT_OUTPUT_COUNT: usize = 16;
 }
 
 #[cfg(test)]

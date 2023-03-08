@@ -166,6 +166,29 @@ fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
     .map(|_| T::deserialize(status, &raw))
 }
 
+/// The specification of latter model.
+pub trait RmeFfLatterSpecification {
+    /// The number of line inputs.
+    const LINE_INPUT_COUNT: usize;
+    /// The number of microphone inputs.
+    const MIC_INPUT_COUNT: usize;
+    /// The number of S/PDIF inputs.
+    const SPDIF_INPUT_COUNT: usize;
+    /// The number of ADAT inputs.
+    const ADAT_INPUT_COUNT: usize;
+    /// The number of stream inputs.
+    const STREAM_INPUT_COUNT: usize;
+
+    /// The number of line outputs.
+    const LINE_OUTPUT_COUNT: usize;
+    /// The number of headphone outputs.
+    const HP_OUTPUT_COUNT: usize;
+    /// The number of S/PDIF outputs.
+    const SPDIF_OUTPUT_COUNT: usize;
+    /// The number of ADAT outputs.
+    const ADAT_OUTPUT_COUNT: usize;
+}
+
 /// State of meters.
 ///
 /// Each value is between 0x'0000'0000'0000'0000 and 0x'3fff'ffff'ffff'ffff. 0x'0000'0000'0000'001f
@@ -186,18 +209,7 @@ pub struct FfLatterMeterState {
 const METER32_MASK: i32 = 0x07fffff0;
 
 /// Meter protocol.
-pub trait RmeFfLatterMeterOperation {
-    const LINE_INPUT_COUNT: usize;
-    const MIC_INPUT_COUNT: usize;
-    const SPDIF_INPUT_COUNT: usize;
-    const ADAT_INPUT_COUNT: usize;
-    const STREAM_INPUT_COUNT: usize;
-
-    const LINE_OUTPUT_COUNT: usize;
-    const HP_OUTPUT_COUNT: usize;
-    const SPDIF_OUTPUT_COUNT: usize;
-    const ADAT_OUTPUT_COUNT: usize;
-
+pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
     const LEVEL_MIN: i32 = 0x0;
     const LEVEL_MAX: i32 = 0x07fffff0;
     const LEVEL_STEP: i32 = 0x10;
@@ -318,6 +330,8 @@ pub trait RmeFfLatterMeterOperation {
     }
 }
 
+impl<O: RmeFfLatterSpecification> RmeFfLatterMeterOperation for O {}
+
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
@@ -374,23 +388,12 @@ fn write_dsp_cmds(
         .try_for_each(|(&cmd, _)| write_dsp_cmd(req, node, cmd, timeout_ms))
 }
 
-/// DSP protocol.
+/// The specification of DSP.
 ///
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
 /// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
 /// bit in its most significant bit against the rest of bits.
-pub trait RmeFfLatterDspOperation {
-    const LINE_INPUT_COUNT: usize;
-    const MIC_INPUT_COUNT: usize;
-    const SPDIF_INPUT_COUNT: usize;
-    const ADAT_INPUT_COUNT: usize;
-    const STREAM_INPUT_COUNT: usize;
-
-    const LINE_OUTPUT_COUNT: usize;
-    const HP_OUTPUT_COUNT: usize;
-    const SPDIF_OUTPUT_COUNT: usize;
-    const ADAT_OUTPUT_COUNT: usize;
-
+pub trait RmeFfLatterDspOperation: RmeFfLatterSpecification {
     const PHYS_INPUT_COUNT: usize = Self::LINE_INPUT_COUNT
         + Self::MIC_INPUT_COUNT
         + Self::SPDIF_INPUT_COUNT
@@ -521,6 +524,8 @@ pub trait RmeFfLatterDspOperation {
         }
     }
 }
+
+impl<O: RmeFfLatterSpecification> RmeFfLatterDspOperation for O {}
 
 const INPUT_TO_FX_CMD: u8 = 0x01;
 const INPUT_STEREO_LINK_CMD: u8 = 0x02;
