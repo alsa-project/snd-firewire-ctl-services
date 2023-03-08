@@ -751,6 +751,105 @@ pub trait RmeFfLatterInputOperation: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputOperation for O {}
 
+impl<O: RmeFfLatterInputOperation> RmeFfParamsSerialize<FfLatterInputState, u32> for O {
+    fn serialize(state: &FfLatterInputState) -> Vec<u32> {
+        assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
+        assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
+        assert_eq!(state.line_gains.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.line_levels.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.mic_powers.len(), Self::MIC_INPUT_COUNT);
+        assert_eq!(state.mic_insts.len(), Self::MIC_INPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state
+            .stereo_links
+            .iter()
+            .enumerate()
+            .for_each(|(i, &link)| {
+                let ch = (i * 2) as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_STEREO_LINK_CMD, link as i16));
+            });
+
+        state
+            .invert_phases
+            .iter()
+            .enumerate()
+            .for_each(|(i, &invert_phase)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(
+                    ch,
+                    INPUT_INVERT_PHASE_CMD,
+                    invert_phase as i16,
+                ));
+            });
+
+        state.line_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
+        });
+
+        state
+            .line_levels
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
+            });
+
+        (0..Self::MIC_INPUT_COUNT).for_each(|i| {
+            // NOTE: The offset is required for microphone inputs.
+            let ch = (Self::LINE_INPUT_COUNT + i) as u8;
+
+            let cmd = create_phys_port_cmd(ch, INPUT_MIC_INST_CMD, state.mic_insts[i] as i16);
+            cmds.push(cmd);
+
+            // NOTE: When enabling the setting for instrument, the setting for phantom powering is
+            // disabled automatically.
+            let powering = state.mic_powers[i] && !state.mic_insts[i];
+            let cmd = create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, powering as i16);
+            cmds.push(cmd);
+        });
+
+        cmds
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterInputState, u32>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FfLatterInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState> for O
+where
+    O: RmeFfParamsSerialize<FfLatterInputState, u32>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterInputState,
+        update: FfLatterInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize(state);
+        let new = Self::serialize(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
+    }
+}
+
 impl From<LineOutNominalLevel> for i16 {
     fn from(level: LineOutNominalLevel) -> Self {
         match level {
