@@ -6,11 +6,7 @@
 pub mod ff802;
 pub mod ucx;
 
-use {
-    super::*,
-    glib::Error,
-    hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
-};
+use super::*;
 
 const CFG_OFFSET: usize = 0xffff00000014;
 const DSP_OFFSET: usize = 0xffff0000001c;
