@@ -269,7 +269,7 @@ pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
 /// Mixer protocol specific to former models of RME Fireface.
 pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
-    const MIXER_OFFSET: usize;
+    const MIXER_OFFSET: u64;
     const AVAIL_COUNT: usize;
 
     const DST_COUNT: usize =
@@ -309,7 +309,7 @@ pub trait RmeFormerMixerOperation: RmeFfFormerSpecification {
         req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
-            (Self::MIXER_OFFSET + offset) as u64,
+            Self::MIXER_OFFSET + offset as u64,
             raw.len(),
             &mut raw,
             timeout_ms,
@@ -476,6 +476,34 @@ impl<O: RmeFormerMixerOperation> RmeFfParamsSerialize<FormerMixerState, u8> for 
 impl<O: RmeFormerMixerOperation> RmeFfParamsDeserialize<FormerMixerState, u8> for O {
     fn deserialize(params: &mut FormerMixerState, raw: &[u8]) {
         deserialize_mixer(params, raw, Self::DST_COUNT, Self::AVAIL_COUNT)
+    }
+}
+
+impl<O> RmeFfWhollyUpdatableParamsOperation<FormerMixerState> for O
+where
+    O: RmeFormerMixerOperation + RmeFfParamsDeserialize<FormerMixerState, u8>,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &FormerMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut raw = Self::serialize(params);
+
+        let mixer_length = calculate_mixer_length(Self::AVAIL_COUNT);
+
+        (0..(raw.len() / mixer_length)).try_for_each(|i| {
+            let pos = i * mixer_length;
+            req.transaction_sync(
+                node,
+                FwTcode::WriteBlockRequest,
+                Self::MIXER_OFFSET + pos as u64,
+                mixer_length,
+                &mut raw[pos..(pos + mixer_length)],
+                timeout_ms,
+            )
+        })
     }
 }
 
