@@ -773,7 +773,7 @@ impl From<LineOutNominalLevel> for i16 {
     }
 }
 
-/// State of outputs.
+/// The specification of output.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputState {
     /// The level of volume. Each value is between -650 (0xfd76) and 60 (0x003c) to represent
@@ -789,8 +789,8 @@ pub struct FfLatterOutputState {
     pub line_levels: Vec<LineOutNominalLevel>,
 }
 
-/// Output protocol.
-pub trait RmeFfLatterOutputOperation: RmeFfLatterDspSpecification {
+/// The specification of output.
+pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
     const PHYS_OUTPUT_VOL_MIN: i32 = -650;
     const PHYS_OUTPUT_VOL_MAX: i32 = 60;
     const PHYS_OUTPUT_VOL_STEP: i32 = 1;
@@ -801,100 +801,11 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspSpecification {
 
     const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
     const OUTPUT_PAIR_COUNT: usize = Self::OUTPUT_COUNT / 2;
-
-    fn init_output(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &FfLatterDspState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::output_state_to_cmds(&state.output);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-
-    fn write_output(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterDspState,
-        output: FfLatterOutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::output_state_to_cmds(&state.output);
-        let new = Self::output_state_to_cmds(&output);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.output = output)
-    }
-
-    fn output_state_to_cmds(state: &FfLatterOutputState) -> Vec<u32> {
-        assert_eq!(state.vols.len(), Self::OUTPUT_COUNT);
-        assert_eq!(state.stereo_balance.len(), Self::OUTPUT_PAIR_COUNT);
-        assert_eq!(state.stereo_links.len(), Self::OUTPUT_PAIR_COUNT);
-        assert_eq!(state.invert_phases.len(), Self::OUTPUT_COUNT);
-        assert_eq!(state.line_levels.len(), Self::LINE_OUTPUT_COUNT);
-
-        let mut cmds = Vec::new();
-
-        state.vols.iter().enumerate().for_each(|(i, &vol)| {
-            let ch = Self::CH_OFFSET + i as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
-        });
-
-        state
-            .stereo_balance
-            .iter()
-            .enumerate()
-            .for_each(|(i, &balance)| {
-                let ch = Self::CH_OFFSET + i as u8;
-                cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
-            });
-
-        state
-            .stereo_links
-            .iter()
-            .enumerate()
-            .for_each(|(i, &link)| {
-                let ch = Self::CH_OFFSET + i as u8;
-                cmds.push(create_phys_port_cmd(
-                    ch,
-                    OUTPUT_STEREO_LINK_CMD,
-                    link as i16,
-                ));
-            });
-
-        state
-            .invert_phases
-            .iter()
-            .enumerate()
-            .for_each(|(i, &invert_phase)| {
-                let ch = Self::CH_OFFSET + i as u8;
-                cmds.push(create_phys_port_cmd(
-                    ch,
-                    OUTPUT_INVERT_PHASE_CMD,
-                    invert_phase as i16,
-                ));
-            });
-
-        state
-            .line_levels
-            .iter()
-            .enumerate()
-            .for_each(|(i, &line_level)| {
-                let ch = Self::CH_OFFSET + i as u8;
-                cmds.push(create_phys_port_cmd(
-                    ch,
-                    OUTPUT_LINE_LEVEL_CMD,
-                    line_level as i16,
-                ));
-            });
-
-        cmds
-    }
 }
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputOperation for O {}
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputSpecification for O {}
 
-impl<O: RmeFfLatterOutputOperation> RmeFfParamsSerialize<FfLatterOutputState, u32> for O {
+impl<O: RmeFfLatterOutputSpecification> RmeFfParamsSerialize<FfLatterOutputState, u32> for O {
     fn serialize(state: &FfLatterOutputState) -> Vec<u32> {
         assert_eq!(state.vols.len(), Self::OUTPUT_COUNT);
         assert_eq!(state.stereo_balance.len(), Self::OUTPUT_COUNT / 2);
