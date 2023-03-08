@@ -9,8 +9,8 @@ pub mod ucx;
 use super::*;
 
 const CFG_OFFSET: u64 = 0xffff00000014;
-const DSP_OFFSET: usize = 0xffff0000001c;
-const METER_OFFSET: usize = 0xffffff000000;
+const DSP_OFFSET: u64 = 0xffff0000001c;
+const METER_OFFSET: u64 = 0xffffff000000;
 
 // For configuration register (0x'ffff'0000'0014).
 const CFG_MIDI_TX_LOW_OFFSET_MASK: u32 = 0x0001e000;
@@ -206,6 +206,8 @@ pub struct FfLatterMeterState {
     pub adat_outputs: Vec<i32>,
 }
 
+const METER_CHUNK_SIZE: usize = 392;
+const METER_CHUNK_COUNT: usize = 5;
 const METER32_MASK: i32 = 0x07fffff0;
 
 /// Meter protocol.
@@ -234,8 +236,8 @@ pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
         state: &mut FfLatterMeterState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        (0..5).try_for_each(|_| {
-            let mut raw = vec![0; 392];
+        (0..METER_CHUNK_COUNT).try_for_each(|_| {
+            let mut raw = [0; METER_CHUNK_COUNT];
             req.transaction_sync(
                 node,
                 FwTcode::ReadBlockRequest,
@@ -264,7 +266,7 @@ pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
     //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
     fn deserialize_meter(s: &mut FfLatterMeterState, raw: &[u8]) {
         let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[388..]);
+        quadlet.copy_from_slice(&raw[(METER_CHUNK_COUNT - 4)..]);
         let target = u32::from_le_bytes(quadlet);
 
         match target {
@@ -331,6 +333,117 @@ pub trait RmeFfLatterMeterOperation: RmeFfLatterSpecification {
 }
 
 impl<O: RmeFfLatterSpecification> RmeFfLatterMeterOperation for O {}
+
+// Read data retrieved by each block read transaction consists of below chunks in the order:
+//  32 octlets for meters detected by DSP.
+//  32 quadlets for meters detected by DSP.
+//  2 quadlets for unknown meters.
+//  2 quadlets for tags.
+//
+// The first tag represents the set of content:
+//  0x11111111 - hardware outputs
+//  0x22222222 - channel strip for hardware inputs
+//  0x33333333 - stream inputs
+//  0x55555555 - fx bus
+//  0x66666666 - hardware inputs
+//
+//  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
+impl<O: RmeFfLatterMeterOperation> RmeFfParamsDeserialize<FfLatterMeterState, u8> for O {
+    fn deserialize(state: &mut FfLatterMeterState, raw: &[u8]) {
+        assert_eq!(raw.len(), METER_CHUNK_SIZE);
+
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[(METER_CHUNK_SIZE - 4)..]);
+        let target = u32::from_le_bytes(quadlet);
+
+        match target {
+            // For phys outputs.
+            0x11111111 => {
+                [
+                    (state.line_outputs.iter_mut(), 0),
+                    (state.hp_outputs.iter_mut(), Self::LINE_OUTPUT_COUNT),
+                    (
+                        state.spdif_outputs.iter_mut(),
+                        Self::LINE_OUTPUT_COUNT + Self::HP_OUTPUT_COUNT,
+                    ),
+                    (
+                        state.adat_outputs.iter_mut(),
+                        Self::LINE_OUTPUT_COUNT + Self::HP_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT,
+                    ),
+                ]
+                .iter_mut()
+                .for_each(|(iter, offset)| {
+                    iter.enumerate().for_each(|(i, meter)| {
+                        let pos = 256 + (*offset + i) * 4;
+                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                    });
+                });
+            }
+            // For stream inputs.
+            0x33333333 => {
+                state
+                    .stream_inputs
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(i, meter)| {
+                        let pos = 256 + i * 4;
+                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                    });
+            }
+            // For phys inputs.
+            0x66666666 => {
+                [
+                    (state.line_inputs.iter_mut(), 0),
+                    (state.mic_inputs.iter_mut(), Self::LINE_INPUT_COUNT),
+                    (
+                        state.spdif_inputs.iter_mut(),
+                        Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT,
+                    ),
+                    (
+                        state.adat_inputs.iter_mut(),
+                        Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT + Self::SPDIF_INPUT_COUNT,
+                    ),
+                ]
+                .iter_mut()
+                .for_each(|(iter, offset)| {
+                    iter.enumerate().for_each(|(i, meter)| {
+                        let pos = 256 + (*offset + i) * 4;
+                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                        *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                    });
+                });
+            }
+            _ => (),
+        }
+    }
+}
+
+impl<O> RmeFfCacheableParamsOperation<FfLatterMeterState> for O
+where
+    O: RmeFfParamsDeserialize<FfLatterMeterState, u8>,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut FfLatterMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        (0..METER_CHUNK_COUNT).try_for_each(|_| {
+            let mut raw = vec![0; METER_CHUNK_SIZE];
+            req.transaction_sync(
+                node,
+                FwTcode::ReadBlockRequest,
+                METER_OFFSET as u64,
+                raw.len(),
+                &mut raw,
+                timeout_ms,
+            )
+            .map(|_| Self::deserialize(state, &raw))
+        })
+    }
+}
 
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
