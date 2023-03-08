@@ -339,6 +339,17 @@ impl RmeFfParamsDeserialize<FfUcxStatus, u8> for FfUcxProtocol {
     }
 }
 
+impl RmeFfCacheableParamsOperation<FfUcxStatus> for FfUcxProtocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        status: &mut FfUcxStatus,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_status::<FfUcxProtocol, FfUcxStatus>(req, node, status, timeout_ms)
+    }
+}
+
 impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
     fn serialize(&self, quad: &mut u32) {
         let raw = FfUcxProtocol::serialize(self);

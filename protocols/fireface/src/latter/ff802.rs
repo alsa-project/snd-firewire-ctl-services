@@ -380,6 +380,17 @@ impl RmeFfParamsDeserialize<Ff802Status, u8> for Ff802Protocol {
     }
 }
 
+impl RmeFfCacheableParamsOperation<Ff802Status> for Ff802Protocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        status: &mut Ff802Status,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_status::<Ff802Protocol, Ff802Status>(req, node, status, timeout_ms)
+    }
+}
+
 impl RmeFfLatterRegisterValueOperation for Ff802Status {
     fn serialize(&self, quad: &mut u32) {
         let raw = Ff802Protocol::serialize(self);
