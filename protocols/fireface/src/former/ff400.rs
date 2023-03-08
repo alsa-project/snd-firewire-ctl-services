@@ -716,7 +716,6 @@ fn serialize_clock_config(config: &Ff400ClkConfig, quads: &mut [u32]) {
     }
 }
 
-#[cfg(test)]
 fn deserialize_clock_config(config: &mut Ff400ClkConfig, quads: &[u32]) {
     assert!(quads.len() >= Ff400ClkConfig::QUADLET_COUNT);
 
@@ -793,7 +792,6 @@ fn serialize_analog_input_config(config: &Ff400AnalogInConfig, quads: &mut [u32]
     }
 }
 
-#[cfg(test)]
 fn deserialize_analog_input_config(config: &mut Ff400AnalogInConfig, quads: &[u32]) {
     assert!(quads.len() >= Ff400AnalogInConfig::QUADLET_COUNT);
 
@@ -858,7 +856,6 @@ fn serialize_midi_tx_low_offset(offset: &Ff400MidiTxLowOffset, quads: &mut [u32]
     };
 }
 
-#[cfg(test)]
 fn deserialize_midi_tx_low_offset(offset: &mut Ff400MidiTxLowOffset, quads: &[u32]) {
     assert!(quads.len() >= Ff400MidiTxLowOffset::QUADLET_COUNT);
 
@@ -917,7 +914,7 @@ impl Default for Ff400Config {
 }
 
 impl Ff400Config {
-    const QUADLET_COUNT: usize = 3;
+    const QUADLET_COUNT: usize = FORMER_CONFIG_SIZE / 4;
 
     /// Although the configuration registers are write-only, some of them are available in status
     /// registers.
@@ -930,131 +927,158 @@ impl Ff400Config {
     }
 }
 
-fn serialize_config(config: &Ff400Config, quads: &mut [u32]) {
-    assert_eq!(quads.len(), Ff400Config::QUADLET_COUNT);
+impl RmeFfParamsSerialize<Ff400Config, u8> for Ff400Protocol {
+    fn serialize(params: &Ff400Config) -> Vec<u8> {
+        let mut quads = [0; Ff400Config::QUADLET_COUNT];
 
-    serialize_midi_tx_low_offset(&config.midi_tx_low_offset, quads);
+        serialize_midi_tx_low_offset(&params.midi_tx_low_offset, &mut quads);
 
-    quads[2] &= !Q2_MIDI_TX_SUPPRESS_MASK;
-    if !config.midi_tx_enable {
-        quads[2] |= Q2_MIDI_TX_SUPPRESS_MASK;
-    }
-
-    serialize_clock_config(&config.clk, quads);
-    serialize_analog_input_config(&config.analog_in, quads);
-
-    quads[0] &= !Q0_LINE_OUT_LEVEL_MASK;
-    quads[1] &= !Q1_LINE_OUT_LEVEL_MASK;
-    match &config.line_out_level {
-        LineOutNominalLevel::High => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
+        quads[2] &= !Q2_MIDI_TX_SUPPRESS_MASK;
+        if !params.midi_tx_enable {
+            quads[2] |= Q2_MIDI_TX_SUPPRESS_MASK;
         }
-        LineOutNominalLevel::Consumer => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
-        }
-        LineOutNominalLevel::Professional => {
-            quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
-            quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
-        }
-    }
 
-    quads[0] &= !Q0_HP_OUT_LEVEL_MASK;
-    match &config.hp_out_level {
-        LineOutNominalLevel::High => {
-            quads[0] |= Q0_HP_OUT_LEVEL_HIGH_FLAG;
+        serialize_clock_config(&params.clk, &mut quads);
+        serialize_analog_input_config(&params.analog_in, &mut quads);
+
+        quads[0] &= !Q0_LINE_OUT_LEVEL_MASK;
+        quads[1] &= !Q1_LINE_OUT_LEVEL_MASK;
+        match &params.line_out_level {
+            LineOutNominalLevel::High => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_HIGH_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_HIGH_FLAG;
+            }
+            LineOutNominalLevel::Consumer => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_CON_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_CON_FLAG;
+            }
+            LineOutNominalLevel::Professional => {
+                quads[0] |= Q0_LINE_OUT_LEVEL_PRO_FLAG;
+                quads[1] |= Q1_LINE_OUT_LEVEL_PRO_FLAG;
+            }
         }
-        LineOutNominalLevel::Consumer => {
-            quads[0] |= Q0_HP_OUT_LEVEL_CON_FLAG;
+
+        quads[0] &= !Q0_HP_OUT_LEVEL_MASK;
+        match &params.hp_out_level {
+            LineOutNominalLevel::High => {
+                quads[0] |= Q0_HP_OUT_LEVEL_HIGH_FLAG;
+            }
+            LineOutNominalLevel::Consumer => {
+                quads[0] |= Q0_HP_OUT_LEVEL_CON_FLAG;
+            }
+            LineOutNominalLevel::Professional => {
+                quads[0] |= Q0_HP_OUT_LEVEL_PRO_FLAG;
+            }
         }
-        LineOutNominalLevel::Professional => {
-            quads[0] |= Q0_HP_OUT_LEVEL_PRO_FLAG;
+
+        if params.spdif_in.iface == SpdifIface::Optical {
+            quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
         }
-    }
+        if params.spdif_in.use_preemble {
+            quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
+        }
 
-    if config.spdif_in.iface == SpdifIface::Optical {
-        quads[2] |= Q2_SPDIF_IN_IFACE_OPT_MASK;
-    }
-    if config.spdif_in.use_preemble {
-        quads[2] |= Q2_SPDIF_IN_USE_PREEMBLE;
-    }
+        if params.opt_out_signal == OpticalOutputSignal::Spdif {
+            quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
+        }
+        if params.spdif_out.format == SpdifFormat::Professional {
+            quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
+        }
+        if params.spdif_out.emphasis {
+            quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
+        }
+        if params.spdif_out.non_audio {
+            quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
+        }
 
-    if config.opt_out_signal == OpticalOutputSignal::Spdif {
-        quads[2] |= Q2_OPT_OUT_SIGNAL_MASK;
-    }
-    if config.spdif_out.format == SpdifFormat::Professional {
-        quads[2] |= Q2_SPDIF_OUT_FMT_PRO_MASK;
-    }
-    if config.spdif_out.emphasis {
-        quads[2] |= Q2_SPDIF_OUT_EMPHASIS_MASK;
-    }
-    if config.spdif_out.non_audio {
-        quads[2] |= Q2_SPDIF_OUT_NON_AUDIO_MASK;
-    }
+        if params.word_out_single {
+            quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
+        }
 
-    if config.word_out_single {
-        quads[2] |= Q2_WORD_OUT_SINGLE_SPEED_MASK;
-    }
+        if params.continue_at_errors {
+            quads[2] |= Q2_CONTINUE_AT_ERRORS;
+        }
 
-    if config.continue_at_errors {
-        quads[2] |= Q2_CONTINUE_AT_ERRORS;
+        quads.iter().flat_map(|quad| quad.to_le_bytes()).collect()
     }
 }
 
-#[cfg(test)]
-fn deserialize_config(config: &mut Ff400Config, quads: &[u32]) {
+impl RmeFfParamsDeserialize<Ff400Config, u8> for Ff400Protocol {
+    fn deserialize(params: &mut Ff400Config, raw: &[u8]) {
+        assert!(raw.len() >= FORMER_CONFIG_SIZE);
+
+        let mut quads = [0; Ff400Config::QUADLET_COUNT];
+        let mut quadlet = [0; 4];
+        quads.iter_mut().enumerate().for_each(|(i, quad)| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+            *quad = u32::from_le_bytes(quadlet);
+        });
+
+        deserialize_midi_tx_low_offset(&mut params.midi_tx_low_offset, &quads);
+        params.midi_tx_enable = quads[2] & Q2_MIDI_TX_SUPPRESS_MASK == 0;
+
+        deserialize_clock_config(&mut params.clk, &quads);
+        deserialize_analog_input_config(&mut params.analog_in, &quads);
+
+        let pair = (
+            quads[0] & Q0_LINE_OUT_LEVEL_MASK,
+            quads[1] & Q1_LINE_OUT_LEVEL_MASK,
+        );
+        params.line_out_level = match pair {
+            (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
+            (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => {
+                LineOutNominalLevel::Consumer
+            }
+            (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
+                LineOutNominalLevel::Professional
+            }
+            _ => unreachable!(),
+        };
+
+        params.hp_out_level = match quads[0] & Q0_HP_OUT_LEVEL_MASK {
+            Q0_HP_OUT_LEVEL_HIGH_FLAG => LineOutNominalLevel::High,
+            Q0_HP_OUT_LEVEL_CON_FLAG => LineOutNominalLevel::Consumer,
+            Q0_HP_OUT_LEVEL_PRO_FLAG => LineOutNominalLevel::Professional,
+            _ => unreachable!(),
+        };
+
+        params.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
+            SpdifIface::Optical
+        } else {
+            SpdifIface::Coaxial
+        };
+        params.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
+
+        params.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
+            SpdifFormat::Professional
+        } else {
+            SpdifFormat::Consumer
+        };
+        params.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
+        params.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
+
+        params.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
+            OpticalOutputSignal::Spdif
+        } else {
+            OpticalOutputSignal::Adat
+        };
+
+        params.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
+        params.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    }
+}
+
+fn serialize_config(config: &Ff400Config, quads: &mut [u32]) {
     assert_eq!(quads.len(), Ff400Config::QUADLET_COUNT);
 
-    deserialize_midi_tx_low_offset(&mut config.midi_tx_low_offset, quads);
-    config.midi_tx_enable = quads[2] & Q2_MIDI_TX_SUPPRESS_MASK == 0;
-
-    deserialize_clock_config(&mut config.clk, quads);
-    deserialize_analog_input_config(&mut config.analog_in, quads);
-
-    let pair = (
-        quads[0] & Q0_LINE_OUT_LEVEL_MASK,
-        quads[1] & Q1_LINE_OUT_LEVEL_MASK,
-    );
-    config.line_out_level = match pair {
-        (Q0_LINE_OUT_LEVEL_HIGH_FLAG, Q1_LINE_OUT_LEVEL_HIGH_FLAG) => LineOutNominalLevel::High,
-        (Q0_LINE_OUT_LEVEL_CON_FLAG, Q1_LINE_OUT_LEVEL_CON_FLAG) => LineOutNominalLevel::Consumer,
-        (Q0_LINE_OUT_LEVEL_PRO_FLAG, Q1_LINE_OUT_LEVEL_PRO_FLAG) => {
-            LineOutNominalLevel::Professional
-        }
-        _ => unreachable!(),
-    };
-
-    config.hp_out_level = match quads[0] & Q0_HP_OUT_LEVEL_MASK {
-        Q0_HP_OUT_LEVEL_HIGH_FLAG => LineOutNominalLevel::High,
-        Q0_HP_OUT_LEVEL_CON_FLAG => LineOutNominalLevel::Consumer,
-        Q0_HP_OUT_LEVEL_PRO_FLAG => LineOutNominalLevel::Professional,
-        _ => unreachable!(),
-    };
-
-    config.spdif_in.iface = if quads[2] & Q2_SPDIF_IN_IFACE_OPT_MASK > 0 {
-        SpdifIface::Optical
-    } else {
-        SpdifIface::Coaxial
-    };
-    config.spdif_in.use_preemble = quads[2] & Q2_SPDIF_IN_USE_PREEMBLE > 0;
-
-    config.spdif_out.format = if quads[2] & Q2_SPDIF_OUT_FMT_PRO_MASK > 0 {
-        SpdifFormat::Professional
-    } else {
-        SpdifFormat::Consumer
-    };
-    config.spdif_out.emphasis = quads[2] & Q2_SPDIF_OUT_EMPHASIS_MASK > 0;
-    config.spdif_out.non_audio = quads[2] & Q2_SPDIF_OUT_NON_AUDIO_MASK > 0;
-
-    config.opt_out_signal = if quads[2] & Q2_OPT_OUT_SIGNAL_MASK > 0 {
-        OpticalOutputSignal::Spdif
-    } else {
-        OpticalOutputSignal::Adat
-    };
-
-    config.word_out_single = quads[2] & Q2_WORD_OUT_SINGLE_SPEED_MASK > 0;
-    config.continue_at_errors = quads[2] & Q2_CONTINUE_AT_ERRORS > 0;
+    let raw = Ff400Protocol::serialize(config);
+    let mut quadlet = [0; 4];
+    quads.iter_mut().enumerate().for_each(|(i, quad)| {
+        let pos = i * 4;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        *quad = u32::from_le_bytes(quadlet);
+    });
 }
 
 impl Ff400Protocol {
@@ -1195,10 +1219,9 @@ mod test {
     #[test]
     fn config_serdes() {
         let orig = Ff400Config::default();
-        let mut quads = [0; Ff400Config::QUADLET_COUNT];
-        serialize_config(&orig, &mut quads);
+        let raw = Ff400Protocol::serialize(&orig);
         let mut target = Ff400Config::default();
-        deserialize_config(&mut target, &quads);
+        Ff400Protocol::deserialize(&mut target, &raw);
 
         assert_eq!(target, orig);
     }
