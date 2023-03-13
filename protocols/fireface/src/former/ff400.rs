@@ -132,7 +132,13 @@ impl RmeFfPartiallyUpdatableParamsOperation<Ff400InputGainStatus> for Ff400Proto
     }
 }
 
-const OUTPUT_AMP_MAX: u64 = 0x3f;
+const OUTPUT_AMP_MAX: i8 = 0x3f;
+
+// The value for amp value is between 0x3f to 0x00 by step 1 to represent -57 dB (=mute) to +6 dB.
+fn vol_to_amp_value(vol: i32) -> i8 {
+    ((OUTPUT_AMP_MAX as u64) * ((Ff400Protocol::VOL_MAX - vol) as u64)
+        / (Ff400Protocol::VOL_MAX as u64)) as i8
+}
 
 fn write_output_amp_cmd(
     req: &mut FwReq,
@@ -147,10 +153,9 @@ fn write_output_amp_cmd(
     quadlet.copy_from_slice(&raw);
     let vol = i32::from_le_bytes(quadlet);
 
-    // The value for level is between 0x3f to 0x00 by step 1 to represent -57 dB (=mute) to +6 dB.
-    let level = (OUTPUT_AMP_MAX * (vol as u64) / (Ff400Protocol::VOL_MAX as u64)) as i8;
+    let val = vol_to_amp_value(vol);
     let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
-    write_amp_cmd(req, node, amp_offset, level, timeout_ms)
+    write_amp_cmd(req, node, amp_offset, val, timeout_ms)
 }
 
 impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Protocol {
