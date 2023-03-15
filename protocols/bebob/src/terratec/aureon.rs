@@ -19,10 +19,10 @@
 //!                                |
 //!                                v
 //!                          ++=========++
-//! stream-input-1/2 --------||         || -> mixer-output-7/8 -> analog-output-7/8
-//! stream-input-3/4 --------|| 10 x  8 || -> mixer-output-5/6 -> analog-output-5/6
-//! stream-input-5/6 --------||  mixer  || -> mixer-output-2/3 -> analog-output-3/4
-//! stream-input-7/8 --------||         || -> mixer-output-1/2 -> analog-output-1/2
+//! stream-input-1/2 ------> ||         || -> mixer-output-7/8 -> analog-output-7/8
+//! stream-input-3/4 ------> || 10 x  8 || -> mixer-output-5/6 -> analog-output-5/6
+//! stream-input-5/6 ------> ||  mixer  || -> mixer-output-2/3 -> analog-output-3/4
+//! stream-input-7/8 ------> ||         || -> mixer-output-1/2 -> analog-output-1/2
 //!        |                 +==========++           |
 //!        +----------------------------------------or----------> digital-output-1/2
 //! ```
