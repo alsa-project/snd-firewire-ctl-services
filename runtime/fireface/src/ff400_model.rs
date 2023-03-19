@@ -20,8 +20,8 @@ pub struct Ff400Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl Ff400Model {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl FfCacheableModel for Ff400Model {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
