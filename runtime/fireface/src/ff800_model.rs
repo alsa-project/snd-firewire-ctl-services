@@ -3,10 +3,7 @@
 
 use {
     super::{former_ctls::*, *},
-    protocols::{
-        former::{ff800::*, *},
-        *,
-    },
+    protocols::former::ff800::*,
 };
 
 #[derive(Default, Debug)]
