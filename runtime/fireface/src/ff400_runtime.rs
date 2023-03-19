@@ -13,7 +13,6 @@ enum Event {
     BusReset(u32),
     Elem(ElemId, ElemEventMask),
     Timer,
-    #[allow(dead_code)]
     KnobControl(u32),
 }
 
@@ -206,6 +205,11 @@ impl Ff400Runtime {
                 let elem_id: ElemId = elem_id.clone();
                 let _ = tx.send(Event::Elem(elem_id, events));
             });
+
+        let tx = self.tx.clone();
+        self.unit.0.connect_notified_at(move |_, msg, _| {
+            let _ = tx.send(Event::KnobControl(msg));
+        });
 
         self.dispatchers.push(dispatcher);
 
