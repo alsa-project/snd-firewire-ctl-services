@@ -70,6 +70,159 @@ pub struct Ff400InputGainStatus {
     pub line: [i8; 2],
 }
 
+const KNOB_IS_SIGNAL_LEVEL_FLAG: u32 = 0x04000000;
+const KNOB_IS_STEREO_PAIRED_FLAG: u32 = 0x02000000;
+const KNOB_IS_RIGHT_CHANNEL_FLAG: u32 = 0x08000000;
+
+const MIDI_PORT_0_FLAG: u32 = 0x00000100;
+const MIDI_PORT_0_BYTE_MASK: u32 = 0x000000ff;
+const MIDI_PORT_0_BYTE_SHIFT: usize = 0;
+const MIDI_PORT_1_FLAG: u32 = 0x01000000;
+const MIDI_PORT_1_BYTE_MASK: u32 = 0x00ff0000;
+const MIDI_PORT_1_BYTE_SHIFT: usize = 16;
+
+const KNOB_TARGET_MASK: u32 = 0xf0000000;
+const KNOB_TARGET_MIC_INPUT_PAIR_0: u32 = 0x00000000;
+const KNOB_TARGET_LINE_INPUT_PAIR_1: u32 = 0x10000000;
+const KNOB_TARGET_LINE_OUTPUT_PAIR_0: u32 = 0x20000000;
+const KNOB_TARGET_LINE_OUTPUT_PAIR_1: u32 = 0x30000000;
+const KNOB_TARGET_LINE_OUTPUT_PAIR_2: u32 = 0x40000000;
+const KNOB_TARGET_HP_OUTPUT_PAIR: u32 = 0x50000000;
+const KNOB_TARGET_SPDIF_OUTPUT_PAIR: u32 = 0x60000000;
+const KNOB_TARGET_ADAT_OUTPUT_PAIR_0: u32 = 0x70000000;
+const KNOB_TARGET_ADAT_OUTPUT_PAIR_1: u32 = 0x80000000;
+const KNOB_TARGET_ADAT_OUTPUT_PAIR_2: u32 = 0x90000000;
+const KNOB_TARGET_ADAT_OUTPUT_PAIR_3: u32 = 0xa0000000;
+
+const KNOB_SIGNAL_LEVEL_MASK: u32 = 0x00fffc00;
+const KNOB_SIGNAL_LEVEL_SHIFT: u32 = 10;
+
+/// The inbound MIDI message to physical port in Fireface 400.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Ff400MidiMessage {
+    pub port: u8,
+    pub byte: u8,
+}
+
+impl Default for Ff400MidiMessage {
+    fn default() -> Self {
+        Self {
+            port: u8::MAX,
+            byte: u8::MAX,
+        }
+    }
+}
+
+/// Deserializer for messages from Fireface 400.
+pub trait Ff400MessageParse<T> {
+    /// Return false if no event is found. If found, deserialize parameters and return true.
+    fn parse_message(params: &mut T, message: u32) -> bool;
+}
+
+impl Ff400MessageParse<Ff400MidiMessage> for Ff400Protocol {
+    fn parse_message(params: &mut Ff400MidiMessage, message: u32) -> bool {
+        if message & KNOB_IS_SIGNAL_LEVEL_FLAG == 0 {
+            [
+                (
+                    MIDI_PORT_0_FLAG,
+                    MIDI_PORT_0_BYTE_MASK,
+                    MIDI_PORT_0_BYTE_SHIFT,
+                ),
+                (
+                    MIDI_PORT_1_FLAG,
+                    MIDI_PORT_1_BYTE_MASK,
+                    MIDI_PORT_1_BYTE_SHIFT,
+                ),
+            ]
+            .iter()
+            .enumerate()
+            .find(|(_, (flag, _, _))| message & flag > 0)
+            .map_or(false, |(p, (_, mask, shift))| {
+                params.port = p as u8;
+                params.byte = ((message & mask) >> shift) as u8;
+                true
+            })
+        } else {
+            false
+        }
+    }
+}
+
+impl Ff400MessageParse<Ff400InputGainStatus> for Ff400Protocol {
+    fn parse_message(params: &mut Ff400InputGainStatus, message: u32) -> bool {
+        if message & KNOB_IS_SIGNAL_LEVEL_FLAG > 0 {
+            let target = message & KNOB_TARGET_MASK;
+            [
+                (&mut params.mic[..], KNOB_TARGET_MIC_INPUT_PAIR_0),
+                (&mut params.line[..], KNOB_TARGET_LINE_INPUT_PAIR_1),
+            ]
+            .iter_mut()
+            .find(|(_, t)| target.eq(t))
+            .map_or(false, |(gains, _)| {
+                let val = ((message & KNOB_SIGNAL_LEVEL_MASK) >> KNOB_SIGNAL_LEVEL_SHIFT) as i8;
+                if message & KNOB_IS_STEREO_PAIRED_FLAG > 0 {
+                    gains.fill(val);
+                } else {
+                    let ch = if message & KNOB_IS_RIGHT_CHANNEL_FLAG > 0 {
+                        1
+                    } else {
+                        0
+                    };
+                    gains[ch] = val;
+                }
+                true
+            })
+        } else {
+            false
+        }
+    }
+}
+
+impl Ff400MessageParse<FormerOutputVolumeState> for Ff400Protocol {
+    fn parse_message(params: &mut FormerOutputVolumeState, message: u32) -> bool {
+        assert_eq!(
+            params.0.len(),
+            Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT
+        );
+
+        if message & KNOB_IS_SIGNAL_LEVEL_FLAG > 0 {
+            let target = message & KNOB_TARGET_MASK;
+
+            [
+                KNOB_TARGET_LINE_OUTPUT_PAIR_0,
+                KNOB_TARGET_LINE_OUTPUT_PAIR_1,
+                KNOB_TARGET_LINE_OUTPUT_PAIR_2,
+                KNOB_TARGET_HP_OUTPUT_PAIR,
+                KNOB_TARGET_SPDIF_OUTPUT_PAIR,
+                KNOB_TARGET_ADAT_OUTPUT_PAIR_0,
+                KNOB_TARGET_ADAT_OUTPUT_PAIR_1,
+                KNOB_TARGET_ADAT_OUTPUT_PAIR_2,
+                KNOB_TARGET_ADAT_OUTPUT_PAIR_3,
+            ]
+            .iter()
+            .position(|t| target.eq(t))
+            .map_or(false, |pos| {
+                let val = ((message & KNOB_SIGNAL_LEVEL_MASK) >> KNOB_SIGNAL_LEVEL_SHIFT) as i8;
+                let vol = amp_to_vol_value(val);
+                let mut ch = pos * 2;
+
+                if message & KNOB_IS_STEREO_PAIRED_FLAG > 0 {
+                    params.0[ch] = vol;
+                    params.0[ch + 1] = vol;
+                } else {
+                    if message & KNOB_IS_RIGHT_CHANNEL_FLAG > 0 {
+                        ch += 1;
+                    }
+                    params.0[ch] = vol;
+                }
+                true
+            })
+        } else {
+            false
+        }
+    }
+}
+
 impl Ff400Protocol {
     /// The minimum value of gain for microphone input.
     pub const MIC_INPUT_GAIN_MIN: i8 = 0;
@@ -138,6 +291,11 @@ const OUTPUT_AMP_MAX: i8 = 0x3f;
 fn vol_to_amp_value(vol: i32) -> i8 {
     ((OUTPUT_AMP_MAX as u64) * ((Ff400Protocol::VOL_MAX - vol) as u64)
         / (Ff400Protocol::VOL_MAX as u64)) as i8
+}
+
+fn amp_to_vol_value(amp: i8) -> i32 {
+    ((Ff400Protocol::VOL_MAX as u64) * ((OUTPUT_AMP_MAX - amp) as u64) / (OUTPUT_AMP_MAX as u64))
+        as i32
 }
 
 fn write_output_amp_cmd(
@@ -1202,5 +1360,46 @@ mod test {
         Ff400Protocol::deserialize(&mut target, &raw);
 
         assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn message_parse() {
+        let expected = Ff400InputGainStatus {
+            mic: [0, 0],
+            line: [0x1c, 0x1c],
+        };
+        let msg = KNOB_IS_SIGNAL_LEVEL_FLAG
+            | KNOB_IS_STEREO_PAIRED_FLAG
+            | KNOB_TARGET_LINE_INPUT_PAIR_1
+            | ((0x1c << KNOB_SIGNAL_LEVEL_SHIFT) & KNOB_SIGNAL_LEVEL_MASK);
+        let mut target = Ff400InputGainStatus::default();
+        let res = Ff400Protocol::parse_message(&mut target, msg);
+        assert_eq!(res, true);
+        assert_eq!(target, expected);
+
+        let expected = FormerOutputVolumeState(vec![
+            0, 0, 0, 0, 0, 0, // Analog.
+            0, 0x32, // Headphone.
+            0, 0, // S/PDIF.
+            0, 0, 0, 0, 0, 0, 0, 0, // ADAT.
+        ]);
+        let msg = KNOB_IS_SIGNAL_LEVEL_FLAG
+            | KNOB_IS_RIGHT_CHANNEL_FLAG
+            | KNOB_TARGET_HP_OUTPUT_PAIR
+            | ((0x32 << KNOB_SIGNAL_LEVEL_SHIFT) & KNOB_SIGNAL_LEVEL_MASK);
+        let mut target = FormerOutputVolumeState(vec![0; 18]);
+        let res = Ff400Protocol::parse_message(&mut target, msg);
+        assert_eq!(res, true);
+        assert_eq!(target, expected);
+
+        let expected = Ff400MidiMessage {
+            port: 1,
+            byte: 0x5a,
+        };
+        let msg = MIDI_PORT_1_FLAG | ((0x5a << MIDI_PORT_1_BYTE_SHIFT) & MIDI_PORT_1_BYTE_MASK);
+        let mut target = Ff400MidiMessage::default();
+        let res = Ff400Protocol::parse_message(&mut target, msg);
+        assert_eq!(res, true);
+        assert_eq!(target, expected);
     }
 }
