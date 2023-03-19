@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/03/05
+2023/03/19
 Takashi Sakamoto
 
 Introduction
@@ -67,7 +67,7 @@ Dependencies
 * Cargo
 * glib `<https://developer.gnome.org/glib/>`_
 * libhinawa v2.5 or later `<https://github.com/alsa-project/libhinawa>`_
-* libhitaki v0.1 or later `<https://github.com/alsa-project/libhitaki>`_
+* libhitaki v0.2 or later `<https://github.com/alsa-project/libhitaki>`_
 * alsa-gobject v0.3 or later `<https://github.com/alsa-project/alsa-gobject/>`_
 
 * The library crates enumerated in `License` section are downloaded from `<crates.io>`_ when

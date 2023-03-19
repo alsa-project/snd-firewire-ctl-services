@@ -15,7 +15,7 @@ libc = "0.2"
 nix = "0"
 glib = "0.15"
 hinawa = "0.7"
-hitaki = "0.2"
+hitaki = "0.3"
 alsactl = "0.4"
 alsaseq = "0.4"
 clap = { version = "3.2", features = ["derive"] }

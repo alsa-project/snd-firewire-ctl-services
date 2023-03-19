@@ -16,10 +16,10 @@ members = [
     "protocols/ta1394/audio",
     "protocols/ta1394/stream-format",
     "protocols/ta1394/ccm",
-#    "protocols/digi00x",
-#    "protocols/tascam",
-#    "protocols/fireworks",
-#    "protocols/motu",
+    "protocols/digi00x",
+    "protocols/tascam",
+    "protocols/fireworks",
+    "protocols/motu",
     "protocols/oxfw",
     "protocols/bebob",
     "protocols/dice",
@@ -28,6 +28,8 @@ members = [
 
 # For development purpose.
 [patch.crates-io]
+hitaki-sys = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki-sys" }
+hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 #alsa-ctl-tlv-codec = { path = "protocols/alsa-ctl-tlv-codec" }
 #ieee1212-config-rom = { path = "protocols/ieee1212-config-rom" }
 ta1394-avc-general = { path = "protocols/ta1394/general" }
@@ -35,10 +37,10 @@ ta1394-avc-audio = { path = "protocols/ta1394/audio" }
 ta1394-avc-stream-format = { path = "protocols/ta1394/stream-format" }
 ta1394-avc-ccm = { path = "protocols/ta1394/ccm" }
 firewire-bebob-protocols = { path = "protocols/bebob" }
-#firewire-digi00x-protocols = { path = "protocols/digi00x" }
+firewire-digi00x-protocols = { path = "protocols/digi00x" }
 firewire-dice-protocols = { path = "protocols/dice" }
-#firewire-fireworks-protocols = { path = "protocols/fireworks" }
+firewire-fireworks-protocols = { path = "protocols/fireworks" }
 firewire-fireface-protocols = { path = "protocols/fireface" }
-#firewire-motu-protocols = { path = "protocols/motu" }
+firewire-motu-protocols = { path = "protocols/motu" }
 firewire-oxfw-protocols = { path = "protocols/oxfw" }
-#firewire-tascam-protocols = { path = "protocols/tascam" }
+firewire-tascam-protocols = { path = "protocols/tascam" }
