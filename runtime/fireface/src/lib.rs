@@ -34,7 +34,7 @@ use {
 };
 
 pub trait FfCacheableModel {
-    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error>;
+    fn cache(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error>;
 }
 
 pub enum FfRuntime {
@@ -53,7 +53,7 @@ impl RuntimeOperation<u32> for FfRuntime {
             tracing_subscriber::fmt().with_max_level(fmt_level).init();
         }
 
-        let unit = SndUnit::new();
+        let unit = SndFireface::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;
 

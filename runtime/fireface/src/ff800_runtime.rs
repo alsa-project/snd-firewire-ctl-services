@@ -16,7 +16,7 @@ enum Event {
 }
 
 pub struct Ff800Runtime {
-    unit: (SndUnit, FwNode),
+    unit: (SndFireface, FwNode),
     model: Ff800Model,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -27,7 +27,7 @@ pub struct Ff800Runtime {
 }
 
 impl Ff800Runtime {
-    pub(crate) fn new(unit: SndUnit, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
+    pub(crate) fn new(unit: SndFireface, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 

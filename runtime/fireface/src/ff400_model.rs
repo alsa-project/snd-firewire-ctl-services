@@ -21,7 +21,7 @@ pub struct Ff400Model {
 const TIMEOUT_MS: u32 = 100;
 
 impl FfCacheableModel for Ff400Model {
-    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    fn cache(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.out_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -38,8 +38,12 @@ impl FfCacheableModel for Ff400Model {
     }
 }
 
-impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
-    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndFireface, FwNode)> for Ff400Model {
+    fn load(
+        &mut self,
+        _: &mut (SndFireface, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.meter_ctl.load(card_cntr)?;
         self.out_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
@@ -51,7 +55,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
 
     fn read(
         &mut self,
-        _: &mut (SndUnit, FwNode),
+        _: &mut (SndFireface, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -74,7 +78,7 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
 
     fn write(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        unit: &mut (SndFireface, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -105,13 +109,13 @@ impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
     }
 }
 
-impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
+impl MeasureModel<(SndFireface, FwNode)> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.status_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.status_ctl
@@ -121,7 +125,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
 
     fn measure_elem(
         &mut self,
-        _: &(SndUnit, FwNode),
+        _: &(SndFireface, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -135,7 +139,7 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     }
 }
 
-impl NotifyModel<(SndUnit, FwNode), u32> for Ff400Model {
+impl NotifyModel<(SndFireface, FwNode), u32> for Ff400Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.input_gain_ctl.0);
         elem_id_list.extend_from_slice(&self.out_ctl.0);
@@ -143,7 +147,7 @@ impl NotifyModel<(SndUnit, FwNode), u32> for Ff400Model {
 
     fn parse_notification(
         &mut self,
-        (_, node): &mut (SndUnit, FwNode),
+        (_, node): &mut (SndFireface, FwNode),
         &msg: &u32,
     ) -> Result<(), Error> {
         let mut input_gains = self.input_gain_ctl.1.clone();
@@ -176,7 +180,7 @@ impl NotifyModel<(SndUnit, FwNode), u32> for Ff400Model {
 
     fn read_notified_elem(
         &mut self,
-        _: &(SndUnit, FwNode),
+        _: &(SndFireface, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {

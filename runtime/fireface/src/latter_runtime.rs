@@ -20,9 +20,12 @@ enum Event {
 
 pub struct FfLatterRuntime<T>
 where
-    T: Default + CtlModel<(SndUnit, FwNode)> + MeasureModel<(SndUnit, FwNode)> + FfCacheableModel,
+    T: Default
+        + CtlModel<(SndFireface, FwNode)>
+        + MeasureModel<(SndFireface, FwNode)>
+        + FfCacheableModel,
 {
-    unit: (SndUnit, FwNode),
+    unit: (SndFireface, FwNode),
     model: T,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -34,9 +37,12 @@ where
 
 impl<T> FfLatterRuntime<T>
 where
-    T: Default + CtlModel<(SndUnit, FwNode)> + MeasureModel<(SndUnit, FwNode)> + FfCacheableModel,
+    T: Default
+        + CtlModel<(SndFireface, FwNode)>
+        + MeasureModel<(SndFireface, FwNode)>
+        + FfCacheableModel,
 {
-    pub(crate) fn new(unit: SndUnit, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
+    pub(crate) fn new(unit: SndFireface, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -142,7 +148,10 @@ where
 
 impl<T> Drop for FfLatterRuntime<T>
 where
-    T: Default + CtlModel<(SndUnit, FwNode)> + MeasureModel<(SndUnit, FwNode)> + FfCacheableModel,
+    T: Default
+        + CtlModel<(SndFireface, FwNode)>
+        + MeasureModel<(SndFireface, FwNode)>
+        + FfCacheableModel,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -160,7 +169,10 @@ where
 
 impl<T> FfLatterRuntime<T>
 where
-    T: Default + CtlModel<(SndUnit, FwNode)> + MeasureModel<(SndUnit, FwNode)> + FfCacheableModel,
+    T: Default
+        + CtlModel<(SndFireface, FwNode)>
+        + MeasureModel<(SndFireface, FwNode)>
+        + FfCacheableModel,
 {
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = NODE_DISPATCHER_NAME.to_string();
