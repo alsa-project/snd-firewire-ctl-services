@@ -6,7 +6,7 @@ use {super::*, alsa_ctl_tlv_codec::DbInterval, std::marker::PhantomData};
 const VOL_NAME: &str = "output-volume";
 
 #[derive(Debug)]
-pub struct FormerOutputCtl<T>(pub Vec<ElemId>, FormerOutputVolumeState, PhantomData<T>)
+pub struct FormerOutputCtl<T>(pub Vec<ElemId>, pub FormerOutputVolumeState, PhantomData<T>)
 where
     T: RmeFormerOutputSpecification
         + RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState>

@@ -13,6 +13,8 @@ enum Event {
     BusReset(u32),
     Elem(ElemId, ElemEventMask),
     Timer,
+    #[allow(dead_code)]
+    KnobControl(u32),
 }
 
 pub struct Ff400Runtime {
@@ -24,6 +26,7 @@ pub struct Ff400Runtime {
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
     measured_elem_id_list: Vec<ElemId>,
+    notified_elem_id_list: Vec<ElemId>,
 }
 
 impl Ff400Runtime {
@@ -40,6 +43,7 @@ impl Ff400Runtime {
             dispatchers: Default::default(),
             timer: None,
             measured_elem_id_list: Default::default(),
+            notified_elem_id_list: Default::default(),
         };
 
         Ok(runtime)
@@ -62,6 +66,9 @@ impl Ff400Runtime {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
+
+        self.model
+            .get_notified_elem_list(&mut self.notified_elem_id_list);
 
         enter.exit();
 
@@ -118,6 +125,16 @@ impl Ff400Runtime {
                         let _ = self.card_cntr.measure_elems(
                             &mut self.unit,
                             &self.measured_elem_id_list,
+                            &mut self.model,
+                        );
+                    }
+                    Event::KnobControl(msg) => {
+                        let _enter = debug_span!("knob").entered();
+                        debug!("msg = 0x{:08x}", msg);
+                        let _ = self.card_cntr.dispatch_notification(
+                            &mut self.unit,
+                            &msg,
+                            &self.notified_elem_id_list,
                             &mut self.model,
                         );
                     }
