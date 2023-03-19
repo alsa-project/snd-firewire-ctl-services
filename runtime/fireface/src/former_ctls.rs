@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {
-    super::*,
-    alsa_ctl_tlv_codec::DbInterval,
-    protocols::{former::*, *},
-    std::marker::PhantomData,
-};
+use {super::*, alsa_ctl_tlv_codec::DbInterval, std::marker::PhantomData};
 
 const VOL_NAME: &str = "output-volume";
 

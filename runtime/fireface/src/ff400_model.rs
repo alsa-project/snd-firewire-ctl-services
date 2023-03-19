@@ -4,10 +4,7 @@
 use {
     super::{former_ctls::*, *},
     alsa_ctl_tlv_codec::DbInterval,
-    protocols::{
-        former::{ff400::*, *},
-        *,
-    },
+    protocols::former::ff400::*,
 };
 
 #[derive(Default, Debug)]

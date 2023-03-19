@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {
-    super::*,
-    alsa_ctl_tlv_codec::DbInterval,
-    protocols::{latter::*, *},
-    std::marker::PhantomData,
-};
+use {super::*, alsa_ctl_tlv_codec::DbInterval, std::marker::PhantomData};
 
 const LINE_INPUT_METER: &str = "meter:line-input";
 const MIC_INPUT_METER: &str = "meter:mic-input";

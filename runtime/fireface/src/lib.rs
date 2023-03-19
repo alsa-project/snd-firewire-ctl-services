@@ -23,6 +23,7 @@ use {
     hitaki::{prelude::*, *},
     model::*,
     nix::sys::signal,
+    protocols::{former::*, latter::*, *},
     std::sync::mpsc,
     tracing::{debug, debug_span, Level},
 };
@@ -258,4 +259,77 @@ impl FfRuntime {
             self.timer = None;
         }
     }
+}
+
+fn spdif_iface_to_string(iface: &SpdifIface) -> String {
+    match iface {
+        SpdifIface::Coaxial => "Coaxial",
+        SpdifIface::Optical => "Optical",
+    }
+    .to_string()
+}
+
+fn spdif_format_to_string(fmt: &SpdifFormat) -> String {
+    match fmt {
+        SpdifFormat::Consumer => "Consumer",
+        SpdifFormat::Professional => "Professional",
+    }
+    .to_string()
+}
+
+fn optical_output_signal_to_string(sig: &OpticalOutputSignal) -> String {
+    match sig {
+        OpticalOutputSignal::Adat => "ADAT",
+        OpticalOutputSignal::Spdif => "S/PDIF",
+    }
+    .to_string()
+}
+
+fn former_line_in_nominal_level_to_string(level: &FormerLineInNominalLevel) -> String {
+    match level {
+        FormerLineInNominalLevel::Low => "Low",
+        FormerLineInNominalLevel::Consumer => "-10dBV",
+        FormerLineInNominalLevel::Professional => "+4dBu",
+    }
+    .to_string()
+}
+
+fn line_out_nominal_level_to_string(level: &LineOutNominalLevel) -> String {
+    match level {
+        LineOutNominalLevel::High => "High",
+        LineOutNominalLevel::Consumer => "-10dBV",
+        LineOutNominalLevel::Professional => "+4dBu",
+    }
+    .to_string()
+}
+
+fn clk_nominal_rate_to_string(rate: &ClkNominalRate) -> String {
+    match rate {
+        ClkNominalRate::R32000 => "32000",
+        ClkNominalRate::R44100 => "44100",
+        ClkNominalRate::R48000 => "48000",
+        ClkNominalRate::R64000 => "64000",
+        ClkNominalRate::R88200 => "88200",
+        ClkNominalRate::R96000 => "96000",
+        ClkNominalRate::R128000 => "128000",
+        ClkNominalRate::R176400 => "176400",
+        ClkNominalRate::R192000 => "192000",
+    }
+    .to_string()
+}
+
+fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> String {
+    if let Some(r) = rate {
+        clk_nominal_rate_to_string(r)
+    } else {
+        "not-detected".to_string()
+    }
+}
+
+fn latter_line_in_nominal_level_to_string(level: &LatterInNominalLevel) -> String {
+    match level {
+        LatterInNominalLevel::Low => "Low",
+        LatterInNominalLevel::Professional => "+4dBu",
+    }
+    .to_string()
 }

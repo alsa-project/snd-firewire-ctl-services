@@ -3,7 +3,7 @@
 
 use {
     super::{latter_ctls::*, *},
-    protocols::{latter::ff802::*, *},
+    protocols::latter::ff802::*,
 };
 
 #[derive(Default, Debug)]
