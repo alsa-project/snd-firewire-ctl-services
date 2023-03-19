@@ -1,99 +1,51 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2021 Takashi Sakamoto
-mod model;
-
-mod ff400_model;
-mod ff800_model;
-
-mod ff802_model;
-mod ucx_model;
-
-mod former_ctls;
-mod latter_ctls;
-
-mod ff800_runtime;
+// Copyright (c) 2023 Takashi Sakamoto
 
 use {
-    alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
-    firewire_fireface_protocols as protocols,
-    glib::{source, Error, FileError},
-    hinawa::{
-        prelude::{FwNodeExt, FwNodeExtManual},
-        FwNode, FwReq,
-    },
-    hitaki::{prelude::*, *},
-    model::*,
-    nix::sys::signal,
-    protocols::{former::*, latter::*, *},
+    super::{ff800_model::*, *},
+    alsactl::{ElemEventMask, ElemId, ElemValue},
     std::sync::mpsc,
-    tracing::{debug, debug_span, Level},
 };
-
-pub trait FfCacheableModel {
-    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error>;
-}
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem(alsactl::ElemId, alsactl::ElemEventMask),
+    Elem(ElemId, ElemEventMask),
     Timer,
 }
 
-pub struct FfRuntime {
+pub struct Ff800Runtime {
     unit: (SndUnit, FwNode),
-    model: FfModel,
+    model: Ff800Model,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
+    measured_elem_id_list: Vec<ElemId>,
 }
 
-impl RuntimeOperation<u32> for FfRuntime {
-    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
-        if let Some(level) = log_level {
-            let fmt_level = match level {
-                LogLevel::Debug => Level::DEBUG,
-            };
-            tracing_subscriber::fmt().with_max_level(fmt_level).init();
-        }
-
-        let unit = SndUnit::new();
-        let path = format!("/dev/snd/hwC{}D0", card_id);
-        unit.open(&path, 0)?;
-
-        let cdev = format!("/dev/{}", unit.node_device().unwrap());
-        let node = FwNode::new();
-        node.open(&cdev)?;
-
-        let rom = node.config_rom()?;
-        let model = FfModel::new(&rom)?;
-
-        let card_cntr = CardCntr::default();
-        card_cntr.card.open(card_id, 0)?;
-
+impl Ff800Runtime {
+    pub(crate) fn new(unit: SndUnit, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        let dispatchers = Vec::new();
-
-        let timer = None;
-
-        Ok(FfRuntime {
+        let runtime = Ff800Runtime {
             unit: (unit, node),
-            model,
+            model: Default::default(),
             card_cntr,
             rx,
             tx,
-            dispatchers,
-            timer,
-        })
+            dispatchers: Default::default(),
+            timer: None,
+            measured_elem_id_list: Default::default(),
+        };
+
+        Ok(runtime)
     }
 
-    fn listen(&mut self) -> Result<(), Error> {
+    pub(crate) fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
@@ -104,7 +56,9 @@ impl RuntimeOperation<u32> for FfRuntime {
         let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
-        if self.model.measured_elem_list.len() > 0 {
+        self.model
+            .get_measure_elem_list(&mut self.measured_elem_id_list);
+        if self.measured_elem_id_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
@@ -114,7 +68,7 @@ impl RuntimeOperation<u32> for FfRuntime {
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Error> {
+    pub(crate) fn run(&mut self) -> Result<(), Error> {
         let enter = debug_span!("event").entered();
         loop {
             if let Ok(ev) = self.rx.recv() {
@@ -137,14 +91,14 @@ impl RuntimeOperation<u32> for FfRuntime {
                         );
 
                         if elem_id.name() != TIMER_NAME {
-                            let _ = self.model.dispatch_elem_event(
+                            let _ = self.card_cntr.dispatch_elem_event(
                                 &mut self.unit,
-                                &mut self.card_cntr,
                                 &elem_id,
                                 &events,
+                                &mut self.model,
                             );
                         } else {
-                            let mut elem_value = alsactl::ElemValue::new();
+                            let mut elem_value = ElemValue::new();
                             let _ = self
                                 .card_cntr
                                 .card
@@ -161,9 +115,11 @@ impl RuntimeOperation<u32> for FfRuntime {
                     }
                     Event::Timer => {
                         let _enter = debug_span!("timer").entered();
-                        let _ = self
-                            .model
-                            .measure_elems(&mut self.unit, &mut self.card_cntr);
+                        let _ = self.card_cntr.measure_elems(
+                            &mut self.unit,
+                            &self.measured_elem_id_list,
+                            &mut self.model,
+                        );
                     }
                 }
             }
@@ -175,7 +131,7 @@ impl RuntimeOperation<u32> for FfRuntime {
     }
 }
 
-impl Drop for FfRuntime {
+impl Drop for Ff800Runtime {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -190,14 +146,7 @@ impl Drop for FfRuntime {
     }
 }
 
-const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
-const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
-const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
-
-const TIMER_NAME: &str = "metering";
-const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
-
-impl FfRuntime {
+impl Ff800Runtime {
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = NODE_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
@@ -237,7 +186,7 @@ impl FfRuntime {
         self.card_cntr
             .card
             .connect_handle_elem_event(move |_, elem_id, events| {
-                let elem_id: alsactl::ElemId = elem_id.clone();
+                let elem_id: ElemId = elem_id.clone();
                 let _ = tx.send(Event::Elem(elem_id, events));
             });
 
@@ -265,77 +214,4 @@ impl FfRuntime {
             self.timer = None;
         }
     }
-}
-
-fn spdif_iface_to_string(iface: &SpdifIface) -> String {
-    match iface {
-        SpdifIface::Coaxial => "Coaxial",
-        SpdifIface::Optical => "Optical",
-    }
-    .to_string()
-}
-
-fn spdif_format_to_string(fmt: &SpdifFormat) -> String {
-    match fmt {
-        SpdifFormat::Consumer => "Consumer",
-        SpdifFormat::Professional => "Professional",
-    }
-    .to_string()
-}
-
-fn optical_output_signal_to_string(sig: &OpticalOutputSignal) -> String {
-    match sig {
-        OpticalOutputSignal::Adat => "ADAT",
-        OpticalOutputSignal::Spdif => "S/PDIF",
-    }
-    .to_string()
-}
-
-fn former_line_in_nominal_level_to_string(level: &FormerLineInNominalLevel) -> String {
-    match level {
-        FormerLineInNominalLevel::Low => "Low",
-        FormerLineInNominalLevel::Consumer => "-10dBV",
-        FormerLineInNominalLevel::Professional => "+4dBu",
-    }
-    .to_string()
-}
-
-fn line_out_nominal_level_to_string(level: &LineOutNominalLevel) -> String {
-    match level {
-        LineOutNominalLevel::High => "High",
-        LineOutNominalLevel::Consumer => "-10dBV",
-        LineOutNominalLevel::Professional => "+4dBu",
-    }
-    .to_string()
-}
-
-fn clk_nominal_rate_to_string(rate: &ClkNominalRate) -> String {
-    match rate {
-        ClkNominalRate::R32000 => "32000",
-        ClkNominalRate::R44100 => "44100",
-        ClkNominalRate::R48000 => "48000",
-        ClkNominalRate::R64000 => "64000",
-        ClkNominalRate::R88200 => "88200",
-        ClkNominalRate::R96000 => "96000",
-        ClkNominalRate::R128000 => "128000",
-        ClkNominalRate::R176400 => "176400",
-        ClkNominalRate::R192000 => "192000",
-    }
-    .to_string()
-}
-
-fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> String {
-    if let Some(r) = rate {
-        clk_nominal_rate_to_string(r)
-    } else {
-        "not-detected".to_string()
-    }
-}
-
-fn latter_line_in_nominal_level_to_string(level: &LatterInNominalLevel) -> String {
-    match level {
-        LatterInNominalLevel::Low => "Low",
-        LatterInNominalLevel::Professional => "+4dBu",
-    }
-    .to_string()
 }
