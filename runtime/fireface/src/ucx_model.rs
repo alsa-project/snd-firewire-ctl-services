@@ -17,8 +17,8 @@ pub struct UcxModel {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl UcxModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl FfCacheableModel for UcxModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.dsp_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
