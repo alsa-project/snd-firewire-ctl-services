@@ -98,7 +98,7 @@ impl RuntimeOperation<u32> for FfRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measured_elem_list.len() > 0 {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -129,7 +129,7 @@ impl RuntimeOperation<u32> for FfRuntime {
                             index = elem_id.index(),
                         );
 
-                        if elem_id.name() != Self::TIMER_NAME {
+                        if elem_id.name() != TIMER_NAME {
                             let _ = self.model.dispatch_elem_event(
                                 &mut self.unit,
                                 &mut self.card_cntr,
@@ -183,16 +183,16 @@ impl Drop for FfRuntime {
     }
 }
 
+const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
+const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
+const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
+
+const TIMER_NAME: &str = "metering";
+const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+
 impl FfRuntime {
-    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
-
-    const TIMER_NAME: &'static str = "metering";
-    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
-
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::NODE_DISPATCHER_NAME.to_string();
+        let name = NODE_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -216,7 +216,7 @@ impl FfRuntime {
     }
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
+        let name = SYSTEM_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -240,9 +240,9 @@ impl FfRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
-        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+        dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);
             source::Continue(true)
         });
