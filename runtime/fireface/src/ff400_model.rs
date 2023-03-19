@@ -135,6 +135,61 @@ impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     }
 }
 
+impl NotifyModel<(SndUnit, FwNode), u32> for Ff400Model {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.input_gain_ctl.0);
+        elem_id_list.extend_from_slice(&self.out_ctl.0);
+    }
+
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndUnit, FwNode),
+        &msg: &u32,
+    ) -> Result<(), Error> {
+        let mut input_gains = self.input_gain_ctl.1.clone();
+        let mut out_vols = self.out_ctl.1.clone();
+
+        if Ff400Protocol::parse_message(&mut input_gains, msg) {
+            if input_gains != self.input_gain_ctl.1 {
+                Ff400Protocol::update_partially(
+                    &mut self.req,
+                    node,
+                    &mut self.input_gain_ctl.1,
+                    input_gains,
+                    TIMEOUT_MS,
+                )?;
+            }
+        } else if Ff400Protocol::parse_message(&mut out_vols, msg) {
+            if out_vols != self.out_ctl.1 {
+                Ff400Protocol::update_partially(
+                    &mut self.req,
+                    node,
+                    &mut self.out_ctl.1,
+                    out_vols,
+                    TIMEOUT_MS,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &(SndUnit, FwNode),
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.input_gain_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 struct InputGainCtl(Vec<ElemId>, Ff400InputGainStatus);
 
