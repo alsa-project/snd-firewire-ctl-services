@@ -7,7 +7,7 @@ use {
     std::convert::TryFrom,
 };
 
-pub enum Model {
+pub(crate) enum Model {
     Ff800(Ff800Model),
     Ff400(Ff400Model),
     Ucx(UcxModel),
