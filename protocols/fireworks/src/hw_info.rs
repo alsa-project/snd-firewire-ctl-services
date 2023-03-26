@@ -36,113 +36,6 @@ const CMD_METER: u32 = 1;
 const CMD_CHANGE_RESP_ADDR: u32 = 2;
 const CMD_READ_SESSION_BLOCK: u32 = 3;
 
-/// Hardware capability.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum HwCap {
-    /// The address to which response of transaction is transmitted is configurable.
-    ChangeableRespAddr,
-    /// Has control room for output mirror.
-    ControlRoom,
-    /// S/PDIF signal is available for coaxial interface as option.
-    OptionalSpdifCoax,
-    /// S/PDIF signal is available for AES/EBU XLR interface as option.
-    OptionalAesebuXlr,
-    /// Has DSP (Texas Instrument TMS320C67).
-    Dsp,
-    /// Has FPGA (Xilinx Spartan XC35250E).
-    Fpga,
-    /// Support phantom powering for any mic input.
-    PhantomPowering,
-    /// Support mapping between playback stream and physical output.
-    OutputMapping,
-    /// The gain of physical input is adjustable.
-    InputGain,
-    /// S/PDIF signal is available for optical interface as option.
-    OptionalSpdifOpt,
-    /// ADAT signal is available for optical interface as option.
-    OptionalAdatOpt,
-    /// The nominal level of input audio signal is selectable.
-    NominalInput,
-    /// The nominal level of output audio signal is selectable.
-    NominalOutput,
-    /// Has software clipping for input audio signal.
-    SoftClip,
-    /// Is robot guitar.
-    RobotGuitar,
-    /// Support chaging for guitar.
-    GuitarCharging,
-    Reserved(usize),
-    #[doc(hidden)]
-    // For my purpose.
-    InputMapping,
-    PlaybackSoloUnsupported,
-}
-
-impl From<usize> for HwCap {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => HwCap::ChangeableRespAddr,
-            1 => HwCap::ControlRoom,
-            2 => HwCap::OptionalSpdifCoax,
-            3 => HwCap::OptionalAesebuXlr,
-            4 => HwCap::Dsp,
-            5 => HwCap::Fpga,
-            6 => HwCap::PhantomPowering,
-            7 => HwCap::OutputMapping,
-            8 => HwCap::InputGain,
-            9 => HwCap::OptionalSpdifOpt,
-            10 => HwCap::OptionalAdatOpt,
-            11 => HwCap::NominalInput,
-            12 => HwCap::NominalOutput,
-            13 => HwCap::SoftClip,
-            14 => HwCap::RobotGuitar,
-            15 => HwCap::GuitarCharging,
-            _ => HwCap::Reserved(val),
-        }
-    }
-}
-
-/// Type of physical group.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum PhysGroupType {
-    Analog,
-    Spdif,
-    Adat,
-    SpdifOrAdat,
-    AnalogMirror,
-    Headphones,
-    I2s,
-    Guitar,
-    PiezoGuitar,
-    GuitarString,
-    Unknown(usize),
-}
-
-impl From<usize> for PhysGroupType {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => PhysGroupType::Analog,
-            1 => PhysGroupType::Spdif,
-            2 => PhysGroupType::Adat,
-            3 => PhysGroupType::SpdifOrAdat,
-            4 => PhysGroupType::AnalogMirror,
-            5 => PhysGroupType::Headphones,
-            6 => PhysGroupType::I2s,
-            7 => PhysGroupType::Guitar,
-            8 => PhysGroupType::PiezoGuitar,
-            9 => PhysGroupType::GuitarString,
-            _ => PhysGroupType::Unknown(val),
-        }
-    }
-}
-
-/// Entry of physical group.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct PhysGroupEntry {
-    pub group_type: PhysGroupType,
-    pub group_count: usize,
-}
-
 /// Information of hardware.
 #[derive(Debug)]
 pub struct HwInfo {
@@ -231,7 +124,11 @@ impl HwInfo {
     fn parse_caps(flags: u32, hw_type: u32) -> Vec<HwCap> {
         let mut caps: Vec<HwCap> = (0..16)
             .filter(|i| (1 << i) & flags > 0)
-            .map(|i| HwCap::from(i))
+            .map(|i| {
+                let mut cap = HwCap::default();
+                deserialize_hw_cap(&mut cap, i);
+                cap
+            })
             .collect();
 
         match hw_type {
@@ -295,10 +192,10 @@ impl HwInfo {
         (0..count)
             .map(|i| {
                 let pos = i * 2;
-                PhysGroupEntry {
-                    group_type: PhysGroupType::from(bytes[pos] as usize),
-                    group_count: bytes[pos + 1] as usize,
-                }
+                let mut entry = PhysGroupEntry::default();
+                deserialize_phys_group_type(&mut entry.group_type, bytes[pos]);
+                entry.group_count = bytes[pos + 1] as usize;
+                entry
             })
             .collect()
     }
