@@ -147,6 +147,72 @@ fn deserialize_hw_ctl_flag(flag: &mut HwCtlFlag, pos: usize) {
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct EfwHwCtlFlags(pub Vec<HwCtlFlag>);
 
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwHwCtlFlags> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwHwCtlFlags,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = vec![0];
+        proto.transaction(
+            CATEGORY_HWCTL,
+            CMD_GET_FLAGS,
+            &args,
+            &mut params,
+            timeout_ms,
+        )?;
+
+        (0..32).filter(|i| params[0] & (1 << i) > 0).for_each(|i| {
+            let mut flag = HwCtlFlag::default();
+            deserialize_hw_ctl_flag(&mut flag, i);
+            if states.0.iter().find(|f| flag.eq(f)).is_none() {
+                states.0.push(flag);
+            }
+        });
+
+        Ok(())
+    }
+}
+
+impl<O, P> EfwPartiallyUpdatableParamsOperation<P, EfwHwCtlFlags> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_partially(
+        proto: &mut P,
+        states: &mut EfwHwCtlFlags,
+        updates: EfwHwCtlFlags,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut args = [0; 2];
+        let mut params = Vec::new();
+        // Enable.
+        updates
+            .0
+            .iter()
+            .for_each(|flag| args[0] |= 1 << serialize_hw_ctl_flag(flag));
+        // Disable.
+        states.0.iter().for_each(|flag| {
+            if updates.0.iter().find(|f| flag.eq(f)).is_none() {
+                args[1] = 1 << serialize_hw_ctl_flag(flag);
+            }
+        });
+        proto.transaction(
+            CATEGORY_HWCTL,
+            CMD_SET_FLAGS,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Protocol about hardware control for Fireworks board module.
 pub trait HwCtlProtocol: EfwProtocolExtManual {
     fn set_clock(
