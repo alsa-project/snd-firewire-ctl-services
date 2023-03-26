@@ -24,6 +24,7 @@ use {
     glib::{Error, FileError},
     hitaki::{prelude::EfwProtocolExtManual, EfwProtocolError},
     hw_info::HwMeter,
+    monitor::{EfwMonitorParameters, EfwMonitorSourceParameters},
 };
 
 /// The specification of hardware.
@@ -79,6 +80,18 @@ pub trait EfwHardwareSpecification {
             phys_output_meters: vec![Default::default(); Self::phys_output_count()],
             phys_input_meters: vec![Default::default(); Self::phys_input_count()],
         }
+    }
+
+    fn create_monitor_parameters() -> EfwMonitorParameters {
+        EfwMonitorParameters(vec![
+            EfwMonitorSourceParameters {
+                gains: vec![Default::default(); Self::MONITOR_SOURCE_COUNT],
+                mutes: vec![Default::default(); Self::MONITOR_SOURCE_COUNT],
+                solos: vec![Default::default(); Self::MONITOR_SOURCE_COUNT],
+                pans: vec![Default::default(); Self::MONITOR_SOURCE_COUNT],
+            };
+            Self::MONITOR_DESTINATION_COUNT
+        ])
     }
 }
 
