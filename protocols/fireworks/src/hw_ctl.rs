@@ -27,7 +27,7 @@ pub struct EfwSamplingClockParameters {
 }
 
 /// The type of hardware control.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HwCtlFlag {
     /// Whether multiplexer is enabled or not for audio signal.
     MixerEnabled,
@@ -54,43 +54,49 @@ pub enum HwCtlFlag {
     Reserved(usize),
 }
 
-impl From<HwCtlFlag> for usize {
-    fn from(flag: HwCtlFlag) -> Self {
-        match flag {
-            HwCtlFlag::MixerEnabled => 0,
-            HwCtlFlag::SpdifPro => 1,
-            HwCtlFlag::SpdifNoneAudio => 2,
-            HwCtlFlag::CtlRoomSelect => 8, // B if it stands, else A.
-            HwCtlFlag::OutputLevelBypass => 9,
-            HwCtlFlag::MeterInMode => 12,
-            HwCtlFlag::MeterOutMode => 13,
-            HwCtlFlag::SoftClip => 18,
-            HwCtlFlag::GuitarHexInput => 29,
-            HwCtlFlag::GuitarAutoCharging => 30,
-            HwCtlFlag::PhantomPowering => 31,
-            HwCtlFlag::Reserved(pos) => pos,
-        }
+impl Default for HwCtlFlag {
+    fn default() -> Self {
+        Self::Reserved(usize::MAX)
     }
 }
 
-impl From<usize> for HwCtlFlag {
-    fn from(pos: usize) -> Self {
-        match pos {
-            0 => HwCtlFlag::MixerEnabled,
-            1 => HwCtlFlag::SpdifPro,
-            2 => HwCtlFlag::SpdifNoneAudio,
-            8 => HwCtlFlag::CtlRoomSelect,
-            9 => HwCtlFlag::OutputLevelBypass,
-            12 => HwCtlFlag::MeterInMode,
-            13 => HwCtlFlag::MeterOutMode,
-            18 => HwCtlFlag::SoftClip,
-            29 => HwCtlFlag::GuitarHexInput,
-            30 => HwCtlFlag::GuitarAutoCharging,
-            31 => HwCtlFlag::PhantomPowering,
-            _ => HwCtlFlag::Reserved(pos),
-        }
+fn serialize_hw_ctl_flag(flag: &HwCtlFlag) -> usize {
+    match flag {
+        HwCtlFlag::MixerEnabled => 0,
+        HwCtlFlag::SpdifPro => 1,
+        HwCtlFlag::SpdifNoneAudio => 2,
+        HwCtlFlag::CtlRoomSelect => 8, // B if it stands, else A.
+        HwCtlFlag::OutputLevelBypass => 9,
+        HwCtlFlag::MeterInMode => 12,
+        HwCtlFlag::MeterOutMode => 13,
+        HwCtlFlag::SoftClip => 18,
+        HwCtlFlag::GuitarHexInput => 29,
+        HwCtlFlag::GuitarAutoCharging => 30,
+        HwCtlFlag::PhantomPowering => 31,
+        HwCtlFlag::Reserved(pos) => *pos,
     }
 }
+
+fn deserialize_hw_ctl_flag(flag: &mut HwCtlFlag, pos: usize) {
+    *flag = match pos {
+        0 => HwCtlFlag::MixerEnabled,
+        1 => HwCtlFlag::SpdifPro,
+        2 => HwCtlFlag::SpdifNoneAudio,
+        8 => HwCtlFlag::CtlRoomSelect,
+        9 => HwCtlFlag::OutputLevelBypass,
+        12 => HwCtlFlag::MeterInMode,
+        13 => HwCtlFlag::MeterOutMode,
+        18 => HwCtlFlag::SoftClip,
+        29 => HwCtlFlag::GuitarHexInput,
+        30 => HwCtlFlag::GuitarAutoCharging,
+        31 => HwCtlFlag::PhantomPowering,
+        _ => HwCtlFlag::Reserved(pos),
+    };
+}
+
+/// The parameter of flags for hardware control;
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwHwCtlFlags(pub Vec<HwCtlFlag>);
 
 /// Protocol about hardware control for Fireworks board module.
 pub trait HwCtlProtocol: EfwProtocolExtManual {
@@ -140,12 +146,12 @@ pub trait HwCtlProtocol: EfwProtocolExtManual {
         if let Some(flags) = enables {
             args[0] = flags
                 .iter()
-                .fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+                .fold(0, |mask, flag| mask | (1 << serialize_hw_ctl_flag(flag)))
         }
         if let Some(flags) = disables {
             args[1] = flags
                 .iter()
-                .fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+                .fold(0, |mask, flag| mask | (1 << serialize_hw_ctl_flag(flag)));
         }
         self.transaction(
             CATEGORY_HWCTL,
@@ -162,7 +168,11 @@ pub trait HwCtlProtocol: EfwProtocolExtManual {
             .map(|_| {
                 (0..32)
                     .filter(|i| params[0] & (1 << i) > 0)
-                    .map(|i| HwCtlFlag::from(i))
+                    .map(|i| {
+                        let mut flag = HwCtlFlag::default();
+                        deserialize_hw_ctl_flag(&mut flag, i);
+                        flag
+                    })
                     .collect()
             })
     }
@@ -191,3 +201,33 @@ pub trait HwCtlProtocol: EfwProtocolExtManual {
 }
 
 impl<O: EfwProtocolExtManual> HwCtlProtocol for O {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn hw_ctl_flag_serdes() {
+        [
+            HwCtlFlag::MixerEnabled,
+            HwCtlFlag::SpdifPro,
+            HwCtlFlag::SpdifNoneAudio,
+            HwCtlFlag::CtlRoomSelect,
+            HwCtlFlag::OutputLevelBypass,
+            HwCtlFlag::MeterInMode,
+            HwCtlFlag::MeterOutMode,
+            HwCtlFlag::SoftClip,
+            HwCtlFlag::GuitarHexInput,
+            HwCtlFlag::GuitarAutoCharging,
+            HwCtlFlag::PhantomPowering,
+            HwCtlFlag::default(),
+        ]
+        .iter()
+        .for_each(|flag| {
+            let val = serialize_hw_ctl_flag(&flag);
+            let mut f = HwCtlFlag::default();
+            deserialize_hw_ctl_flag(&mut f, val);
+            assert_eq!(*flag, f);
+        });
+    }
+}

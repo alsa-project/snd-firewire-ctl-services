@@ -91,19 +91,20 @@ impl CtlModel<SndEfw> for EfwModel {
         self.meter_ctl.load(&self.hw_info, card_cntr)?;
         self.guitar_ctl
             .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
-        self.iec60958_ctl.load(&self.hw_info, card_cntr)?;
+        self.iec60958_ctl
+            .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut SndEfw,
+        _: &mut SndEfw,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -113,10 +114,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.guitar_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .iec60958_ctl
-            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -142,10 +140,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.guitar_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self
-            .iec60958_ctl
-            .write(unit, elem_id, old, new, TIMEOUT_MS)?
-        {
+        } else if self.iec60958_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

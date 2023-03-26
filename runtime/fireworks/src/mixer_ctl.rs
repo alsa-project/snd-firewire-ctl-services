@@ -13,6 +13,7 @@ pub struct MixerCtl {
     playback_params: EfwPlaybackParameters,
     playback_solo_params: EfwPlaybackSoloParameters,
     monitor_params: EfwMonitorParameters,
+    flags: EfwHwCtlFlags,
 }
 
 const PLAYBACK_VOL_NAME: &str = "playback-volume";
@@ -78,10 +79,12 @@ impl MixerCtl {
                         .map(|enabled| src.solos.push(enabled))?;
                     unit.get_monitor_pan(i, j, timeout_ms)
                         .map(|pan| src.pans.push(pan))?;
-                    Ok(())
+                    Ok::<(), Error>(())
                 })
                 .map(|_| self.monitor_params.0.push(src))
-        })
+        })?;
+
+        unit.get_flags(timeout_ms).map(|flags| self.flags.0 = flags)
     }
 
     pub fn load(
@@ -176,13 +179,7 @@ impl MixerCtl {
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-        unit: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
                 elem_value.set_int(&self.playback_params.volumes);
@@ -234,13 +231,13 @@ impl MixerCtl {
                 Ok(true)
             }
             ENABLE_MIXER => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    let flags = unit.get_flags(timeout_ms)?;
-                    Ok(flags
-                        .iter()
-                        .find(|&flag| *flag == HwCtlFlag::MixerEnabled)
-                        .is_some())
-                })?;
+                let val = self
+                    .flags
+                    .0
+                    .iter()
+                    .find(|&flag| *flag == HwCtlFlag::MixerEnabled)
+                    .is_some();
+                elem_value.set_bool(&[val]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -365,27 +362,26 @@ impl MixerCtl {
                     .map(|_| true)
             }
             ENABLE_MIXER => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    if val {
-                        let flags = [HwCtlFlag::MixerEnabled];
-                        unit.set_flags(Some(&flags), None, timeout_ms)?;
-                    } else {
-                        let flags = [HwCtlFlag::MixerEnabled];
-                        unit.set_flags(None, Some(&flags), timeout_ms)?;
-                    }
+                let val = elem_value.boolean()[0];
+                let flags = [HwCtlFlag::MixerEnabled];
+                if val {
+                    unit.set_flags(Some(&flags), None, timeout_ms)
+                        .map(|_| self.flags.0.push(HwCtlFlag::MixerEnabled))?;
+                } else {
+                    unit.set_flags(None, Some(&flags), timeout_ms)
+                        .map(|_| self.flags.0.retain(|flag| HwCtlFlag::MixerEnabled.eq(flag)))?;
+                }
 
-                    // The above operation immediately has an effect for DSP model, but not for FPGA
-                    // model. For workaround, configure each monitor with input 0 to activate the
-                    // configuration.
-                    if self.has_fpga {
-                        (0..self.monitor_params.0.len()).try_for_each(|src| {
-                            let vol = unit.get_monitor_vol(0, src, timeout_ms)?;
-                            unit.set_monitor_vol(0, src, vol, timeout_ms)
-                        })?;
-                    }
+                // The above operation immediately has an effect for DSP model, but not for FPGA
+                // model. For workaround, configure each monitor with input 0 to activate the
+                // configuration.
+                if self.has_fpga {
+                    (0..self.monitor_params.0.len()).try_for_each(|src| {
+                        let vol = unit.get_monitor_vol(0, src, timeout_ms)?;
+                        unit.set_monitor_vol(0, src, vol, timeout_ms)
+                    })?;
+                }
 
-                    Ok(())
-                })?;
                 Ok(true)
             }
             _ => Ok(false),

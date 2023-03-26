@@ -7,7 +7,7 @@ use {
 };
 
 #[derive(Default)]
-pub struct Iec60958Ctl;
+pub struct Iec60958Ctl(EfwHwCtlFlags);
 
 const DEFAULT_NAME: &str = "IEC958 Playback Default";
 const MASK_NAME: &str = "IEC958 Playback Mask";
@@ -16,7 +16,19 @@ impl Iec60958Ctl {
     const AES0_PROFESSIONAL: u8 = 0x1;
     const AES0_NONAUDIO: u8 = 0x2;
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
+        unit.get_flags(timeout_ms).map(|flags| self.0 .0 = flags)
+    }
+
+    pub fn load(
+        &mut self,
+        hwinfo: &HwInfo,
+        unit: &mut SndEfw,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.cache(unit, timeout_ms)?;
+
         let has_spdif = hwinfo
             .clk_srcs
             .iter()
@@ -34,25 +46,22 @@ impl Iec60958Ctl {
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-        unit: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             DEFAULT_NAME => {
                 let mut val = [0; 24];
-                let flags = unit.get_flags(timeout_ms)?;
-                if flags
+                if self
+                    .0
+                     .0
                     .iter()
                     .find(|&flag| *flag == HwCtlFlag::SpdifPro)
                     .is_some()
                 {
                     val[0] |= Self::AES0_PROFESSIONAL;
                 }
-                if flags
+                if self
+                    .0
+                     .0
                     .iter()
                     .find(|&flag| *flag == HwCtlFlag::SpdifNoneAudio)
                     .is_some()
@@ -76,13 +85,12 @@ impl Iec60958Ctl {
         &mut self,
         unit: &mut SndEfw,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             DEFAULT_NAME => {
-                let vals = new.iec60958_channel_status();
+                let vals = elem_value.iec60958_channel_status();
 
                 let mut enable = vec![];
                 let mut disable = vec![];
@@ -97,7 +105,17 @@ impl Iec60958Ctl {
                     disable.push(HwCtlFlag::SpdifNoneAudio);
                 }
 
-                unit.set_flags(Some(&enable), Some(&disable), timeout_ms)?;
+                unit.set_flags(Some(&enable), Some(&disable), timeout_ms)
+                    .map(|_| {
+                        enable.iter().for_each(|&flag| {
+                            if self.0 .0.iter().find(|f| flag.eq(f)).is_none() {
+                                self.0 .0.push(flag);
+                            }
+                        });
+                        disable.iter().for_each(|&flag| {
+                            self.0 .0.retain(|f| flag.eq(f));
+                        });
+                    })?;
                 Ok(true)
             }
             _ => Ok(false),
