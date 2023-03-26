@@ -22,6 +22,7 @@ use {
     },
     hitaki::{prelude::*, SndEfw},
     nix::sys::signal,
+    protocols::HwCap,
     std::{sync::mpsc, thread, time},
 };
 
