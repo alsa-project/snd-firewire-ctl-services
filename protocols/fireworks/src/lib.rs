@@ -65,6 +65,35 @@ pub trait EfwHardwareSpecification {
     }
 }
 
+/// Cache whole parameters.
+pub trait EfwWhollyCachableParamsOperation<P, T>
+where
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(proto: &mut P, states: &mut T, timeout_ms: u32) -> Result<(), Error>;
+}
+
+/// Update the part of parameters.
+pub trait EfwPartiallyUpdatableParamsOperation<P, T>
+where
+    P: EfwProtocolExtManual,
+{
+    fn update_partially(
+        proto: &mut P,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// Update whole parameters.
+pub trait EfwWhollyUpdatableParamsOperation<P, T>
+where
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &T, timeout_ms: u32) -> Result<(), Error>;
+}
+
 /// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkSrc {
