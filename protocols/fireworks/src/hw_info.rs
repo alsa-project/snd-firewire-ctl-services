@@ -333,6 +333,43 @@ where
     }
 }
 
+/// The parameter of session block.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwSessionBlock {
+    /// The offset in session block.
+    pub offset: u32,
+    /// The content of session block.
+    pub data: Vec<u32>,
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwSessionBlock> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwSessionBlock,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(states.offset % 4, 0);
+        assert_eq!(states.data.len() % 4, 0);
+
+        // The first argument should be quadlet count.
+        let args = [states.offset / 4, states.data.len() as u32];
+        let mut params = vec![0; 2 + states.data.len()];
+        proto
+            .transaction(
+                CATEGORY_HWINFO,
+                CMD_READ_SESSION_BLOCK,
+                &args,
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| states.data.copy_from_slice(&params[2..]))
+    }
+}
+
 /// Protocol about hardware information for Fireworks board module.
 pub trait HwInfoProtocol: EfwProtocolExtManual {
     /// Read hardware information.
