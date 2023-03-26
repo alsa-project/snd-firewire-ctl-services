@@ -181,6 +181,85 @@ fn deserialize_digital_mode(val: u32) -> EfwDigitalMode {
     }
 }
 
+/// The specification for mode of digital input and output.
+pub trait EfwDigitalModeSpecification: EfwHardwareSpecification {
+    const DIG_MODES: &'static [(HwCap, EfwDigitalMode)] = &[
+        (HwCap::OptionalSpdifCoax, EfwDigitalMode::SpdifCoax),
+        (HwCap::OptionalAesebuXlr, EfwDigitalMode::AesebuXlr),
+        (HwCap::OptionalSpdifOpt, EfwDigitalMode::SpdifOpt),
+        (HwCap::OptionalAdatOpt, EfwDigitalMode::AdatOpt),
+    ];
+
+    fn create_digital_mode() -> EfwDigitalMode {
+        Self::DIG_MODES
+            .iter()
+            .find(|(cap, _)| Self::CAPABILITIES.iter().find(|c| cap.eq(c)).is_some())
+            .map(|(_, mode)| *mode)
+            .unwrap()
+    }
+
+    fn create_digital_modes() -> Vec<EfwDigitalMode> {
+        Self::DIG_MODES
+            .iter()
+            .filter(|(cap, _)| Self::CAPABILITIES.iter().find(|c| cap.eq(c)).is_some())
+            .map(|(_, mode)| *mode)
+            .collect()
+    }
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwDigitalMode> for O
+where
+    O: EfwDigitalModeSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwDigitalMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(Self::CAPABILITIES
+            .iter()
+            .find(|cap| Self::DIG_MODES.iter().find(|(c, _)| c.eq(cap)).is_some())
+            .is_some());
+
+        let args = Vec::new();
+        let mut params = vec![0];
+        proto
+            .transaction(
+                CATEGORY_PORT_CONF,
+                CMD_GET_DIG_MODE,
+                &args,
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| *states = deserialize_digital_mode(params[0]))
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwDigitalMode> for O
+where
+    O: EfwDigitalModeSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &EfwDigitalMode, timeout_ms: u32) -> Result<(), Error> {
+        assert!(Self::CAPABILITIES
+            .iter()
+            .find(|cap| Self::DIG_MODES.iter().find(|(c, _)| c.eq(cap)).is_some())
+            .is_some());
+
+        let mut args = [0];
+        let mut params = Vec::new();
+        serialize_digital_mode(&states, &mut args[0]);
+        proto.transaction(
+            CATEGORY_PORT_CONF,
+            CMD_SET_DIG_MODE,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// The parameters for phantom powering.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EfwPhantomPowering(pub bool);
