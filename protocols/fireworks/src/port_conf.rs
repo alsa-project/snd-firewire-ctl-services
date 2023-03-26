@@ -67,6 +67,16 @@ fn deserialize_digital_mode(val: u32) -> EfwDigitalMode {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EfwPhantomPowering(pub bool);
 
+/// Mapping between rx stream channel pairs and physical output channel pairs per mode of sampling
+/// transfer frequency.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwRxStreamMaps(pub Vec<Vec<Option<usize>>>);
+
+/// Mapping between tx stream channel pairs and physical input channel pairs per mode of sampling
+/// transfer frequency.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwTxStreamMaps(pub Vec<Vec<Option<usize>>>);
+
 const MAP_SIZE: usize = 70;
 const MAP_ENTRY_COUNT: usize = 32;
 const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
