@@ -14,7 +14,7 @@ const CMD_SET_CHARGE_STATE: u32 = 7;
 const CMD_GET_CHARGE_STATE: u32 = 8;
 
 /// State of charging for Robot Guitar.
-#[derive(Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct GuitarChargeState {
     pub manual_charge: bool,
     pub auto_charge: bool,

@@ -89,7 +89,8 @@ impl CtlModel<SndEfw> for EfwModel {
             TIMEOUT_MS,
         )?;
         self.meter_ctl.load(&self.hw_info, card_cntr)?;
-        self.guitar_ctl.load(&self.hw_info, card_cntr)?;
+        self.guitar_ctl
+            .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
         self.iec60958_ctl.load(&self.hw_info, card_cntr)?;
         Ok(())
     }
@@ -110,10 +111,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.port_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .guitar_ctl
-            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.guitar_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .iec60958_ctl
@@ -142,7 +140,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.port_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.guitar_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.guitar_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self
             .iec60958_ctl
