@@ -26,8 +26,7 @@ glib::wrapper! {
 
 impl EfwTransaction {
     pub fn new() -> Self {
-        Object::new(&[])
-            .expect("Failed to create EfwTransaction")
+        Object::new(&[]).expect("Failed to create EfwTransaction")
     }
 
     pub fn bind(&self, node: &FwNode) -> Result<(), Error> {
@@ -46,7 +45,7 @@ impl EfwTransaction {
 }
 
 mod imp {
-    use {once_cell::sync::Lazy, super::*};
+    use {super::*, once_cell::sync::Lazy};
 
     pub const COMMAND_OFFSET: u64 = 0xecc000000000;
     pub const RESPONSE_OFFSET: u64 = 0xecc080000000;
@@ -70,15 +69,13 @@ mod imp {
     impl ObjectImpl for EfwTransactionPrivate {
         fn properties() -> &'static [ParamSpec] {
             static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
-                vec![
-                    ParamSpecObject::new(
-                        "node",
-                        "node",
-                        "An instance of FwNode",
-                        FwNode::static_type(),
-                        ParamFlags::READWRITE,
-                    ),
-                ]
+                vec![ParamSpecObject::new(
+                    "node",
+                    "node",
+                    "An instance of FwNode",
+                    FwNode::static_type(),
+                    ParamFlags::READWRITE,
+                )]
             });
 
             PROPERTIES.as_ref()

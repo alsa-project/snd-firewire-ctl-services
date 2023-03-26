@@ -10,6 +10,7 @@ const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct EfwModel {
+    hw_info: HwInfo,
     clk_ctl: clk_ctl::ClkCtl,
     mixer_ctl: mixer_ctl::MixerCtl,
     output_ctl: output_ctl::OutputCtl,
@@ -70,17 +71,24 @@ impl EfwModel {
 
 impl CtlModel<SndEfw> for EfwModel {
     fn load(&mut self, unit: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut hwinfo = HwInfo::default();
-        unit.get_hw_info(&mut hwinfo, TIMEOUT_MS)?;
-        self.clk_ctl.load(&hwinfo, card_cntr, unit, TIMEOUT_MS)?;
-        self.mixer_ctl.load(&hwinfo, card_cntr)?;
-        self.output_ctl.load(&hwinfo, card_cntr)?;
-        self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
-        self.port_ctl
-            .load(&hwinfo, card_cntr, unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
-        self.meter_ctl.load(&hwinfo, card_cntr)?;
-        self.guitar_ctl.load(&hwinfo, card_cntr)?;
-        self.iec60958_ctl.load(&hwinfo, card_cntr)?;
+        self.hw_info = HwInfo::default();
+        unit.get_hw_info(&mut self.hw_info, TIMEOUT_MS)?;
+        self.clk_ctl
+            .load(&self.hw_info, card_cntr, unit, TIMEOUT_MS)?;
+        self.mixer_ctl.load(&self.hw_info, card_cntr)?;
+        self.output_ctl.load(&self.hw_info, card_cntr)?;
+        self.input_ctl
+            .load(unit, &self.hw_info, card_cntr, TIMEOUT_MS)?;
+        self.port_ctl.load(
+            &self.hw_info,
+            card_cntr,
+            unit,
+            self.clk_ctl.curr_rate,
+            TIMEOUT_MS,
+        )?;
+        self.meter_ctl.load(&self.hw_info, card_cntr)?;
+        self.guitar_ctl.load(&self.hw_info, card_cntr)?;
+        self.iec60958_ctl.load(&self.hw_info, card_cntr)?;
         Ok(())
     }
 
