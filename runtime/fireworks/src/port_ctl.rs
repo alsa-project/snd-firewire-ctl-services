@@ -36,6 +36,7 @@ fn digital_mode_to_str(mode: &EfwDigitalMode) -> &'static str {
 pub struct PortCtl {
     control_room_source: EfwControlRoomSource,
     digital_mode: EfwDigitalMode,
+    phantom_powering: EfwPhantomPowering,
     dig_modes: Vec<EfwDigitalMode>,
     pub notified_elem_id_list: Vec<ElemId>,
     curr_rate: u32,
@@ -262,6 +263,16 @@ impl PortCtl {
         if hw_info
             .caps
             .iter()
+            .position(|cap| *cap == HwCap::PhantomPowering)
+            .is_some()
+        {
+            unit.get_phantom_powering(timeout_ms)
+                .map(|enabled| self.phantom_powering.0 = enabled)?;
+        }
+
+        if hw_info
+            .caps
+            .iter()
             .find(|cap| HwCap::OutputMapping.eq(cap) || HwCap::InputMapping.eq(cap))
             .is_some()
         {
@@ -279,13 +290,7 @@ impl PortCtl {
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-        unit: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CONTROL_ROOM_SOURCE_NAME => {
                 elem_value.set_enum(&[self.control_room_source.0 as u32]);
@@ -301,21 +306,9 @@ impl PortCtl {
                 Ok(true)
             }
             PHANTOM_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    unit.get_phantom_powering(timeout_ms)
-                })?;
+                elem_value.set_bool(&[self.phantom_powering.0]);
                 Ok(true)
             }
-            _ => self.read_notified_elem(elem_id, elem_value),
-        }
-    }
-
-    pub fn read_notified_elem(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
             RX_MAP_NAME => {
                 enum_values_from_entries(elem_value, &self.rx_stream_map);
                 Ok(true)
@@ -354,9 +347,9 @@ impl PortCtl {
                 Ok(true)
             }
             PHANTOM_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    unit.set_phantom_powering(val, timeout_ms)
-                })?;
+                let val = new.boolean()[0];
+                unit.set_phantom_powering(val, timeout_ms)
+                    .map(|_| self.phantom_powering.0 = val)?;
                 Ok(true)
             }
             RX_MAP_NAME => {

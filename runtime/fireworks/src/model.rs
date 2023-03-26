@@ -109,7 +109,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.input_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.port_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.port_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .guitar_ctl
@@ -198,7 +198,7 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.port_ctl.read_notified_elem(elem_id, elem_value)? {
+        } else if self.port_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

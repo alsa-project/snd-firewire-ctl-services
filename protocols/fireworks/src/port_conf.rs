@@ -63,6 +63,10 @@ fn deserialize_digital_mode(val: u32) -> EfwDigitalMode {
     }
 }
 
+/// The parameters for phantom powering.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwPhantomPowering(pub bool);
+
 const MAP_SIZE: usize = 70;
 const MAP_ENTRY_COUNT: usize = 32;
 const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
