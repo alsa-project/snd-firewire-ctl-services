@@ -163,6 +163,8 @@ impl EfwHardwareSpecification for Audiofire4Protocol {
         &[(PhysGroupType::Analog, 4), (PhysGroupType::Spdif, 2)];
 }
 
+impl EfwPhantomPoweringSpecification for Audiofire4Protocol {}
+
 /// Protocol implementation for Audiofire 2.
 #[derive(Default, Debug)]
 pub struct Audiofire2Protocol;

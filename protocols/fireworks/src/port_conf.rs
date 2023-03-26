@@ -264,6 +264,55 @@ where
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EfwPhantomPowering(pub bool);
 
+/// The specification for mode of digital input and output.
+pub trait EfwPhantomPoweringSpecification: EfwHardwareSpecification {}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwPhantomPowering> for O
+where
+    O: EfwPhantomPoweringSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwPhantomPowering,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = vec![0];
+        proto
+            .transaction(
+                CATEGORY_PORT_CONF,
+                CMD_GET_PHANTOM,
+                &args,
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| states.0 = params[0] > 0)
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwPhantomPowering> for O
+where
+    O: EfwPhantomPoweringSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(
+        proto: &mut P,
+        states: &EfwPhantomPowering,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = [states.0 as u32];
+        let mut params = Vec::new();
+        proto.transaction(
+            CATEGORY_PORT_CONF,
+            CMD_SET_PHANTOM,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Mapping between rx stream channel pairs and physical output channel pairs per mode of sampling
 /// transfer frequency.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
