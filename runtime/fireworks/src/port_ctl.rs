@@ -34,6 +34,7 @@ fn digital_mode_to_str(mode: &DigitalMode) -> &'static str {
 
 #[derive(Default)]
 pub struct PortCtl {
+    control_room_source: EfwControlRoomSource,
     dig_modes: Vec<DigitalMode>,
     pub notified_elem_id_list: Vec<ElemId>,
     curr_rate: u32,
@@ -105,10 +106,12 @@ impl PortCtl {
         curr_rate: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        self.cache(hwinfo, unit, curr_rate, timeout_ms)?;
+
         if hwinfo
             .caps
             .iter()
-            .find(|&cap| *cap == HwCap::ControlRoom)
+            .find(|cap| HwCap::ControlRoom.eq(cap))
             .is_some()
         {
             let labels = hwinfo
@@ -191,8 +194,6 @@ impl PortCtl {
             self.tx_stream_map = vec![Default::default(); self.tx_stream_pair_counts[0]];
             self.rx_stream_map = vec![Default::default(); self.rx_stream_pair_counts[0]];
 
-            self.cache(unit, curr_rate, timeout_ms)?;
-
             if has_tx_mapping {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TX_MAP_NAME, 0);
                 card_cntr
@@ -231,19 +232,40 @@ impl PortCtl {
 
     pub fn cache(
         &mut self,
+        hw_info: &HwInfo,
         unit: &mut SndEfw,
         curr_rate: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        unit.get_stream_map(
-            curr_rate,
-            self.phys_out_pairs,
-            self.phys_in_pairs,
-            &mut self.rx_stream_map,
-            &mut self.tx_stream_map,
-            timeout_ms,
-        )
-        .map(|_| self.curr_rate = curr_rate)
+        if hw_info
+            .caps
+            .iter()
+            .find(|cap| HwCap::ControlRoom.eq(cap))
+            .is_some()
+        {
+            unit.get_control_room_source(timeout_ms).map(|src| {
+                self.control_room_source.0 = src;
+            })?;
+        }
+
+        if hw_info
+            .caps
+            .iter()
+            .find(|cap| HwCap::OutputMapping.eq(cap) || HwCap::InputMapping.eq(cap))
+            .is_some()
+        {
+            unit.get_stream_map(
+                curr_rate,
+                self.phys_out_pairs,
+                self.phys_in_pairs,
+                &mut self.rx_stream_map,
+                &mut self.tx_stream_map,
+                timeout_ms,
+            )
+            .map(|_| self.curr_rate = curr_rate)?;
+        }
+
+        Ok(())
     }
 
     pub fn read(
@@ -255,10 +277,7 @@ impl PortCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CONTROL_ROOM_SOURCE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pair = unit.get_control_room_source(timeout_ms)?;
-                    Ok(pair as u32)
-                })?;
+                elem_value.set_enum(&[self.control_room_source.0 as u32]);
                 Ok(true)
             }
             DIG_MODE_NAME => {
@@ -310,9 +329,9 @@ impl PortCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CONTROL_ROOM_SOURCE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    unit.set_control_room_source(val as usize, timeout_ms)
-                })?;
+                let pos = new.enumerated()[0] as usize;
+                unit.set_control_room_source(pos, timeout_ms)
+                    .map(|_| self.control_room_source.0 = pos)?;
                 Ok(true)
             }
             DIG_MODE_NAME => {

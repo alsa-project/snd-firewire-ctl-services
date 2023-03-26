@@ -185,7 +185,7 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
         if locked {
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
             self.port_ctl
-                .cache(unit, self.clk_ctl.params.rate, TIMEOUT_MS)?;
+                .cache(&self.hw_info, unit, self.clk_ctl.params.rate, TIMEOUT_MS)?;
         }
         Ok(())
     }

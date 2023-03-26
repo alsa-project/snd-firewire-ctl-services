@@ -19,6 +19,10 @@ const CMD_GET_PHANTOM: u32 = 5;
 const CMD_SET_STREAM_MAP: u32 = 6;
 const CMD_GET_STREAM_MAP: u32 = 7;
 
+/// The parameters for source of control room.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwControlRoomSource(pub usize);
+
 /// Type of audio signal for dignal input and output.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DigitalMode {
