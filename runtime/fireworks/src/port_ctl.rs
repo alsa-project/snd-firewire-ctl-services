@@ -22,20 +22,21 @@ fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {
     }
 }
 
-fn digital_mode_to_str(mode: &DigitalMode) -> &'static str {
+fn digital_mode_to_str(mode: &EfwDigitalMode) -> &'static str {
     match mode {
-        DigitalMode::SpdifCoax => "S/PDIF-Coaxial",
-        DigitalMode::AesebuXlr => "AES/EBU-XLR",
-        DigitalMode::SpdifOpt => "S/PDIF-Optical",
-        DigitalMode::AdatOpt => "ADAT-Optical",
-        DigitalMode::Unknown(_) => "Unknown",
+        EfwDigitalMode::SpdifCoax => "S/PDIF-Coaxial",
+        EfwDigitalMode::AesebuXlr => "AES/EBU-XLR",
+        EfwDigitalMode::SpdifOpt => "S/PDIF-Optical",
+        EfwDigitalMode::AdatOpt => "ADAT-Optical",
+        EfwDigitalMode::Unknown(_) => "Unknown",
     }
 }
 
 #[derive(Default)]
 pub struct PortCtl {
     control_room_source: EfwControlRoomSource,
-    dig_modes: Vec<DigitalMode>,
+    digital_mode: EfwDigitalMode,
+    dig_modes: Vec<EfwDigitalMode>,
     pub notified_elem_id_list: Vec<ElemId>,
     curr_rate: u32,
     phys_in_pairs: usize,
@@ -90,14 +91,14 @@ fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>])
     });
 }
 
-impl PortCtl {
-    const DIG_MODES: [(HwCap, DigitalMode); 4] = [
-        (HwCap::OptionalSpdifCoax, DigitalMode::SpdifCoax),
-        (HwCap::OptionalAesebuXlr, DigitalMode::AesebuXlr),
-        (HwCap::OptionalSpdifOpt, DigitalMode::SpdifOpt),
-        (HwCap::OptionalAdatOpt, DigitalMode::AdatOpt),
-    ];
+const DIG_MODES: [(HwCap, EfwDigitalMode); 4] = [
+    (HwCap::OptionalSpdifCoax, EfwDigitalMode::SpdifCoax),
+    (HwCap::OptionalAesebuXlr, EfwDigitalMode::AesebuXlr),
+    (HwCap::OptionalSpdifOpt, EfwDigitalMode::SpdifOpt),
+    (HwCap::OptionalAdatOpt, EfwDigitalMode::AdatOpt),
+];
 
+impl PortCtl {
     pub fn load(
         &mut self,
         hwinfo: &HwInfo,
@@ -136,7 +137,7 @@ impl PortCtl {
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
-        Self::DIG_MODES.iter().for_each(|(cap, mode)| {
+        DIG_MODES.iter().for_each(|(cap, mode)| {
             if hwinfo.caps.iter().find(|&c| *c == *cap).is_some() {
                 self.dig_modes.push(*mode);
             }
@@ -248,6 +249,16 @@ impl PortCtl {
             })?;
         }
 
+        if DIG_MODES
+            .iter()
+            .find(|(cap, _)| hw_info.caps.iter().find(|c| cap.eq(c)).is_some())
+            .is_some()
+        {
+            unit.get_digital_mode(timeout_ms).map(|mode| {
+                self.digital_mode = mode;
+            })?;
+        }
+
         if hw_info
             .caps
             .iter()
@@ -281,14 +292,12 @@ impl PortCtl {
                 Ok(true)
             }
             DIG_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mode = unit.get_digital_mode(timeout_ms)?;
-                    if let Some(pos) = self.dig_modes.iter().position(|&m| m == mode) {
-                        Ok(pos as u32)
-                    } else {
-                        unreachable!();
-                    }
-                })?;
+                let pos = self
+                    .dig_modes
+                    .iter()
+                    .position(|m| self.digital_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             PHANTOM_NAME => {
@@ -335,14 +344,13 @@ impl PortCtl {
                 Ok(true)
             }
             DIG_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    if self.dig_modes.len() > val as usize {
-                        unit.set_digital_mode(self.dig_modes[val as usize], timeout_ms)
-                    } else {
-                        let label = "Invalid value for digital mode";
-                        Err(Error::new(FileError::Inval, &label))
-                    }
+                let pos = new.enumerated()[0] as usize;
+                let mode = self.dig_modes.iter().nth(pos).copied().ok_or_else(|| {
+                    let label = "Invalid value for digital mode";
+                    Error::new(FileError::Inval, &label)
                 })?;
+                unit.set_digital_mode(mode, timeout_ms)
+                    .map(|_| self.digital_mode = mode)?;
                 Ok(true)
             }
             PHANTOM_NAME => {
