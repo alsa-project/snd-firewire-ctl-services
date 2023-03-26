@@ -29,43 +29,39 @@ pub enum ClkSrc {
     Adat,
     Adat2,
     Continuous,
-    Reserved(usize),
+    Reserved(u32),
 }
 
 impl Default for ClkSrc {
     fn default() -> Self {
-        Self::Reserved(usize::MAX)
+        Self::Reserved(u32::MAX)
     }
 }
 
-impl From<ClkSrc> for usize {
-    fn from(src: ClkSrc) -> Self {
-        match src {
-            ClkSrc::Internal => 0,
-            // blank.
-            ClkSrc::WordClock => 2,
-            ClkSrc::Spdif => 3,
-            ClkSrc::Adat => 4,
-            ClkSrc::Adat2 => 5,
-            ClkSrc::Continuous => 6,
-            ClkSrc::Reserved(val) => val,
-        }
+fn serialize_clock_source(src: &ClkSrc) -> u32 {
+    match src {
+        ClkSrc::Internal => 0,
+        // blank.
+        ClkSrc::WordClock => 2,
+        ClkSrc::Spdif => 3,
+        ClkSrc::Adat => 4,
+        ClkSrc::Adat2 => 5,
+        ClkSrc::Continuous => 6,
+        ClkSrc::Reserved(val) => *val,
     }
 }
 
-impl From<usize> for ClkSrc {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => ClkSrc::Internal,
-            // blank.
-            2 => ClkSrc::WordClock,
-            3 => ClkSrc::Spdif,
-            4 => ClkSrc::Adat,
-            5 => ClkSrc::Adat2,
-            6 => ClkSrc::Continuous,
-            _ => ClkSrc::Reserved(val),
-        }
-    }
+fn deserialize_clock_source(src: &mut ClkSrc, val: u32) {
+    *src = match val {
+        0 => ClkSrc::Internal,
+        // blank.
+        2 => ClkSrc::WordClock,
+        3 => ClkSrc::Spdif,
+        4 => ClkSrc::Adat,
+        5 => ClkSrc::Adat2,
+        6 => ClkSrc::Continuous,
+        _ => ClkSrc::Reserved(val),
+    };
 }
 
 /// Nominal level of audio signal.
@@ -95,5 +91,30 @@ impl From<u32> for NominalSignalLevel {
             1 => NominalSignalLevel::Medium,
             _ => NominalSignalLevel::Professional,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn clock_source_serdes() {
+        [
+            ClkSrc::Internal,
+            ClkSrc::WordClock,
+            ClkSrc::Spdif,
+            ClkSrc::Adat,
+            ClkSrc::Adat2,
+            ClkSrc::Continuous,
+            ClkSrc::default(),
+        ]
+        .iter()
+        .for_each(|src| {
+            let val = serialize_clock_source(&src);
+            let mut s = ClkSrc::default();
+            deserialize_clock_source(&mut s, val);
+            assert_eq!(*src, s);
+        });
     }
 }

@@ -261,7 +261,11 @@ impl HwInfo {
     fn parse_supported_clk_srcs(flags: u32) -> Vec<ClkSrc> {
         (0..6)
             .filter(|&i| (1 << i) & flags > 0)
-            .map(|i| ClkSrc::from(i))
+            .map(|i| {
+                let mut src = ClkSrc::default();
+                deserialize_clock_source(&mut src, i as u32);
+                src
+            })
             .collect()
     }
 
@@ -338,7 +342,10 @@ impl HwMeter {
 
         self.detected_clk_srcs
             .iter_mut()
-            .for_each(|(src, detected)| *detected = (1 << usize::from(*src)) & flags > 0);
+            .for_each(|(src, detected)| {
+                let pos = serialize_clock_source(src);
+                *detected = (1 << pos) & flags > 0
+            });
 
         // I note that quads[1..4] is reserved space and it stores previous set command for FPGA device.
 

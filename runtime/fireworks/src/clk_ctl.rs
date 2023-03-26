@@ -21,8 +21,7 @@ fn clk_src_to_str(src: &ClkSrc) -> &'static str {
 #[derive(Default)]
 pub struct ClkCtl {
     pub notified_elem_id_list: Vec<ElemId>,
-    pub curr_src: ClkSrc,
-    pub curr_rate: u32,
+    pub params: EfwSamplingClockParameters,
     srcs: Vec<ClkSrc>,
     rates: Vec<u32>,
 }
@@ -72,14 +71,14 @@ impl ClkCtl {
             let label = format!("Unexpected value for source of clock: {}", name);
             Err(Error::new(FileError::Io, &label))?;
         } else {
-            self.curr_src = state.0;
+            self.params.source = state.0;
         }
 
         if self.rates.iter().find(|r| state.1.eq(r)).is_none() {
             let label = format!("Unexpected value for rate of clock: {}", state.1);
             Err(Error::new(FileError::Io, &label))?;
         } else {
-            self.curr_rate = state.1;
+            self.params.rate = state.1;
         }
 
         Ok(())
@@ -87,18 +86,24 @@ impl ClkCtl {
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                Ok(self.srcs.iter().position(|s| self.curr_src.eq(s)).unwrap() as u32)
-            })
-            .map(|_| true),
-            RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                Ok(self
+            SRC_NAME => {
+                let pos = self
+                    .srcs
+                    .iter()
+                    .position(|s| self.params.source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            RATE_NAME => {
+                let pos = self
                     .rates
                     .iter()
-                    .position(|r| self.curr_rate.eq(r))
-                    .unwrap() as u32)
-            })
-            .map(|_| true),
+                    .position(|r| self.params.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
@@ -113,32 +118,26 @@ impl ClkCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    if let Some(&src) = self.srcs.iter().nth(val as usize) {
-                        unit.lock()?;
-                        let res = unit.set_clock(Some(src), None, timeout_ms);
-                        let _ = unit.unlock();
-                        res
-                    } else {
-                        let label = "Invalid value for source of clock";
-                        Err(Error::new(FileError::Io, &label))
-                    }
+                let pos = new.enumerated()[0] as usize;
+                let src = self.srcs.iter().nth(pos).copied().ok_or_else(|| {
+                    let label = "Invalid value for source of clock";
+                    Error::new(FileError::Io, &label)
                 })?;
-                Ok(true)
+                unit.lock()?;
+                let res = unit.set_clock(Some(src), None, timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
             }
             RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    if let Some(&rate) = self.rates.iter().nth(val as usize) {
-                        unit.lock()?;
-                        let res = unit.set_clock(None, Some(rate), timeout_ms);
-                        let _ = unit.unlock();
-                        res
-                    } else {
-                        let label = "Invalid value for rate of clock";
-                        Err(Error::new(FileError::Io, &label))
-                    }
+                let pos = new.enumerated()[0] as usize;
+                let rate = self.rates.iter().nth(pos).copied().ok_or_else(|| {
+                    let label = "Invalid value for rate of clock";
+                    Error::new(FileError::Io, &label)
                 })?;
-                Ok(true)
+                unit.lock()?;
+                let res = unit.set_clock(None, Some(rate), timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
