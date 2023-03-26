@@ -78,19 +78,16 @@ impl InputCtl {
         match elem_id.name().as_str() {
             IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_inputs, |idx| {
-                    if let Some(cache) = &self.cache {
-                        // For models with FPGA.
-                        Ok(u32::from(cache[idx]))
+                    let level = if let Some(cache) = &self.cache {
+                        Ok(cache[idx])
                     } else {
-                        // For models with DSP.
-                        let level = unit.get_nominal(idx, timeout_ms)?;
-                        if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level)
-                        {
-                            Ok(pos as u32)
-                        } else {
-                            unreachable!();
-                        }
-                    }
+                        unit.get_nominal(idx, timeout_ms)
+                    }?;
+                    let pos = Self::IN_NOMINAL_LEVELS
+                        .iter()
+                        .position(|l| level.eq(l))
+                        .unwrap();
+                    Ok(pos as u32)
                 })?;
                 Ok(true)
             }
