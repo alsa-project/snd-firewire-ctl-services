@@ -23,6 +23,124 @@ const CMD_GET_STREAM_MAP: u32 = 7;
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EfwControlRoomSource(pub usize);
 
+const CONTROL_ROOM_SOURCES: &[PhysGroupType] = &[
+    PhysGroupType::Analog,
+    PhysGroupType::Headphones,
+    PhysGroupType::Spdif,
+];
+
+/// The specification of control room operation.
+pub trait EfwControlRoomSpecification: EfwHardwareSpecification {
+    fn control_room_source_pairs() -> Vec<(PhysGroupType, usize)> {
+        Self::PHYS_OUTPUT_GROUPS
+            .iter()
+            .filter(|(group_type, _)| {
+                CONTROL_ROOM_SOURCES
+                    .iter()
+                    .find(|t| group_type.eq(t))
+                    .is_some()
+            })
+            .flat_map(|&(group_type, count)| {
+                let entries: Vec<(PhysGroupType, usize)> =
+                    (0..count).step_by(2).map(|i| (group_type, i)).collect();
+                entries
+            })
+            .collect()
+    }
+}
+
+fn phys_group_pairs(groups: &[(PhysGroupType, usize)]) -> Vec<(PhysGroupType, usize)> {
+    groups
+        .iter()
+        .flat_map(|&(group_type, count)| {
+            let entries: Vec<(PhysGroupType, usize)> =
+                (0..count).step_by(2).map(|pos| (group_type, pos)).collect();
+            entries
+        })
+        .collect()
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwControlRoomSource> for O
+where
+    O: EfwControlRoomSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwControlRoomSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = vec![0];
+        proto.transaction(
+            CATEGORY_PORT_CONF,
+            CMD_GET_MIRROR,
+            &args,
+            &mut params,
+            timeout_ms,
+        )?;
+        let pos = (params[0] / 2) as usize;
+        let entries = phys_group_pairs(Self::PHYS_OUTPUT_GROUPS);
+        let entry = entries.iter().nth(pos).ok_or_else(|| {
+            let msg = format!("Unexpected value {} for source of control room", pos);
+            Error::new(FileError::Nxio, &msg)
+        })?;
+
+        states.0 = Self::control_room_source_pairs()
+            .iter()
+            .position(|e| entry.eq(e))
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Unexpected entry for source of control room: {:?},{}",
+                    entry.0, entry.1
+                );
+                Error::new(FileError::Nxio, &msg)
+            })?;
+
+        Ok(())
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwControlRoomSource> for O
+where
+    O: EfwControlRoomSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(
+        proto: &mut P,
+        states: &EfwControlRoomSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let pairs = Self::control_room_source_pairs();
+        let entry = pairs.iter().nth(states.0).ok_or_else(|| {
+            let msg = format!("Invalid value for source of control room: {}", states.0);
+            Error::new(FileError::Inval, &msg)
+        })?;
+
+        let pos = phys_group_pairs(Self::PHYS_OUTPUT_GROUPS)
+            .iter()
+            .position(|e| entry.eq(&e))
+            .map(|pos| pos * 2)
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Invalid entry for source of control room: {:?},{}",
+                    entry.0, entry.1
+                );
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let args = [pos as u32];
+        let mut params = Vec::new();
+        proto.transaction(
+            CATEGORY_PORT_CONF,
+            CMD_SET_MIRROR,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Type of audio signal for dignal input and output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EfwDigitalMode {
