@@ -56,6 +56,8 @@ impl EfwHardwareSpecification for Onyx1200fProtocol {
 
 impl EfwControlRoomSpecification for Onyx1200fProtocol {}
 
+impl EfwDigitalModeSpecification for Onyx1200fProtocol {}
+
 /// Protocol implementation for Mackie Onyx 400F. The higher sampling rates are available only with
 /// firmware version 4 and former.
 #[derive(Default, Debug)]

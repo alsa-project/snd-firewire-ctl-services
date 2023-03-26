@@ -6,7 +6,7 @@
 //! The module includes protocol about port configuration defined by Echo Audio Digital Corporation
 //! for Audiofire.
 
-use super::*;
+use super::{port_conf::*, *};
 
 /// Protocol implementation for former model of AudioFire 12. The higher sampling rates are
 /// available only with firmware version 4 and former.
@@ -131,6 +131,8 @@ impl EfwHardwareSpecification for Audiofire9Protocol {
     const PHYS_OUTPUT_GROUPS: &'static [(PhysGroupType, usize)] =
         &[(PhysGroupType::Analog, 8), (PhysGroupType::SpdifOrAdat, 8)];
 }
+
+impl EfwDigitalModeSpecification for Audiofire9Protocol {}
 
 /// Protocol implementation for Audiofire 4.
 #[derive(Default, Debug)]
