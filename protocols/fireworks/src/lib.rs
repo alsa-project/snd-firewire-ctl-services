@@ -25,6 +25,7 @@ use {
     hitaki::{prelude::EfwProtocolExtManual, EfwProtocolError},
     hw_info::HwMeter,
     monitor::{EfwMonitorParameters, EfwMonitorSourceParameters},
+    phys_output::EfwOutputParameters,
 };
 
 /// The specification of hardware.
@@ -92,6 +93,13 @@ pub trait EfwHardwareSpecification {
             };
             Self::MONITOR_DESTINATION_COUNT
         ])
+    }
+
+    fn create_output_parameters() -> EfwOutputParameters {
+        EfwOutputParameters {
+            volumes: vec![Default::default(); Self::phys_output_count()],
+            mutes: vec![Default::default(); Self::phys_output_count()],
+        }
     }
 }
 
