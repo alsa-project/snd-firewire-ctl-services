@@ -38,14 +38,12 @@ pub struct PortCtl {
     digital_mode: EfwDigitalMode,
     phantom_powering: EfwPhantomPowering,
     dig_modes: Vec<EfwDigitalMode>,
+    tx_stream_maps: EfwTxStreamMaps,
+    rx_stream_maps: EfwRxStreamMaps,
     pub notified_elem_id_list: Vec<ElemId>,
     curr_rate: u32,
     phys_in_pairs: usize,
     phys_out_pairs: usize,
-    tx_stream_pair_counts: [usize; 3],
-    rx_stream_pair_counts: [usize; 3],
-    tx_stream_map: Vec<Option<usize>>,
-    rx_stream_map: Vec<Option<usize>>,
 }
 
 const CONTROL_ROOM_SOURCE_NAME: &str = "control-room-source";
@@ -98,6 +96,15 @@ const DIG_MODES: [(HwCap, EfwDigitalMode); 4] = [
     (HwCap::OptionalSpdifOpt, EfwDigitalMode::SpdifOpt),
     (HwCap::OptionalAdatOpt, EfwDigitalMode::AdatOpt),
 ];
+
+const STREAM_RATE_MODES: [&[u32]; 3] = [&[44100, 48000, 32000], &[88200, 96000], &[176400, 192000]];
+
+fn compute_stream_rate_mode(rate: u32) -> usize {
+    STREAM_RATE_MODES
+        .iter()
+        .position(|rates| rates.iter().find(|r| rate.eq(r)).is_some())
+        .unwrap()
+}
 
 impl PortCtl {
     pub fn load(
@@ -176,25 +183,18 @@ impl PortCtl {
             .is_some();
 
         if has_rx_mapping || has_tx_mapping {
+            let rate_mode_count = STREAM_RATE_MODES
+                .iter()
+                .enumerate()
+                .map(|(i, rates)| (i, rates[0]))
+                .filter(|(_, rate)| hwinfo.clk_rates.iter().find(|r| rate.eq(r)).is_some())
+                .count();
+
             let phys_input_pair_labels = create_stream_map_labels(&hwinfo.phys_inputs);
             let phys_output_pair_labels = create_stream_map_labels(&hwinfo.phys_outputs);
 
             self.phys_in_pairs = phys_input_pair_labels.len();
             self.phys_out_pairs = phys_output_pair_labels.len();
-
-            hwinfo
-                .tx_channels
-                .iter()
-                .enumerate()
-                .for_each(|(i, count)| self.tx_stream_pair_counts[i] = count / 2);
-            hwinfo
-                .rx_channels
-                .iter()
-                .enumerate()
-                .for_each(|(i, count)| self.rx_stream_pair_counts[i] = count / 2);
-
-            self.tx_stream_map = vec![Default::default(); self.tx_stream_pair_counts[0]];
-            self.rx_stream_map = vec![Default::default(); self.rx_stream_pair_counts[0]];
 
             if has_tx_mapping {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TX_MAP_NAME, 0);
@@ -202,7 +202,7 @@ impl PortCtl {
                     .add_enum_elems(
                         &elem_id,
                         1,
-                        self.tx_stream_map.len(),
+                        rate_mode_count,
                         &phys_input_pair_labels,
                         None,
                         true,
@@ -218,7 +218,7 @@ impl PortCtl {
                     .add_enum_elems(
                         &elem_id,
                         1,
-                        self.rx_stream_map.len(),
+                        rate_mode_count,
                         &phys_output_pair_labels,
                         None,
                         true,
@@ -276,15 +276,41 @@ impl PortCtl {
             .find(|cap| HwCap::OutputMapping.eq(cap) || HwCap::InputMapping.eq(cap))
             .is_some()
         {
-            unit.get_stream_map(
-                curr_rate,
-                self.phys_out_pairs,
-                self.phys_in_pairs,
-                &mut self.rx_stream_map,
-                &mut self.tx_stream_map,
-                timeout_ms,
-            )
-            .map(|_| self.curr_rate = curr_rate)?;
+            let phys_input_pair_labels = create_stream_map_labels(&hw_info.phys_inputs);
+            let phys_output_pair_labels = create_stream_map_labels(&hw_info.phys_outputs);
+
+            let phys_in_pairs = phys_input_pair_labels.len();
+            let phys_out_pairs = phys_output_pair_labels.len();
+
+            self.rx_stream_maps = Default::default();
+            hw_info
+                .rx_channels
+                .iter()
+                .for_each(|&count| self.rx_stream_maps.0.push(vec![Default::default(); count]));
+
+            self.tx_stream_maps = Default::default();
+            hw_info
+                .tx_channels
+                .iter()
+                .for_each(|&count| self.tx_stream_maps.0.push(vec![Default::default(); count]));
+
+            STREAM_RATE_MODES
+                .iter()
+                .enumerate()
+                .map(|(i, rates)| (i, rates[0]))
+                .filter(|(_, rate)| hw_info.clk_rates.iter().find(|r| rate.eq(r)).is_some())
+                .try_for_each(|(i, rate)| {
+                    unit.get_stream_map(
+                        rate,
+                        phys_out_pairs,
+                        phys_in_pairs,
+                        &mut self.rx_stream_maps.0[i],
+                        &mut self.tx_stream_maps.0[i],
+                        timeout_ms,
+                    )
+                })?;
+
+            self.curr_rate = curr_rate;
         }
 
         Ok(())
@@ -310,11 +336,13 @@ impl PortCtl {
                 Ok(true)
             }
             RX_MAP_NAME => {
-                enum_values_from_entries(elem_value, &self.rx_stream_map);
+                let rate_mode = compute_stream_rate_mode(self.curr_rate);
+                enum_values_from_entries(elem_value, &self.rx_stream_maps.0[rate_mode]);
                 Ok(true)
             }
             TX_MAP_NAME => {
-                enum_values_from_entries(elem_value, &self.tx_stream_map);
+                let rate_mode = compute_stream_rate_mode(self.curr_rate);
+                enum_values_from_entries(elem_value, &self.tx_stream_maps.0[rate_mode]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -353,34 +381,38 @@ impl PortCtl {
                 Ok(true)
             }
             RX_MAP_NAME => {
-                let mut rx_stream_map = vec![Default::default(); self.rx_stream_map.len()];
+                let rate_mode = compute_stream_rate_mode(self.curr_rate);
+                let mut rx_stream_map =
+                    vec![Default::default(); self.rx_stream_maps.0[rate_mode].len()];
                 enum_values_to_entries(new, &mut rx_stream_map);
                 unit.set_stream_map(
                     self.curr_rate,
                     self.phys_out_pairs,
                     self.phys_in_pairs,
                     &rx_stream_map,
-                    &self.tx_stream_map,
+                    &self.tx_stream_maps.0[rate_mode],
                     timeout_ms,
                 )
                 .map(|_| {
-                    self.rx_stream_map.copy_from_slice(&rx_stream_map);
+                    self.rx_stream_maps.0[rate_mode].copy_from_slice(&rx_stream_map);
                     true
                 })
             }
             TX_MAP_NAME => {
-                let mut tx_stream_map = vec![Default::default(); self.tx_stream_map.len()];
+                let rate_mode = compute_stream_rate_mode(self.curr_rate);
+                let mut tx_stream_map =
+                    vec![Default::default(); self.tx_stream_maps.0[rate_mode].len()];
                 enum_values_to_entries(new, &mut tx_stream_map);
                 unit.set_stream_map(
                     self.curr_rate,
                     self.phys_out_pairs,
                     self.phys_in_pairs,
-                    &self.rx_stream_map,
+                    &self.rx_stream_maps.0[rate_mode],
                     &tx_stream_map,
                     timeout_ms,
                 )
                 .map(|_| {
-                    self.tx_stream_map.copy_from_slice(&tx_stream_map);
+                    self.tx_stream_maps.0[rate_mode].copy_from_slice(&tx_stream_map);
                     true
                 })
             }
