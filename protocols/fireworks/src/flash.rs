@@ -20,6 +20,169 @@ const CMD_LOCK: u32 = 5;
 /// The size of block in on-board flash memory in quadlet unit.
 pub const BLOCK_QUADLET_COUNT: usize = 64;
 
+/// The parameter to erase content of flash for a block.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwFlashErase {
+    /// The offset in flash memory. It should be aligned by quadlet.
+    pub offset: u32,
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwFlashErase> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &EfwFlashErase, timeout_ms: u32) -> Result<(), Error> {
+        assert_eq!(states.offset % 4, 0);
+
+        let args = [states.offset];
+        let mut params = Vec::new();
+        proto.transaction(CATEGORY_FLASH, CMD_ERASE, &args, &mut params, timeout_ms)
+    }
+}
+
+/// The parameter to erase content of flash for a block.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwFlashRead {
+    /// The offset in flash memory. It should be aligned by quadlet.
+    pub offset: u32,
+    /// The content. The length should be less than 64.
+    pub data: Vec<u32>,
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwFlashRead> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwFlashRead,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(states.offset % 4, 0);
+        assert!(states.data.len() <= BLOCK_QUADLET_COUNT);
+
+        let count = states.data.len();
+        let args = [states.offset, count as u32];
+        let mut params = vec![0; 2 + BLOCK_QUADLET_COUNT];
+
+        proto
+            .transaction(CATEGORY_FLASH, CMD_READ, &args, &mut params, timeout_ms)
+            .map(|_| states.data.copy_from_slice(&params[2..(2 + count)]))
+    }
+}
+
+/// The parameter to write content of flash.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwFlashWrite {
+    /// The offset in flash memory. It should be aligned by quadlet.
+    pub offset: u32,
+    /// The content. The length should be less than 64.
+    pub data: Vec<u32>,
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwFlashWrite> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &EfwFlashWrite, timeout_ms: u32) -> Result<(), Error> {
+        assert_eq!(states.offset % 4, 0);
+        assert!(states.data.len() <= BLOCK_QUADLET_COUNT);
+
+        let mut args = vec![0; 2 + BLOCK_QUADLET_COUNT];
+        args[0] = states.offset;
+        args[1] = states.data.len() as u32;
+        args[2..(2 + states.data.len())].copy_from_slice(&states.data);
+
+        let mut params = Vec::new();
+
+        proto.transaction(CATEGORY_FLASH, CMD_WRITE, &args, &mut params, timeout_ms)
+    }
+}
+
+/// The parameter to check whether the flash memory is locked or not.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EfwFlashState {
+    /// Is unlocked.
+    Unlocked,
+    /// Is locked.
+    Locked,
+}
+
+impl Default for EfwFlashState {
+    fn default() -> Self {
+        Self::Unlocked
+    }
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwFlashState> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwFlashState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = Vec::new();
+        proto
+            .transaction(CATEGORY_FLASH, CMD_STATUS, &args, &mut params, timeout_ms)
+            .map(|_| *states = EfwFlashState::Unlocked)
+            .or_else(|e| {
+                if e.kind::<EfwProtocolError>() == Some(EfwProtocolError::FlashBusy) {
+                    *states = EfwFlashState::Locked;
+                    Ok(())
+                } else {
+                    Err(e)
+                }
+            })
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwFlashState> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &EfwFlashState, timeout_ms: u32) -> Result<(), Error> {
+        let args = vec![states.eq(&EfwFlashState::Locked) as u32];
+        let mut params = Vec::new();
+        proto.transaction(CATEGORY_FLASH, CMD_LOCK, &args, &mut params, timeout_ms)
+    }
+}
+
+/// The parameter for session base in flash memory.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwFlashSessionBase(pub u32);
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwFlashSessionBase> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwFlashSessionBase,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = vec![0];
+        proto
+            .transaction(
+                CATEGORY_FLASH,
+                CMD_SESSION_BASE,
+                &args,
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| states.0 = params[0])
+    }
+}
+
 /// The trait to express protocol about operations for on-board flash memory.
 pub trait EfwFlashProtocol: EfwProtocolExtManual {
     /// The operation to erase block range (256 bytes) in on-board flash memory.
@@ -126,93 +289,101 @@ mod test {
     const BLOCK_SIZE: usize = 4 * BLOCK_QUADLET_COUNT as usize;
     const TIMEOUT: u32 = 10;
 
+    struct TestProtocol;
+
+    impl EfwHardwareSpecification for TestProtocol {
+        const SUPPORTED_SAMPLING_RATES: &'static [u32] = &[];
+        const SUPPORTED_SAMPLING_CLOCKS: &'static [ClkSrc] = &[];
+        const CAPABILITIES: &'static [HwCap] = &[];
+        const RX_CHANNEL_COUNTS: [usize; 3] = [0; 3];
+        const TX_CHANNEL_COUNTS: [usize; 3] = [0; 3];
+        const MONITOR_SOURCE_COUNT: usize = 0;
+        const MONITOR_DESTINATION_COUNT: usize = 0;
+        const MIDI_INPUT_COUNT: usize = 0;
+        const MIDI_OUTPUT_COUNT: usize = 0;
+        const PHYS_INPUT_GROUPS: &'static [(PhysGroupType, usize)] = &[];
+        const PHYS_OUTPUT_GROUPS: &'static [(PhysGroupType, usize)] = &[];
+    }
+
     #[derive(Default)]
-    struct TestProtocol(RefCell<StateMachine>);
+    struct TestInstance(RefCell<StateMachine>);
 
     #[test]
     fn flash_lock_test() {
-        let mut proto = TestProtocol::default();
+        let mut proto = TestInstance::default();
 
         // The initial status should be locked.
-        assert_eq!(proto.flash_is_locked(TIMEOUT), Ok(true));
+        let mut state = EfwFlashState::default();
+        TestProtocol::cache_wholly(&mut proto, &mut state, TIMEOUT).unwrap();
 
         // The erase operation should be failed due to locked status.
-        let err = proto.flash_erase(256, TIMEOUT);
-        if let Err(e) = err {
-            assert_eq!(
-                e.kind::<EfwProtocolError>(),
-                Some(EfwProtocolError::FlashBusy)
-            );
-        } else {
-            unreachable!();
-        }
+        let erase = EfwFlashErase { offset: 256 };
+        let err = TestProtocol::update_wholly(&mut proto, &erase, TIMEOUT).unwrap_err();
+        assert_eq!(
+            err.kind::<EfwProtocolError>(),
+            Some(EfwProtocolError::FlashBusy)
+        );
 
         // The write operation should be failed as well due to locked status.
-        let data = [0; 16];
-        let err = proto.flash_write(256, &data, TIMEOUT);
-        if let Err(e) = err {
-            assert_eq!(
-                e.kind::<EfwProtocolError>(),
-                Some(EfwProtocolError::FlashBusy)
-            );
-        } else {
-            unreachable!();
-        }
+        let write = EfwFlashWrite {
+            offset: 256,
+            data: vec![0; 16],
+        };
+        let err = TestProtocol::update_wholly(&mut proto, &write, TIMEOUT).unwrap_err();
+        assert_eq!(
+            err.kind::<EfwProtocolError>(),
+            Some(EfwProtocolError::FlashBusy)
+        );
 
         // The read operation is always available.
-        let mut data = [0; 64];
-        proto.flash_read(0, &mut data, TIMEOUT).unwrap();
+        let mut read = EfwFlashRead {
+            offset: 0,
+            data: vec![0; 64],
+        };
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
 
         // Unlock it.
-        proto.flash_lock(false, TIMEOUT).unwrap();
-        assert_eq!(proto.flash_is_locked(TIMEOUT), Ok(false));
+        let state = EfwFlashState::Unlocked;
+        TestProtocol::update_wholly(&mut proto, &state, TIMEOUT).unwrap();
 
         // The erase operation should be available now.
-        proto.flash_erase(256, TIMEOUT).unwrap();
+        TestProtocol::update_wholly(&mut proto, &erase, TIMEOUT).unwrap();
 
         // The write operation should be available now.
-        let data = [0; 16];
-        proto.flash_write(256, &data, TIMEOUT).unwrap();
+        TestProtocol::update_wholly(&mut proto, &write, TIMEOUT).unwrap();
 
         // The read operation is always available.
-        let mut data = [0; 64];
-        proto.flash_read(0, &mut data, TIMEOUT).unwrap();
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
 
         // Lock it.
-        proto.flash_lock(true, TIMEOUT).unwrap();
-        assert_eq!(proto.flash_is_locked(TIMEOUT), Ok(true));
+        let state = EfwFlashState::Locked;
+        TestProtocol::update_wholly(&mut proto, &state, TIMEOUT).unwrap();
+
+        let mut state = EfwFlashState::default();
+        TestProtocol::cache_wholly(&mut proto, &mut state, TIMEOUT).unwrap();
+        assert_eq!(state, EfwFlashState::Locked);
 
         // The erase operation should be failed again;
-        let err = proto.flash_erase(256, TIMEOUT);
-        if let Err(e) = err {
-            assert_eq!(
-                e.kind::<EfwProtocolError>(),
-                Some(EfwProtocolError::FlashBusy)
-            );
-        } else {
-            unreachable!();
-        }
+        let err = TestProtocol::update_wholly(&mut proto, &erase, TIMEOUT).unwrap_err();
+        assert_eq!(
+            err.kind::<EfwProtocolError>(),
+            Some(EfwProtocolError::FlashBusy)
+        );
 
         // The write operation should be failed as well;
-        let data = [0; 16];
-        let err = proto.flash_write(256, &data, TIMEOUT);
-        if let Err(e) = err {
-            assert_eq!(
-                e.kind::<EfwProtocolError>(),
-                Some(EfwProtocolError::FlashBusy)
-            );
-        } else {
-            unreachable!();
-        }
+        let err = TestProtocol::update_wholly(&mut proto, &write, TIMEOUT).unwrap_err();
+        assert_eq!(
+            err.kind::<EfwProtocolError>(),
+            Some(EfwProtocolError::FlashBusy)
+        );
 
         // The read operation is always available.
-        let mut data = [0; 64];
-        proto.flash_read(0, &mut data, TIMEOUT).unwrap();
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
     }
 
     #[test]
     fn flash_update_test() {
-        let mut proto = TestProtocol::default();
+        let mut proto = TestInstance::default();
 
         let count = proto.0.borrow().memory.len() / 4;
         (0..count).for_each(|i| {
@@ -220,30 +391,41 @@ mod test {
             proto.0.borrow_mut().memory[pos..(pos + 4)].copy_from_slice(&(i as u32).to_be_bytes());
         });
 
-        proto.flash_lock(false, TIMEOUT).unwrap();
-        proto.flash_erase(256, TIMEOUT).unwrap();
+        let state = EfwFlashState::Unlocked;
+        TestProtocol::update_wholly(&mut proto, &state, TIMEOUT).unwrap();
+
+        let erase = EfwFlashErase { offset: 256 };
+        TestProtocol::update_wholly(&mut proto, &erase, TIMEOUT).unwrap();
 
         // Check near the boundary between first and second blocks.
-        let mut data = [0; 16];
-        proto.flash_read(248, &mut data, TIMEOUT).unwrap();
-        assert_eq!(&data, &[62, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        let mut read = EfwFlashRead {
+            offset: 248,
+            data: vec![0; 16],
+        };
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
 
         // Check near the boundary between second and third blocks.
-        let mut data = [0; 8];
-        proto.flash_read(504, &mut data, TIMEOUT).unwrap();
-        assert_eq!(&data, &[0, 0, 128, 129, 130, 131, 132, 133]);
+        let mut read = EfwFlashRead {
+            offset: 504,
+            data: vec![0; 8],
+        };
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
+        assert_eq!(&read.data, &[0, 0, 128, 129, 130, 131, 132, 133]);
 
         // Update the second block.
-        let mut data = [0; BLOCK_QUADLET_COUNT];
-        data.iter_mut()
-            .enumerate()
-            .for_each(|(i, q)| *q = u32::MAX - i as u32);
-        proto.flash_write(256, &data, TIMEOUT).unwrap();
+        let data = (0..BLOCK_QUADLET_COUNT)
+            .map(|i| u32::MAX - i as u32)
+            .collect();
+        let write = EfwFlashWrite { offset: 256, data };
+        TestProtocol::update_wholly(&mut proto, &write, TIMEOUT).unwrap();
 
         // Check near the boundary between second and third block.
-        let mut data = [0; 6];
-        proto.flash_read(504, &mut data, TIMEOUT).unwrap();
-        assert_eq!(&data, &[4294967233, 4294967232, 128, 129, 130, 131]);
+        let mut read = EfwFlashRead {
+            offset: 504,
+            data: vec![0; 6],
+        };
+        TestProtocol::cache_wholly(&mut proto, &mut read, TIMEOUT).unwrap();
+        assert_eq!(&read.data, &[4294967233, 4294967232, 128, 129, 130, 131]);
     }
 
     struct StateMachine {
@@ -446,7 +628,7 @@ mod test {
         }
     }
 
-    impl EfwProtocolExtManual for TestProtocol {
+    impl EfwProtocolExtManual for TestInstance {
         fn transaction(
             &self,
             category: u32,
