@@ -37,3 +37,5 @@ impl EfwHardwareSpecification for RipProtocol {
 
     const PHYS_OUTPUT_GROUPS: &'static [(PhysGroupType, usize)] = &[(PhysGroupType::Analog, 2)];
 }
+
+impl EfwPlaybackSoloSpecification for RipProtocol {}

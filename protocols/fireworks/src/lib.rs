@@ -26,6 +26,7 @@ use {
     hw_info::HwMeter,
     monitor::{EfwMonitorParameters, EfwMonitorSourceParameters},
     phys_output::EfwOutputParameters,
+    playback::{EfwPlaybackParameters, EfwPlaybackSoloSpecification},
 };
 
 /// The specification of hardware.
@@ -99,6 +100,13 @@ pub trait EfwHardwareSpecification {
         EfwOutputParameters {
             volumes: vec![Default::default(); Self::phys_output_count()],
             mutes: vec![Default::default(); Self::phys_output_count()],
+        }
+    }
+
+    fn create_playback_parameters() -> EfwPlaybackParameters {
+        EfwPlaybackParameters {
+            volumes: vec![Default::default(); Self::RX_CHANNEL_COUNTS[0]],
+            mutes: vec![Default::default(); Self::RX_CHANNEL_COUNTS[0]],
         }
     }
 }
