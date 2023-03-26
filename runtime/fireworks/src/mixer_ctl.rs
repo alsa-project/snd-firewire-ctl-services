@@ -12,6 +12,7 @@ pub struct MixerCtl {
     playbacks: usize,
     captures: usize,
     has_fpga: bool,
+    monitor_params: EfwMonitorParameters,
 }
 
 const PLAYBACK_VOL_NAME: &str = "playback-volume";
@@ -41,7 +42,35 @@ impl MixerCtl {
     const PAN_MAX: i32 = 255;
     const PAN_STEP: i32 = 1;
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(&mut self, hwinfo: &HwInfo, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
+        self.monitor_params = Default::default();
+        (0..hwinfo.mixer_playbacks).try_for_each(|i| {
+            let mut src = EfwMonitorSourceParameters::default();
+            (0..hwinfo.mixer_captures)
+                .try_for_each(|j| {
+                    unit.get_monitor_vol(i, j, timeout_ms)
+                        .map(|vol| src.gains.push(vol))?;
+                    unit.get_monitor_mute(i, j, timeout_ms)
+                        .map(|enabled| src.mutes.push(enabled))?;
+                    unit.get_monitor_solo(i, j, timeout_ms)
+                        .map(|enabled| src.solos.push(enabled))?;
+                    unit.get_monitor_pan(i, j, timeout_ms)
+                        .map(|pan| src.pans.push(pan))?;
+                    Ok(())
+                })
+                .map(|_| self.monitor_params.0.push(src))
+        })
+    }
+
+    pub fn load(
+        &mut self,
+        hwinfo: &HwInfo,
+        unit: &mut SndEfw,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.cache(hwinfo, unit, timeout_ms)?;
+
         self.playbacks = hwinfo.mixer_playbacks;
         self.captures = hwinfo.mixer_captures;
 
@@ -139,34 +168,39 @@ impl MixerCtl {
             }
             MONITOR_GAIN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
-                    let val = unit.get_monitor_vol(dst, src, timeout_ms)?;
-                    Ok(val)
+                let src = self.monitor_params.0.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
+                elem_value.set_int(&src.gains);
                 Ok(true)
             }
             MONITOR_MUTE_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
-                    let val = unit.get_monitor_mute(dst, src, timeout_ms)?;
-                    Ok(val)
+                let src = self.monitor_params.0.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
+                elem_value.set_bool(&src.mutes);
                 Ok(true)
             }
             MONITOR_SOLO_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
-                    let val = unit.get_monitor_solo(dst, src, timeout_ms)?;
-                    Ok(val)
+                let src = self.monitor_params.0.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
+                elem_value.set_bool(&src.solos);
                 Ok(true)
             }
             MONITOR_PAN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
-                    let val = unit.get_monitor_pan(dst, src, timeout_ms)? as i32;
-                    Ok(val)
+                let src = self.monitor_params.0.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
+                let params: Vec<i32> = src.pans.iter().map(|&pan| pan as i32).collect();
+                elem_value.set_int(&params);
                 Ok(true)
             }
             ENABLE_MIXER => {
@@ -188,58 +222,109 @@ impl MixerCtl {
         unit: &mut SndEfw,
         elem_id: &ElemId,
         old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, self.playbacks, |idx, val| {
+                ElemValueAccessor::<i32>::get_vals(elem_value, old, self.playbacks, |idx, val| {
                     unit.set_playback_vol(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             PLAYBACK_MUTE_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
-                    unit.set_playback_mute(idx, val, timeout_ms)
-                })?;
+                ElemValueAccessor::<bool>::get_vals(
+                    elem_value,
+                    old,
+                    self.playbacks,
+                    |idx, val| unit.set_playback_mute(idx, val, timeout_ms),
+                )?;
                 Ok(true)
             }
             PLAYBACK_SOLO_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
-                    unit.set_playback_solo(idx, val, timeout_ms)
-                })?;
+                ElemValueAccessor::<bool>::get_vals(
+                    elem_value,
+                    old,
+                    self.playbacks,
+                    |idx, val| unit.set_playback_solo(idx, val, timeout_ms),
+                )?;
                 Ok(true)
             }
             MONITOR_GAIN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
-                    unit.set_monitor_vol(dst, src, val, timeout_ms)
+                let params = self.monitor_params.0.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
-                Ok(true)
+                params
+                    .gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(n))
+                    .try_for_each(|(src, (o, &val))| {
+                        unit.set_monitor_vol(dst, src, val, timeout_ms)
+                            .map(|_| *o = val)
+                    })
+                    .map(|_| true)
             }
             MONITOR_MUTE_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
-                    unit.set_monitor_mute(dst, src, val, timeout_ms)
+                let params = self.monitor_params.0.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
-                Ok(true)
+                params
+                    .mutes
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(&n))
+                    .try_for_each(|(src, (o, val))| {
+                        unit.set_monitor_mute(dst, src, val, timeout_ms)
+                            .map(|_| *o = val)
+                    })
+                    .map(|_| true)
             }
             MONITOR_SOLO_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
-                    unit.set_monitor_solo(dst, src, val, timeout_ms)
+                let params = self.monitor_params.0.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
-                Ok(true)
+                params
+                    .solos
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(&n))
+                    .try_for_each(|(src, (o, val))| {
+                        unit.set_monitor_solo(dst, src, val, timeout_ms)
+                            .map(|_| *o = val)
+                    })
+                    .map(|_| true)
             }
             MONITOR_PAN_NAME => {
                 let dst = elem_id.index() as usize;
-                ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
-                    unit.set_monitor_pan(dst, src, val as u8, timeout_ms)
+                let params = self.monitor_params.0.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
                 })?;
-                Ok(true)
+                params
+                    .pans
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !(**o as i32).eq(&n))
+                    .try_for_each(|(src, (o, n))| {
+                        let val = *n as u8;
+                        unit.set_monitor_pan(dst, src, val, timeout_ms)
+                            .map(|_| *o = val)
+                    })
+                    .map(|_| true)
             }
             ENABLE_MIXER => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     if val {
                         let flags = [HwCtlFlag::MixerEnabled];
                         unit.set_flags(Some(&flags), None, timeout_ms)?;

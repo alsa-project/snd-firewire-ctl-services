@@ -19,6 +19,24 @@ const CMD_GET_SOLO: u32 = 5;
 const CMD_SET_PAN: u32 = 6;
 const CMD_GET_PAN: u32 = 7;
 
+/// The parameters of input monitor.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwMonitorSourceParameters {
+    /// The gain of monitor input. The value is unsigned fixed-point number of 8.24 format; i.e.
+    /// Q24. It is 0x00000000..0x02000000 for -144.0..+6.0 dB.
+    pub gains: Vec<i32>,
+    /// Whether to mute the monitor input.
+    pub mutes: Vec<bool>,
+    /// Whether to mute the other monitor sources.
+    pub solos: Vec<bool>,
+    /// L/R balance of monitor input. It is 0..255 from left to right.
+    pub pans: Vec<u8>,
+}
+
+/// The parameters of input monitor.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwMonitorParameters(pub Vec<EfwMonitorSourceParameters>);
+
 /// Protocol about input monitor for Fireworks board module.
 pub trait MonitorProtocol: EfwProtocolExtManual {
     /// Set volume of monitor. The value of vol is unsigned fixed-point number of 8.24 format; i.e. Q24.

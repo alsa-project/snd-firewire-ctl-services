@@ -75,7 +75,8 @@ impl CtlModel<SndEfw> for EfwModel {
         unit.get_hw_info(&mut self.hw_info, TIMEOUT_MS)?;
         self.clk_ctl
             .load(&self.hw_info, card_cntr, unit, TIMEOUT_MS)?;
-        self.mixer_ctl.load(&self.hw_info, card_cntr)?;
+        self.mixer_ctl
+            .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
         self.output_ctl.load(&self.hw_info, card_cntr)?;
         self.input_ctl
             .load(unit, &self.hw_info, card_cntr, TIMEOUT_MS)?;
