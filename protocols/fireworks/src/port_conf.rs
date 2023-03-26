@@ -24,8 +24,8 @@ const CMD_GET_STREAM_MAP: u32 = 7;
 pub struct EfwControlRoomSource(pub usize);
 
 /// Type of audio signal for dignal input and output.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DigitalMode {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EfwDigitalMode {
     /// Coaxial interface for S/PDIF signal.
     SpdifCoax,
     /// XLR interface for AES/EBU signal.
@@ -37,27 +37,29 @@ pub enum DigitalMode {
     Unknown(u32),
 }
 
-impl From<u32> for DigitalMode {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => DigitalMode::SpdifCoax,
-            1 => DigitalMode::AesebuXlr,
-            2 => DigitalMode::SpdifOpt,
-            3 => DigitalMode::AdatOpt,
-            _ => DigitalMode::Unknown(val),
-        }
+impl Default for EfwDigitalMode {
+    fn default() -> Self {
+        Self::Unknown(u32::MAX)
     }
 }
 
-impl From<DigitalMode> for u32 {
-    fn from(mode: DigitalMode) -> Self {
-        match mode {
-            DigitalMode::SpdifCoax => 0,
-            DigitalMode::AesebuXlr => 1,
-            DigitalMode::SpdifOpt => 2,
-            DigitalMode::AdatOpt => 3,
-            DigitalMode::Unknown(val) => val,
-        }
+fn serialize_digital_mode(mode: &EfwDigitalMode, val: &mut u32) {
+    *val = match *mode {
+        EfwDigitalMode::SpdifCoax => 0,
+        EfwDigitalMode::AesebuXlr => 1,
+        EfwDigitalMode::SpdifOpt => 2,
+        EfwDigitalMode::AdatOpt => 3,
+        EfwDigitalMode::Unknown(val) => val,
+    };
+}
+
+fn deserialize_digital_mode(val: u32) -> EfwDigitalMode {
+    match val {
+        0 => EfwDigitalMode::SpdifCoax,
+        1 => EfwDigitalMode::AesebuXlr,
+        2 => EfwDigitalMode::SpdifOpt,
+        3 => EfwDigitalMode::AdatOpt,
+        _ => EfwDigitalMode::Unknown(val),
     }
 }
 
@@ -89,8 +91,9 @@ pub trait PortConfProtocol: EfwProtocolExtManual {
         .map(|_| (params[0] / 2) as usize)
     }
 
-    fn set_digital_mode(&mut self, mode: DigitalMode, timeout_ms: u32) -> Result<(), Error> {
-        let args = [u32::from(mode)];
+    fn set_digital_mode(&mut self, mode: EfwDigitalMode, timeout_ms: u32) -> Result<(), Error> {
+        let mut args = [0];
+        serialize_digital_mode(&mode, &mut args[0]);
         self.transaction(
             CATEGORY_PORT_CONF,
             CMD_SET_DIG_MODE,
@@ -100,7 +103,7 @@ pub trait PortConfProtocol: EfwProtocolExtManual {
         )
     }
 
-    fn get_digital_mode(&mut self, timeout_ms: u32) -> Result<DigitalMode, Error> {
+    fn get_digital_mode(&mut self, timeout_ms: u32) -> Result<EfwDigitalMode, Error> {
         let mut params = vec![0];
         self.transaction(
             CATEGORY_PORT_CONF,
@@ -109,7 +112,7 @@ pub trait PortConfProtocol: EfwProtocolExtManual {
             &mut params,
             timeout_ms,
         )
-        .map(|_| DigitalMode::from(params[0]))
+        .map(|_| deserialize_digital_mode(params[0]))
     }
 
     fn set_phantom_powering(&mut self, state: bool, timeout_ms: u32) -> Result<(), Error> {
