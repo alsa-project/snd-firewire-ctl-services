@@ -318,6 +318,118 @@ where
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct EfwRxStreamMaps(pub Vec<Vec<Option<usize>>>);
 
+/// The specification of rx stream mapping.
+pub trait EfwRxStreamMapsSpecification: EfwHardwareSpecification {
+    const STREAM_MAPPING_RATE_TABLE: [&'static [u32]; 3] =
+        [&[44100, 48000, 32000], &[88200, 96000], &[176400, 192000]];
+
+    fn create_rx_stream_maps() -> EfwRxStreamMaps {
+        let maps = Self::RX_CHANNEL_COUNTS
+            .iter()
+            .map(|&count| vec![Default::default(); count])
+            .collect();
+        EfwRxStreamMaps(maps)
+    }
+}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwRxStreamMaps> for O
+where
+    O: EfwRxStreamMapsSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwRxStreamMaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        states
+            .0
+            .iter_mut()
+            .zip(Self::STREAM_MAPPING_RATE_TABLE)
+            .try_for_each(|(state, rates)| {
+                let args = [rates[0] as u32];
+                let mut params = vec![0; MAP_SIZE];
+
+                proto
+                    .transaction(
+                        CATEGORY_PORT_CONF,
+                        CMD_GET_STREAM_MAP,
+                        &args,
+                        &mut params,
+                        timeout_ms,
+                    )
+                    .map(|_| {
+                        params[4..]
+                            .iter()
+                            .zip(state.iter_mut())
+                            .for_each(|(&quad, src)| {
+                                *src = if quad != MAP_ENTRY_DISABLE {
+                                    Some((quad as usize) / 2)
+                                } else {
+                                    None
+                                };
+                            })
+                    })
+            })
+    }
+}
+
+impl<O, P> EfwPartiallyUpdatableParamsOperation<P, EfwRxStreamMaps> for O
+where
+    O: EfwRxStreamMapsSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_partially(
+        proto: &mut P,
+        states: &mut EfwRxStreamMaps,
+        updates: EfwRxStreamMaps,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        states
+            .0
+            .iter_mut()
+            .zip(&updates.0)
+            .zip(Self::STREAM_MAPPING_RATE_TABLE)
+            .zip(Self::RX_CHANNEL_COUNTS)
+            .zip(Self::TX_CHANNEL_COUNTS)
+            .filter(|((((o, n), _), _), _)| !n.eq(o))
+            .try_for_each(
+                |((((curr, update), rates), rx_channel_count), tx_channel_count)| {
+                    let mut args = [0; MAP_SIZE];
+
+                    args[0] = rates[0];
+                    // NOTE: This field is filled with clock source bits, however it's not used actually.
+                    args[1] = 0;
+                    args[2] = (rx_channel_count / 2) as u32;
+                    args[3] = (Self::phys_output_count() / 2) as u32;
+                    args[4..36].fill(MAP_ENTRY_DISABLE);
+                    args[36] = (tx_channel_count / 2) as u32;
+                    args[37] = (Self::phys_input_count() / 2) as u32;
+                    args[38..70].fill(MAP_ENTRY_DISABLE);
+
+                    args[4..]
+                        .iter_mut()
+                        .zip(update.iter())
+                        .for_each(|(quad, src)| {
+                            *quad = src.map_or(MAP_ENTRY_DISABLE, |pair| 2 * pair as u32)
+                        });
+
+                    // MEMO: No hardware supports tx stream mapping.
+
+                    proto
+                        .transaction(
+                            CATEGORY_PORT_CONF,
+                            CMD_SET_STREAM_MAP,
+                            &args,
+                            &mut Vec::new(),
+                            timeout_ms,
+                        )
+                        .map(|_| curr.copy_from_slice(&update))
+                },
+            )
+    }
+}
+
 /// Mapping between tx stream channel pairs and physical input channel pairs per mode of sampling
 /// transfer frequency.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
