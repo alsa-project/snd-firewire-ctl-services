@@ -17,6 +17,15 @@ const CMD_GET_FLAGS: u32 = 4;
 const CMD_BLINK_LED: u32 = 5;
 const CMD_RECONNECT: u32 = 6;
 
+/// The parameters of sampling clock configuration.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwSamplingClockParameters {
+    /// The frequency.
+    pub rate: u32,
+    /// The source.
+    pub source: ClkSrc,
+}
+
 /// The type of hardware control.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum HwCtlFlag {
@@ -93,10 +102,11 @@ pub trait HwCtlProtocol: EfwProtocolExtManual {
     ) -> Result<(), Error> {
         let mut args = [0; 3];
         let (current_src, current_rate) = self.get_clock(timeout_ms)?;
-        args[0] = usize::from(match src {
+        let s = match &src {
             Some(s) => s,
-            None => current_src,
-        }) as u32;
+            None => &current_src,
+        };
+        args[0] = serialize_clock_source(s);
         args[1] = match rate {
             Some(r) => r,
             None => current_rate,
@@ -113,7 +123,11 @@ pub trait HwCtlProtocol: EfwProtocolExtManual {
     fn get_clock(&mut self, timeout_ms: u32) -> Result<(ClkSrc, u32), Error> {
         let mut params = vec![0; 3];
         self.transaction(CATEGORY_HWCTL, CMD_GET_CLOCK, &[], &mut params, timeout_ms)
-            .map(|_| (ClkSrc::from(params[0] as usize), params[1]))
+            .map(|_| {
+                let mut src = ClkSrc::default();
+                deserialize_clock_source(&mut src, params[0]);
+                (src, params[1])
+            })
     }
 
     fn set_flags(

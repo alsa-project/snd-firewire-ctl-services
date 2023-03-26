@@ -83,7 +83,7 @@ impl CtlModel<SndEfw> for EfwModel {
             &self.hw_info,
             card_cntr,
             unit,
-            self.clk_ctl.curr_rate,
+            self.clk_ctl.params.rate,
             TIMEOUT_MS,
         )?;
         self.meter_ctl.load(&self.hw_info, card_cntr)?;
@@ -185,7 +185,7 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
         if locked {
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
             self.port_ctl
-                .cache(unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
+                .cache(unit, self.clk_ctl.params.rate, TIMEOUT_MS)?;
         }
         Ok(())
     }
