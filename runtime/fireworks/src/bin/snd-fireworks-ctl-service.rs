@@ -18,7 +18,7 @@ struct Arguments {
 
 impl ServiceCmd<Arguments, u32, EfwRuntime> for EfwServiceCmd {
     fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
-        (args.card_id, None) 
+        (args.card_id, None)
     }
 }
 

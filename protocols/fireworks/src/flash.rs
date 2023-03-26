@@ -476,9 +476,7 @@ mod test {
             F: Fn(&Self, u32, u32, u32, u32, EfwProtocolError, &[u32]) + 'static,
         {
             // Dummy.
-            unsafe {
-                SignalHandlerId::from_glib(0)
-            }
+            unsafe { SignalHandlerId::from_glib(0) }
         }
     }
 }
