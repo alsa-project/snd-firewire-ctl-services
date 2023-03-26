@@ -213,6 +213,28 @@ where
     }
 }
 
+/// The parameter to blink LED.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwLedBlink;
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwLedBlink> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, _: &EfwLedBlink, timeout_ms: u32) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = Vec::new();
+        proto.transaction(
+            CATEGORY_HWCTL,
+            CMD_BLINK_LED,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Protocol about hardware control for Fireworks board module.
 pub trait HwCtlProtocol: EfwProtocolExtManual {
     fn set_clock(

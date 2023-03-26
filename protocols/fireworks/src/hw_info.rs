@@ -353,7 +353,6 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(states.offset % 4, 0);
-        assert_eq!(states.data.len() % 4, 0);
 
         // The first argument should be quadlet count.
         let args = [states.offset / 4, states.data.len() as u32];
