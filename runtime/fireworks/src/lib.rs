@@ -13,7 +13,7 @@ mod port_ctl;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    core::{card_cntr::*, dispatcher::*, *},
     firewire_fireworks_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
