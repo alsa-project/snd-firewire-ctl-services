@@ -37,7 +37,7 @@ const CMD_CHANGE_RESP_ADDR: u32 = 2;
 const CMD_READ_SESSION_BLOCK: u32 = 3;
 
 /// Information of hardware.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwInfo {
     pub caps: Vec<HwCap>,
     pub guid: u64,
@@ -201,6 +201,21 @@ impl HwInfo {
     }
 }
 
+const HWINFO_QUADS: usize = 65;
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, HwInfo> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(proto: &mut P, states: &mut HwInfo, timeout_ms: u32) -> Result<(), Error> {
+        let mut params = vec![0; HWINFO_QUADS];
+        proto
+            .transaction(CATEGORY_HWINFO, CMD_HWINFO, &[], &mut params, timeout_ms)
+            .and_then(|_| states.parse(&params))
+    }
+}
+
 /// Hardware meter.
 #[derive(Debug)]
 pub struct HwMeter {
@@ -281,7 +296,6 @@ impl HwMeter {
     }
 }
 
-const HWINFO_QUADS: usize = 65;
 const METER_QUADS: usize = 110;
 
 /// Protocol about hardware information for Fireworks board module.
