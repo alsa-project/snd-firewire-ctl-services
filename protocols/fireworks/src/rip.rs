@@ -6,7 +6,7 @@
 //! The module includes protocol about port configuration defined by Echo Audio Digital Corporation
 //! for Gibson Robot Interface Pack.
 
-use super::*;
+use super::{robot_guitar::*, *};
 
 /// Protocol implementation for former model of Robot Interface Pack (RIP).
 #[derive(Default, Debug)]
@@ -39,3 +39,5 @@ impl EfwHardwareSpecification for RipProtocol {
 }
 
 impl EfwPlaybackSoloSpecification for RipProtocol {}
+
+impl EfwRobotGuitarSpecification for RipProtocol {}
