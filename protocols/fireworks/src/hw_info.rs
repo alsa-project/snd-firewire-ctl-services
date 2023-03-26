@@ -217,7 +217,7 @@ where
 }
 
 /// Hardware meter.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwMeter {
     pub detected_clk_srcs: Vec<(ClkSrc, bool)>,
     pub detected_midi_inputs: [bool; 2],
@@ -297,6 +297,19 @@ impl HwMeter {
 }
 
 const METER_QUADS: usize = 110;
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, HwMeter> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(proto: &mut P, states: &mut HwMeter, timeout_ms: u32) -> Result<(), Error> {
+        let mut params = vec![0; METER_QUADS];
+        proto
+            .transaction(CATEGORY_HWINFO, CMD_METER, &[], &mut params, timeout_ms)
+            .map(|_| states.parse(&params))
+    }
+}
 
 /// Protocol about hardware information for Fireworks board module.
 pub trait HwInfoProtocol: EfwProtocolExtManual {

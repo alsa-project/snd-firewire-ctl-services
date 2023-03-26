@@ -23,6 +23,7 @@ pub mod rip;
 use {
     glib::{Error, FileError},
     hitaki::{prelude::EfwProtocolExtManual, EfwProtocolError},
+    hw_info::HwMeter,
 };
 
 /// The specification of hardware.
@@ -62,6 +63,22 @@ pub trait EfwHardwareSpecification {
         Self::PHYS_OUTPUT_GROUPS
             .iter()
             .fold(0, |count, entry| count + entry.1)
+    }
+
+    fn create_hardware_meter() -> HwMeter {
+        HwMeter {
+            detected_clk_srcs: Self::SUPPORTED_SAMPLING_CLOCKS
+                .iter()
+                .map(|&src| (src, Default::default()))
+                .collect(),
+            detected_midi_inputs: Default::default(),
+            detected_midi_outputs: Default::default(),
+            guitar_charging: Default::default(),
+            guitar_stereo_connect: Default::default(),
+            guitar_hex_signal: Default::default(),
+            phys_output_meters: vec![Default::default(); Self::phys_output_count()],
+            phys_input_meters: vec![Default::default(); Self::phys_input_count()],
+        }
     }
 }
 
