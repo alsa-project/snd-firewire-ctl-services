@@ -74,24 +74,26 @@ pub enum NominalSignalLevel {
     Consumer,
 }
 
-impl From<NominalSignalLevel> for u32 {
-    fn from(level: NominalSignalLevel) -> Self {
-        match level {
-            NominalSignalLevel::Consumer => 2,
-            NominalSignalLevel::Medium => 1,
-            NominalSignalLevel::Professional => 0,
-        }
+impl Default for NominalSignalLevel {
+    fn default() -> Self {
+        Self::Professional
     }
 }
 
-impl From<u32> for NominalSignalLevel {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => NominalSignalLevel::Consumer,
-            1 => NominalSignalLevel::Medium,
-            _ => NominalSignalLevel::Professional,
-        }
+fn serialize_nominal_signal_level(level: &NominalSignalLevel) -> u32 {
+    match level {
+        NominalSignalLevel::Consumer => 2,
+        NominalSignalLevel::Medium => 1,
+        NominalSignalLevel::Professional => 0,
     }
+}
+
+fn deserialize_nominal_signal_level(level: &mut NominalSignalLevel, val: u32) {
+    *level = match val {
+        2 => NominalSignalLevel::Consumer,
+        1 => NominalSignalLevel::Medium,
+        _ => NominalSignalLevel::Professional,
+    };
 }
 
 #[cfg(test)]
@@ -115,6 +117,22 @@ mod test {
             let mut s = ClkSrc::default();
             deserialize_clock_source(&mut s, val);
             assert_eq!(*src, s);
+        });
+    }
+
+    #[test]
+    fn nominal_signal_level_serdes() {
+        [
+            NominalSignalLevel::Professional,
+            NominalSignalLevel::Medium,
+            NominalSignalLevel::Consumer,
+        ]
+        .iter()
+        .for_each(|level| {
+            let val = serialize_nominal_signal_level(&level);
+            let mut l = NominalSignalLevel::default();
+            deserialize_nominal_signal_level(&mut l, val);
+            assert_eq!(*level, l);
         });
     }
 }

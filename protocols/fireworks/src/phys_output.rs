@@ -17,6 +17,23 @@ const CMD_GET_MUTE: u32 = 3;
 const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
+/// The parameters of all outputs.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwOutputParameters {
+    /// The volume of physical output. The value is unsigned fixed-point number of 8.24 format;
+    /// i.e. Q24. It is 0x00000000..0x02000000 for -144.0..+6.0 dB.
+    pub volumes: Vec<i32>,
+    /// Whether to mute the physical output.
+    pub mutes: Vec<bool>,
+}
+
+/// The parameters of physical outputs.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwPhysOutputParameters {
+    /// The nominal signal level of physical output.
+    pub nominals: Vec<NominalSignalLevel>,
+}
+
 /// Protocol about physical output for Fireworks board module.
 pub trait PhysOutputProtocol: EfwProtocolExtManual {
     /// Set volume of output.  The value of vol is unsigned fixed-point number of 8.24 format; i.e. Q24.
@@ -79,7 +96,7 @@ pub trait PhysOutputProtocol: EfwProtocolExtManual {
         level: NominalSignalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let args = [ch as u32, u32::from(level)];
+        let args = [ch as u32, serialize_nominal_signal_level(&level)];
         let mut params = vec![0; 2];
         self.transaction(
             CATEGORY_PHYS_OUTPUT,
@@ -100,7 +117,11 @@ pub trait PhysOutputProtocol: EfwProtocolExtManual {
             &mut params,
             timeout_ms,
         )
-        .map(|_| NominalSignalLevel::from(params[1]))
+        .map(|_| {
+            let mut level = NominalSignalLevel::default();
+            deserialize_nominal_signal_level(&mut level, params[1]);
+            level
+        })
     }
 }
 

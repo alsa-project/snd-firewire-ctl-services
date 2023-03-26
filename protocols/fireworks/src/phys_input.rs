@@ -21,7 +21,7 @@ pub trait PhysInputProtocol: EfwProtocolExtManual {
         level: NominalSignalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let args = [ch as u32, u32::from(level)];
+        let args = [ch as u32, serialize_nominal_signal_level(&level)];
         self.transaction(
             CATEGORY_PHYS_INPUT,
             CMD_SET_NOMINAL,
@@ -41,7 +41,11 @@ pub trait PhysInputProtocol: EfwProtocolExtManual {
             &mut params,
             timeout_ms,
         )
-        .map(|_| NominalSignalLevel::from(params[1]))
+        .map(|_| {
+            let mut level = NominalSignalLevel::default();
+            deserialize_nominal_signal_level(&mut level, params[1]);
+            level
+        })
     }
 }
 

@@ -77,7 +77,8 @@ impl CtlModel<SndEfw> for EfwModel {
             .load(&self.hw_info, card_cntr, unit, TIMEOUT_MS)?;
         self.mixer_ctl
             .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
-        self.output_ctl.load(&self.hw_info, card_cntr)?;
+        self.output_ctl
+            .load(&self.hw_info, unit, card_cntr, TIMEOUT_MS)?;
         self.input_ctl
             .load(unit, &self.hw_info, card_cntr, TIMEOUT_MS)?;
         self.port_ctl.load(
@@ -103,10 +104,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.mixer_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self
-            .output_ctl
-            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -138,7 +136,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.mixer_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.output_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.output_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
