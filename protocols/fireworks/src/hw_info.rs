@@ -311,6 +311,28 @@ where
     }
 }
 
+/// The parameter of response address.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwRespAddr(u64);
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwRespAddr> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, states: &EfwRespAddr, timeout_ms: u32) -> Result<(), Error> {
+        let args = [(states.0 >> 32) as u32, (states.0 & 0xffffffff) as u32];
+        let mut params = Vec::new();
+        proto.transaction(
+            CATEGORY_HWINFO,
+            CMD_CHANGE_RESP_ADDR,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Protocol about hardware information for Fireworks board module.
 pub trait HwInfoProtocol: EfwProtocolExtManual {
     /// Read hardware information.
