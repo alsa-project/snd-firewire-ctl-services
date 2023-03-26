@@ -165,6 +165,8 @@ impl EfwHardwareSpecification for Audiofire4Protocol {
 
 impl EfwPhantomPoweringSpecification for Audiofire4Protocol {}
 
+impl EfwRxStreamMapsSpecification for Audiofire4Protocol {}
+
 /// Protocol implementation for Audiofire 2.
 #[derive(Default, Debug)]
 pub struct Audiofire2Protocol;
@@ -197,3 +199,5 @@ impl EfwHardwareSpecification for Audiofire2Protocol {
         (PhysGroupType::Spdif, 2),
     ];
 }
+
+impl EfwRxStreamMapsSpecification for Audiofire2Protocol {}
