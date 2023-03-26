@@ -26,6 +26,55 @@ pub struct EfwSamplingClockParameters {
     pub source: ClkSrc,
 }
 
+impl<O, P> EfwWhollyCachableParamsOperation<P, EfwSamplingClockParameters> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut EfwSamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = vec![0; 3];
+        proto
+            .transaction(
+                CATEGORY_HWCTL,
+                CMD_GET_CLOCK,
+                &args,
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| {
+                deserialize_clock_source(&mut states.source, params[0]);
+                states.rate = params[1];
+            })
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwSamplingClockParameters> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(
+        proto: &mut P,
+        states: &EfwSamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = [serialize_clock_source(&states.source), states.rate, 0];
+        let mut params = vec![0; 3];
+        proto.transaction(
+            CATEGORY_HWCTL,
+            CMD_SET_CLOCK,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// The type of hardware control.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HwCtlFlag {
