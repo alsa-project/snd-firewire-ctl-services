@@ -75,6 +75,7 @@ pub enum HwCap {
     #[doc(hidden)]
     // For my purpose.
     InputMapping,
+    PlaybackSoloUnsupported,
 }
 
 impl From<usize> for HwCap {
@@ -238,7 +239,13 @@ impl HwInfo {
                 caps.push(HwCap::NominalInput);
                 caps.push(HwCap::NominalOutput);
             }
-            O1200F => caps.push(HwCap::ControlRoom),
+            O400F => {
+                caps.push(HwCap::PlaybackSoloUnsupported);
+            }
+            O1200F => {
+                caps.push(HwCap::ControlRoom);
+                caps.push(HwCap::PlaybackSoloUnsupported);
+            }
             _ => (),
         }
 

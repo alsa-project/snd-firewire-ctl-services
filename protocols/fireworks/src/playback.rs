@@ -17,6 +17,23 @@ const CMD_GET_MUTE: u32 = 3;
 const CMD_SET_SOLO: u32 = 4;
 const CMD_GET_SOLO: u32 = 5;
 
+/// The parameters of playback.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwPlaybackParameters {
+    /// The volume of playback. The value is unsigned fixed-point number of 8.24 format; i.e. Q24.
+    /// It is between 0x00000000..0x02000000 for -144.0..+6.0 dB.
+    pub volumes: Vec<i32>,
+    /// Whether to mute the playback.
+    pub mutes: Vec<bool>,
+}
+
+/// The parameters of playback.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwPlaybackSoloParameters {
+    /// Whether to mute the other channels.
+    pub solos: Vec<bool>,
+}
+
 /// Protocol about stream playback for Fireworks board module.
 pub trait PlaybackProtocol: EfwProtocolExtManual {
     /// Set volume of stream playback. The value of vol is unsigned fixed-point number of 8.24

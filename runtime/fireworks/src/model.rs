@@ -136,7 +136,7 @@ impl CtlModel<SndEfw> for EfwModel {
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.mixer_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
