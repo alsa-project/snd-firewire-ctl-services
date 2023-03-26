@@ -235,6 +235,28 @@ where
     }
 }
 
+/// The parameter to disapper from IEEE 1394 bus and back.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EfwReconnectPhy;
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, EfwReconnectPhy> for O
+where
+    O: EfwHardwareSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(proto: &mut P, _: &EfwReconnectPhy, timeout_ms: u32) -> Result<(), Error> {
+        let args = Vec::new();
+        let mut params = Vec::new();
+        proto.transaction(
+            CATEGORY_HWCTL,
+            CMD_RECONNECT,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Protocol about hardware control for Fireworks board module.
 pub trait HwCtlProtocol: EfwProtocolExtManual {
     fn set_clock(
