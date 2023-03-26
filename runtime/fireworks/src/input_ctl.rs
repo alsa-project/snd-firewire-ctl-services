@@ -8,8 +8,7 @@ use {
 
 #[derive(Default)]
 pub struct InputCtl {
-    phys_inputs: usize,
-    cache: Option<Vec<NominalSignalLevel>>,
+    params: EfwPhysInputParameters,
 }
 
 const IN_NOMINAL_NAME: &str = "input-nominal";
@@ -21,6 +20,46 @@ impl InputCtl {
         NominalSignalLevel::Consumer,
     ];
 
+    fn cache(&mut self, hw_info: &HwInfo, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
+        if hw_info
+            .caps
+            .iter()
+            .find(|cap| HwCap::NominalInput.eq(cap))
+            .is_some()
+        {
+            let count = hw_info
+                .phys_inputs
+                .iter()
+                .fold(0, |accm, entry| accm + entry.group_count);
+
+            self.params.nominals = vec![Default::default(); count];
+
+            let has_fpga = hw_info
+                .caps
+                .iter()
+                .find(|&cap| *cap == HwCap::Fpga)
+                .is_some();
+            if has_fpga {
+                // FPGA models return invalid state of nominal level.
+                self.params
+                    .nominals
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(ch, &level)| unit.set_nominal(ch, level, timeout_ms))?;
+            } else {
+                self.params
+                    .nominals
+                    .iter_mut()
+                    .enumerate()
+                    .try_for_each(|(ch, level)| {
+                        unit.get_nominal(ch, timeout_ms).map(|l| *level = l)
+                    })?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn load(
         &mut self,
         unit: &mut SndEfw,
@@ -28,10 +67,7 @@ impl InputCtl {
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.phys_inputs = hwinfo
-            .phys_inputs
-            .iter()
-            .fold(0, |accm, entry| accm + entry.group_count);
+        self.cache(hwinfo, unit, timeout_ms)?;
 
         if hwinfo
             .caps
@@ -43,52 +79,32 @@ impl InputCtl {
             let _ = card_cntr.add_enum_elems(
                 &elem_id,
                 1,
-                self.phys_inputs,
+                self.params.nominals.len(),
                 &Self::IN_NOMINAL_LABELS,
                 None,
                 true,
             )?;
-
-            // FPGA models return invalid state of nominal level.
-            let has_fpga = hwinfo
-                .caps
-                .iter()
-                .find(|&cap| *cap == HwCap::Fpga)
-                .is_some();
-            if has_fpga {
-                let cache = vec![NominalSignalLevel::Professional; self.phys_inputs];
-                cache
-                    .iter()
-                    .enumerate()
-                    .try_for_each(|(i, &level)| unit.set_nominal(i, level, timeout_ms))?;
-                self.cache = Some(cache);
-            }
         }
 
         Ok(())
     }
 
-    pub fn read(
-        &mut self,
-        unit: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             IN_NOMINAL_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_inputs, |idx| {
-                    let level = if let Some(cache) = &self.cache {
-                        Ok(cache[idx])
-                    } else {
-                        unit.get_nominal(idx, timeout_ms)
-                    }?;
-                    let pos = Self::IN_NOMINAL_LEVELS
-                        .iter()
-                        .position(|l| level.eq(l))
-                        .unwrap();
-                    Ok(pos as u32)
-                })?;
+                let vals: Vec<u32> = self
+                    .params
+                    .nominals
+                    .iter()
+                    .map(|level| {
+                        Self::IN_NOMINAL_LEVELS
+                            .iter()
+                            .position(|l| level.eq(l))
+                            .map(|pos| pos as u32)
+                            .unwrap()
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -99,25 +115,29 @@ impl InputCtl {
         &mut self,
         unit: &mut SndEfw,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             IN_NOMINAL_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, self.phys_inputs, |idx, val| {
-                    if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(val as usize) {
-                        unit.set_nominal(idx, level, timeout_ms)?;
-                        if let Some(cache) = &mut self.cache {
-                            // For FPGA models.
-                            cache[idx] = level;
-                        }
-                        Ok(())
-                    } else {
-                        let label = "Invalid value for nominal level of input";
-                        Err(Error::new(FileError::Inval, &label))
-                    }
-                })?;
+                self.params
+                    .nominals
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .enumerate()
+                    .try_for_each(|(ch, (o, &val))| {
+                        let pos = val as usize;
+                        let level = Self::IN_NOMINAL_LEVELS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let label =
+                                    format!("Invalid value for nominal level of input: {}", pos);
+                                Error::new(FileError::Inval, &label)
+                            })
+                            .copied()?;
+                        unit.set_nominal(ch, level, timeout_ms).map(|_| *o = level)
+                    })?;
                 Ok(true)
             }
             _ => Ok(false),

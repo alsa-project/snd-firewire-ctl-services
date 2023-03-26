@@ -13,6 +13,13 @@ const CATEGORY_PHYS_INPUT: u32 = 5;
 const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
+/// The parameters of physical inputs.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EfwPhysInputParameters {
+    /// The nominal signal level of physical input.
+    pub nominals: Vec<NominalSignalLevel>,
+}
+
 /// Protocol about physical input for Fireworks board module.
 pub trait PhysInputProtocol: EfwProtocolExtManual {
     fn set_nominal(

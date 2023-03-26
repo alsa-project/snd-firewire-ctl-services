@@ -106,7 +106,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.port_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -138,7 +138,7 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.output_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.input_ctl.write(unit, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
