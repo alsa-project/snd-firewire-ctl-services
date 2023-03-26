@@ -41,6 +41,8 @@ impl EfwPhysInputSpecification for Audiofire12FormerProtocol {}
 
 impl EfwPhysOutputSpecification for Audiofire12FormerProtocol {}
 
+impl EfwPlaybackSoloSpecification for Audiofire12FormerProtocol {}
+
 /// Protocol implementation for later model of AudioFire 12. The higher sampling rates are
 /// available only with firmware version 4 and former.
 #[derive(Default, Debug)]
@@ -75,6 +77,8 @@ impl EfwPhysInputSpecification for Audiofire12LaterProtocol {}
 
 impl EfwPhysOutputSpecification for Audiofire12LaterProtocol {}
 
+impl EfwPlaybackSoloSpecification for Audiofire12LaterProtocol {}
+
 /// Protocol implementation for former model of AudioFire 8.
 #[derive(Default, Debug)]
 pub struct Audiofire8Protocol;
@@ -107,6 +111,8 @@ impl EfwHardwareSpecification for Audiofire8Protocol {
 impl EfwPhysInputSpecification for Audiofire8Protocol {}
 
 impl EfwPhysOutputSpecification for Audiofire8Protocol {}
+
+impl EfwPlaybackSoloSpecification for Audiofire8Protocol {}
 
 /// Protocol implementation for latter model of AudioFire 8 and AudioFirePre 8
 #[derive(Default, Debug)]
@@ -150,6 +156,8 @@ impl EfwPhysInputSpecification for Audiofire9Protocol {}
 
 impl EfwPhysOutputSpecification for Audiofire9Protocol {}
 
+impl EfwPlaybackSoloSpecification for Audiofire9Protocol {}
+
 /// Protocol implementation for Audiofire 4.
 #[derive(Default, Debug)]
 pub struct Audiofire4Protocol;
@@ -186,6 +194,8 @@ impl EfwRxStreamMapsSpecification for Audiofire4Protocol {}
 impl EfwPhysInputSpecification for Audiofire4Protocol {}
 
 impl EfwPhysOutputSpecification for Audiofire4Protocol {}
+
+impl EfwPlaybackSoloSpecification for Audiofire4Protocol {}
 
 /// Protocol implementation for Audiofire 2.
 #[derive(Default, Debug)]
@@ -225,3 +235,5 @@ impl EfwRxStreamMapsSpecification for Audiofire2Protocol {}
 impl EfwPhysInputSpecification for Audiofire2Protocol {}
 
 impl EfwPhysOutputSpecification for Audiofire2Protocol {}
+
+impl EfwPlaybackSoloSpecification for Audiofire2Protocol {}
