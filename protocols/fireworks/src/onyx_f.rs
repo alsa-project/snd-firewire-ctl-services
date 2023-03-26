@@ -6,7 +6,7 @@
 //! The module includes protocol about port configuration defined by Echo Audio Digital Corporation
 //! for Mackie Onyx-F series.
 
-use super::*;
+use super::{port_conf::*, *};
 
 /// Protocol implementation for former model of Onyx 1200F.
 #[derive(Default, Debug)]
@@ -54,6 +54,8 @@ impl EfwHardwareSpecification for Onyx1200fProtocol {
     ];
 }
 
+impl EfwControlRoomSpecification for Onyx1200fProtocol {}
+
 /// Protocol implementation for Mackie Onyx 400F. The higher sampling rates are available only with
 /// firmware version 4 and former.
 #[derive(Default, Debug)]
@@ -81,3 +83,5 @@ impl EfwHardwareSpecification for Onyx400fProtocol {
         //(PhysGroupType::AnalogMirror, 2), This is not operable from software.
     ];
 }
+
+impl EfwControlRoomSpecification for Onyx400fProtocol {}
