@@ -21,6 +21,62 @@ pub struct GuitarChargeState {
     pub suspend_to_charge: u32,
 }
 
+/// The specification of robot guitar.
+pub trait EfwRobotGuitarSpecification {}
+
+impl<O, P> EfwWhollyCachableParamsOperation<P, GuitarChargeState> for O
+where
+    O: EfwRobotGuitarSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn cache_wholly(
+        proto: &mut P,
+        states: &mut GuitarChargeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut params = vec![0; 3];
+        proto
+            .transaction(
+                CATEGORY_ROBOT_GUITAR,
+                CMD_GET_CHARGE_STATE,
+                &[],
+                &mut params,
+                timeout_ms,
+            )
+            .map(|_| {
+                states.manual_charge = params[0] > 0;
+                states.auto_charge = params[1] > 0;
+                states.suspend_to_charge = params[2];
+            })
+    }
+}
+
+impl<O, P> EfwWhollyUpdatableParamsOperation<P, GuitarChargeState> for O
+where
+    O: EfwRobotGuitarSpecification,
+    P: EfwProtocolExtManual,
+{
+    fn update_wholly(
+        proto: &mut P,
+        states: &GuitarChargeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let args = [
+            states.manual_charge as u32,
+            states.auto_charge as u32,
+            states.suspend_to_charge,
+        ];
+        let mut params = vec![0; 3];
+        proto.transaction(
+            CATEGORY_ROBOT_GUITAR,
+            CMD_SET_CHARGE_STATE,
+            &args,
+            &mut params,
+            timeout_ms,
+        )
+    }
+}
+
 /// Protocol about robot guitar for Fireworks board module.
 pub trait RobotGuitarProtocol: EfwProtocolExtManual {
     fn get_charge_state(&mut self, timeout_ms: u32) -> Result<GuitarChargeState, Error> {
