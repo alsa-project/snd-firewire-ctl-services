@@ -9,9 +9,9 @@ use {
 
 #[derive(Default)]
 pub struct MixerCtl {
-    playbacks: usize,
-    captures: usize,
     has_fpga: bool,
+    playback_params: EfwPlaybackParameters,
+    playback_solo_params: EfwPlaybackSoloParameters,
     monitor_params: EfwMonitorParameters,
 }
 
@@ -43,6 +43,28 @@ impl MixerCtl {
     const PAN_STEP: i32 = 1;
 
     fn cache(&mut self, hwinfo: &HwInfo, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
+        self.playback_params = Default::default();
+        (0..hwinfo.mixer_playbacks).try_for_each(|i| {
+            unit.get_playback_vol(i, timeout_ms)
+                .map(|vol| self.playback_params.volumes.push(vol))?;
+            unit.get_playback_mute(i, timeout_ms)
+                .map(|enabled| self.playback_params.mutes.push(enabled))?;
+            Ok::<(), Error>(())
+        })?;
+
+        self.playback_solo_params = Default::default();
+        let playback_solo_supported = hwinfo
+            .caps
+            .iter()
+            .find(|c| HwCap::PlaybackSoloUnsupported.eq(c))
+            .is_none();
+        if playback_solo_supported {
+            (0..hwinfo.mixer_playbacks).try_for_each(|i| {
+                unit.get_playback_solo(i, timeout_ms)
+                    .map(|enabled| self.playback_solo_params.solos.push(enabled))
+            })?;
+        }
+
         self.monitor_params = Default::default();
         (0..hwinfo.mixer_playbacks).try_for_each(|i| {
             let mut src = EfwMonitorSourceParameters::default();
@@ -71,9 +93,6 @@ impl MixerCtl {
     ) -> Result<(), Error> {
         self.cache(hwinfo, unit, timeout_ms)?;
 
-        self.playbacks = hwinfo.mixer_playbacks;
-        self.captures = hwinfo.mixer_captures;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -81,13 +100,13 @@ impl MixerCtl {
             Self::COEF_MIN,
             Self::COEF_MAX,
             Self::COEF_STEP,
-            self.playbacks,
+            hwinfo.mixer_playbacks,
             Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
             true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_MUTE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, hwinfo.mixer_playbacks, true)?;
 
         if hwinfo
             .caps
@@ -96,35 +115,52 @@ impl MixerCtl {
             .is_none()
         {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
-            let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
+            let _ = card_cntr.add_bool_elems(&elem_id, 1, hwinfo.mixer_playbacks, true)?;
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            self.playbacks,
+            hwinfo.mixer_playbacks,
             Self::COEF_MIN,
             Self::COEF_MAX,
             Self::COEF_STEP,
-            self.captures,
+            hwinfo.mixer_captures,
             Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
             true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_MUTE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
+        let _ = card_cntr.add_bool_elems(
+            &elem_id,
+            hwinfo.mixer_playbacks,
+            hwinfo.mixer_captures,
+            true,
+        )?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_SOLO_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
+        if hwinfo
+            .caps
+            .iter()
+            .find(|c| HwCap::PlaybackSoloUnsupported.eq(c))
+            .is_none()
+        {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_SOLO_NAME, 0);
+            let _ = card_cntr.add_bool_elems(
+                &elem_id,
+                hwinfo.mixer_playbacks,
+                hwinfo.mixer_captures,
+                true,
+            )?;
+        }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_PAN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            self.playbacks,
+            hwinfo.mixer_playbacks,
             Self::PAN_MIN,
             Self::PAN_MAX,
             Self::PAN_STEP,
-            self.captures,
+            hwinfo.mixer_captures,
             None,
             true,
         )?;
@@ -149,21 +185,15 @@ impl MixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, self.playbacks, |idx| {
-                    unit.get_playback_vol(idx, timeout_ms)
-                })?;
+                elem_value.set_int(&self.playback_params.volumes);
                 Ok(true)
             }
             PLAYBACK_MUTE_NAME => {
-                ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
-                    unit.get_playback_mute(idx, timeout_ms)
-                })?;
+                elem_value.set_bool(&self.playback_params.mutes);
                 Ok(true)
             }
             PLAYBACK_SOLO_NAME => {
-                ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
-                    unit.get_playback_solo(idx, timeout_ms)
-                })?;
+                elem_value.set_bool(&self.playback_solo_params.solos);
                 Ok(true)
             }
             MONITOR_GAIN_NAME => {
@@ -221,33 +251,44 @@ impl MixerCtl {
         &mut self,
         unit: &mut SndEfw,
         elem_id: &ElemId,
-        old: &ElemValue,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(elem_value, old, self.playbacks, |idx, val| {
-                    unit.set_playback_vol(idx, val, timeout_ms)
-                })?;
+                self.playback_params
+                    .volumes
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(n))
+                    .try_for_each(|(i, (o, &val))| {
+                        unit.set_playback_vol(i, val, timeout_ms).map(|_| *o = val)
+                    })?;
                 Ok(true)
             }
             PLAYBACK_MUTE_NAME => {
-                ElemValueAccessor::<bool>::get_vals(
-                    elem_value,
-                    old,
-                    self.playbacks,
-                    |idx, val| unit.set_playback_mute(idx, val, timeout_ms),
-                )?;
+                self.playback_params
+                    .mutes
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(&n))
+                    .try_for_each(|(i, (o, val))| {
+                        unit.set_playback_mute(i, val, timeout_ms).map(|_| *o = val)
+                    })?;
                 Ok(true)
             }
             PLAYBACK_SOLO_NAME => {
-                ElemValueAccessor::<bool>::get_vals(
-                    elem_value,
-                    old,
-                    self.playbacks,
-                    |idx, val| unit.set_playback_solo(idx, val, timeout_ms),
-                )?;
+                self.playback_solo_params
+                    .solos
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(&n))
+                    .try_for_each(|(i, (o, val))| {
+                        unit.set_playback_solo(i, val, timeout_ms).map(|_| *o = val)
+                    })?;
                 Ok(true)
             }
             MONITOR_GAIN_NAME => {
@@ -337,9 +378,9 @@ impl MixerCtl {
                     // model. For workaround, configure each monitor with input 0 to activate the
                     // configuration.
                     if self.has_fpga {
-                        (0..self.playbacks).try_for_each(|i| {
-                            let vol = unit.get_monitor_vol(0, i, timeout_ms)?;
-                            unit.set_monitor_vol(0, i, vol, timeout_ms)
+                        (0..self.monitor_params.0.len()).try_for_each(|src| {
+                            let vol = unit.get_monitor_vol(0, src, timeout_ms)?;
+                            unit.set_monitor_vol(0, src, vol, timeout_ms)
                         })?;
                     }
 
