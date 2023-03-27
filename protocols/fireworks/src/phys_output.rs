@@ -18,7 +18,7 @@ const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
 /// The parameters of all outputs.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwOutputParameters {
     /// The volume of physical output. The value is unsigned fixed-point number of 8.24 format;
     /// i.e. Q24. It is 0x00000000..0x02000000 for -144.0..+6.0 dB.
@@ -135,7 +135,7 @@ where
 }
 
 /// The parameters of physical outputs.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwPhysOutputParameters {
     /// The nominal signal level of physical output.
     pub nominals: Vec<NominalSignalLevel>,

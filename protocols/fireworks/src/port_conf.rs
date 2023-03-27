@@ -315,7 +315,7 @@ where
 
 /// Mapping between rx stream channel pairs and physical output channel pairs per mode of sampling
 /// transfer frequency.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwRxStreamMaps(pub Vec<Vec<usize>>);
 
 /// The specification of rx stream mapping.

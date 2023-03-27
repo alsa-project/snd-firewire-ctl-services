@@ -20,7 +20,7 @@ const CMD_SET_PAN: u32 = 6;
 const CMD_GET_PAN: u32 = 7;
 
 /// The parameters of input monitor.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwMonitorSourceParameters {
     /// The gain of monitor input. The value is unsigned fixed-point number of 8.24 format; i.e.
     /// Q24. It is 0x00000000..0x02000000 for -144.0..+6.0 dB.
@@ -34,7 +34,7 @@ pub struct EfwMonitorSourceParameters {
 }
 
 /// The parameters of input monitor.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwMonitorParameters(pub Vec<EfwMonitorSourceParameters>);
 
 impl<O, P> EfwWhollyCachableParamsOperation<P, EfwMonitorParameters> for O
