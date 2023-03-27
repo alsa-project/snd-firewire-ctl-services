@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    protocols::{hw_info::*, phys_input::*, *},
-};
+use {super::*, protocols::phys_input::*};
 
 #[derive(Default)]
 pub struct InputCtl {

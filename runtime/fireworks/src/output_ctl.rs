@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    alsa_ctl_tlv_codec::DbInterval,
-    protocols::{hw_info::*, phys_output::*, *},
-};
+use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::phys_output::*};
 
 #[derive(Default)]
 pub struct OutputCtl {
