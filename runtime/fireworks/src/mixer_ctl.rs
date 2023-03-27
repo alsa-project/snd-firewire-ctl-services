@@ -65,7 +65,9 @@ where
     const PAN_STEP: i32 = 1;
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -180,8 +182,9 @@ where
                 })?;
                 let vals = &elem_value.int()[..T::MONITOR_SOURCE_COUNT];
                 source.gains.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             MONITOR_MUTE_NAME => {
                 let dst = elem_id.index() as usize;
@@ -192,8 +195,9 @@ where
                 })?;
                 let vals = &elem_value.boolean()[..T::MONITOR_SOURCE_COUNT];
                 source.mutes.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             MONITOR_SOLO_NAME => {
                 let dst = elem_id.index() as usize;
@@ -204,8 +208,9 @@ where
                 })?;
                 let vals = &elem_value.boolean()[..T::MONITOR_SOURCE_COUNT];
                 source.solos.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             MONITOR_PAN_NAME => {
                 let dst = elem_id.index() as usize;
@@ -219,8 +224,9 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(pan, &val)| *pan = val as u8);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -261,7 +267,9 @@ where
         + EfwPartiallyUpdatableParamsOperation<SndEfw, EfwPlaybackParameters>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -313,15 +321,17 @@ where
                 let vals = &elem_value.int()[..T::RX_CHANNEL_COUNTS[0]];
                 let mut params = self.params.clone();
                 params.volumes.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             PLAYBACK_MUTE_NAME => {
                 let vals = &elem_value.boolean()[..T::RX_CHANNEL_COUNTS[0]];
                 let mut params = self.params.clone();
                 params.mutes.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -362,7 +372,9 @@ where
         + EfwPartiallyUpdatableParamsOperation<SndEfw, EfwPlaybackSoloParameters>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -394,8 +406,9 @@ where
                 let vals = &elem_value.boolean()[..T::RX_CHANNEL_COUNTS[0]];
                 let mut params = self.params.clone();
                 params.solos.copy_from_slice(vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
