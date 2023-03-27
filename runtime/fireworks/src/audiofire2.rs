@@ -13,6 +13,7 @@ pub struct Audiofire2 {
     output_ctl: OutCtl<Audiofire2Protocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire2Protocol>,
     phys_input_ctl: PhysInputCtl<Audiofire2Protocol>,
+    rx_stream_map_ctl: RxStreamMapsCtl<Audiofire2Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -27,6 +28,7 @@ impl Audiofire2 {
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+        self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -42,6 +44,7 @@ impl CtlModel<SndEfw> for Audiofire2 {
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
         self.phys_input_ctl.load(card_cntr)?;
+        self.rx_stream_map_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -66,6 +69,11 @@ impl CtlModel<SndEfw> for Audiofire2 {
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self
+            .rx_stream_map_ctl
+            .read(self.clk_ctl.params.rate, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -110,6 +118,14 @@ impl CtlModel<SndEfw> for Audiofire2 {
             .phys_input_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
+            Ok(true)
+        } else if self.rx_stream_map_ctl.write(
+            unit,
+            self.clk_ctl.params.rate,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -157,6 +173,7 @@ impl NotifyModel<SndEfw, bool> for Audiofire2 {
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+                self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -181,6 +198,11 @@ impl NotifyModel<SndEfw, bool> for Audiofire2 {
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self
+            .rx_stream_map_ctl
+            .read(self.clk_ctl.params.rate, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             Ok(false)
