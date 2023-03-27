@@ -281,11 +281,10 @@ where
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut labels = vec!["Disable".to_string()];
-        (0..T::RX_CHANNEL_COUNTS[0]).step_by(2).for_each(|pair| {
-            let label = format!("Stream-{}/{}", pair + 1, pair + 2);
-            labels.push(label);
-        });
+        let labels: Vec<String> = (0..T::RX_CHANNEL_COUNTS[0])
+            .step_by(2)
+            .map(|pair| format!("Stream-{}/{}", pair + 1, pair + 2))
+            .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RX_MAP_NAME, 0);
         card_cntr
@@ -311,13 +310,7 @@ where
                 let rate_index = Self::compute_rate_index(rate);
                 let vals: Vec<u32> = self.1 .0[rate_index]
                     .iter()
-                    .map(|entry| {
-                        if let Some(pos) = entry {
-                            1 + *pos as u32
-                        } else {
-                            0
-                        }
-                    })
+                    .map(|&entry| entry as u32)
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
@@ -343,15 +336,11 @@ where
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .try_for_each(|(entry, &pos)| {
-                        if pos > phys_output_pair_count as u32 {
+                        if pos >= phys_output_pair_count as u32 {
                             let msg = format!("Invalid value for output pair: {}", pos);
                             Err(Error::new(FileError::Inval, &msg))
                         } else {
-                            *entry = if pos == 0 {
-                                None
-                            } else {
-                                Some((pos as usize) - 1)
-                            };
+                            *entry = pos as usize;
                             Ok(())
                         }
                     })?;
