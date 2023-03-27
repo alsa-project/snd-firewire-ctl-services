@@ -37,7 +37,9 @@ where
         + EfwWhollyUpdatableParamsOperation<SndEfw, EfwSamplingClockParameters>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(
@@ -123,6 +125,7 @@ where
                 unit.lock()?;
                 let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             RATE_NAME => {
@@ -139,6 +142,7 @@ where
                 unit.lock()?;
                 let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
