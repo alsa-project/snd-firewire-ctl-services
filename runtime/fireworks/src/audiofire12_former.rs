@@ -39,6 +39,17 @@ impl Audiofire12Former {
 
         Ok(())
     }
+
+    pub(crate) fn is_later_model(&mut self, unit: &mut SndEfw) -> Result<bool, Error> {
+        let mut hw_info = HwInfo::default();
+        Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS)?;
+
+        Ok(hw_info
+            .caps
+            .iter()
+            .find(|cap| HwCap::InputGain.eq(cap))
+            .is_some())
+    }
 }
 
 impl CtlModel<SndEfw> for Audiofire12Former {

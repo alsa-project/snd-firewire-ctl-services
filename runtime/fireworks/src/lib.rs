@@ -26,7 +26,7 @@ mod rip;
 use {
     self::{
         clk_ctl::*, guitar_ctl::*, iec60958_ctl::*, input_ctl::*, meter_ctl::*, mixer_ctl::*,
-        output_ctl::*, port_ctl::*,
+        model::*, output_ctl::*, port_ctl::*,
     },
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
@@ -54,7 +54,7 @@ enum Event {
 pub struct EfwRuntime {
     node: FwNode,
     unit: SndEfw,
-    model: model::EfwModel,
+    model: EfwModel,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
@@ -87,7 +87,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let node = FwNode::new();
         node.open(&format!("/dev/{}", unit.node_device().unwrap()))?;
         let data = node.config_rom()?;
-        let model = model::EfwModel::new(&data)?;
+        let model = EfwModel::new(&data)?;
 
         let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;
@@ -113,16 +113,17 @@ impl RuntimeOperation<u32> for EfwRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.cache(&mut self.unit)?;
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         self.model
-            .get_measure_elem_list(&mut self.measured_elem_id_list);
+            .get_measured_elem_id_list(&mut self.measured_elem_id_list);
 
         self.model
-            .get_notified_elem_list(&mut self.notified_elem_id_list);
+            .get_notified_elem_id_list(&mut self.notified_elem_id_list);
 
         Ok(())
     }
@@ -140,19 +141,19 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Timer => {
-                    let _ = self.card_cntr.measure_elems(
+                    let _ = self.model.measure_elems(
+                        &mut self.card_cntr,
                         &mut self.unit,
                         &self.measured_elem_id_list,
-                        &mut self.model,
                     );
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.name() != Self::TIMER_NAME {
-                        let _ = self.card_cntr.dispatch_elem_event(
+                    if elem_id.name() != TIMER_NAME {
+                        let _ = self.model.dispatch_elem_event(
+                            &mut self.card_cntr,
                             &mut self.unit,
                             &elem_id,
                             &events,
-                            &mut self.model,
                         );
                     } else {
                         let mut elem_value = ElemValue::new();
@@ -172,11 +173,11 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     }
                 }
                 Event::StreamLock(locked) => {
-                    let _ = self.card_cntr.dispatch_notification(
+                    let _ = self.model.dispatch_notification(
+                        &mut self.card_cntr,
                         &mut self.unit,
-                        &locked,
+                        locked,
                         &self.notified_elem_id_list,
-                        &mut self.model,
                     );
                 }
             }
@@ -185,16 +186,16 @@ impl RuntimeOperation<u32> for EfwRuntime {
     }
 }
 
+const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
+const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
+const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
+
+const TIMER_NAME: &'static str = "metering";
+const TIMER_INTERVAL: time::Duration = time::Duration::from_millis(50);
+
 impl EfwRuntime {
-    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
-
-    const TIMER_NAME: &'static str = "metering";
-    const TIMER_INTERVAL: time::Duration = time::Duration::from_millis(50);
-
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::NODE_DISPATCHER_NAME.to_string();
+        let name = NODE_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -218,7 +219,7 @@ impl EfwRuntime {
     }
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
+        let name = SYSTEM_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -255,9 +256,9 @@ impl EfwRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
-        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+        dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);
             source::Continue(true)
         });
