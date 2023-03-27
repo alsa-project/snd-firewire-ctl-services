@@ -28,7 +28,9 @@ where
     const AES0_NONAUDIO: u8 = 0x2;
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -121,8 +123,9 @@ where
                     params.0.retain(|f| HwCtlFlag::SpdifNoneAudio.eq(f));
                 }
 
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
