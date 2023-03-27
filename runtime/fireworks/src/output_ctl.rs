@@ -52,7 +52,9 @@ where
     };
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -108,15 +110,17 @@ where
                 let mut params = self.params.clone();
                 let vals = &elem_value.int()[..T::phys_output_count()];
                 params.volumes.copy_from_slice(&vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             OUT_MUTE_NAME => {
                 let mut params = self.params.clone();
                 let vals = &elem_value.boolean()[..T::phys_output_count()];
                 params.mutes.copy_from_slice(&vals);
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -163,7 +167,9 @@ where
     ];
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -234,8 +240,9 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                T::update_partially(unit, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
