@@ -39,7 +39,9 @@ where
     const COEF_STEP: i32 = 1;
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.1, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
