@@ -9,6 +9,7 @@ pub struct Onyx1200f {
     meter_ctl: HwMeterCtl<Onyx1200fProtocol>,
     monitor_ctl: MonitorCtl<Onyx1200fProtocol>,
     playback_ctl: PlaybackCtl<Onyx1200fProtocol>,
+    output_ctl: OutCtl<Onyx1200fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -19,6 +20,7 @@ impl Onyx1200f {
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
         self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+        self.output_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -30,6 +32,7 @@ impl CtlModel<SndEfw> for Onyx1200f {
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
         self.playback_ctl.load(card_cntr)?;
+        self.output_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -46,6 +49,8 @@ impl CtlModel<SndEfw> for Onyx1200f {
         } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -68,6 +73,11 @@ impl CtlModel<SndEfw> for Onyx1200f {
             Ok(true)
         } else if self
             .playback_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .output_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -113,6 +123,7 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
             if self.clk_ctl.params.rate != rate {
                 self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
                 self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+                self.output_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -129,6 +140,8 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
         } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
