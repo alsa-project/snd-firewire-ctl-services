@@ -30,7 +30,9 @@ where
     const STEP_SEC: i32 = 1;
 
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -94,20 +96,23 @@ where
             MANUAL_CHARGE_NAME => {
                 let mut params = self.params.clone();
                 params.manual_charge = elem_value.boolean()[0];
-                T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             AUTO_CHARGE_NAME => {
                 let mut params = self.params.clone();
                 params.auto_charge = elem_value.boolean()[0];
-                T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             SUSPEND_TO_CHARGE => {
                 let mut params = self.params.clone();
                 params.suspend_to_charge = elem_value.int()[0] as u32;
-                T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
