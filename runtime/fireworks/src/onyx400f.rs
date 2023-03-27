@@ -12,6 +12,7 @@ pub struct Onyx400f {
     playback_ctl: PlaybackCtl<Onyx400fProtocol>,
     output_ctl: OutCtl<Onyx400fProtocol>,
     control_room_ctl: ControlRoomSourceCtl<Onyx400fProtocol>,
+    iec60958_ctl: Iec958Ctl<Onyx400fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -32,6 +33,7 @@ impl Onyx400f {
         self.playback_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
+        self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -45,6 +47,7 @@ impl CtlModel<SndEfw> for Onyx400f {
         self.playback_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.control_room_ctl.load(card_cntr)?;
+        self.iec60958_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -65,6 +68,8 @@ impl CtlModel<SndEfw> for Onyx400f {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.control_room_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -97,6 +102,11 @@ impl CtlModel<SndEfw> for Onyx400f {
             Ok(true)
         } else if self
             .control_room_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .iec60958_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -144,6 +154,7 @@ impl NotifyModel<SndEfw, bool> for Onyx400f {
                 self.playback_ctl.cache(unit, TIMEOUT_MS)?;
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
+                self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -164,6 +175,8 @@ impl NotifyModel<SndEfw, bool> for Onyx400f {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.control_room_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
