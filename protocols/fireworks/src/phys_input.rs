@@ -14,7 +14,7 @@ const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
 /// The parameters of physical inputs.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EfwPhysInputParameters {
     /// The nominal signal level of physical input.
     pub nominals: Vec<NominalSignalLevel>,
