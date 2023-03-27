@@ -13,6 +13,7 @@ pub struct Audiofire12Former {
     playback_solo_ctl: PlaybackSoloCtl<Audiofire12FormerProtocol>,
     output_ctl: OutCtl<Audiofire12FormerProtocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire12FormerProtocol>,
+    phys_input_ctl: PhysInputCtl<Audiofire12FormerProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -34,6 +35,7 @@ impl Audiofire12Former {
         self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
+        self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -48,6 +50,7 @@ impl CtlModel<SndEfw> for Audiofire12Former {
         self.playback_solo_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
+        self.phys_input_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -70,6 +73,8 @@ impl CtlModel<SndEfw> for Audiofire12Former {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -107,6 +112,11 @@ impl CtlModel<SndEfw> for Audiofire12Former {
             Ok(true)
         } else if self
             .phys_output_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_input_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -153,6 +163,7 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Former {
                 self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
                 self.playback_ctl.cache(unit, TIMEOUT_MS)?;
                 self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
+                self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -171,6 +182,8 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Former {
         } else if self.playback_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

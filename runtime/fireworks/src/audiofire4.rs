@@ -12,6 +12,7 @@ pub struct Audiofire4 {
     playback_solo_ctl: PlaybackSoloCtl<Audiofire4Protocol>,
     output_ctl: OutCtl<Audiofire4Protocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire4Protocol>,
+    phys_input_ctl: PhysInputCtl<Audiofire4Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -25,6 +26,7 @@ impl Audiofire4 {
         self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
+        self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -39,6 +41,7 @@ impl CtlModel<SndEfw> for Audiofire4 {
         self.playback_solo_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
+        self.phys_input_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -61,6 +64,8 @@ impl CtlModel<SndEfw> for Audiofire4 {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -98,6 +103,11 @@ impl CtlModel<SndEfw> for Audiofire4 {
             Ok(true)
         } else if self
             .phys_output_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_input_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -146,6 +156,7 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
                 self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
+                self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -168,6 +179,8 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

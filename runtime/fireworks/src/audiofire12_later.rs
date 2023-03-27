@@ -13,6 +13,7 @@ pub struct Audiofire12Later {
     playback_solo_ctl: PlaybackSoloCtl<Audiofire12LaterProtocol>,
     output_ctl: OutCtl<Audiofire12LaterProtocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire12LaterProtocol>,
+    phys_input_ctl: PhysInputCtl<Audiofire12LaterProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -34,6 +35,7 @@ impl Audiofire12Later {
         self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
+        self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -48,6 +50,7 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         self.playback_solo_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
+        self.phys_input_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -70,6 +73,8 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -107,6 +112,11 @@ impl CtlModel<SndEfw> for Audiofire12Later {
             Ok(true)
         } else if self
             .phys_output_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_input_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -155,6 +165,7 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Later {
                 self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
+                self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -177,6 +188,8 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Later {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
