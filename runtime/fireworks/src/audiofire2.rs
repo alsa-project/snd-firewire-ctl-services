@@ -14,7 +14,7 @@ pub struct Audiofire2 {
     phys_output_ctl: PhysOutputCtl<Audiofire2Protocol>,
     phys_input_ctl: PhysInputCtl<Audiofire2Protocol>,
     rx_stream_map_ctl: RxStreamMapsCtl<Audiofire2Protocol>,
-    iec60958_ctl: Iec958Ctl<Audiofire2Protocol>,
+    iec60958_ctl: Iec60958Ctl<Audiofire2Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;

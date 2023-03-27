@@ -13,7 +13,7 @@ pub struct Audiofire8 {
     output_ctl: OutCtl<Audiofire8Protocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire8Protocol>,
     phys_input_ctl: PhysInputCtl<Audiofire8Protocol>,
-    iec60958_ctl: Iec958Ctl<Audiofire8Protocol>,
+    iec60958_ctl: Iec60958Ctl<Audiofire8Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;

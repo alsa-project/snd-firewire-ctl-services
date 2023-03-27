@@ -15,7 +15,7 @@ pub struct Audiofire4 {
     phys_input_ctl: PhysInputCtl<Audiofire4Protocol>,
     phantom_powering_ctl: PhantomPoweringCtl<Audiofire4Protocol>,
     rx_stream_map_ctl: RxStreamMapsCtl<Audiofire4Protocol>,
-    iec60958_ctl: Iec958Ctl<Audiofire4Protocol>,
+    iec60958_ctl: Iec60958Ctl<Audiofire4Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;

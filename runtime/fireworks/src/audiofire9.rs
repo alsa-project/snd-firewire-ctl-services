@@ -14,7 +14,7 @@ pub struct Audiofire9 {
     phys_output_ctl: PhysOutputCtl<Audiofire9Protocol>,
     phys_input_ctl: PhysInputCtl<Audiofire9Protocol>,
     digital_mode_ctl: DigitalModeCtl<Audiofire9Protocol>,
-    iec60958_ctl: Iec958Ctl<Audiofire9Protocol>,
+    iec60958_ctl: Iec60958Ctl<Audiofire9Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
