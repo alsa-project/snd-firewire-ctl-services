@@ -12,7 +12,7 @@ pub struct Onyx1200f {
     output_ctl: OutCtl<Onyx1200fProtocol>,
     control_room_ctl: ControlRoomSourceCtl<Onyx1200fProtocol>,
     digital_mode_ctl: DigitalModeCtl<Onyx1200fProtocol>,
-    iec60958_ctl: Iec958Ctl<Onyx1200fProtocol>,
+    iec60958_ctl: Iec60958Ctl<Onyx1200fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;

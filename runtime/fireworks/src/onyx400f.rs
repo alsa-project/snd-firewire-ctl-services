@@ -12,7 +12,7 @@ pub struct Onyx400f {
     playback_ctl: PlaybackCtl<Onyx400fProtocol>,
     output_ctl: OutCtl<Onyx400fProtocol>,
     control_room_ctl: ControlRoomSourceCtl<Onyx400fProtocol>,
-    iec60958_ctl: Iec958Ctl<Onyx400fProtocol>,
+    iec60958_ctl: Iec60958Ctl<Onyx400fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
