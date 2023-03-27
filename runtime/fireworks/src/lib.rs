@@ -24,7 +24,10 @@ mod audiofire9;
 mod rip;
 
 use {
-    self::{clk_ctl::*, input_ctl::*, meter_ctl::*, mixer_ctl::*, output_ctl::*, port_ctl::*},
+    self::{
+        clk_ctl::*, guitar_ctl::*, input_ctl::*, meter_ctl::*, mixer_ctl::*, output_ctl::*,
+        port_ctl::*,
+    },
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
     firewire_fireworks_protocols as protocols,
