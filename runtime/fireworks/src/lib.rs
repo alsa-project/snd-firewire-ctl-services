@@ -11,6 +11,18 @@ mod mixer_ctl;
 mod output_ctl;
 mod port_ctl;
 
+mod onyx1200f;
+mod onyx400f;
+
+mod audiofire12_former;
+mod audiofire12_later;
+mod audiofire2;
+mod audiofire4;
+mod audiofire8;
+mod audiofire9;
+
+mod rip;
+
 use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
