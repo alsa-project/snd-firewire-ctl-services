@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    protocols::{hw_info::*, port_conf::*, *},
-};
+use {super::*, protocols::port_conf::*};
 
 fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {
     match phys_group_type {

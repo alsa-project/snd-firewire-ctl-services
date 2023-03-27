@@ -4,7 +4,7 @@
 use {
     super::*,
     alsa_ctl_tlv_codec::DbInterval,
-    protocols::{hw_ctl::*, hw_info::*, monitor::*, playback::*},
+    protocols::{monitor::*, playback::*},
 };
 
 #[derive(Default)]

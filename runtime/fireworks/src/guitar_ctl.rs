@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    protocols::{hw_info::*, robot_guitar::*},
-};
+use {super::*, protocols::robot_guitar::*};
 
 #[derive(Default)]
 pub struct GuitarCtl {

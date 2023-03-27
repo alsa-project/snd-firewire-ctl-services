@@ -24,6 +24,7 @@ mod audiofire9;
 mod rip;
 
 use {
+    self::clk_ctl::*,
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
     firewire_fireworks_protocols as protocols,
@@ -34,8 +35,8 @@ use {
     },
     hitaki::{prelude::*, SndEfw},
     nix::sys::signal,
-    protocols::HwCap,
-    std::{sync::mpsc, thread, time},
+    protocols::{hw_ctl::*, hw_info::*, *},
+    std::{marker::PhantomData, sync::mpsc, thread, time},
 };
 
 enum Event {
