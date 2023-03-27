@@ -40,7 +40,7 @@ use {
     nix::sys::signal,
     protocols::{hw_ctl::*, hw_info::*, *},
     std::{marker::PhantomData, sync::mpsc, thread, time},
-    tracing::Level,
+    tracing::{debug, debug_span, Level},
 };
 
 enum Event {
@@ -121,8 +121,13 @@ impl RuntimeOperation<u32> for EfwRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
+
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        enter.exit();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -137,6 +142,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -146,9 +152,10 @@ impl RuntimeOperation<u32> for EfwRuntime {
             match ev {
                 Event::Shutdown | Event::Disconnected => break,
                 Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Timer => {
+                    let _enter = debug_span!("stream-lock").entered();
                     let _ = self.model.measure_elems(
                         &mut self.card_cntr,
                         &mut self.unit,
@@ -156,6 +163,17 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     );
                 }
                 Event::Elem((elem_id, events)) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
                     if elem_id.name() != TIMER_NAME {
                         let _ = self.model.dispatch_elem_event(
                             &mut self.card_cntr,
@@ -181,6 +199,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     }
                 }
                 Event::StreamLock(locked) => {
+                    let _enter = debug_span!("stream-lock").entered();
                     let _ = self.model.dispatch_notification(
                         &mut self.card_cntr,
                         &mut self.unit,
@@ -190,6 +209,9 @@ impl RuntimeOperation<u32> for EfwRuntime {
                 }
             }
         }
+
+        enter.exit();
+
         Ok(())
     }
 }
