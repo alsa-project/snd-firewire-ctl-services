@@ -316,7 +316,7 @@ where
 /// Mapping between rx stream channel pairs and physical output channel pairs per mode of sampling
 /// transfer frequency.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct EfwRxStreamMaps(pub Vec<Vec<Option<usize>>>);
+pub struct EfwRxStreamMaps(pub Vec<Vec<usize>>);
 
 /// The specification of rx stream mapping.
 pub trait EfwRxStreamMapsSpecification: EfwHardwareSpecification {
@@ -333,7 +333,7 @@ pub trait EfwRxStreamMapsSpecification: EfwHardwareSpecification {
 }
 
 const MAP_SIZE: usize = 70;
-const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
+const MAP_ENTRY_UNABAILABLE: u32 = 0xffffffff;
 
 impl<O, P> EfwWhollyCachableParamsOperation<P, EfwRxStreamMaps> for O
 where
@@ -365,13 +365,7 @@ where
                         params[4..]
                             .iter()
                             .zip(state.iter_mut())
-                            .for_each(|(&quad, src)| {
-                                *src = if quad != MAP_ENTRY_DISABLE {
-                                    Some((quad as usize) / 2)
-                                } else {
-                                    None
-                                };
-                            })
+                            .for_each(|(&quad, src)| *src = (quad / 2) as usize);
                     })
             })
     }
@@ -405,17 +399,15 @@ where
                     args[1] = 0;
                     args[2] = (rx_channel_count / 2) as u32;
                     args[3] = (Self::phys_output_count() / 2) as u32;
-                    args[4..36].fill(MAP_ENTRY_DISABLE);
+                    args[4..36].fill(MAP_ENTRY_UNABAILABLE);
                     args[36] = (tx_channel_count / 2) as u32;
                     args[37] = (Self::phys_input_count() / 2) as u32;
-                    args[38..70].fill(MAP_ENTRY_DISABLE);
+                    args[38..70].fill(MAP_ENTRY_UNABAILABLE);
 
                     args[4..]
                         .iter_mut()
                         .zip(update.iter())
-                        .for_each(|(quad, src)| {
-                            *quad = src.map_or(MAP_ENTRY_DISABLE, |pair| 2 * pair as u32)
-                        });
+                        .for_each(|(quad, &src)| *quad = (src * 2) as u32);
 
                     // MEMO: No hardware supports tx stream mapping.
 
