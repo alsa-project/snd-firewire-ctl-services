@@ -13,6 +13,8 @@ pub struct Audiofire4 {
     output_ctl: OutCtl<Audiofire4Protocol>,
     phys_output_ctl: PhysOutputCtl<Audiofire4Protocol>,
     phys_input_ctl: PhysInputCtl<Audiofire4Protocol>,
+    phantom_powering_ctl: PhantomPoweringCtl<Audiofire4Protocol>,
+    rx_stream_map_ctl: RxStreamMapsCtl<Audiofire4Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -27,6 +29,8 @@ impl Audiofire4 {
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+        self.phantom_powering_ctl.cache(unit, TIMEOUT_MS)?;
+        self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -42,6 +46,8 @@ impl CtlModel<SndEfw> for Audiofire4 {
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
         self.phys_input_ctl.load(card_cntr)?;
+        self.phantom_powering_ctl.load(card_cntr)?;
+        self.rx_stream_map_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -66,6 +72,13 @@ impl CtlModel<SndEfw> for Audiofire4 {
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phantom_powering_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self
+            .rx_stream_map_ctl
+            .read(self.clk_ctl.params.rate, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -110,6 +123,19 @@ impl CtlModel<SndEfw> for Audiofire4 {
             .phys_input_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
+            Ok(true)
+        } else if self
+            .phantom_powering_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self.rx_stream_map_ctl.write(
+            unit,
+            self.clk_ctl.params.rate,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -157,6 +183,8 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+                self.phantom_powering_ctl.cache(unit, TIMEOUT_MS)?;
+                self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -181,6 +209,13 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phantom_powering_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self
+            .rx_stream_map_ctl
+            .read(self.clk_ctl.params.rate, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             Ok(false)
