@@ -15,6 +15,7 @@ pub struct Audiofire4 {
     phys_input_ctl: PhysInputCtl<Audiofire4Protocol>,
     phantom_powering_ctl: PhantomPoweringCtl<Audiofire4Protocol>,
     rx_stream_map_ctl: RxStreamMapsCtl<Audiofire4Protocol>,
+    iec60958_ctl: Iec958Ctl<Audiofire4Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -31,6 +32,7 @@ impl Audiofire4 {
         self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
         self.phantom_powering_ctl.cache(unit, TIMEOUT_MS)?;
         self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
+        self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -48,6 +50,7 @@ impl CtlModel<SndEfw> for Audiofire4 {
         self.phys_input_ctl.load(card_cntr)?;
         self.phantom_powering_ctl.load(card_cntr)?;
         self.rx_stream_map_ctl.load(card_cntr)?;
+        self.iec60958_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -79,6 +82,8 @@ impl CtlModel<SndEfw> for Audiofire4 {
             .rx_stream_map_ctl
             .read(self.clk_ctl.params.rate, elem_id, elem_value)?
         {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -137,6 +142,11 @@ impl CtlModel<SndEfw> for Audiofire4 {
             TIMEOUT_MS,
         )? {
             Ok(true)
+        } else if self
+            .iec60958_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -185,6 +195,7 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
                 self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phantom_powering_ctl.cache(unit, TIMEOUT_MS)?;
                 self.rx_stream_map_ctl.cache(unit, TIMEOUT_MS)?;
+                self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -216,6 +227,8 @@ impl NotifyModel<SndEfw, bool> for Audiofire4 {
             .rx_stream_map_ctl
             .read(self.clk_ctl.params.rate, elem_id, elem_value)?
         {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

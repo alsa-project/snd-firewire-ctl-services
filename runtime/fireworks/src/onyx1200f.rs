@@ -12,6 +12,7 @@ pub struct Onyx1200f {
     output_ctl: OutCtl<Onyx1200fProtocol>,
     control_room_ctl: ControlRoomSourceCtl<Onyx1200fProtocol>,
     digital_mode_ctl: DigitalModeCtl<Onyx1200fProtocol>,
+    iec60958_ctl: Iec958Ctl<Onyx1200fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -25,6 +26,7 @@ impl Onyx1200f {
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
         self.digital_mode_ctl.cache(unit, TIMEOUT_MS)?;
+        self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -39,6 +41,7 @@ impl CtlModel<SndEfw> for Onyx1200f {
         self.output_ctl.load(card_cntr)?;
         self.control_room_ctl.load(card_cntr)?;
         self.digital_mode_ctl.load(card_cntr)?;
+        self.iec60958_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -61,6 +64,8 @@ impl CtlModel<SndEfw> for Onyx1200f {
         } else if self.control_room_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.digital_mode_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -98,6 +103,11 @@ impl CtlModel<SndEfw> for Onyx1200f {
             Ok(true)
         } else if self
             .digital_mode_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .iec60958_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -146,6 +156,7 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
                 self.digital_mode_ctl.cache(unit, TIMEOUT_MS)?;
+                self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -168,6 +179,8 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
         } else if self.control_room_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.digital_mode_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

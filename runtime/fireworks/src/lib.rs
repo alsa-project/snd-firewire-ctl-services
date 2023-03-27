@@ -25,8 +25,8 @@ mod rip;
 
 use {
     self::{
-        clk_ctl::*, guitar_ctl::*, input_ctl::*, meter_ctl::*, mixer_ctl::*, output_ctl::*,
-        port_ctl::*,
+        clk_ctl::*, guitar_ctl::*, iec60958_ctl::*, input_ctl::*, meter_ctl::*, mixer_ctl::*,
+        output_ctl::*, port_ctl::*,
     },
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
