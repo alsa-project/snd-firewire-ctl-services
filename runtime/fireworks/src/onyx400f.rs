@@ -20,7 +20,10 @@ const TIMEOUT_MS: u32 = 100;
 impl Onyx400f {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
-        Onyx400fProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS)?;
+        let res = Onyx400fProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
+        debug!(params = ?hw_info, ?res);
+        res?;
+
         self.higher_rates_supported = hw_info
             .clk_rates
             .iter()

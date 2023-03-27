@@ -21,7 +21,10 @@ const TIMEOUT_MS: u32 = 100;
 impl Audiofire12Former {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
-        Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS)?;
+        let res = Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
+        debug!(params = ?hw_info, ?res);
+        res?;
+
         self.higher_rates_supported = hw_info
             .clk_rates
             .iter()
@@ -42,7 +45,9 @@ impl Audiofire12Former {
 
     pub(crate) fn is_later_model(&mut self, unit: &mut SndEfw) -> Result<bool, Error> {
         let mut hw_info = HwInfo::default();
-        Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS)?;
+        let res = Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
+        debug!(params = ?hw_info, ?res);
+        res?;
 
         Ok(hw_info
             .caps
