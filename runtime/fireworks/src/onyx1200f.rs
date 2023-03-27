@@ -7,6 +7,8 @@ use {super::*, protocols::onyx_f::Onyx1200fProtocol};
 pub struct Onyx1200f {
     clk_ctl: SamplingClockCtl<Onyx1200fProtocol>,
     meter_ctl: HwMeterCtl<Onyx1200fProtocol>,
+    monitor_ctl: MonitorCtl<Onyx1200fProtocol>,
+    playback_ctl: PlaybackCtl<Onyx1200fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -15,6 +17,8 @@ impl Onyx1200f {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
+        self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+        self.playback_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -24,6 +28,8 @@ impl CtlModel<SndEfw> for Onyx1200f {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, true)?;
         self.meter_ctl.load(card_cntr)?;
+        self.monitor_ctl.load(card_cntr)?;
+        self.playback_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -36,6 +42,10 @@ impl CtlModel<SndEfw> for Onyx1200f {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -50,6 +60,16 @@ impl CtlModel<SndEfw> for Onyx1200f {
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self
+            .monitor_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .playback_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -88,7 +108,12 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
 
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
+            let rate = self.clk_ctl.params.rate;
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+            if self.clk_ctl.params.rate != rate {
+                self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+                self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+            }
         }
         Ok(())
     }
@@ -100,6 +125,10 @@ impl NotifyModel<SndEfw, bool> for Onyx1200f {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

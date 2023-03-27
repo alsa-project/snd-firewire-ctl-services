@@ -7,6 +7,9 @@ use {super::*, protocols::rip::RipProtocol};
 pub struct Rip {
     clk_ctl: SamplingClockCtl<RipProtocol>,
     meter_ctl: HwMeterCtl<RipProtocol>,
+    monitor_ctl: MonitorCtl<RipProtocol>,
+    playback_ctl: PlaybackCtl<RipProtocol>,
+    playback_solo_ctl: PlaybackSoloCtl<RipProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -15,6 +18,9 @@ impl Rip {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
+        self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+        self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+        self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -24,6 +30,9 @@ impl CtlModel<SndEfw> for Rip {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, false)?;
         self.meter_ctl.load(card_cntr)?;
+        self.monitor_ctl.load(card_cntr)?;
+        self.playback_ctl.load(card_cntr)?;
+        self.playback_solo_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -36,6 +45,12 @@ impl CtlModel<SndEfw> for Rip {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -50,6 +65,21 @@ impl CtlModel<SndEfw> for Rip {
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self
+            .monitor_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .playback_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .playback_solo_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -88,7 +118,13 @@ impl NotifyModel<SndEfw, bool> for Rip {
 
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
+            let rate = self.clk_ctl.params.rate;
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+            if self.clk_ctl.params.rate != rate {
+                self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+                self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+                self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
+            }
         }
         Ok(())
     }
@@ -100,6 +136,12 @@ impl NotifyModel<SndEfw, bool> for Rip {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
