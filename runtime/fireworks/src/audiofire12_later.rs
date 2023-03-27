@@ -8,6 +8,9 @@ pub struct Audiofire12Later {
     higher_rates_supported: bool,
     clk_ctl: SamplingClockCtl<Audiofire12LaterProtocol>,
     meter_ctl: HwMeterCtl<Audiofire12LaterProtocol>,
+    monitor_ctl: MonitorCtl<Audiofire12LaterProtocol>,
+    playback_ctl: PlaybackCtl<Audiofire12LaterProtocol>,
+    playback_solo_ctl: PlaybackSoloCtl<Audiofire12LaterProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -24,6 +27,9 @@ impl Audiofire12Later {
 
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
+        self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+        self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+        self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -33,6 +39,9 @@ impl CtlModel<SndEfw> for Audiofire12Later {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
         self.meter_ctl.load(card_cntr)?;
+        self.monitor_ctl.load(card_cntr)?;
+        self.playback_ctl.load(card_cntr)?;
+        self.playback_solo_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -45,6 +54,12 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -59,6 +74,21 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self
+            .monitor_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .playback_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .playback_solo_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -97,7 +127,13 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Later {
 
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
+            let rate = self.clk_ctl.params.rate;
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+            if self.clk_ctl.params.rate != rate {
+                self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
+                self.playback_ctl.cache(unit, TIMEOUT_MS)?;
+                self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
+            }
         }
         Ok(())
     }
@@ -109,6 +145,12 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Later {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

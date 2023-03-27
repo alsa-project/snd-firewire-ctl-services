@@ -24,7 +24,7 @@ mod audiofire9;
 mod rip;
 
 use {
-    self::{clk_ctl::*, meter_ctl::*},
+    self::{clk_ctl::*, meter_ctl::*, mixer_ctl::*},
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, *},
     firewire_fireworks_protocols as protocols,
