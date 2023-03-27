@@ -40,6 +40,7 @@ use {
     nix::sys::signal,
     protocols::{hw_ctl::*, hw_info::*, *},
     std::{marker::PhantomData, sync::mpsc, thread, time},
+    tracing::Level,
 };
 
 enum Event {
@@ -80,7 +81,14 @@ impl Drop for EfwRuntime {
 }
 
 impl RuntimeOperation<u32> for EfwRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let unit = SndEfw::default();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 

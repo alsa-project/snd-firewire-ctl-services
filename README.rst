@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/03/19
+2023/03/25
 Takashi Sakamoto
 
 Introduction
@@ -282,6 +282,7 @@ Currently this function is available for below executables:
 * snd-dice-ctl-service
 * snd-oxfw-ctl-service
 * snd-fireface-ctl-service
+* snd-fireworks-ctl-service
 
 This function is implemented by `tracing <https://crates.io/crates/tracing>`_ and
 `tracing-subscriber <https://crates.io/crates/tracing-subscriber>`_ crates.
