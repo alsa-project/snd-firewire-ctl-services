@@ -65,22 +65,6 @@ where
     }
 }
 
-/// Protocol about transmission for Fireworks board module.
-pub trait TransportProtocol: EfwProtocolExtManual {
-    fn get_packet_format(&mut self, fmt: TxPacketFormat, timeout_ms: u32) -> Result<(), Error> {
-        let args = [serialize_tx_packet_format(&fmt)];
-        self.transaction(
-            CATEGORY_TRANSPORT,
-            CMD_SET_TRANSMIT_MODE,
-            &args,
-            &mut Vec::new(),
-            timeout_ms,
-        )
-    }
-}
-
-impl<O: EfwProtocolExtManual> TransportProtocol for O {}
-
 #[cfg(test)]
 mod test {
     use super::*;
