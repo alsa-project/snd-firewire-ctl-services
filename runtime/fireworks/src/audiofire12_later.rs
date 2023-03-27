@@ -7,6 +7,7 @@ use {super::*, protocols::audiofire::Audiofire12LaterProtocol};
 pub struct Audiofire12Later {
     higher_rates_supported: bool,
     clk_ctl: SamplingClockCtl<Audiofire12LaterProtocol>,
+    meter_ctl: HwMeterCtl<Audiofire12LaterProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -22,6 +23,7 @@ impl Audiofire12Later {
             .is_some();
 
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+        self.meter_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -30,6 +32,7 @@ impl Audiofire12Later {
 impl CtlModel<SndEfw> for Audiofire12Later {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
+        self.meter_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -40,6 +43,8 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -62,14 +67,26 @@ impl CtlModel<SndEfw> for Audiofire12Later {
 }
 
 impl MeasureModel<SndEfw> for Audiofire12Later {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
+    }
 
-    fn measure_states(&mut self, _: &mut SndEfw) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+        self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         Ok(())
     }
 
-    fn measure_elem(&mut self, _: &SndEfw, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_elem(
+        &mut self,
+        _: &SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
