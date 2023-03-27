@@ -9,6 +9,24 @@
 use super::{robot_guitar::*, *};
 
 /// Protocol implementation for former model of Robot Interface Pack (RIP).
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+///
+/// guitar-input-1 ------+
+/// piezo-input-2 -------+---+-------------> stream-output-1/2
+/// string-input-1/2 --------|--+----------> stream-output-5/6
+/// string-input-3/4 --------|--|----------> stream-output-7/8
+/// string-input-5/6 --------|--|--+-------> stream-output-7/8
+///                          |  |  |
+///                          v  v  v
+///                       ++=========++
+///                       ||  mixer  ||
+/// stream-input-1/2 ---> ||         || ---> analog-output-1/2
+///                       ||  8 x 6  ||
+///                       ++=========++
+/// ```
 #[derive(Default, Debug)]
 pub struct RipProtocol;
 
