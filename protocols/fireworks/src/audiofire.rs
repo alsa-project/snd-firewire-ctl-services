@@ -10,6 +10,27 @@ use super::{phys_input::*, phys_output::*, port_conf::*, *};
 
 /// Protocol implementation for former model of AudioFire 12. The higher sampling rates are
 /// available only with firmware version 4 and former.
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+/// analog-input-1/2 ---------+----------------> stream-output-1/2
+/// analog-input-3/4 ---------|-+--------------> stream-output-3/4
+/// analog-input-5/6 ---------|-|-+------------> stream-output-5/6
+/// analog-input-7/8 ---------|-|-|-+----------> stream-output-7/8
+/// analog-input-9/10 --------|-|-|-|----------> stream-output-9/10
+/// analog-input-11/12 -------|-|-|-|-+--------> stream-output-11/12
+///                           | | | | |
+///                           v v v v v
+///                        ++===========++
+/// stream-input-1/2 ----> ||           || ----> analog-output-1/2
+/// stream-input-3/4 ----> ||   mixer   || ----> analog-output-3/4
+/// stream-input-5/6 ----> ||           || ----> analog-output-5/6
+/// stream-input-7/8 ----> ||  24 x 12  || ----> analog-output-7/8
+/// stream-input-9/10 ---> ||           || ----> analog-output-9/10
+/// stream-input-11/12 --> ||           || ----> analog-output-11/12
+///                        ++===========++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire12FormerProtocol;
 
@@ -45,6 +66,27 @@ impl EfwPlaybackSoloSpecification for Audiofire12FormerProtocol {}
 
 /// Protocol implementation for later model of AudioFire 12. The higher sampling rates are
 /// available only with firmware version 4 and former.
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+/// analog-input-1/2 ---------+----------------> stream-output-1/2
+/// analog-input-3/4 ---------|-+--------------> stream-output-3/4
+/// analog-input-5/6 ---------|-|-+------------> stream-output-5/6
+/// analog-input-7/8 ---------|-|-|-+----------> stream-output-7/8
+/// analog-input-9/10 --------|-|-|-|----------> stream-output-9/10
+/// analog-input-11/12 -------|-|-|-|-+--------> stream-output-11/12
+///                           | | | | |
+///                           v v v v v
+///                        ++===========++
+/// stream-input-1/2 ----> ||           || ----> analog-output-1/2
+/// stream-input-3/4 ----> ||   mixer   || ----> analog-output-3/4
+/// stream-input-5/6 ----> ||           || ----> analog-output-5/6
+/// stream-input-7/8 ----> ||  24 x 12  || ----> analog-output-7/8
+/// stream-input-9/10 ---> ||           || ----> analog-output-9/10
+/// stream-input-11/12 --> ||           || ----> analog-output-11/12
+///                        ++===========++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire12LaterProtocol;
 
@@ -80,6 +122,26 @@ impl EfwPhysOutputSpecification for Audiofire12LaterProtocol {}
 impl EfwPlaybackSoloSpecification for Audiofire12LaterProtocol {}
 
 /// Protocol implementation for former model of AudioFire 8.
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+/// analog-input-1/2 ---------+----------------> stream-output-1/2
+/// analog-input-3/4 ---------|-+--------------> stream-output-3/4
+/// analog-input-5/6 ---------|-|-+------------> stream-output-5/6
+/// analog-input-7/8 ---------|-|-|-+----------> stream-output-7/8
+///                           | | | |
+/// coaxial-input-1/2 --------|-|-|-|-+--------> stream-output-9/10
+///                           | | | | |
+///                           v v v v v
+///                        ++===========++
+/// stream-input-1/2 ----> ||           || ----> analog-output-1/2
+/// stream-input-3/4 ----> ||   mixer   || ----> analog-output-3/4
+/// stream-input-5/6 ----> ||           || ----> analog-output-5/6
+/// stream-input-7/8 ----> ||  20 x 10  || ----> analog-output-7/8
+/// stream-input-9/10 ---> ||           || ----> coaxial-output-1/2
+///                        ++===========++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire8Protocol;
 
@@ -115,6 +177,35 @@ impl EfwPhysOutputSpecification for Audiofire8Protocol {}
 impl EfwPlaybackSoloSpecification for Audiofire8Protocol {}
 
 /// Protocol implementation for latter model of AudioFire 8 and AudioFirePre 8
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+///
+/// analog-input-1/2 ---------+----------------------------------------------> stream-output-1/2
+/// analog-input-3/4 ---------|-+--------------------------------------------> stream-output-3/4
+/// analog-input-5/6 ---------|-|-+------------------------------------------> stream-output-5/6
+/// analog-input-7/8 ---------|-|-|-+----------------------------------------> stream-output-7/8
+///                           | | | |
+/// coaxial-input-1/2 --+     | | | |
+/// optical-input-1/2 --or----|-|-|-|-+--------------------------------------> stream-output-9/10
+/// optical-input-3/4 --------|-|-|-|-|-+------------------------------------> stream-output-11/12
+/// optical-input-5/6 --------|-|-|-|-|-|-+----------------------------------> stream-output-13/14
+/// optical-input-7/8 --------|-|-|-|-|-|-|-+--------------------------------> stream-output-15/16
+///                           | | | | | | | |
+///                           v v v v v v v v
+///                        ++=================++
+/// stream-input-1/2 ----> ||                 || ----------------------------> analog-output-1/2
+/// stream-input-3/4 ----> ||                 || ----------------------------> analog-output-3/4
+/// stream-input-5/6 ----> ||      mixer      || ----------------------------> analog-output-5/6
+/// stream-input-7/8 ----> ||                 || ----------------------------> analog-output-7/8
+///                        ||                 ||                          +--> coaxial-output-1/2
+/// stream-input-9/10 ---> ||                 || --> digital-output-1/2 --or-> optical-output-1/2
+/// stream-input-11/12 --> ||     32 x 16     || --> digital-output-3/4 -----> optical-output-3/4
+/// stream-input-13/14 --> ||                 || --> digital-output-5/6 -----> optical-output-5/6
+/// stream-input-15/16 --> ||                 || --> digital-output-7/8 -----> optical-output-7/8
+///                        ++=================++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire9Protocol;
 
@@ -159,6 +250,23 @@ impl EfwPhysOutputSpecification for Audiofire9Protocol {}
 impl EfwPlaybackSoloSpecification for Audiofire9Protocol {}
 
 /// Protocol implementation for Audiofire 4.
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+///
+/// analog-input-1/2 --------+--------------------------------> stream-output-1/2
+/// analog-input-3/4 --------|--+-----------------------------> stream-output-3/4
+///                          |  |
+/// spdif-input-1/2 ---------|--|--+--------------------------> stream-output-5/6
+///                          |  |  |
+///                          v  v  v
+///                       ++==========++      ++========++
+/// stream-input-1/2 ---> ||  mixer   || ---> || router || ---> analog-output-1/2
+/// stream-input-3/4 ---> ||          || ---> ||        || ---> analog-output-3/4
+/// stream-input-5/6 ---> ||  12 x 6  || ---> || 6 x 6  || ---> spdif-output-1/2
+///                       ++==========++      ++========++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire4Protocol;
 
@@ -198,6 +306,22 @@ impl EfwPhysOutputSpecification for Audiofire4Protocol {}
 impl EfwPlaybackSoloSpecification for Audiofire4Protocol {}
 
 /// Protocol implementation for Audiofire 2.
+///
+/// Diagram of internal signal flow
+///
+/// ```text
+///
+/// analog-input-1/2 ---------+-------------------------------> stream-output-1/2
+///                           |
+/// spdif-input-1/2 ----------|----+--------------------------> stream-output-3/4
+///                           |    |
+///                           v    v
+///                       ++==========++      ++========++
+/// stream-input-1/2 ---> ||  mixer   || ---> || router || ---> analog-output-1/2
+/// stream-input-3/4 ---> ||          || ---> ||        || ---> headphone-output-1/2
+/// stream-input-5/6 ---> ||  10 x 6  || ---> || 6 x 6  || ---> spdif-output-1/2
+///                       ++==========++      ++========++
+/// ```
 #[derive(Default, Debug)]
 pub struct Audiofire2Protocol;
 
