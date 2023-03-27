@@ -38,7 +38,9 @@ where
         + EfwWhollyUpdatableParamsOperation<SndEfw, EfwControlRoomSource>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.1, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -81,9 +83,9 @@ where
             CONTROL_ROOM_SOURCE_NAME => {
                 let mut params = self.1.clone();
                 params.0 = elem_value.enumerated()[0] as usize;
-                T::update_wholly(unit, &params, timeout_ms)?;
-                self.1 = params;
-                Ok(true)
+                let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.1 = params);
+                debug!(params = ?self.1, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -130,7 +132,9 @@ where
         + EfwWhollyUpdatableParamsOperation<SndEfw, EfwDigitalMode>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.1, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -177,8 +181,9 @@ where
                     let label = format!("Invalid value {} for digital mode", pos);
                     Error::new(FileError::Inval, &label)
                 })?;
-                T::update_wholly(unit, &mode, timeout_ms).map(|_| self.1 = mode)?;
-                Ok(true)
+                let res = T::update_wholly(unit, &mode, timeout_ms).map(|_| self.1 = mode);
+                debug!(params = ?self.1, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -199,7 +204,9 @@ where
         + EfwWhollyUpdatableParamsOperation<SndEfw, EfwPhantomPowering>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.1, timeout_ms)
+        let res = T::cache_wholly(unit, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -230,8 +237,9 @@ where
             PHANTOM_NAME => {
                 let mut params = self.1.clone();
                 params.0 = elem_value.boolean()[0];
-                T::update_wholly(unit, &params, timeout_ms).map(|_| self.1 = params)?;
-                Ok(true)
+                let res = T::update_wholly(unit, &params, timeout_ms).map(|_| self.1 = params);
+                debug!(params = ?self.1, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -267,8 +275,9 @@ where
         + EfwPartiallyUpdatableParamsOperation<SndEfw, EfwRxStreamMaps>,
 {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(unit, &mut self.1, timeout_ms)?;
-        Ok(())
+        let res = T::cache_wholly(unit, &mut self.1, timeout_ms);
+        debug!(params = ?self.1, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -346,8 +355,9 @@ where
                             Ok(())
                         }
                     })?;
-                T::update_partially(unit, &mut self.1, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(unit, &mut self.1, params, timeout_ms);
+                debug!(params = ?self.1, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
