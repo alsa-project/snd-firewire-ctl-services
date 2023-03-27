@@ -88,17 +88,25 @@ impl Default for HwInfo {
 
 // Known models.
 #[allow(dead_code)]
-const O400F: u32 = 0x0000400f;
-const O1200F: u32 = 0x0001200f;
-const AF2: u32 = 0x00000af2;
-const AF4: u32 = 0x00000af4;
-const AF8: u32 = 0x00000af8;
-const AFP8: u32 = 0x00000af9;
-const AF12: u32 = 0x0000af12;
+const HW_TYPE_O400F: u32 = 0x0000400f;
+#[allow(dead_code)]
+const HW_TYPE_O1200F: u32 = 0x0001200f;
+#[allow(dead_code)]
+const HW_TYPE_AF2: u32 = 0x00000af2;
+#[allow(dead_code)]
+const HW_TYPE_AF4: u32 = 0x00000af4;
+#[allow(dead_code)]
+const HW_TYPE_AF8: u32 = 0x00000af8;
+#[allow(dead_code)]
+const HW_TYPE_AF9: u32 = 0x00000af9;
+#[allow(dead_code)]
+const HW_TYPE_AF12: u32 = 0x0000af12;
+#[allow(dead_code)]
+const HW_TYPE_RIP: u32 = 0x00afb9;
 
 impl HwInfo {
     fn parse(&mut self, quads: &[u32]) -> Result<(), Error> {
-        self.caps = Self::parse_caps(quads[0], quads[3]);
+        self.caps = Self::parse_caps(quads[0]);
         self.guid = ((quads[1] as u64) << 32) | (quads[2] as u64);
         self.hw_type = quads[3];
         self.hw_version = quads[4];
@@ -121,32 +129,15 @@ impl HwInfo {
         Ok(())
     }
 
-    fn parse_caps(flags: u32, hw_type: u32) -> Vec<HwCap> {
-        let mut caps: Vec<HwCap> = (0..16)
+    fn parse_caps(flags: u32) -> Vec<HwCap> {
+        (0..16)
             .filter(|i| (1 << i) & flags > 0)
             .map(|i| {
                 let mut cap = HwCap::default();
                 deserialize_hw_cap(&mut cap, i);
                 cap
             })
-            .collect();
-
-        match hw_type {
-            AF2 | AF4 | AF8 | AFP8 | AF12 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-            }
-            O400F => {
-                caps.push(HwCap::PlaybackSoloUnsupported);
-            }
-            O1200F => {
-                caps.push(HwCap::ControlRoom);
-                caps.push(HwCap::PlaybackSoloUnsupported);
-            }
-            _ => (),
-        }
-
-        caps
+            .collect()
     }
 
     fn parse_text(quads: &[u32]) -> Result<String, Error> {

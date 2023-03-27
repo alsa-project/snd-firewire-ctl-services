@@ -220,10 +220,6 @@ pub enum HwCap {
     /// Support chaging for guitar.
     GuitarCharging,
     Reserved(usize),
-    #[doc(hidden)]
-    // For my purpose.
-    InputMapping,
-    PlaybackSoloUnsupported,
 }
 
 impl Default for HwCap {
@@ -251,8 +247,6 @@ fn serialize_hw_cap(cap: &HwCap) -> usize {
         HwCap::SoftClip => 13,
         HwCap::RobotGuitar => 14,
         HwCap::GuitarCharging => 15,
-        HwCap::InputMapping => 3000,
-        HwCap::PlaybackSoloUnsupported => 3001,
         HwCap::Reserved(pos) => *pos,
     }
 }
@@ -275,8 +269,6 @@ fn deserialize_hw_cap(cap: &mut HwCap, pos: usize) {
         13 => HwCap::SoftClip,
         14 => HwCap::RobotGuitar,
         15 => HwCap::GuitarCharging,
-        3000 => HwCap::InputMapping,
-        3001 => HwCap::PlaybackSoloUnsupported,
         _ => HwCap::Reserved(pos),
     };
 }
@@ -458,8 +450,6 @@ mod test {
             HwCap::SoftClip,
             HwCap::RobotGuitar,
             HwCap::GuitarCharging,
-            HwCap::InputMapping,
-            HwCap::PlaybackSoloUnsupported,
             HwCap::default(),
         ]
         .iter()
