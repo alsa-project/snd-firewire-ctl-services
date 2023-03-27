@@ -11,6 +11,7 @@ pub struct Rip {
     playback_ctl: PlaybackCtl<RipProtocol>,
     playback_solo_ctl: PlaybackSoloCtl<RipProtocol>,
     output_ctl: OutCtl<RipProtocol>,
+    guitar_ctl: RobotGuitarCtl<RipProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -23,6 +24,7 @@ impl Rip {
         self.playback_ctl.cache(unit, TIMEOUT_MS)?;
         self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
+        self.guitar_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -36,6 +38,7 @@ impl CtlModel<SndEfw> for Rip {
         self.playback_ctl.load(card_cntr)?;
         self.playback_solo_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
+        self.guitar_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -56,6 +59,8 @@ impl CtlModel<SndEfw> for Rip {
         } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.guitar_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -88,6 +93,11 @@ impl CtlModel<SndEfw> for Rip {
             Ok(true)
         } else if self
             .output_ctl
+            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .guitar_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -135,6 +145,7 @@ impl NotifyModel<SndEfw, bool> for Rip {
                 self.playback_ctl.cache(unit, TIMEOUT_MS)?;
                 self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
+                self.guitar_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())
@@ -155,6 +166,8 @@ impl NotifyModel<SndEfw, bool> for Rip {
         } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.guitar_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
