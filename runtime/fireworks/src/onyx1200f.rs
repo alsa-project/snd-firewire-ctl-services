@@ -6,6 +6,7 @@ use {super::*, protocols::onyx_f::Onyx1200fProtocol};
 #[derive(Default, Debug)]
 pub struct Onyx1200f {
     clk_ctl: SamplingClockCtl<Onyx1200fProtocol>,
+    meter_ctl: HwMeterCtl<Onyx1200fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -13,6 +14,7 @@ const TIMEOUT_MS: u32 = 100;
 impl Onyx1200f {
     pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+        self.meter_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -21,6 +23,7 @@ impl Onyx1200f {
 impl CtlModel<SndEfw> for Onyx1200f {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, true)?;
+        self.meter_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -31,6 +34,8 @@ impl CtlModel<SndEfw> for Onyx1200f {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -53,14 +58,26 @@ impl CtlModel<SndEfw> for Onyx1200f {
 }
 
 impl MeasureModel<SndEfw> for Onyx1200f {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
+    }
 
-    fn measure_states(&mut self, _: &mut SndEfw) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+        self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         Ok(())
     }
 
-    fn measure_elem(&mut self, _: &SndEfw, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_elem(
+        &mut self,
+        _: &SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
