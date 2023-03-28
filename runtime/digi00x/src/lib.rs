@@ -19,6 +19,7 @@ use {
     nix::sys::signal,
     std::{convert::TryFrom, sync::mpsc, thread},
     ta1394_avc_general::config_rom::Ta1394ConfigRom,
+    tracing::Level,
 };
 
 enum Event {
@@ -71,7 +72,14 @@ const SPECIFIER_ID_DIGI003: u32 = 0x0000aa;
 const SPECIFIER_ID_DIGI003_RACK: u32 = 0x0000ab;
 
 impl RuntimeOperation<u32> for Dg00xRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let unit = SndDigi00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 
