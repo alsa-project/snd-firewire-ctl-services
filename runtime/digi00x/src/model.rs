@@ -335,8 +335,14 @@ where
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.sampling_clock_source, timeout_ms)?;
-        T::cache_wholly(req, node, &mut self.media_clock_rate, timeout_ms)?;
+        let res = T::cache_wholly(req, node, &mut self.sampling_clock_source, timeout_ms);
+        debug!(params = ?self.sampling_clock_source, ?res);
+        res?;
+
+        let res = T::cache_wholly(req, node, &mut self.media_clock_rate, timeout_ms);
+        debug!(params = ?self.sampling_clock_source, ?res);
+        res?;
+
         Ok(())
     }
 
@@ -410,9 +416,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&s| params.source = s)?;
-                T::update_wholly(req, node, &params, timeout_ms)
-                    .map(|_| self.sampling_clock_source = params)?;
-                Ok(true)
+                let res = T::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.sampling_clock_source = params);
+                debug!(params = ?self.sampling_clock_source, ?res);
+                res.map(|_| true)
             }
             CLK_LOCAL_RATE_NAME => {
                 if unit.is_locked() {
@@ -430,9 +437,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&r| params.rate = r)?;
-                T::update_wholly(req, node, &params, timeout_ms)
-                    .map(|_| self.media_clock_rate = params)?;
-                Ok(true)
+                let res = T::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.media_clock_rate = params);
+                debug!(params = ?self.media_clock_rate, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -459,8 +467,9 @@ impl OpticalIfaceCtl {
         &[OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Digi003Protocol::cache_wholly(req, node, &mut self.opt_iface_mode, timeout_ms)?;
-        Ok(())
+        let res = Digi003Protocol::cache_wholly(req, node, &mut self.opt_iface_mode, timeout_ms);
+        debug!(params = ?self.opt_iface_mode, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -515,9 +524,10 @@ impl OpticalIfaceCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                Digi003Protocol::update_wholly(req, node, &params, timeout_ms)
-                    .map(|_| self.opt_iface_mode = params)?;
-                Ok(true)
+                let res = Digi003Protocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.opt_iface_mode = params);
+                debug!(params = ?self.opt_iface_mode, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -559,7 +569,9 @@ where
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.external_clock_rate, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.external_clock_rate, timeout_ms);
+        debug!(params = ?self.external_clock_rate, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -648,11 +660,13 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if unit.is_locked() {
-            if self.states.enabled {
-                T::update_wholly(req, node, &self.states, timeout_ms)?;
+            let res = if self.states.enabled {
+                T::update_wholly(req, node, &self.states, timeout_ms)
             } else {
-                T::cache_wholly(req, node, &mut self.states, timeout_ms)?;
-            }
+                T::cache_wholly(req, node, &mut self.states, timeout_ms)
+            };
+            debug!(params = ?self.states, ?res);
+            res?;
         }
 
         Ok(())
@@ -719,14 +733,14 @@ where
 
                 let mut params = self.states.clone();
                 params.enabled = elem_value.boolean()[0];
-                if params.enabled {
+                let res = if params.enabled {
                     // Restore previous settings when enabling again.
-                    T::update_wholly(req, node, &params, timeout_ms)
-                        .map(|_| self.states = params)?;
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.states = params)
                 } else {
-                    T::update_partially(req, node, &mut self.states, params, timeout_ms)?;
-                }
-                Ok(true)
+                    T::update_partially(req, node, &mut self.states, params, timeout_ms)
+                };
+                debug!(params = ?self.states, ?res);
+                res.map(|_| true)
             }
             MONITOR_SRC_GAIN_NAME => {
                 if !self.states.enabled {
@@ -745,8 +759,9 @@ where
                     .zip(elem_value.int())
                     .for_each(|(o, &val)| *o = val as u8);
 
-                T::update_partially(req, node, &mut self.states, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(req, node, &mut self.states, params, timeout_ms);
+                debug!(params = ?self.states, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
