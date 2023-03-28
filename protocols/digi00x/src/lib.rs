@@ -368,12 +368,7 @@ where
         )?;
 
         if detected > 0 {
-            let val = read_quadlet(
-                req,
-                node,
-                EXTERNAL_CLOCK_RATE_OFFSET,
-                timeout_ms,
-            )?;
+            let val = read_quadlet(req, node, EXTERNAL_CLOCK_RATE_OFFSET, timeout_ms)?;
             let mut rate = ClockRate::default();
             deserialize_clock_rate(&mut rate, val).map(|_| states.rate = Some(rate))
         } else {
@@ -530,6 +525,95 @@ const MONITOR_SRC_GAIN_OFFSET: u64 = 0x0300;
 
 const DST_STEP: usize = 4;
 const SRC_STEP: usize = 8;
+
+fn compute_source_offset(dst: usize, src: usize) -> u64 {
+    (dst * DST_STEP + src * SRC_STEP) as u64
+}
+
+impl<O> Dg00xWhollyCachableParamsOperation<Dg00xMonitorState> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut Dg00xMonitorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quadlet(req, node, ENABLE_OFFSET, timeout_ms).map(|val| states.enabled = val > 0)?;
+        states
+            .src_gains
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(dst, gains)| {
+                gains.iter_mut().enumerate().try_for_each(|(src, gain)| {
+                    let offset = MONITOR_SRC_GAIN_OFFSET + compute_source_offset(dst, src);
+                    read_quadlet(req, node, offset, timeout_ms).map(|val| *gain = (val >> 24) as u8)
+                })
+            })
+    }
+}
+
+impl<O> Dg00xWhollyUpdatableParamsOperation<Dg00xMonitorState> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &Dg00xMonitorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_quadlet(req, node, ENABLE_OFFSET, states.enabled as u32, timeout_ms)?;
+        states
+            .src_gains
+            .iter()
+            .enumerate()
+            .try_for_each(|(dst, gains)| {
+                gains.iter().enumerate().try_for_each(|(src, &gain)| {
+                    let offset = MONITOR_SRC_GAIN_OFFSET + compute_source_offset(dst, src);
+                    let val = (gain as u32) << 24;
+                    write_quadlet(req, node, offset, val, timeout_ms)
+                })
+            })
+    }
+}
+
+impl<O> Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut Dg00xMonitorState,
+        updates: Dg00xMonitorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if states.enabled != updates.enabled {
+            write_quadlet(req, node, ENABLE_OFFSET, updates.enabled as u32, timeout_ms)
+                .map(|_| states.enabled = updates.enabled)?;
+        }
+
+        states
+            .src_gains
+            .iter_mut()
+            .zip(updates.src_gains.iter())
+            .enumerate()
+            .try_for_each(|(dst, (state, update))| {
+                state
+                    .iter_mut()
+                    .zip(update.iter())
+                    .enumerate()
+                    .filter(|(_, (o, n))| !o.eq(n))
+                    .try_for_each(|(src, (g, &gain))| {
+                        let offset = MONITOR_SRC_GAIN_OFFSET + compute_source_offset(dst, src);
+                        let val = (gain as u32) << 24;
+                        write_quadlet(req, node, offset, val, timeout_ms).map(|_| *g = gain)
+                    })
+            })
+    }
+}
 
 /// The trait for monitor operation. At offline mode (no packet streaming runs), the monitor
 /// function is disabled and is not configurable. When packet streaming starts, the monitor
