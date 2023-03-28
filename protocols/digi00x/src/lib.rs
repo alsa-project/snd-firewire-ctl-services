@@ -244,7 +244,7 @@ const CLOCK_RATE_TABLE: &[ClockRate] = &[
     ClockRate::R96000,
 ];
 
-fn serialize_media_clock_rate(rate: &ClockRate) -> u32 {
+fn serialize_clock_rate(rate: &ClockRate) -> u32 {
     CLOCK_RATE_TABLE
         .iter()
         .position(|r| rate.eq(r))
@@ -252,7 +252,7 @@ fn serialize_media_clock_rate(rate: &ClockRate) -> u32 {
         .unwrap()
 }
 
-fn deserialize_media_clock_rate(rate: &mut ClockRate, val: u32) -> Result<(), Error> {
+fn deserialize_clock_rate(rate: &mut ClockRate, val: u32) -> Result<(), Error> {
     *rate = match val {
         0 => Ok(ClockRate::R44100),
         1 => Ok(ClockRate::R48000),
@@ -277,7 +277,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         read_quadlet(req, node, MEDIA_CLOCK_RATE_OFFSET, timeout_ms)
-            .and_then(|val| deserialize_media_clock_rate(&mut states.rate, val))
+            .and_then(|val| deserialize_clock_rate(&mut states.rate, val))
     }
 }
 
@@ -291,7 +291,7 @@ where
         params: &Dg00xMediaClockParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = serialize_media_clock_rate(&params.rate);
+        let val = serialize_clock_rate(&params.rate);
         write_quadlet(req, node, SAMPLING_CLOCK_SOURCE_OFFSET, val, timeout_ms)
     }
 }
@@ -306,6 +306,38 @@ pub enum OpticalInterfaceMode {
 impl Default for OpticalInterfaceMode {
     fn default() -> Self {
         Self::Adat
+    }
+}
+
+impl Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode> for Digi003Protocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut OpticalInterfaceMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quadlet(req, node, OPTICAL_INTERFACE_MODE_OFFSET, timeout_ms).map(|val| {
+            *states = if val > 0 {
+                OpticalInterfaceMode::Spdif
+            } else {
+                OpticalInterfaceMode::Adat
+            };
+        })
+    }
+}
+
+impl Dg00xWhollyUpdatableParamsOperation<OpticalInterfaceMode> for Digi003Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &OpticalInterfaceMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = match params {
+            OpticalInterfaceMode::Adat => 0,
+            OpticalInterfaceMode::Spdif => 1,
+        };
+        write_quadlet(req, node, OPTICAL_INTERFACE_MODE_OFFSET, val, timeout_ms)
     }
 }
 
