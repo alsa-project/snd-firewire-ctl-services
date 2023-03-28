@@ -184,6 +184,52 @@ pub struct Dg00xSamplingClockParameters {
     pub source: ClockSource,
 }
 
+impl<O> Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut Dg00xSamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quadlet(req, node, SAMPLING_CLOCK_SOURCE_OFFSET, timeout_ms).and_then(|val| {
+            let pos = val as usize;
+            Self::SAMPLING_CLOCK_SOURCES
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Unexpected clock source: {}", pos);
+                    Error::new(FileError::Io, &msg)
+                })
+                .map(|&s| states.source = s)
+        })
+    }
+}
+
+impl<O> Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Dg00xSamplingClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let pos = Self::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .position(|&s| s.eq(&params.source))
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for clock source: {:?}", params.source);
+                Error::new(FileError::Inval, &msg)
+            })?;
+        let val = pos as u32;
+        write_quadlet(req, node, SAMPLING_CLOCK_SOURCE_OFFSET, val, timeout_ms)
+    }
+}
+
 /// The parameters for media clock.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dg00xMediaClockParameters {
