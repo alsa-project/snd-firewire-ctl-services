@@ -799,6 +799,166 @@ pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
 const MONITOR_ENABLE_NAME: &str = "monitor-enable";
 const MONITOR_SRC_GAIN_NAME: &str = "monitor-source-gain";
 
+#[derive(Default, Debug)]
+pub struct MonitorCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>,
+{
+    elem_id_list: Vec<ElemId>,
+    states: Dg00xMonitorState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> MonitorCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>,
+{
+    const DST_LABELS: &'static [&'static str] = &["monitor-output-1", "monitor-output-2"];
+    const SRC_LABELS: &'static [&'static str] = &[
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+    ];
+
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -4800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn cache(
+        &mut self,
+        unit: &mut SndDigi00x,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if unit.is_locked() {
+            if self.states.enabled {
+                T::update_wholly(req, node, &self.states, timeout_ms)?;
+            } else {
+                T::cache_wholly(req, node, &mut self.states, timeout_ms)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ENABLE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                Self::DST_LABELS.len(),
+                T::MONITOR_SOURCE_GAIN_MIN as i32,
+                T::MONITOR_SOURCE_GAIN_MAX as i32,
+                T::MONITOR_SOURCE_GAIN_STEP as i32,
+                Self::SRC_LABELS.len(),
+                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MONITOR_ENABLE_NAME => {
+                elem_value.set_bool(&[self.states.enabled]);
+                Ok(true)
+            }
+            MONITOR_SRC_GAIN_NAME => {
+                let dst = elem_id.index() as usize;
+                let gains = self.states.src_gains.iter().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid value for monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<i32> = gains.iter().map(|&gain| gain as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDigi00x,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MONITOR_ENABLE_NAME => {
+                if !unit.is_locked() {
+                    let msg = "Monitor function is configurable just during packet streaming.";
+                    Err(Error::new(FileError::Again, &msg))?;
+                }
+
+                let mut params = self.states.clone();
+                params.enabled = elem_value.boolean()[0];
+                if params.enabled {
+                    // Restore previous settings when enabling again.
+                    T::update_wholly(req, node, &params, timeout_ms)
+                        .map(|_| self.states = params)?;
+                } else {
+                    T::update_partially(req, node, &mut self.states, params, timeout_ms)?;
+                }
+                Ok(true)
+            }
+            MONITOR_SRC_GAIN_NAME => {
+                if !self.states.enabled {
+                    let msg = "Monitor is disabled.";
+                    Err(Error::new(FileError::Again, &msg))?;
+                }
+
+                let dst = elem_id.index() as usize;
+                let mut params = self.states.clone();
+                let gains = params.src_gains.iter_mut().nth(dst).ok_or_else(|| {
+                    let msg = format!("Invalid value for monitor destination: {}", dst);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(o, &val)| *o = val as u8);
+
+                T::update_partially(req, node, &mut self.states, params, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
     fn state(&self) -> &Dg00xMonitorCtl;
     fn state_mut(&mut self) -> &mut Dg00xMonitorCtl;
