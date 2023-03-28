@@ -102,19 +102,6 @@ impl Default for ClockSource {
     }
 }
 
-/// Mode of optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum OpticalInterfaceMode {
-    Adat,
-    Spdif,
-}
-
-impl Default for OpticalInterfaceMode {
-    fn default() -> Self {
-        Self::Adat
-    }
-}
-
 const SAMPLING_CLOCK_SOURCE_OFFSET: u64 = 0x0118;
 const MEDIA_CLOCK_RATE_OFFSET: u64 = 0x0110;
 const EXTERNAL_CLOCK_RATE_OFFSET: u64 = 0x0114;
@@ -133,6 +120,42 @@ fn read_clock_rate(
         1 => ClockRate::R48000,
         _ => ClockRate::R44100,
     })
+}
+
+/// The parameters for sampling clock.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Dg00xSamplingClockParameters {
+    /// The source.
+    pub source: ClockSource,
+}
+
+/// The parameters for media clock.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Dg00xMediaClockParameters {
+    /// The rate.
+    pub rate: ClockRate,
+}
+
+/// Mode of optical interface.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum OpticalInterfaceMode {
+    Adat,
+    Spdif,
+}
+
+impl Default for OpticalInterfaceMode {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
+
+/// The parameters for media clock.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Dg00xExternalClockParameters {
+    /// The rate detected in input of external source. Once the source of sampling clock is
+    /// configured to any external source, the function can return detected frequency. Once losing
+    /// the input, it returns None.
+    pub rate: Option<ClockRate>,
 }
 
 /// The trait for common operation.
@@ -266,10 +289,14 @@ pub trait Dg00xCommonOperation {
 const MONITOR_DST_COUNT: usize = 2;
 const MONITOR_SRC_COUNT: usize = 18;
 
-/// State of monitor. The gain is between 0x00 and 0x80 for -48.0 and 0.0 dB.
-#[derive(Default, Debug)]
+/// State of monitor. At offline mode (no packet streaming runs), the monitor function is disabled
+/// and is not configurable. When packet streaming starts, the monitor function becomes
+/// configurable with reset state.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Dg00xMonitorState {
+    /// Whether to enable monitor mixer or not.
     pub enabled: bool,
+    /// The gain of monitor inputs. The value is between 0x00 and 0x80 for -48.0 and 0.0 dB.
     pub src_gains: [[u8; MONITOR_SRC_COUNT]; MONITOR_DST_COUNT],
 }
 
