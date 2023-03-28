@@ -275,10 +275,29 @@ const CLK_LOCAL_RATE_NAME: &str = "local-clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
 const OPT_IFACE_NAME: &str = "optical-interface";
 
-pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
-    fn state(&self) -> &Dg00xCommonCtl;
-    fn state_mut(&mut self) -> &mut Dg00xCommonCtl;
+#[derive(Default, Debug)]
+struct CommonCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+{
+    elem_id_list: Vec<ElemId>,
+    sampling_clock_source: Dg00xSamplingClockParameters,
+    media_clock_rate: Dg00xMediaClockParameters,
+    _phantom: PhantomData<T>,
+}
 
+impl<T> CommonCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+{
     const CLOCK_RATES: [ClockRate; 4] = [
         ClockRate::R44100,
         ClockRate::R48000,
@@ -286,8 +305,124 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
         ClockRate::R96000,
     ];
 
-    const OPTICAL_INTERFACE_MODES: [OpticalInterfaceMode; 2] =
-        [OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_wholly(req, node, &mut self.sampling_clock_source, timeout_ms)?;
+        T::cache_wholly(req, node, &mut self.media_clock_rate, timeout_ms)?;
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = T::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .map(|s| clock_source_to_str(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_SRC_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<&str> = Self::CLOCK_RATES
+            .iter()
+            .map(|r| clock_rate_to_str(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_LOCAL_RATE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            CLK_SRC_NAME => {
+                let pos = T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .position(|s| self.sampling_clock_source.source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            CLK_LOCAL_RATE_NAME => {
+                let pos = Self::CLOCK_RATES
+                    .iter()
+                    .position(|r| self.media_clock_rate.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDigi00x,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            CLK_SRC_NAME => {
+                if unit.is_locked() {
+                    let msg = "Not configurable during packet streaming";
+                    Err(Error::new(FileError::Again, &msg))?;
+                }
+
+                let mut params = self.sampling_clock_source.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for sampling clock sources: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.source = s)?;
+                T::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.sampling_clock_source = params)?;
+                Ok(true)
+            }
+            CLK_LOCAL_RATE_NAME => {
+                if unit.is_locked() {
+                    let msg = "Not configurable during packet streaming";
+                    Err(Error::new(FileError::Again, &msg))?;
+                }
+
+                let mut params = self.media_clock_rate.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::CLOCK_RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for media clock rates: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&r| params.rate = r)?;
+                T::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.media_clock_rate = params)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
+    fn state(&self) -> &Dg00xCommonCtl;
+    fn state_mut(&mut self) -> &mut Dg00xCommonCtl;
+
+    const CLOCK_RATES: &'static [ClockRate; 4] = &[
+        ClockRate::R44100,
+        ClockRate::R48000,
+        ClockRate::R88200,
+        ClockRate::R96000,
+    ];
+
+    const OPTICAL_INTERFACE_MODES: &'static [OpticalInterfaceMode; 2] =
+        &[OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
 
     fn load(
         &mut self,
