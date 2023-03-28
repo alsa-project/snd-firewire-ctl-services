@@ -4,7 +4,7 @@ mod model;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    core::{card_cntr::*, dispatcher::*, *},
     firewire_digi00x_protocols as protocols,
     glib::{
         source, {Error, FileError},
@@ -100,27 +100,27 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        let dispatchers = Vec::new();
-        let notified_elems = Vec::new();
-        let measured_elem_id_list = Vec::new();
-        let timer = None;
-
         Ok(Dg00xRuntime {
             unit: (unit, node),
             model,
             card_cntr,
             rx,
             tx,
-            dispatchers,
-            notified_elems,
-            measured_elem_id_list,
-            timer,
+            dispatchers: Default::default(),
+            notified_elems: Default::default(),
+            measured_elem_id_list: Default::default(),
+            timer: Default::default(),
         })
     }
 
     fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        match &mut self.model {
+            Model::Digi002(m) => m.cache(&mut self.unit),
+            Model::Digi003(m) => m.cache(&mut self.unit),
+        }?;
 
         match &mut self.model {
             Model::Digi002(m) => m.load(&mut self.unit, &mut self.card_cntr),
