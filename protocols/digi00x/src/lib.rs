@@ -96,6 +96,37 @@ pub trait Dg00xHardwareSpecification {
     const MONITOR_SOURCE_GAIN_STEP: u8 = 1;
 }
 
+/// Cache whole parameters.
+pub trait Dg00xWhollyCachableParamsOperation<T>: Dg00xHardwareSpecification {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// Update the part of parameters.
+pub trait Dg00xPartiallyUpdatableParamsOperation<T>: Dg00xHardwareSpecification {
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// Update whole parameters.
+pub trait Dg00xWhollyUpdatableParamsOperation<T>: Dg00xHardwareSpecification {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 /// Nominal frequency of media clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClockRate {
