@@ -19,7 +19,7 @@ use {
     nix::sys::signal,
     std::{convert::TryFrom, sync::mpsc, thread},
     ta1394_avc_general::config_rom::Ta1394ConfigRom,
-    tracing::Level,
+    tracing::{debug, debug_span, Level},
 };
 
 enum Event {
@@ -125,11 +125,14 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         match &mut self.model {
             Model::Digi002(m) => m.cache(&mut self.unit),
             Model::Digi003(m) => m.cache(&mut self.unit),
         }?;
+        enter.exit();
 
+        let enter = debug_span!("load").entered();
         match &mut self.model {
             Model::Digi002(m) => m.load(&mut self.unit, &mut self.card_cntr),
             Model::Digi003(m) => m.load(&mut self.unit, &mut self.card_cntr),
@@ -149,11 +152,13 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
+        enter.exit();
 
         Ok(())
     }
 
     fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -163,9 +168,20 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
             match ev {
                 Event::Shutdown | Event::Disconnected => break,
                 Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
                     if elem_id.name() != Self::TIMER_NAME {
                         let _ = match &mut self.model {
                             Model::Digi002(m) => self.card_cntr.dispatch_elem_event(
@@ -199,6 +215,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     }
                 }
                 Event::StreamLock(locked) => {
+                    let _enter = debug_span!("stream-lock").entered();
                     let _ = match &mut self.model {
                         Model::Digi002(m) => self.card_cntr.dispatch_notification(
                             &mut self.unit,
@@ -215,6 +232,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     };
                 }
                 Event::Timer => {
+                    let _enter = debug_span!("stream-lock").entered();
                     let _ = match &mut self.model {
                         Model::Digi002(m) => self.card_cntr.measure_elems(
                             &mut self.unit,
@@ -230,6 +248,8 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                 }
             }
         }
+
+        enter.exit();
 
         Ok(())
     }
