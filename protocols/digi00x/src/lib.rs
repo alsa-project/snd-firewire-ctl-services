@@ -8,8 +8,13 @@ use glib::{Error, FileError};
 use hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode};
 
 /// The protocol implementation for Digi 002.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Digi002Protocol;
+
+impl Dg00xHardwareSpecification for Digi002Protocol {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClockSource] =
+        &[ClockSource::Internal, ClockSource::Spdif, ClockSource::Adat];
+}
 
 impl Dg00xCommonOperation for Digi002Protocol {
     const SAMPLING_CLOCK_SOURCES: &'static [ClockSource] =
@@ -19,8 +24,17 @@ impl Dg00xCommonOperation for Digi002Protocol {
 impl Dg00xMonitorOperation for Digi002Protocol {}
 
 /// The protocol implementation for Digi 003.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Digi003Protocol;
+
+impl Dg00xHardwareSpecification for Digi003Protocol {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClockSource] = &[
+        ClockSource::Internal,
+        ClockSource::Spdif,
+        ClockSource::Adat,
+        ClockSource::WordClock,
+    ];
+}
 
 impl Dg00xCommonOperation for Digi003Protocol {
     const SAMPLING_CLOCK_SOURCES: &'static [ClockSource] = &[
@@ -70,6 +84,16 @@ fn write_quadlet(
         &mut quadlet,
         timeout_ms,
     )
+}
+
+/// The specification of hardware.
+pub trait Dg00xHardwareSpecification {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClockSource];
+    const SAMPLING_CLOCK_RATES: &'static [u32] = &[44100, 48000, 88200, 96000];
+
+    const MONITOR_SOURCE_GAIN_MIN: u8 = 0;
+    const MONITOR_SOURCE_GAIN_MAX: u8 = 0x80;
+    const MONITOR_SOURCE_GAIN_STEP: u8 = 1;
 }
 
 /// Nominal frequency of media clock.
