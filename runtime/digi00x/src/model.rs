@@ -264,16 +264,8 @@ fn clock_source_to_str(src: &ClockSource) -> &'static str {
     }
 }
 
-fn optical_interface_mode_to_str(mode: &OpticalInterfaceMode) -> &'static str {
-    match mode {
-        OpticalInterfaceMode::Adat => "ADAT",
-        OpticalInterfaceMode::Spdif => "S/PDIF",
-    }
-}
-
 const CLK_LOCAL_RATE_NAME: &str = "local-clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
-const OPT_IFACE_NAME: &str = "optical-interface";
 
 #[derive(Default, Debug)]
 struct CommonCtl<T>
@@ -282,7 +274,7 @@ where
         + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
         + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
         + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
-        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>,
 {
     elem_id_list: Vec<ElemId>,
     sampling_clock_source: Dg00xSamplingClockParameters,
@@ -296,7 +288,7 @@ where
         + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
         + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
         + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
-        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>,
 {
     const CLOCK_RATES: [ClockRate; 4] = [
         ClockRate::R44100,
@@ -403,6 +395,91 @@ where
                     .map(|&r| params.rate = r)?;
                 T::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.media_clock_rate = params)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct OpticalIfaceCtl {
+    elem_id_list: Vec<ElemId>,
+    opt_iface_mode: OpticalInterfaceMode,
+}
+
+fn optical_interface_mode_to_str(mode: &OpticalInterfaceMode) -> &'static str {
+    match mode {
+        OpticalInterfaceMode::Adat => "ADAT",
+        OpticalInterfaceMode::Spdif => "S/PDIF",
+    }
+}
+
+const OPT_IFACE_NAME: &str = "optical-interface";
+
+impl OpticalIfaceCtl {
+    const OPTICAL_INTERFACE_MODES: &[OpticalInterfaceMode] =
+        &[OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Digi003Protocol::cache_wholly(req, node, &mut self.opt_iface_mode, timeout_ms)?;
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::OPTICAL_INTERFACE_MODES
+            .iter()
+            .map(|m| optical_interface_mode_to_str(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            OPT_IFACE_NAME => {
+                let pos = Self::OPTICAL_INTERFACE_MODES
+                    .iter()
+                    .position(|m| self.opt_iface_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDigi00x,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            OPT_IFACE_NAME => {
+                if unit.is_locked() {
+                    let msg = "Not configurable during packet streaming";
+                    Err(Error::new(FileError::Again, &msg))?;
+                }
+
+                let pos = elem_value.enumerated()[0] as usize;
+                let params = Self::OPTICAL_INTERFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for optical interface mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                Digi003Protocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.opt_iface_mode = params)?;
                 Ok(true)
             }
             _ => Ok(false),
