@@ -350,6 +350,39 @@ pub struct Dg00xExternalClockParameters {
     pub rate: Option<ClockRate>,
 }
 
+impl<O> Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut Dg00xExternalClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let detected = read_quadlet(
+            req,
+            node,
+            EXTERNAL_CLOCK_SOURCE_DETECTION_OFFSET,
+            timeout_ms,
+        )?;
+
+        if detected > 0 {
+            let val = read_quadlet(
+                req,
+                node,
+                EXTERNAL_CLOCK_RATE_OFFSET,
+                timeout_ms,
+            )?;
+            let mut rate = ClockRate::default();
+            deserialize_clock_rate(&mut rate, val).map(|_| states.rate = Some(rate))
+        } else {
+            states.rate = None;
+            Ok(())
+        }
+    }
+}
+
 /// The trait for common operation.
 pub trait Dg00xCommonOperation {
     const SAMPLING_CLOCK_SOURCES: &'static [ClockSource];
