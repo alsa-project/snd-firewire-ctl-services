@@ -678,6 +678,62 @@ fn optional_clock_rate_to_str(rate: &Option<ClockRate>) -> &'static str {
 
 const CLK_EXT_RATE_NAME: &str = "external-clock-rate";
 
+#[derive(Default, Debug)]
+pub struct MeterCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
+    elem_id_list: Vec<ElemId>,
+    external_clock_rate: Dg00xExternalClockParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> MeterCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
+    const OPTIONAL_CLOCK_RATES: &[Option<ClockRate>] = &[
+        None,
+        Some(ClockRate::R44100),
+        Some(ClockRate::R48000),
+        Some(ClockRate::R88200),
+        Some(ClockRate::R96000),
+    ];
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        T::cache_wholly(req, node, &mut self.external_clock_rate, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::OPTIONAL_CLOCK_RATES
+            .iter()
+            .map(|r| optional_clock_rate_to_str(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_EXT_RATE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            CLK_EXT_RATE_NAME => {
+                let pos = Self::OPTIONAL_CLOCK_RATES
+                    .iter()
+                    .position(|r| self.external_clock_rate.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
     fn meter(&self) -> &Dg00xMeterCtl;
     fn meter_mut(&mut self) -> &mut Dg00xMeterCtl;
