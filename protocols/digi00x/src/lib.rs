@@ -237,6 +237,65 @@ pub struct Dg00xMediaClockParameters {
     pub rate: ClockRate,
 }
 
+const CLOCK_RATE_TABLE: &[ClockRate] = &[
+    ClockRate::R44100,
+    ClockRate::R48000,
+    ClockRate::R88200,
+    ClockRate::R96000,
+];
+
+fn serialize_media_clock_rate(rate: &ClockRate) -> u32 {
+    CLOCK_RATE_TABLE
+        .iter()
+        .position(|r| rate.eq(r))
+        .map(|pos| pos as u32)
+        .unwrap()
+}
+
+fn deserialize_media_clock_rate(rate: &mut ClockRate, val: u32) -> Result<(), Error> {
+    *rate = match val {
+        0 => Ok(ClockRate::R44100),
+        1 => Ok(ClockRate::R48000),
+        2 => Ok(ClockRate::R88200),
+        3 => Ok(ClockRate::R96000),
+        _ => {
+            let msg = format!("Unexpected value for clock rate: {}", val);
+            Err(Error::new(FileError::Inval, &msg))
+        }
+    }?;
+    Ok(())
+}
+
+impl<O> Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut Dg00xMediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quadlet(req, node, MEDIA_CLOCK_RATE_OFFSET, timeout_ms)
+            .and_then(|val| deserialize_media_clock_rate(&mut states.rate, val))
+    }
+}
+
+impl<O> Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters> for O
+where
+    O: Dg00xHardwareSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Dg00xMediaClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = serialize_media_clock_rate(&params.rate);
+        write_quadlet(req, node, SAMPLING_CLOCK_SOURCE_OFFSET, val, timeout_ms)
+    }
+}
+
 /// Mode of optical interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OpticalInterfaceMode {
