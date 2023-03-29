@@ -13,11 +13,15 @@ pub mod fw1884;
 use super::*;
 
 /// Signal source of sampling clock.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkSrc {
+    /// Internal oscillator.
     Internal,
+    /// Word clock signal from BNC input interface.
     Wordclock,
+    /// S/PDIF signal from coaxial input interface.
     Spdif,
+    /// ADAT signal from optical input interface.
     Adat,
 }
 
@@ -28,11 +32,15 @@ impl Default for ClkSrc {
 }
 
 /// Nominal frequency of media clock.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkRate {
+    /// At 44.1 kHz.
     R44100,
+    /// At 48.0 kHz.
     R48000,
+    /// At 88.2 kHz.
     R88200,
+    /// At 96.0 kHz.
     R96000,
 }
 
@@ -40,6 +48,15 @@ impl Default for ClkRate {
     fn default() -> Self {
         Self::R44100
     }
+}
+
+/// The parameters of sampling and media clock.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TascamClockParameters {
+    /// The source of sampling clock.
+    pub sampling_clock_source: ClkSrc,
+    /// The rate of media clock.
+    pub media_clock_rate: ClkRate,
 }
 
 /// Mode of monitor.

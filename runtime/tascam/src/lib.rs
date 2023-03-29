@@ -29,7 +29,7 @@ use {
     isoch_rack_runtime::*,
     protocols::{config_rom::*, *},
     seq_cntr::*,
-    std::convert::TryFrom,
+    std::{convert::TryFrom, marker::PhantomData},
 };
 
 pub enum TascamRuntime {
