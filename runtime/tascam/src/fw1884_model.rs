@@ -106,9 +106,6 @@ impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
     }
 }
 
-#[derive(Default)]
-struct SpecificCtl;
-
 impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
     fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
         &self.seq_state
@@ -212,11 +209,14 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.opt_iface_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.specific_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
 
         self.meter_ctl
             .load_state(card_cntr, &self.image)
@@ -225,8 +225,6 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
         self.console_ctl
             .load_params(card_cntr, &self.image)
             .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
-
-        self.specific_ctl.load_params(card_cntr)?;
 
         Ok(())
     }
@@ -247,16 +245,10 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.specific_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else if self.console_ctl.read_params(
             &mut unit.1,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.specific_ctl.read_params(
-            unit,
             &mut self.req,
             elem_id,
             elem_value,
@@ -308,6 +300,11 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
+        } else if self
+            .specific_ctl
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+        {
+            Ok(true)
         } else if self.console_ctl.write_params(
             &mut unit.1,
             &mut self.req,
@@ -316,15 +313,16 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .specific_ctl
-            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
-            Ok(true)
         } else {
             Ok(false)
         }
     }
+}
+
+#[derive(Default, Debug)]
+struct SpecificCtl {
+    elem_id_list: Vec<ElemId>,
+    params: Fw1884MonitorKnobTarget,
 }
 
 const MONITOR_ROTARY_ASSIGN_NAME: &str = "monitor-rotary-assign";
@@ -344,31 +342,29 @@ impl SpecificCtl {
         Fw1884MonitorKnobTarget::AnalogOutput4Pairs,
     ];
 
-    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        Fw1884Protocol::get_monitor_knob_target(req, node, timeout_ms)
+            .map(|target| self.params = target)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::MONITOR_ROTARY_ASSIGNS
             .iter()
             .map(|a| monitor_knob_target_to_str(a))
             .collect();
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_ASSIGN_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
-        Ok(())
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn read_params(
-        &mut self,
-        unit: &mut (SndTascam, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
-                let target = Fw1884Protocol::get_monitor_knob_target(req, &mut unit.1, timeout_ms)?;
                 let pos = Self::MONITOR_ROTARY_ASSIGNS
                     .iter()
-                    .position(|a| target.eq(a))
+                    .position(|a| self.params.eq(a))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -377,10 +373,10 @@ impl SpecificCtl {
         }
     }
 
-    fn write_params(
+    fn write(
         &mut self,
-        unit: &mut (SndTascam, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -395,8 +391,9 @@ impl SpecificCtl {
                         let msg = format!("Invalid index for monitor rotary targets: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                Fw1884Protocol::set_monitor_knob_target(req, &mut unit.1, target, timeout_ms)
-                    .map(|_| true)
+                Fw1884Protocol::set_monitor_knob_target(req, node, target, timeout_ms)
+                    .map(|_| self.params = target)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
