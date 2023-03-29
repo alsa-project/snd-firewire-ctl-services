@@ -8,6 +8,29 @@ use {
     protocols::isoch::*,
 };
 
+#[derive(Debug)]
+pub(crate) struct MeterCtl<T>
+where
+    T: IsochMeterOperation,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: IsochMeterState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for MeterCtl<T>
+where
+    T: IsochMeterOperation,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_meter_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
 const MONITOR_ROTARY_NAME: &str = "monitor-rotary";
 const SOLO_ROTARY_NAME: &str = "solo-rotary";
 const INPUT_METER_NAME: &str = "input-meters";
@@ -46,13 +69,10 @@ fn monitor_mode_to_str(mode: &MonitorMode) -> &'static str {
     }
 }
 
-pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
-    const INPUT_LABELS: &'static [&'static str];
-    const OUTPUT_LABELS: &'static [&'static str];
-
-    fn meter(&self) -> &IsochMeterState;
-    fn meter_mut(&mut self) -> &mut IsochMeterState;
-
+impl<T> MeterCtl<T>
+where
+    T: IsochMeterOperation,
+{
     const CLK_SRCS: [Option<ClkSrc>; 5] = [
         Some(ClkSrc::Internal),
         Some(ClkSrc::Wordclock),
@@ -75,20 +95,11 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
         MonitorMode::Both,
     ];
 
-    fn parse_state(&mut self, image: &[u32]) -> Result<(), Error> {
-        T::parse_meter_state(self.meter_mut(), image)
+    pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
+        T::parse_meter_state(&mut self.params, image)
     }
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        image: &[u32],
-    ) -> Result<Vec<ElemId>, Error> {
-        assert_eq!(Self::INPUT_LABELS.len(), T::INPUT_COUNT);
-        assert_eq!(Self::OUTPUT_LABELS.len(), T::OUTPUT_COUNT);
-
-        let mut measured_elem_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -101,7 +112,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         if T::HAS_SOLO {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SOLO_ROTARY_NAME, 0);
@@ -116,7 +127,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                     None,
                     false,
                 )
-                .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
@@ -131,7 +142,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_NAME, 0);
         card_cntr
@@ -145,7 +156,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_METER_NAME, 0);
         card_cntr
@@ -159,7 +170,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_MIXER_METER_NAME, 0);
         card_cntr
@@ -173,19 +184,19 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::CLK_SRCS.iter().map(|s| clk_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DETECTED_CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::CLK_RATES.iter().map(|s| clk_rate_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DETECTED_CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::MONITOR_MODES
             .iter()
@@ -194,38 +205,39 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        *self.meter_mut() = T::create_meter_state();
-        self.parse_state(image)?;
-
-        Ok(measured_elem_list)
+        Ok(())
     }
 
-    fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MONITOR_ROTARY_NAME => {
-                elem_value.set_int(&[self.meter().monitor as i32]);
+                elem_value.set_int(&[self.params.monitor as i32]);
                 Ok(true)
             }
             SOLO_ROTARY_NAME => {
-                elem_value.set_int(&[self.meter().solo.unwrap() as i32]);
+                elem_value.set_int(&[self.params.solo.unwrap() as i32]);
                 Ok(true)
             }
             INPUT_METER_NAME => {
-                let vals: Vec<i32> = self.meter().inputs.iter().map(|&l| l as i32).collect();
+                let vals: Vec<i32> = self.params.inputs.iter().map(|&l| l as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                let vals: Vec<i32> = self.meter().outputs.iter().map(|&l| l as i32).collect();
+                let vals: Vec<i32> = self.params.outputs.iter().map(|&l| l as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             DETECTED_CLK_SRC_NAME => {
                 let pos = Self::CLK_SRCS
                     .iter()
-                    .position(|s| s.eq(&self.meter().src))
+                    .position(|s| s.eq(&self.params.src))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -233,14 +245,14 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
             DETECTED_CLK_RATE_NAME => {
                 let pos = Self::CLK_RATES
                     .iter()
-                    .position(|r| r.eq(&self.meter().rate))
+                    .position(|r| r.eq(&self.params.rate))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             MONITOR_METER_NAME => {
                 let vals: Vec<i32> = self
-                    .meter()
+                    .params
                     .monitor_meters
                     .iter()
                     .map(|&l| l as i32)
@@ -250,7 +262,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
             }
             ANALOG_MIXER_METER_NAME => {
                 let vals: Vec<i32> = self
-                    .meter()
+                    .params
                     .analog_mixer_meters
                     .iter()
                     .map(|&l| l as i32)
@@ -261,7 +273,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
             MONITOR_MODE_NAME => {
                 let pos = Self::MONITOR_MODES
                     .iter()
-                    .position(|m| self.meter().monitor_mode.eq(m))
+                    .position(|m| self.params.monitor_mode.eq(m))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)

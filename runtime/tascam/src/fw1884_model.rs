@@ -14,7 +14,7 @@ pub struct Fw1884Model {
     input_threshold_ctl: InputDetectionThreshold<Fw1884Protocol>,
     coax_output_ctl: CoaxOutputCtl<Fw1884Protocol>,
     opt_iface_ctl: OpticalIfaceCtl<Fw1884Protocol>,
-    meter_ctl: MeterCtl,
+    meter_ctl: MeterCtl<Fw1884Protocol>,
     console_ctl: ConsoleCtl,
     specific_ctl: SpecificCtl,
     seq_state: SequencerState<Fw1884SurfaceState>,
@@ -38,60 +38,6 @@ impl Default for Fw1884Model {
 }
 
 const TIMEOUT_MS: u32 = 50;
-
-#[derive(Default)]
-struct MeterCtl(IsochMeterState, Vec<ElemId>);
-
-impl IsochMeterCtlOperation<Fw1884Protocol> for MeterCtl {
-    fn meter(&self) -> &IsochMeterState {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut IsochMeterState {
-        &mut self.0
-    }
-
-    const INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1",
-        "analog-input-2",
-        "analog-input-3",
-        "analog-input-4",
-        "analog-input-5",
-        "analog-input-6",
-        "analog-input-7",
-        "analog-input-8",
-        "adat-input-1",
-        "adat-input-2",
-        "adat-input-3",
-        "adat-input-4",
-        "adat-input-5",
-        "adat-input-6",
-        "adat-input-7",
-        "adat-input-8",
-        "spdif-input-1",
-        "spdif-input-2",
-    ];
-    const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1",
-        "analog-output-2",
-        "analog-output-3",
-        "analog-output-4",
-        "analog-output-5",
-        "analog-output-6",
-        "analog-output-7",
-        "analog-output-8",
-        "adat-output-1",
-        "adat-output-2",
-        "adat-output-3",
-        "adat-output-4",
-        "adat-output-5",
-        "adat-output-6",
-        "adat-output-7",
-        "adat-output-8",
-        "spdif-input-1",
-        "spdif-input-2",
-    ];
-}
 
 #[derive(Default)]
 struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
@@ -166,13 +112,13 @@ impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw
 
 impl MeasureModel<(SndTascam, FwNode)> for Fw1884Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.console_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
-        self.meter_ctl.parse_state(&self.image)?;
+        self.meter_ctl.parse(&self.image)?;
         self.console_ctl.parse_states(&self.image)?;
         Ok(())
     }
@@ -183,7 +129,7 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1884Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.meter_ctl.read_state(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.console_ctl.read_states(elem_id, elem_value)? {
             Ok(true)
@@ -200,6 +146,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
+        self.meter_ctl.parse(&self.image)?;
 
         self.clock_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -218,9 +165,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
         self.opt_iface_ctl.load(card_cntr)?;
         self.specific_ctl.load(card_cntr)?;
 
-        self.meter_ctl
-            .load_state(card_cntr, &self.image)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr)?;
 
         self.console_ctl
             .load_params(card_cntr, &self.image)
@@ -241,11 +186,11 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             Ok(true)
         } else if self.coax_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
-            Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.specific_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.console_ctl.read_params(
             &mut unit.1,
