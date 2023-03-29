@@ -796,77 +796,80 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct ConsoleCtl<T>
+where
+    T: IsochConsoleOperation,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: IsochConsoleState,
+    _phantom: PhantomData<T>,
+}
+
 const MASTER_FADER_ASSIGN_NAME: &str = "master-fader-assign";
 const HOST_MODE_NAME: &str = "host-mode";
 
-pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
-    fn state(&self) -> &IsochConsoleState;
-    fn state_mut(&mut self) -> &mut IsochConsoleState;
+impl<T> ConsoleCtl<T>
+where
+    T: IsochConsoleOperation,
+{
+    pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
+        T::parse_console_state(&mut self.params, image)
+    }
 
-    fn load_params(
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        image: &[u32],
-    ) -> Result<Vec<ElemId>, Error> {
-        let mut measured_elem_list = Vec::new();
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_master_fader_assign(req, node, timeout_ms)
+            .map(|enabled| self.params.master_fader_assign = enabled)
+    }
 
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_FADER_ASSIGN_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HOST_MODE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, false)
-            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        self.parse_states(image)?;
-
-        Ok(measured_elem_list)
+        Ok(())
     }
 
-    fn parse_states(&mut self, image: &[u32]) -> Result<(), Error> {
-        T::parse_console_state(self.state_mut(), image)
-    }
-
-    fn read_states(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
+            MASTER_FADER_ASSIGN_NAME => {
+                elem_value.set_bool(&[self.params.master_fader_assign]);
+                Ok(true)
+            }
             HOST_MODE_NAME => {
-                elem_value.set_bool(&[self.state().host_mode]);
+                elem_value.set_bool(&[self.params.host_mode]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn read_params(
+    pub(crate) fn write(
         &mut self,
-        node: &mut FwNode,
         req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MASTER_FADER_ASSIGN_NAME => {
-                let enabled = T::get_master_fader_assign(req, node, timeout_ms)?;
-                elem_value.set_bool(&[enabled]);
-                Ok(true)
-            }
-            _ => self.read_states(elem_id, elem_value),
-        }
-    }
-
-    fn write_params(
-        &mut self,
         node: &mut FwNode,
-        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MASTER_FADER_ASSIGN_NAME => {
-                let val = elem_value.boolean()[0];
-                T::set_master_fader_assign(req, node, val, timeout_ms).map(|_| true)
+                let mut params = self.params.clone();
+                params.master_fader_assign = elem_value.boolean()[0];
+                T::set_master_fader_assign(req, node, params.master_fader_assign, timeout_ms)
+                    .map(|_| self.params = params)?;
+                Ok(true)
             }
             _ => Ok(false),
         }

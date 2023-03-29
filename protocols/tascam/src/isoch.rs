@@ -590,9 +590,13 @@ pub trait IsochOpticalOperation {
 }
 
 /// State of console.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IsochConsoleState {
+    /// Whether to enable host mode.
     pub host_mode: bool,
+
+    /// Whether to assign master fader to analog output 1/2.
+    pub master_fader_assign: bool,
 }
 
 const MASTER_FADER_ASSIGNS: [(bool, u32, u32); 2] = [
