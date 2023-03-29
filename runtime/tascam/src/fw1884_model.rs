@@ -10,11 +10,11 @@ use {
 pub struct Fw1884Model {
     req: FwReq,
     image: Vec<u32>,
-    meter_ctl: MeterCtl,
     clock_ctl: ClockCtl<Fw1884Protocol>,
     input_threshold_ctl: InputDetectionThreshold<Fw1884Protocol>,
     coax_output_ctl: CoaxOutputCtl<Fw1884Protocol>,
-    optical_ctl: OpticalCtl,
+    opt_iface_ctl: OpticalIfaceCtl<Fw1884Protocol>,
+    meter_ctl: MeterCtl,
     console_ctl: ConsoleCtl,
     specific_ctl: SpecificCtl,
     seq_state: SequencerState<Fw1884SurfaceState>,
@@ -28,8 +28,8 @@ impl Default for Fw1884Model {
             clock_ctl: Default::default(),
             input_threshold_ctl: Default::default(),
             coax_output_ctl: Default::default(),
+            opt_iface_ctl: Default::default(),
             meter_ctl: Default::default(),
-            optical_ctl: Default::default(),
             console_ctl: Default::default(),
             specific_ctl: Default::default(),
             seq_state: Default::default(),
@@ -90,18 +90,6 @@ impl IsochMeterCtlOperation<Fw1884Protocol> for MeterCtl {
         "adat-output-8",
         "spdif-input-1",
         "spdif-input-2",
-    ];
-}
-
-#[derive(Default)]
-struct OpticalCtl;
-
-impl IsochOpticalCtlOperation<Fw1884Protocol> for OpticalCtl {
-    const OPTICAL_OUTPUT_SOURCES: &'static [OpticalOutputSource] = &[
-        OpticalOutputSource::StreamInputPairs,
-        OpticalOutputSource::AnalogOutputPairs,
-        OpticalOutputSource::CoaxialOutputPair0,
-        OpticalOutputSource::AnalogInputPair0,
     ];
 }
 
@@ -222,16 +210,17 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.coax_output_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.opt_iface_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr)?;
 
         self.meter_ctl
             .load_state(card_cntr, &self.image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
-
-        self.optical_ctl.load_params(card_cntr)?;
 
         self.console_ctl
             .load_params(card_cntr, &self.image)
@@ -256,13 +245,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.optical_ctl.read_params(
-            &mut unit.1,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.console_ctl.read_params(
             &mut unit.1,
@@ -317,9 +300,9 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.optical_ctl.write_params(
-            &mut unit.1,
+        } else if self.opt_iface_ctl.write(
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
