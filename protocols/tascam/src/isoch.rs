@@ -503,9 +503,11 @@ pub trait IsochCommonOperation {
 }
 
 /// Source of S/PDIF input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SpdifCaptureSource {
+    /// To coaxial interface.
     Coaxial,
+    /// To optical interface.
     Optical,
 }
 
@@ -516,7 +518,7 @@ impl Default for SpdifCaptureSource {
 }
 
 /// Source of optical output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OpticalOutputSource {
     /// 4 pairs in stream inputs.
     StreamInputPairs,
@@ -534,7 +536,16 @@ impl Default for OpticalOutputSource {
     }
 }
 
-const SPDIF_CAPTURE_SOURCES: [(SpdifCaptureSource, u32, u32); 2] = [
+/// The parameters of digital input and output interfaces.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TascamOpticalIfaceParameters {
+    /// The input interface from which the S/PDIF signal is captured.
+    pub capture_source: SpdifCaptureSource,
+    /// The source signal of optical output interface.
+    pub output_source: OpticalOutputSource,
+}
+
+const SPDIF_CAPTURE_SOURCES: &[(SpdifCaptureSource, u32, u32)] = &[
     (SpdifCaptureSource::Coaxial, 0x00000000, 0x00010000),
     (SpdifCaptureSource::Optical, 0x00000001, 0x00000100),
 ];

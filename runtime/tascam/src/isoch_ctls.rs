@@ -644,6 +644,16 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct OpticalIfaceCtl<T>
+where
+    T: IsochOpticalOperation,
+{
+    elem_id_list: Vec<ElemId>,
+    params: TascamOpticalIfaceParameters,
+    _phantom: PhantomData<T>,
+}
+
 const OPT_OUT_SRC_NAME: &str = "opt-output-source";
 const SPDIF_IN_SRC_NAME: &str = "spdif-input-source";
 
@@ -663,53 +673,66 @@ fn optical_output_source_to_str(src: &OpticalOutputSource) -> &'static str {
     }
 }
 
-pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
-    const SPDIF_INPUT_SOURCES: [SpdifCaptureSource; 2] =
-        [SpdifCaptureSource::Coaxial, SpdifCaptureSource::Optical];
+impl<T> OpticalIfaceCtl<T>
+where
+    T: IsochOpticalOperation,
+{
+    const SPDIF_INPUT_SOURCES: &'static [SpdifCaptureSource] =
+        &[SpdifCaptureSource::Coaxial, SpdifCaptureSource::Optical];
 
-    const OPTICAL_OUTPUT_SOURCES: &'static [OpticalOutputSource];
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_opt_output_source(req, node, timeout_ms)
+            .map(|src| self.params.output_source = src)?;
+        T::get_spdif_capture_source(req, node, timeout_ms)
+            .map(|src| self.params.capture_source = src)?;
+        Ok(())
+    }
 
-    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::SPDIF_INPUT_SOURCES
             .iter()
             .map(|s| spdif_capture_source_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::OPTICAL_OUTPUT_SOURCES
+        let labels: Vec<&str> = T::OPTICAL_OUTPUT_SOURCES
             .iter()
-            .map(|s| optical_output_source_to_str(s))
+            .map(|(s, _, _)| optical_output_source_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_IN_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn read_params(
+    pub(crate) fn read(
         &mut self,
-        node: &mut FwNode,
-        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_OUT_SRC_NAME => {
-                let src = T::get_opt_output_source(req, node, timeout_ms)?;
-                let pos = Self::OPTICAL_OUTPUT_SOURCES
+                let pos = T::OPTICAL_OUTPUT_SOURCES
                     .iter()
-                    .position(|s| s.eq(&src))
+                    .position(|(s, _, _)| self.params.output_source.eq(s))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             SPDIF_IN_SRC_NAME => {
-                let src = T::get_spdif_capture_source(req, node, timeout_ms)?;
                 let pos = Self::SPDIF_INPUT_SOURCES
                     .iter()
-                    .position(|s| s.eq(&src))
+                    .position(|s| self.params.capture_source.eq(s))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -718,36 +741,44 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
         }
     }
 
-    fn write_params(
+    pub(crate) fn write(
         &mut self,
-        node: &mut FwNode,
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_OUT_SRC_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &src = Self::OPTICAL_OUTPUT_SOURCES
+                let pos = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                T::OPTICAL_OUTPUT_SOURCES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for optical output sources: {}", val);
+                        let msg = format!("Invalid index for optical output sources: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                T::set_opt_output_source(req, node, src, timeout_ms).map(|_| true)
+                    })
+                    .map(|(src, _, _)| params.output_source = *src)?;
+                T::set_opt_output_source(req, node, params.output_source, timeout_ms)
+                    .map(|_| self.params = params)?;
+                Ok(true)
             }
             SPDIF_IN_SRC_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &src = Self::SPDIF_INPUT_SOURCES
+                let pos = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                Self::SPDIF_INPUT_SOURCES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for spdif input sources: {}", val);
+                        let msg = format!("Invalid index for spdif input sources: {}", pos);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                T::set_spdif_capture_source(req, node, src, timeout_ms).map(|_| true)
+                    })
+                    .map(|&src| params.capture_source = src)?;
+                T::set_spdif_capture_source(req, node, params.capture_source, timeout_ms)
+                    .map(|_| self.params = params)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
