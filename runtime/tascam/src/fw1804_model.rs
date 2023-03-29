@@ -12,8 +12,8 @@ pub struct Fw1804Model {
     image: Vec<u32>,
     clock_ctl: ClockCtl<Fw1804Protocol>,
     input_threshold_ctl: InputDetectionThreshold<Fw1804Protocol>,
+    coax_output_ctl: CoaxOutputCtl<Fw1804Protocol>,
     meter_ctl: MeterCtl,
-    common_ctl: CommonCtl,
     optical_ctl: OpticalCtl,
     rack_ctl: RackCtl,
 }
@@ -24,9 +24,9 @@ impl Default for Fw1804Model {
             req: Default::default(),
             image: vec![0u32; 64],
             clock_ctl: Default::default(),
+            coax_output_ctl: Default::default(),
             input_threshold_ctl: Default::default(),
             meter_ctl: Default::default(),
-            common_ctl: Default::default(),
             optical_ctl: Default::default(),
             rack_ctl: Default::default(),
         }
@@ -90,11 +90,6 @@ impl IsochMeterCtlOperation<Fw1804Protocol> for MeterCtl {
 }
 
 #[derive(Default)]
-struct CommonCtl;
-
-impl IsochCommonCtlOperation<Fw1804Protocol> for CommonCtl {}
-
-#[derive(Default)]
 struct OpticalCtl;
 
 impl IsochOpticalCtlOperation<Fw1804Protocol> for OpticalCtl {
@@ -154,12 +149,14 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.input_threshold_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.coax_output_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
+        self.coax_output_ctl.load(card_cntr)?;
 
         self.meter_ctl.load_state(card_cntr, &self.image)?;
-        self.common_ctl.load_params(card_cntr)?;
         self.optical_ctl.load_params(card_cntr)?;
         self.rack_ctl
             .load_params(card_cntr, &mut unit.1, &mut self.req, TIMEOUT_MS)?;
@@ -176,15 +173,9 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             Ok(true)
         } else if self.input_threshold_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+        } else if self.coax_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.common_ctl.read_params(
-            &mut unit.1,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.optical_ctl.read_params(
             &mut unit.1,
@@ -225,10 +216,13 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .common_ctl
-            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.coax_output_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.optical_ctl.write_params(
             &mut unit.1,

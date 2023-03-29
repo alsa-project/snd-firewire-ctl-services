@@ -258,7 +258,7 @@ fn write_config_flag<T: Copy + Eq>(
 }
 
 /// Source of output coaxial interface.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoaxialOutputSource {
     /// A pair in stream inputs.
     StreamInputPair,
