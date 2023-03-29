@@ -4,7 +4,7 @@
 use {
     super::{isoch_ctls::*, *},
     alsactl::{prelude::*, *},
-    protocols::isoch::{fw1884::*, *},
+    protocols::isoch::fw1884::*,
 };
 
 pub struct Fw1884Model {
@@ -15,7 +15,7 @@ pub struct Fw1884Model {
     coax_output_ctl: CoaxOutputCtl<Fw1884Protocol>,
     opt_iface_ctl: OpticalIfaceCtl<Fw1884Protocol>,
     meter_ctl: MeterCtl<Fw1884Protocol>,
-    console_ctl: ConsoleCtl,
+    console_ctl: ConsoleCtl<Fw1884Protocol>,
     specific_ctl: SpecificCtl,
     seq_state: SequencerState<Fw1884SurfaceState>,
 }
@@ -29,8 +29,8 @@ impl Default for Fw1884Model {
             input_threshold_ctl: Default::default(),
             coax_output_ctl: Default::default(),
             opt_iface_ctl: Default::default(),
-            meter_ctl: Default::default(),
             console_ctl: Default::default(),
+            meter_ctl: Default::default(),
             specific_ctl: Default::default(),
             seq_state: Default::default(),
         }
@@ -38,19 +38,6 @@ impl Default for Fw1884Model {
 }
 
 const TIMEOUT_MS: u32 = 50;
-
-#[derive(Default)]
-struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
-
-impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
-    fn state(&self) -> &IsochConsoleState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut IsochConsoleState {
-        &mut self.0
-    }
-}
 
 impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
     fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
@@ -113,13 +100,13 @@ impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw
 impl MeasureModel<(SndTascam, FwNode)> for Fw1884Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.console_ctl.1);
+        elem_id_list.extend_from_slice(&self.console_ctl.elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
         self.meter_ctl.parse(&self.image)?;
-        self.console_ctl.parse_states(&self.image)?;
+        self.console_ctl.parse(&self.image)?;
         Ok(())
     }
 
@@ -131,7 +118,7 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1884Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.console_ctl.read_states(elem_id, elem_value)? {
+        } else if self.console_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -147,6 +134,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
     ) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
         self.meter_ctl.parse(&self.image)?;
+        self.console_ctl.parse(&self.image)?;
 
         self.clock_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -158,6 +146,8 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.specific_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.console_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
@@ -166,17 +156,14 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
         self.specific_ctl.load(card_cntr)?;
 
         self.meter_ctl.load(card_cntr)?;
-
-        self.console_ctl
-            .load_params(card_cntr, &self.image)
-            .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
+        self.console_ctl.load(card_cntr)?;
 
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut (SndTascam, FwNode),
+        _: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -192,13 +179,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.console_ctl.read_params(
-            &mut unit.1,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.console_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -250,13 +231,10 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
             .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.console_ctl.write_params(
-            &mut unit.1,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .console_ctl
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
