@@ -551,6 +551,16 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct CoaxOutputCtl<T>
+where
+    T: IsochCommonOperation,
+{
+    elem_id_list: Vec<ElemId>,
+    params: CoaxialOutputSource,
+    _phantom: PhantomData<T>,
+}
+
 const COAX_OUT_SRC_NAME: &str = "coax-output-source";
 
 fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
@@ -560,64 +570,74 @@ fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
     }
 }
 
-pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
+impl<T> CoaxOutputCtl<T>
+where
+    T: IsochCommonOperation,
+{
     const COAXIAL_OUTPUT_SOURCES: [CoaxialOutputSource; 2] = [
         CoaxialOutputSource::StreamInputPair,
         CoaxialOutputSource::AnalogOutputPair0,
     ];
 
-    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_coaxial_output_source(req, node, timeout_ms).map(|src| self.params = src)
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::COAXIAL_OUTPUT_SOURCES
             .iter()
             .map(|s| coaxial_output_source_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, COAX_OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn read_params(
+    pub(crate) fn read(
         &mut self,
-        node: &mut FwNode,
-        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             COAX_OUT_SRC_NAME => {
-                let src = T::get_coaxial_output_source(req, node, timeout_ms)?;
                 let pos = Self::COAXIAL_OUTPUT_SOURCES
                     .iter()
-                    .position(|s| s.eq(&src))
+                    .position(|s| self.params.eq(s))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            _ => Ok(true),
+            _ => Ok(false),
         }
     }
 
-    fn write_params(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndTascam, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             COAX_OUT_SRC_NAME => {
-                let val = elem_value.enumerated()[0];
+                let pos = elem_value.enumerated()[0] as usize;
                 let &src = Self::COAXIAL_OUTPUT_SOURCES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock rates: {}", val);
+                        let msg = format!("Invalid value for index of clock rates: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::set_coaxial_output_source(req, &mut unit.1, src, timeout_ms).map(|_| true)
+                T::set_coaxial_output_source(req, node, src, timeout_ms)
+                    .map(|_| self.params = src)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
