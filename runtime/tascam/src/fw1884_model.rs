@@ -12,6 +12,7 @@ pub struct Fw1884Model {
     image: Vec<u32>,
     meter_ctl: MeterCtl,
     clock_ctl: ClockCtl<Fw1884Protocol>,
+    input_threshold_ctl: InputDetectionThreshold<Fw1884Protocol>,
     common_ctl: CommonCtl,
     optical_ctl: OpticalCtl,
     console_ctl: ConsoleCtl,
@@ -25,6 +26,7 @@ impl Default for Fw1884Model {
             req: Default::default(),
             image: vec![0u32; 64],
             clock_ctl: Default::default(),
+            input_threshold_ctl: Default::default(),
             meter_ctl: Default::default(),
             common_ctl: Default::default(),
             optical_ctl: Default::default(),
@@ -221,8 +223,11 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
 
         self.clock_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.input_threshold_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
+        self.input_threshold_ctl.load(card_cntr)?;
 
         self.meter_ctl
             .load_state(card_cntr, &self.image)
@@ -247,6 +252,8 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clock_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_threshold_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
@@ -296,6 +303,14 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1884Model {
     ) -> Result<bool, Error> {
         if self.clock_ctl.write(
             &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
+        } else if self.input_threshold_ctl.write(
             &mut self.req,
             &mut unit.1,
             elem_id,
