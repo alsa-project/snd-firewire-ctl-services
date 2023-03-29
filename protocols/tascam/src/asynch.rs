@@ -31,8 +31,7 @@ impl TascamExpander {
     pub const QUADLET_COUNT: usize = imp::RESPONSE_FRAME_SIZE / 4;
 
     pub fn new() -> Self {
-        Object::new(&[])
-            .expect("Failed to create TascamExpander")
+        Object::new(&[]).expect("Failed to create TascamExpander")
     }
 
     fn node(&self) -> FwNode {
@@ -66,21 +65,45 @@ impl TascamExpander {
     pub fn listen(&self) -> Result<(), Error> {
         let mut frames = 1u32.to_be_bytes();
         let mut req = FwReq::new();
-        write_quadlet(&mut req, &self.node(), imp::ENABLE_NOTIFICATION, &mut frames, 100)
+        write_quadlet(
+            &mut req,
+            &self.node(),
+            imp::ENABLE_NOTIFICATION,
+            &mut frames,
+            100,
+        )
     }
 
     pub fn unlisten(&self) {
         let mut frames = 0u32.to_be_bytes();
         let mut req = FwReq::new();
-        let _ = write_quadlet(&mut req, &self.node(), imp::ENABLE_NOTIFICATION, &mut frames, 100);
+        let _ = write_quadlet(
+            &mut req,
+            &self.node(),
+            imp::ENABLE_NOTIFICATION,
+            &mut frames,
+            100,
+        );
     }
 
     pub fn unbind(&self) {
         self.release();
 
         let mut req = FwReq::new();
-        let _ = write_quadlet(&mut req, &self.node(), imp::ADDR_HIGH_OFFSET, &mut [0; 4], 100);
-        let _ = write_quadlet(&mut req, &self.node(), imp::ADDR_LOW_OFFSET, &mut [0; 4], 100);
+        let _ = write_quadlet(
+            &mut req,
+            &self.node(),
+            imp::ADDR_HIGH_OFFSET,
+            &mut [0; 4],
+            100,
+        );
+        let _ = write_quadlet(
+            &mut req,
+            &self.node(),
+            imp::ADDR_LOW_OFFSET,
+            &mut [0; 4],
+            100,
+        );
 
         let private = imp::TascamExpanderPrivate::from_instance(self);
         *private.0.borrow_mut() = None;
@@ -88,7 +111,7 @@ impl TascamExpander {
 }
 
 mod imp {
-    use {once_cell::sync::Lazy, super::*};
+    use {super::*, once_cell::sync::Lazy};
 
     pub const RESPONSE_REGION_START: u64 = 0xffffe0000000;
     pub const RESPONSE_REGION_END: u64 = 0xfffff0000000;
@@ -106,28 +129,26 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for TascamExpanderPrivate {
-            const NAME: &'static str = "TascamExpander";
-            type Type = super::TascamExpander;
-            type ParentType = FwResp;
-            type Interfaces = (TascamProtocol,);
+        const NAME: &'static str = "TascamExpander";
+        type Type = super::TascamExpander;
+        type ParentType = FwResp;
+        type Interfaces = (TascamProtocol,);
 
-            fn new() -> Self {
-                Self::default()
-            }
+        fn new() -> Self {
+            Self::default()
+        }
     }
 
     impl ObjectImpl for TascamExpanderPrivate {
         fn properties() -> &'static [ParamSpec] {
             static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
-                vec![
-                    ParamSpecObject::new(
-                        "node",
-                        "node",
-                        "An instance of FwNode",
-                        FwNode::static_type(),
-                        ParamFlags::READWRITE,
-                    ),
-                ]
+                vec![ParamSpecObject::new(
+                    "node",
+                    "node",
+                    "An instance of FwNode",
+                    FwNode::static_type(),
+                    ParamFlags::READWRITE,
+                )]
             });
 
             PROPERTIES.as_ref()
