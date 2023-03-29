@@ -5,8 +5,8 @@ use {
     firewire_tascam_protocols as protocols,
     glib::{FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
-    std::{sync::Arc, thread},
     protocols::*,
+    std::{sync::Arc, thread},
 };
 
 const TIMEOUT_MS: u32 = 50;
