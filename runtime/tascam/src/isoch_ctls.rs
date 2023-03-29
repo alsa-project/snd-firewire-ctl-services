@@ -413,6 +413,144 @@ where
 
 const SIGNAL_DETECTION_THRESHOLD_NAME: &str = "signal-detection-threshold";
 const OVER_LEVEL_DETECTION_THRESHOLD_NAME: &str = "over-level-detection-threshold";
+
+#[derive(Default, Debug)]
+pub(crate) struct InputDetectionThreshold<T>
+where
+    T: IsochCommonOperation,
+{
+    elem_id_list: Vec<ElemId>,
+    params: TascamInputDetectionThreshold,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> InputDetectionThreshold<T>
+where
+    T: IsochCommonOperation,
+{
+    const THRESHOLD_MIN: i32 = T::THRESHOLD_MIN as i32;
+    const THRESHOLD_MAX: i32 = T::THRESHOLD_MAX as i32;
+    const THRESHOLD_STEP: i32 = 1;
+    const THRESHOLD_TLV: DbInterval = DbInterval {
+        min: -9038,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_analog_input_threshold_for_signal_detection(req, node, timeout_ms)
+            .map(|threshold| self.params.signal = threshold)?;
+        T::get_analog_input_threshold_for_over_level_detection(req, node, timeout_ms)
+            .map(|threshold| self.params.over_level = threshold)?;
+        Ok(())
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            SIGNAL_DETECTION_THRESHOLD_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::THRESHOLD_MIN,
+                Self::THRESHOLD_MAX,
+                Self::THRESHOLD_STEP,
+                1,
+                Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::THRESHOLD_MIN,
+                Self::THRESHOLD_MAX,
+                Self::THRESHOLD_STEP,
+                1,
+                Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            SIGNAL_DETECTION_THRESHOLD_NAME => {
+                elem_value.set_int(&[self.params.signal as i32]);
+                Ok(true)
+            }
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
+                elem_value.set_int(&[self.params.over_level as i32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub(crate) fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            SIGNAL_DETECTION_THRESHOLD_NAME => {
+                let mut params = self.params.clone();
+                params.signal = elem_value.int()[0] as u16;
+                T::set_analog_input_threshold_for_signal_detection(
+                    req,
+                    node,
+                    params.signal,
+                    timeout_ms,
+                )
+                .map(|_| self.params = params)?;
+                Ok(true)
+            }
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
+                let mut params = self.params.clone();
+                params.over_level = elem_value.int()[0] as u16;
+                T::set_analog_input_threshold_for_over_level_detection(
+                    req,
+                    node,
+                    params.over_level,
+                    timeout_ms,
+                )
+                .map(|_| self.params = params)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 const COAX_OUT_SRC_NAME: &str = "coax-output-source";
 
 fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
@@ -428,53 +566,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         CoaxialOutputSource::AnalogOutputPair0,
     ];
 
-    const THRESHOLD_MIN: i32 = T::THRESHOLD_MIN as i32;
-    const THRESHOLD_MAX: i32 = T::THRESHOLD_MAX as i32;
-    const THRESHOLD_STEP: i32 = 1;
-    const THRESHOLD_TLV: DbInterval = DbInterval {
-        min: -9038,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
-
     fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            SIGNAL_DETECTION_THRESHOLD_NAME,
-            0,
-        );
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            Self::THRESHOLD_MIN,
-            Self::THRESHOLD_MAX,
-            Self::THRESHOLD_STEP,
-            1,
-            Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            OVER_LEVEL_DETECTION_THRESHOLD_NAME,
-            0,
-        );
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            Self::THRESHOLD_MIN,
-            Self::THRESHOLD_MAX,
-            Self::THRESHOLD_STEP,
-            1,
-            Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
-            true,
-        )?;
-
         let labels: Vec<&str> = Self::COAXIAL_OUTPUT_SOURCES
             .iter()
             .map(|s| coaxial_output_source_to_str(s))
@@ -494,18 +586,6 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            SIGNAL_DETECTION_THRESHOLD_NAME => {
-                let value =
-                    T::get_analog_input_threshold_for_signal_detection(req, node, timeout_ms)?;
-                elem_value.set_int(&[value as i32]);
-                Ok(true)
-            }
-            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
-                let value =
-                    T::get_analog_input_threshold_for_over_level_detection(req, node, timeout_ms)?;
-                elem_value.set_int(&[value as i32]);
-                Ok(true)
-            }
             COAX_OUT_SRC_NAME => {
                 let src = T::get_coaxial_output_source(req, node, timeout_ms)?;
                 let pos = Self::COAXIAL_OUTPUT_SOURCES
@@ -528,26 +608,6 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            SIGNAL_DETECTION_THRESHOLD_NAME => {
-                let val = elem_value.int()[0];
-                T::set_analog_input_threshold_for_signal_detection(
-                    req,
-                    &mut unit.1,
-                    val as u16,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
-                let val = elem_value.int()[0];
-                T::set_analog_input_threshold_for_over_level_detection(
-                    req,
-                    &mut unit.1,
-                    val as u16,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
             COAX_OUT_SRC_NAME => {
                 let val = elem_value.enumerated()[0];
                 let &src = Self::COAXIAL_OUTPUT_SOURCES

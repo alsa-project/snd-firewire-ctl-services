@@ -59,6 +59,20 @@ pub struct TascamClockParameters {
     pub media_clock_rate: ClkRate,
 }
 
+/// The parameters of threshold to detect input signal. The value is between 1 and 0x7fff. The dB
+/// level can be calculated by below formula.
+///
+/// ```text
+/// level = 20 * log10(value / 0x7fff)
+/// ```
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TascamInputDetectionThreshold {
+    /// For signal detection itself.
+    pub signal: u16,
+    /// For over-level detection.
+    pub over_level: u16,
+}
+
 /// Mode of monitor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonitorMode {
