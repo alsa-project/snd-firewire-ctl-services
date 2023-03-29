@@ -13,7 +13,7 @@ pub struct Fw1082Model {
     clock_ctl: ClockCtl<Fw1082Protocol>,
     input_threshold_ctl: InputDetectionThreshold<Fw1082Protocol>,
     coax_output_ctl: CoaxOutputCtl<Fw1082Protocol>,
-    meter_ctl: MeterCtl,
+    meter_ctl: MeterCtl<Fw1082Protocol>,
     console_ctl: ConsoleCtl,
     seq_state: SequencerState<Fw1082SurfaceState>,
 }
@@ -34,38 +34,6 @@ impl Default for Fw1082Model {
 }
 
 const TIMEOUT_MS: u32 = 50;
-
-#[derive(Default)]
-struct MeterCtl(IsochMeterState, Vec<ElemId>);
-
-impl IsochMeterCtlOperation<Fw1082Protocol> for MeterCtl {
-    fn meter(&self) -> &IsochMeterState {
-        &self.0
-    }
-
-    fn meter_mut(&mut self) -> &mut IsochMeterState {
-        &mut self.0
-    }
-
-    const INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1",
-        "analog-input-2",
-        "analog-input-3",
-        "analog-input-4",
-        "analog-input-5",
-        "analog-input-6",
-        "analog-input-7",
-        "analog-input-8",
-        "spdif-input-1",
-        "spdif-input-2",
-    ];
-    const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1",
-        "analog-output-2",
-        "spdif-output-1",
-        "spdif-output-2",
-    ];
-}
 
 #[derive(Default)]
 struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
@@ -141,13 +109,13 @@ impl SequencerCtlOperation<SndTascam, Fw1082Protocol, Fw1082SurfaceState> for Fw
 
 impl MeasureModel<(SndTascam, FwNode)> for Fw1082Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.console_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
-        self.meter_ctl.parse_state(&self.image)?;
+        self.meter_ctl.parse(&self.image)?;
         self.console_ctl.parse_states(&self.image)?;
         Ok(())
     }
@@ -158,7 +126,7 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1082Model {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.meter_ctl.read_state(elem_id, elem_value)? {
+        if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.console_ctl.read_states(elem_id, elem_value)? {
             Ok(true)
@@ -175,6 +143,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         unit.0.read_state(&mut self.image)?;
+        self.meter_ctl.parse(&self.image)?;
 
         self.clock_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -186,10 +155,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;
-
-        self.meter_ctl
-            .load_state(card_cntr, &self.image)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr)?;
 
         self.console_ctl
             .load_params(card_cntr, &self.image)
@@ -210,7 +176,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
             Ok(true)
         } else if self.coax_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.console_ctl.read_params(
             &mut unit.1,
