@@ -272,8 +272,145 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct ClockCtl<T>
+where
+    T: IsochCommonOperation,
+{
+    elem_id_list: Vec<ElemId>,
+    params: TascamClockParameters,
+    _phantom: PhantomData<T>,
+}
+
 const CLK_SRC_NAME: &str = "clock-source";
 const CLK_RATE_NAME: &str = "clock-rate";
+
+const CLOCK_RATES: &[ClkRate] = &[
+    ClkRate::R44100,
+    ClkRate::R48000,
+    ClkRate::R88200,
+    ClkRate::R96000,
+];
+
+impl<T> ClockCtl<T>
+where
+    T: IsochCommonOperation,
+{
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_sampling_clock_source(req, node, timeout_ms)
+            .map(|src| self.params.sampling_clock_source = src)?;
+        T::get_media_clock_rate(req, node, timeout_ms)
+            .map(|rate| self.params.media_clock_rate = rate)?;
+        Ok(())
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = T::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .map(|&s| clk_src_to_str(&Some(s)))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_SRC_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<&str> = CLOCK_RATES
+            .iter()
+            .map(|&r| clk_rate_to_str(&Some(r)))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_RATE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            CLK_SRC_NAME => {
+                let pos = T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .position(|s| self.params.sampling_clock_source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            CLK_RATE_NAME => {
+                let pos = CLOCK_RATES
+                    .iter()
+                    .position(|r| self.params.media_clock_rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub(crate) fn write(
+        &mut self,
+        unit: &mut SndTascam,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            CLK_SRC_NAME => {
+                let pos = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock sources: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&src| params.sampling_clock_source = src)?;
+                unit.lock()?;
+                let res = T::set_sampling_clock_source(
+                    req,
+                    node,
+                    params.sampling_clock_source,
+                    timeout_ms,
+                )
+                .map(|_| self.params = params);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
+            CLK_RATE_NAME => {
+                let pos = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                CLOCK_RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock rates: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&rate| params.media_clock_rate = rate)?;
+                unit.lock()?;
+                let res = T::set_media_clock_rate(req, node, params.media_clock_rate, timeout_ms)
+                    .map(|_| self.params = params);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 const SIGNAL_DETECTION_THRESHOLD_NAME: &str = "signal-detection-threshold";
 const OVER_LEVEL_DETECTION_THRESHOLD_NAME: &str = "over-level-detection-threshold";
 const COAX_OUT_SRC_NAME: &str = "coax-output-source";
@@ -286,13 +423,6 @@ fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
 }
 
 pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
-    const CLOCK_RATES: [ClkRate; 4] = [
-        ClkRate::R44100,
-        ClkRate::R48000,
-        ClkRate::R88200,
-        ClkRate::R96000,
-    ];
-
     const COAXIAL_OUTPUT_SOURCES: [CoaxialOutputSource; 2] = [
         CoaxialOutputSource::StreamInputPair,
         CoaxialOutputSource::AnalogOutputPair0,
@@ -309,20 +439,6 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
     };
 
     fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::SAMPLING_CLOCK_SOURCES
-            .iter()
-            .map(|&s| clk_src_to_str(&Some(s)))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let labels: Vec<&str> = Self::CLOCK_RATES
-            .iter()
-            .map(|&r| clk_rate_to_str(&Some(r)))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Mixer,
             0,
@@ -378,21 +494,6 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_SRC_NAME => {
-                let src = T::get_sampling_clock_source(req, node, timeout_ms)?;
-                let pos = T::SAMPLING_CLOCK_SOURCES
-                    .iter()
-                    .position(|s| s.eq(&src))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            CLK_RATE_NAME => {
-                let rate = T::get_media_clock_rate(req, node, timeout_ms)?;
-                let pos = Self::CLOCK_RATES.iter().position(|r| r.eq(&rate)).unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
                 let value =
                     T::get_analog_input_threshold_for_signal_detection(req, node, timeout_ms)?;
@@ -427,31 +528,6 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            CLK_SRC_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &src = T::SAMPLING_CLOCK_SOURCES
-                    .iter()
-                    .nth(val as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock sources: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                unit.0.lock()?;
-                let res = T::set_sampling_clock_source(req, &mut unit.1, src, timeout_ms);
-                let _ = unit.0.unlock();
-                res.map(|_| true)
-            }
-            CLK_RATE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &rate = Self::CLOCK_RATES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid value for index of clock rates: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                unit.0.lock()?;
-                let res = T::set_media_clock_rate(req, &mut unit.1, rate, timeout_ms);
-                let _ = unit.0.unlock();
-                res.map(|_| true)
-            }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
                 let val = elem_value.int()[0];
                 T::set_analog_input_threshold_for_signal_detection(
