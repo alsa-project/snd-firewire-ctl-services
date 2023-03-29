@@ -628,13 +628,26 @@ pub trait IsochConsoleOperation {
 const RACK_STATE_SIZE: usize = 72;
 
 /// State of rack.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IsochRackState([u8; RACK_STATE_SIZE]);
 
 impl Default for IsochRackState {
     fn default() -> Self {
         Self([0; RACK_STATE_SIZE])
     }
+}
+
+/// The parameters of input.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct IsochRackInputParameters {
+    /// Gain of signal to stereo monitor. The value is between 0 and 0x7fff.
+    pub gains: [i16; 18],
+    /// L/R balance to stereo monitor. The value is between 0 and 255.
+    pub balances: [u8; 18],
+    /// Whether to mute.
+    pub mutes: [bool; 18],
+    /// The raw state of parameters.
+    pub state: IsochRackState,
 }
 
 const INPUT_OFFSET: u64 = 0x0408;

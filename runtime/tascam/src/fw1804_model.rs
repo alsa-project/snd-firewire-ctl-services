@@ -14,8 +14,8 @@ pub struct Fw1804Model {
     input_threshold_ctl: InputDetectionThreshold<Fw1804Protocol>,
     coax_output_ctl: CoaxOutputCtl<Fw1804Protocol>,
     opt_iface_ctl: OpticalIfaceCtl<Fw1804Protocol>,
+    rack_ctl: RackCtl<Fw1804Protocol>,
     meter_ctl: MeterCtl,
-    rack_ctl: RackCtl,
 }
 
 impl Default for Fw1804Model {
@@ -89,19 +89,6 @@ impl IsochMeterCtlOperation<Fw1804Protocol> for MeterCtl {
     ];
 }
 
-#[derive(Default)]
-struct RackCtl(IsochRackState);
-
-impl IsochRackCtlOperation<Fw1804Protocol> for RackCtl {
-    fn state(&self) -> &IsochRackState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut IsochRackState {
-        &mut self.0
-    }
-}
-
 impl MeasureModel<(SndTascam, FwNode)> for Fw1804Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
@@ -142,16 +129,17 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.opt_iface_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.rack_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
+        self.rack_ctl.load(card_cntr)?;
 
         self.meter_ctl.load_state(card_cntr, &self.image)?;
 
-        self.rack_ctl
-            .load_params(card_cntr, &mut unit.1, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -171,7 +159,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.rack_ctl.read_params(elem_id, elem_value)? {
+        } else if self.rack_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -182,15 +170,15 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
         &mut self,
         unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clock_ctl.write(
             &mut unit.0,
             &mut self.req,
             &mut unit.1,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
@@ -198,7 +186,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             &mut self.req,
             &mut unit.1,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
@@ -206,7 +194,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             &mut self.req,
             &mut unit.1,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
@@ -214,16 +202,15 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
             &mut self.req,
             &mut unit.1,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.rack_ctl.write_params(
-            &mut unit.1,
+        } else if self.rack_ctl.write(
             &mut self.req,
+            &mut unit.1,
             elem_id,
-            old,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
