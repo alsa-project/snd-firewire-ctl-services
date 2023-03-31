@@ -93,6 +93,108 @@ pub struct TascamClockParameters {
     pub media_clock_rate: ClkRate,
 }
 
+/// The specification of sampling and media clocks.
+pub trait TascamIsochClockSpecification {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc];
+}
+
+const CLOCK_STATUS_OFFSET: u64 = 0x0228;
+
+const CLOCK_SOURCES: [(ClkSrc, u8); 4] = [
+    (ClkSrc::Internal, 0x01),
+    (ClkSrc::Wordclock, 0x02),
+    (ClkSrc::Spdif, 0x03),
+    (ClkSrc::Adat, 0x04),
+];
+
+const CLOCK_RATES: [(ClkRate, u8); 4] = [
+    (ClkRate::R44100, 0x01),
+    (ClkRate::R48000, 0x02),
+    (ClkRate::R88200, 0x03),
+    (ClkRate::R96000, 0x04),
+];
+
+impl<O> TascamIsochWhollyCachableParamsOperation<TascamClockParameters> for O
+where
+    O: TascamIsochClockSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut TascamClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut frame = [0; 4];
+        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)?;
+        let src = CLOCK_SOURCES
+            .iter()
+            .find_map(|&(src, val)| if val == frame[3] { Some(src) } else { None })
+            .ok_or_else(|| {
+                let msg = format!("Unexpected value for source of clock: {}", frame[3]);
+                Error::new(FileError::Io, &msg)
+            })?;
+        Self::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .find_map(|s| if src.eq(s) { Some(src) } else { None })
+            .ok_or_else(|| {
+                let msg = "Unsupported source of sampling clock";
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|src| states.sampling_clock_source = src)?;
+        CLOCK_RATES
+            .iter()
+            .find_map(|&(rate, val)| if val == frame[1] { Some(rate) } else { None })
+            .ok_or_else(|| {
+                let label = format!("Unexpected value for rate of clock: {}", frame[1]);
+                Error::new(FileError::Io, &label)
+            })
+            .map(|rate| states.media_clock_rate = rate)
+    }
+}
+
+impl<O> TascamIsochWhollyUpdatableParamsOperation<TascamClockParameters> for O
+where
+    O: TascamIsochClockSpecification,
+{
+    /// Update whole parameters.
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &TascamClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let _ = Self::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .find(|s| params.sampling_clock_source.eq(s))
+            .ok_or_else(|| {
+                let msg = "Unsupported source of sampling clock";
+                Error::new(FileError::Inval, &msg)
+            })?;
+        let mut frame = [0; 4];
+        frame[3] = CLOCK_SOURCES
+            .iter()
+            .find_map(|&(s, val)| {
+                if params.sampling_clock_source.eq(&s) {
+                    Some(val)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        frame[2] = CLOCK_RATES
+            .iter()
+            .find_map(|&(r, val)| {
+                if params.media_clock_rate.eq(&r) {
+                    Some(val)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        write_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)
+    }
+}
+
 /// The parameters of threshold to detect input signal. The value is between 1 and 0x7fff. The dB
 /// level can be calculated by below formula.
 ///
@@ -306,23 +408,8 @@ impl Default for CoaxialOutputSource {
     }
 }
 
-const CLOCK_STATUS_OFFSET: u64 = 0x0228;
 const CONFIG_FLAG_OFFSET: u64 = 0x022c;
 const INPUT_THRESHOLD_OFFSET: u64 = 0x0230;
-
-const CLOCK_SOURCES: [(ClkSrc, u8); 4] = [
-    (ClkSrc::Internal, 0x01),
-    (ClkSrc::Wordclock, 0x02),
-    (ClkSrc::Spdif, 0x03),
-    (ClkSrc::Adat, 0x04),
-];
-
-const CLOCK_RATES: [(ClkRate, u8); 4] = [
-    (ClkRate::R44100, 0x01),
-    (ClkRate::R48000, 0x02),
-    (ClkRate::R88200, 0x03),
-    (ClkRate::R96000, 0x04),
-];
 
 const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
     (CoaxialOutputSource::StreamInputPair, 0x00000002, 0x00020000),
@@ -335,90 +422,8 @@ const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
 
 /// The trait for common operation of isochronous models {
 pub trait IsochCommonOperation {
-    const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc];
-
     const THRESHOLD_MIN: u16 = 1;
     const THRESHOLD_MAX: u16 = 0x7fff;
-
-    fn get_sampling_clock_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<ClkSrc, Error> {
-        let mut frame = [0; 4];
-        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)?;
-        let src = CLOCK_SOURCES
-            .iter()
-            .find_map(|(src, val)| if *val == frame[3] { Some(*src) } else { None })
-            .ok_or_else(|| {
-                let msg = format!("Unexpected value for source of clock: {}", frame[3]);
-                Error::new(FileError::Io, &msg)
-            })?;
-        Self::SAMPLING_CLOCK_SOURCES
-            .iter()
-            .find_map(|&s| if s == src { Some(src) } else { None })
-            .ok_or_else(|| {
-                let msg = "Unsupported source of sampling clock";
-                Error::new(FileError::Inval, &msg)
-            })
-    }
-
-    fn set_sampling_clock_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        src: ClkSrc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let _ = Self::SAMPLING_CLOCK_SOURCES
-            .iter()
-            .find(|&s| *s == src)
-            .ok_or_else(|| {
-                let msg = "Unsupported source of sampling clock";
-                Error::new(FileError::Inval, &msg)
-            })?;
-        let val = CLOCK_SOURCES
-            .iter()
-            .find_map(|(s, val)| if *s == src { Some(*val) } else { None })
-            .unwrap();
-        let mut frame = [0; 4];
-        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)?;
-        frame[0] = 0x00;
-        frame[1] = 0x00;
-        frame[3] = val;
-        write_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)
-    }
-
-    fn get_media_clock_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<ClkRate, Error> {
-        let mut frames = [0; 4];
-        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)?;
-        CLOCK_RATES
-            .iter()
-            .find_map(|(src, val)| if *val == frames[1] { Some(*src) } else { None })
-            .ok_or_else(|| {
-                let label = format!("Unexpected value for rate of clock: {}", frames[1]);
-                Error::new(FileError::Io, &label)
-            })
-    }
-
-    fn set_media_clock_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        rate: ClkRate,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let val = CLOCK_RATES
-            .iter()
-            .find_map(|(r, val)| if *r == rate { Some(*val) } else { None })
-            .unwrap();
-        let mut frames = [0; 4];
-        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)?;
-        frames[3] = val;
-        write_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)
-    }
 
     fn get_coaxial_output_source(
         req: &mut FwReq,

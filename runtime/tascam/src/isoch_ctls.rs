@@ -286,7 +286,9 @@ where
 #[derive(Default, Debug)]
 pub(crate) struct ClockCtl<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochClockSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamClockParameters>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamClockParameters>,
 {
     elem_id_list: Vec<ElemId>,
     params: TascamClockParameters,
@@ -305,7 +307,9 @@ const CLOCK_RATES: &[ClkRate] = &[
 
 impl<T> ClockCtl<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochClockSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamClockParameters>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamClockParameters>,
 {
     pub(crate) fn cache(
         &mut self,
@@ -313,11 +317,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_sampling_clock_source(req, node, timeout_ms)
-            .map(|src| self.params.sampling_clock_source = src)?;
-        T::get_media_clock_rate(req, node, timeout_ms)
-            .map(|rate| self.params.media_clock_rate = rate)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -385,18 +385,14 @@ where
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock sources: {}", pos);
+                        let msg =
+                            format!("Invalid value for index of sampling clock sources: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&src| params.sampling_clock_source = src)?;
                 unit.lock()?;
-                let res = T::set_sampling_clock_source(
-                    req,
-                    node,
-                    params.sampling_clock_source,
-                    timeout_ms,
-                )
-                .map(|_| self.params = params);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
@@ -407,13 +403,13 @@ where
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock rates: {}", pos);
+                        let msg = format!("Invalid value for index of media clock rates: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&rate| params.media_clock_rate = rate)?;
                 unit.lock()?;
-                let res = T::set_media_clock_rate(req, node, params.media_clock_rate, timeout_ms)
-                    .map(|_| self.params = params);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }

@@ -23,13 +23,7 @@ use super::*;
 #[derive(Default)]
 pub struct Fw1884Protocol;
 
-impl IsochMeterOperation for Fw1884Protocol {
-    const INPUT_COUNT: usize = 18;
-    const OUTPUT_COUNT: usize = 18;
-    const HAS_SOLO: bool = true;
-}
-
-impl IsochCommonOperation for Fw1884Protocol {
+impl TascamIsochClockSpecification for Fw1884Protocol {
     const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc] = &[
         ClkSrc::Internal,
         ClkSrc::Wordclock,
@@ -37,6 +31,14 @@ impl IsochCommonOperation for Fw1884Protocol {
         ClkSrc::Adat,
     ];
 }
+
+impl IsochMeterOperation for Fw1884Protocol {
+    const INPUT_COUNT: usize = 18;
+    const OUTPUT_COUNT: usize = 18;
+    const HAS_SOLO: bool = true;
+}
+
+impl IsochCommonOperation for Fw1884Protocol {}
 
 impl IsochOpticalOperation for Fw1884Protocol {
     const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)] = &[
