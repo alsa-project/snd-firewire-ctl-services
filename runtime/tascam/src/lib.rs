@@ -30,7 +30,7 @@ use {
     protocols::{config_rom::*, *},
     seq_cntr::*,
     std::{convert::TryFrom, marker::PhantomData},
-    tracing::Level,
+    tracing::{debug, debug_span, Level},
 };
 
 pub enum TascamRuntime {
