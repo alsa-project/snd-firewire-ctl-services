@@ -165,7 +165,7 @@ mod imp {
 
         fn set_property(&self, _unit: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
             match pspec.name() {
-                "name" => {
+                "node" => {
                     let node = value
                         .get()
                         .expect("type conformity checked by `Object::set_property`");
