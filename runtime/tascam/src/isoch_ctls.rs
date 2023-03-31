@@ -318,7 +318,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -395,6 +397,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             CLK_RATE_NAME => {
@@ -412,6 +415,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
