@@ -440,6 +440,61 @@ pub trait IsochMeterOperation {
     }
 }
 
+fn serialize_config_flag<T: Copy + Eq>(
+    option: &T,
+    flags: &[(T, u32, u32)],
+    val: &mut u32,
+) -> Result<(), Error> {
+    let mask = flags.iter().fold(0, |mask, (_, _, flag)| mask | flag);
+    *val &= !mask;
+    let (_, _, flag) = flags.iter().find(|(o, _, _)| option.eq(o)).unwrap();
+    *val |= flag;
+    Ok(())
+}
+
+fn deserialize_config_flag<T: Copy + Eq>(
+    option: &mut T,
+    flags: &[(T, u32, u32)],
+    val: u32,
+) -> Result<(), Error> {
+    let mask = flags.iter().fold(0, |mask, (_, flag, _)| mask | flag);
+    flags
+        .iter()
+        .find(|&(_, flag, _)| val & mask == *flag)
+        .ok_or_else(|| {
+            let msg = format!("No flag detected: val: 0x{:08x} mask: 0x{:08x}", val, mask);
+            Error::new(FileError::Nxio, &msg)
+        })
+        .map(|&(opt, _, _)| *option = opt)
+}
+
+fn read_config(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    config: &mut u32,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut quads = [0; 4];
+    read_quadlet(req, node, CONFIG_FLAG_OFFSET, &mut quads, timeout_ms).map(|_| {
+        *config = u32::from_be_bytes(quads);
+    })
+}
+
+fn write_config(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    config: u32,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    write_quadlet(
+        req,
+        node,
+        CONFIG_FLAG_OFFSET,
+        &mut config.to_be_bytes(),
+        timeout_ms,
+    )
+}
+
 fn read_config_flag<T: Copy + Eq>(
     req: &mut FwReq,
     node: &mut FwNode,
@@ -492,7 +547,8 @@ impl Default for CoaxialOutputSource {
     }
 }
 
-const CONFIG_FLAG_OFFSET: u64 = 0x022c;
+/// The specification of coaxial output interface.
+pub trait TascamIsochCoaxialOutputSpecification {}
 
 const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
     (CoaxialOutputSource::StreamInputPair, 0x00000002, 0x00020000),
@@ -503,25 +559,39 @@ const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
     ),
 ];
 
-/// The trait for common operation of isochronous models {
-pub trait IsochCommonOperation {
-    fn get_coaxial_output_source(
+impl<O> TascamIsochWhollyCachableParamsOperation<CoaxialOutputSource> for O
+where
+    O: TascamIsochCoaxialOutputSpecification,
+{
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<CoaxialOutputSource, Error> {
-        read_config_flag(req, node, &COAXIAL_OUTPUT_SOURCES, timeout_ms)
-    }
-
-    fn set_coaxial_output_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        src: CoaxialOutputSource,
+        states: &mut CoaxialOutputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_config_flag(req, node, &COAXIAL_OUTPUT_SOURCES, src, timeout_ms)
+        let mut config = 0;
+        read_config(req, node, &mut config, timeout_ms)?;
+        deserialize_config_flag(states, &COAXIAL_OUTPUT_SOURCES, config)
     }
 }
+
+impl<O> TascamIsochWhollyUpdatableParamsOperation<CoaxialOutputSource> for O
+where
+    O: TascamIsochCoaxialOutputSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &CoaxialOutputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut config = 0;
+        serialize_config_flag(states, &COAXIAL_OUTPUT_SOURCES, &mut config)?;
+        write_config(req, node, config, timeout_ms)
+    }
+}
+
+const CONFIG_FLAG_OFFSET: u64 = 0x022c;
 
 /// Source of S/PDIF input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -898,5 +968,36 @@ trait SurfaceBankLedOperation {
                 let pos = positions[0];
                 operate_led_cached(state, req, node, pos, enable, timeout_ms)
             })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn config_flag_serdes() {
+        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        enum Flag {
+            A,
+            B,
+            C,
+            N,
+        }
+        const TABLE: &[(Flag, u32, u32)] = &[
+            (Flag::A, 0x00000001, 0x10000000),
+            (Flag::B, 0x00000020, 0x20000000),
+            (Flag::C, 0x00000004, 0x00040000),
+        ];
+
+        let mut param = Flag::N;
+        deserialize_config_flag(&mut param, &TABLE, 0x00000001).unwrap();
+        assert_eq!(param, Flag::A);
+
+        deserialize_config_flag(&mut param, &TABLE, 0x00000000).unwrap_err();
+
+        let mut val = 0;
+        serialize_config_flag(&param, &TABLE, &mut val).unwrap();
+        assert_eq!(val, 0x10000000);
     }
 }

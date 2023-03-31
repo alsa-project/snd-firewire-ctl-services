@@ -549,7 +549,9 @@ where
 #[derive(Default, Debug)]
 pub(crate) struct CoaxOutputCtl<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochCoaxialOutputSpecification
+        + TascamIsochWhollyCachableParamsOperation<CoaxialOutputSource>
+        + TascamIsochWhollyUpdatableParamsOperation<CoaxialOutputSource>,
 {
     elem_id_list: Vec<ElemId>,
     params: CoaxialOutputSource,
@@ -567,7 +569,9 @@ fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
 
 impl<T> CoaxOutputCtl<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochCoaxialOutputSpecification
+        + TascamIsochWhollyCachableParamsOperation<CoaxialOutputSource>
+        + TascamIsochWhollyUpdatableParamsOperation<CoaxialOutputSource>,
 {
     const COAXIAL_OUTPUT_SOURCES: [CoaxialOutputSource; 2] = [
         CoaxialOutputSource::StreamInputPair,
@@ -580,7 +584,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_coaxial_output_source(req, node, timeout_ms).map(|src| self.params = src)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -630,8 +634,7 @@ where
                         let msg = format!("Invalid value for index of clock rates: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::set_coaxial_output_source(req, node, src, timeout_ms)
-                    .map(|_| self.params = src)?;
+                T::update_wholly(req, node, &src, timeout_ms).map(|_| self.params = src)?;
                 Ok(true)
             }
             _ => Ok(false),

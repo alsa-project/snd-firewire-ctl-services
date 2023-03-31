@@ -29,13 +29,13 @@ impl TascamIsochClockSpecification for Fw1082Protocol {
 
 impl TascamIsochInputDetectionSpecification for Fw1082Protocol {}
 
+impl TascamIsochCoaxialOutputSpecification for Fw1082Protocol {}
+
 impl IsochMeterOperation for Fw1082Protocol {
     const INPUT_COUNT: usize = 10;
     const OUTPUT_COUNT: usize = 4;
     const HAS_SOLO: bool = true;
 }
-
-impl IsochCommonOperation for Fw1082Protocol {}
 
 impl IsochConsoleOperation for Fw1082Protocol {}
 
