@@ -30,6 +30,7 @@ use {
     protocols::{config_rom::*, *},
     seq_cntr::*,
     std::{convert::TryFrom, marker::PhantomData},
+    tracing::Level,
 };
 
 pub enum TascamRuntime {
@@ -46,7 +47,14 @@ const FW1082_SW_VERSION: u32 = 0x800003;
 const FW1804_SW_VERSION: u32 = 0x800004;
 
 impl RuntimeOperation<(String, u32)> for TascamRuntime {
-    fn new((subsystem, sysnum): (String, u32), _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new((subsystem, sysnum): (String, u32), log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         match subsystem.as_str() {
             "snd" => {
                 let unit = SndTascam::new();
