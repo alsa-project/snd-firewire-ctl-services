@@ -32,6 +32,8 @@ impl TascamIsochClockSpecification for Fw1804Protocol {
     ];
 }
 
+impl TascamIsochInputDetectionSpecification for Fw1804Protocol {}
+
 impl IsochMeterOperation for Fw1804Protocol {
     const INPUT_COUNT: usize = 18;
     const OUTPUT_COUNT: usize = 18;

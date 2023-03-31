@@ -424,7 +424,9 @@ const OVER_LEVEL_DETECTION_THRESHOLD_NAME: &str = "over-level-detection-threshol
 #[derive(Default, Debug)]
 pub(crate) struct InputDetectionThreshold<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochInputDetectionSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamInputDetectionThreshold>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamInputDetectionThreshold>,
 {
     elem_id_list: Vec<ElemId>,
     params: TascamInputDetectionThreshold,
@@ -433,10 +435,12 @@ where
 
 impl<T> InputDetectionThreshold<T>
 where
-    T: IsochCommonOperation,
+    T: TascamIsochInputDetectionSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamInputDetectionThreshold>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamInputDetectionThreshold>,
 {
-    const THRESHOLD_MIN: i32 = T::THRESHOLD_MIN as i32;
-    const THRESHOLD_MAX: i32 = T::THRESHOLD_MAX as i32;
+    const THRESHOLD_MIN: i32 = T::INPUT_SIGNAL_THRESHOLD_MIN as i32;
+    const THRESHOLD_MAX: i32 = T::INPUT_SIGNAL_THRESHOLD_MAX as i32;
     const THRESHOLD_STEP: i32 = 1;
     const THRESHOLD_TLV: DbInterval = DbInterval {
         min: -9038,
@@ -451,11 +455,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_analog_input_threshold_for_signal_detection(req, node, timeout_ms)
-            .map(|threshold| self.params.signal = threshold)?;
-        T::get_analog_input_threshold_for_over_level_detection(req, node, timeout_ms)
-            .map(|threshold| self.params.over_level = threshold)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -532,25 +532,13 @@ where
             SIGNAL_DETECTION_THRESHOLD_NAME => {
                 let mut params = self.params.clone();
                 params.signal = elem_value.int()[0] as u16;
-                T::set_analog_input_threshold_for_signal_detection(
-                    req,
-                    node,
-                    params.signal,
-                    timeout_ms,
-                )
-                .map(|_| self.params = params)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
                 let mut params = self.params.clone();
                 params.over_level = elem_value.int()[0] as u16;
-                T::set_analog_input_threshold_for_over_level_detection(
-                    req,
-                    node,
-                    params.over_level,
-                    timeout_ms,
-                )
-                .map(|_| self.params = params)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
