@@ -56,13 +56,13 @@ impl TascamIsochOpticalIfaceSpecification for Fw1804Protocol {
     ];
 }
 
+impl TascamIsochRackInputSpecification for Fw1804Protocol {}
+
 impl IsochMeterOperation for Fw1804Protocol {
     const INPUT_COUNT: usize = 18;
     const OUTPUT_COUNT: usize = 18;
     const HAS_SOLO: bool = false;
 }
-
-impl IsochRackOperation for Fw1804Protocol {}
 
 impl FireWireLedOperation for Fw1804Protocol {
     const POSITIONS: &'static [u16] = &[0x8e];

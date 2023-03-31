@@ -732,16 +732,6 @@ pub trait IsochConsoleOperation {
 
 const RACK_STATE_SIZE: usize = 72;
 
-/// State of rack.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct IsochRackState([u8; RACK_STATE_SIZE]);
-
-impl Default for IsochRackState {
-    fn default() -> Self {
-        Self([0; RACK_STATE_SIZE])
-    }
-}
-
 /// The parameters of input.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IsochRackInputParameters {
@@ -751,8 +741,64 @@ pub struct IsochRackInputParameters {
     pub balances: [u8; 18],
     /// Whether to mute.
     pub mutes: [bool; 18],
-    /// The raw state of parameters.
-    pub state: IsochRackState,
+}
+
+fn serialize_input_params(params: &IsochRackInputParameters, raw: &mut [u8; RACK_STATE_SIZE]) {
+    (0..18).for_each(|i| {
+        let val = ((i as u32) << 24) | ((params.mutes[i] as u32) << 16) | (params.gains[i] as u32);
+        let pos = i * 4;
+        raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+    });
+}
+
+#[cfg(test)]
+fn deserialize_input_params(params: &mut IsochRackInputParameters, raw: &[u8; RACK_STATE_SIZE]) {
+    (0..RACK_STATE_SIZE).step_by(4).for_each(|pos| {
+        let mut quad = [0; 4];
+        quad.copy_from_slice(&raw[pos..(pos + 4)]);
+        let val = u32::from_be_bytes(quad);
+        let i = (val >> 24) as usize;
+        let muted = (val & 0x00ff0000) > 0;
+        let gain = (val & 0x0000ffff) as i16;
+        if i < params.gains.len() {
+            params.gains[i] = gain;
+            params.mutes[i] = muted;
+        }
+    });
+}
+
+/// The specification of rack input.
+pub trait TascamIsochRackInputSpecification {
+    /// The number of input channels.
+    const CHANNEL_COUNT: usize = 18;
+
+    /// The minimum value of gain.
+    const INPUT_GAIN_MIN: i16 = 0;
+    /// The maximum value of gain.
+    const INPUT_GAIN_MAX: i16 = 0x7fff;
+    /// The step value of gain.
+    const INPUT_GAIN_STEP: i16 = 0x100;
+
+    /// The minimum value of L/R balance.
+    const INPUT_BALANCE_MIN: u8 = 0;
+    /// The maximum value of L/R balance.
+    const INPUT_BALANCE_MAX: u8 = 255;
+    /// The step value of L/R balance.
+    const INPUT_BALANCE_STEP: u8 = 1;
+
+    fn create_input_parameters() -> IsochRackInputParameters {
+        let mut params = IsochRackInputParameters::default();
+        params.gains.fill(Self::INPUT_GAIN_MAX);
+        params
+            .balances
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, balance)| {
+                *balance = if i % 2 > 0 { u8::MAX } else { u8::MIN };
+            });
+        params.mutes.fill(false);
+        params
+    }
 }
 
 const INPUT_OFFSET: u64 = 0x0408;
@@ -760,110 +806,59 @@ const INPUT_OFFSET: u64 = 0x0408;
 fn write_input_quadlet(
     req: &mut FwReq,
     node: &mut FwNode,
-    state: &mut IsochRackState,
-    pos: usize,
+    quad: &mut [u8],
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    write_quadlet(
-        req,
-        node,
-        INPUT_OFFSET,
-        &mut state.0[pos..(pos + 4)],
-        timeout_ms,
-    )
+    assert_eq!(quad.len(), 4);
+
+    write_quadlet(req, node, INPUT_OFFSET, quad, timeout_ms)
 }
 
-/// The trait for operation of rack model.
-pub trait IsochRackOperation {
-    const CHANNEL_COUNT: usize = 18;
-
-    const GAIN_MIN: i16 = 0;
-    const GAIN_MAX: i16 = 0x7fff;
-    const GAIN_STEP: i16 = 0x100;
-
-    const BALANCE_MIN: u8 = 0;
-    const BALANCE_MAX: u8 = 255;
-    const BALANCE_STEP: u8 = 1;
-
-    fn init_input_state(
+impl<O> TascamIsochWhollyUpdatableParamsOperation<IsochRackInputParameters> for O
+where
+    O: TascamIsochRackInputSpecification,
+{
+    fn update_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &mut IsochRackState,
+        states: &IsochRackInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val: i16 = 0x7fff;
-
-        (0..18).try_for_each(|i| {
-            let pos = i * 4;
-
-            // Channel index field.
-            state.0[pos] = i as u8;
-
-            // L/R balance field.
-            state.0[pos + 1] = if i % 2 > 0 { 0xff } else { 0x00 };
-
-            // Level gain field.
-            state.0[(pos + 2)..(pos + 4)].copy_from_slice(&val.to_le_bytes());
-
-            write_input_quadlet(req, node, state, pos, timeout_ms)
+        let mut raw = [0; RACK_STATE_SIZE];
+        serialize_input_params(states, &mut raw);
+        (0..RACK_STATE_SIZE).step_by(4).try_for_each(|pos| {
+            write_input_quadlet(req, node, &mut raw[pos..(pos + 4)], timeout_ms)
         })
     }
+}
 
-    fn get_input_gain(state: &IsochRackState, index: usize) -> i16 {
-        let pos = index * 4;
-        i16::from_be_bytes([state.0[pos + 2], state.0[pos + 3]])
-    }
-
-    fn set_input_gain(
+impl<O> TascamIsochPartiallyUpdatableParamsOperation<IsochRackInputParameters> for O
+where
+    O: TascamIsochRackInputSpecification,
+{
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
-        index: usize,
-        gain: i16,
-        state: &mut IsochRackState,
+        params: &mut IsochRackInputParameters,
+        update: IsochRackInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let pos = index * 4;
-        state.0[(pos + 2)..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
-        write_input_quadlet(req, node, state, pos, timeout_ms)
-    }
+        let mut old = [0; RACK_STATE_SIZE];
+        serialize_input_params(params, &mut old);
 
-    fn get_input_balance(state: &IsochRackState, index: usize) -> u8 {
-        let pos = index * 4;
-        state.0[pos + 1]
-    }
+        let mut new = [0; RACK_STATE_SIZE];
+        serialize_input_params(&update, &mut new);
 
-    fn set_input_balance(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        index: usize,
-        pan: u8,
-        state: &mut IsochRackState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let pos = index * 4;
-        state.0[pos + 1] = pan;
-        write_input_quadlet(req, node, state, pos, timeout_ms)
-    }
-
-    fn get_input_mute(state: &IsochRackState, index: usize) -> bool {
-        let pos = index * 4;
-        state.0[pos] & 0x80 > 0
-    }
-
-    fn set_input_mute(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        index: usize,
-        mute: bool,
-        state: &mut IsochRackState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let pos = index * 4;
-        state.0[pos] &= !0x80;
-        if mute {
-            state.0[pos] |= 0x80;
-        }
-        write_input_quadlet(req, node, state, pos, timeout_ms)
+        (0..RACK_STATE_SIZE)
+            .step_by(4)
+            .try_for_each(|pos| {
+                if old[pos..(pos + 4)] != new[pos..(pos + 4)] {
+                    write_input_quadlet(req, node, &mut new[pos..(pos + 4)], timeout_ms)
+                } else {
+                    Ok(())
+                }
+            })
+            .map(|_| *params = update)
     }
 }
 
@@ -1009,5 +1004,17 @@ mod test {
         let mut val = 0;
         serialize_config_flag(&param, &TABLE, &mut val).unwrap();
         assert_eq!(val, 0x10000000);
+    }
+
+    #[test]
+    fn rack_input_params_serdes() {
+        let orig = IsochRackInputParameters::default();
+        let mut raw = [0; RACK_STATE_SIZE];
+        serialize_input_params(&orig, &mut raw);
+
+        let mut target = IsochRackInputParameters::default();
+        deserialize_input_params(&mut target, &raw);
+
+        assert_eq!(target, orig);
     }
 }

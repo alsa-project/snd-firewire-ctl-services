@@ -861,14 +861,31 @@ where
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct RackCtl<T>
 where
-    T: IsochRackOperation,
+    T: TascamIsochRackInputSpecification
+        + TascamIsochWhollyUpdatableParamsOperation<IsochRackInputParameters>
+        + TascamIsochPartiallyUpdatableParamsOperation<IsochRackInputParameters>,
 {
     pub elem_id_list: Vec<ElemId>,
     params: IsochRackInputParameters,
     _phantom: PhantomData<T>,
+}
+
+impl<T> Default for RackCtl<T>
+where
+    T: TascamIsochRackInputSpecification
+        + TascamIsochWhollyUpdatableParamsOperation<IsochRackInputParameters>
+        + TascamIsochPartiallyUpdatableParamsOperation<IsochRackInputParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_parameters(),
+            _phantom: Default::default(),
+        }
+    }
 }
 
 const INPUT_GAIN_NAME: &str = "input-gain";
@@ -877,7 +894,9 @@ const INPUT_MUTE_NAME: &str = "input-mute";
 
 impl<T> RackCtl<T>
 where
-    T: IsochRackOperation,
+    T: TascamIsochRackInputSpecification
+        + TascamIsochWhollyUpdatableParamsOperation<IsochRackInputParameters>
+        + TascamIsochPartiallyUpdatableParamsOperation<IsochRackInputParameters>,
 {
     const INPUT_LABELS: [&'static str; 18] = [
         "Analog-1", "Analog-2", "Analog-3", "Analog-4", "Analog-5", "Analog-6", "Analog-7",
@@ -891,13 +910,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::init_input_state(req, node, &mut self.params.state, timeout_ms)?;
-        (0..T::CHANNEL_COUNT).for_each(|i| {
-            self.params.gains[i] = T::get_input_gain(&mut self.params.state, i);
-            self.params.balances[i] = T::get_input_balance(&mut self.params.state, i);
-            self.params.mutes[i] = T::get_input_mute(&mut self.params.state, i);
-        });
-        Ok(())
+        T::update_wholly(req, node, &self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -906,9 +919,9 @@ where
             .add_int_elems(
                 &elem_id,
                 1,
-                T::GAIN_MIN as i32,
-                T::GAIN_MAX as i32,
-                T::GAIN_STEP as i32,
+                T::INPUT_GAIN_MIN as i32,
+                T::INPUT_GAIN_MAX as i32,
+                T::INPUT_GAIN_STEP as i32,
                 Self::INPUT_LABELS.len(),
                 None,
                 true,
@@ -920,9 +933,9 @@ where
             .add_int_elems(
                 &elem_id,
                 1,
-                T::BALANCE_MIN as i32,
-                T::BALANCE_MAX as i32,
-                T::BALANCE_STEP as i32,
+                T::INPUT_BALANCE_MIN as i32,
+                T::INPUT_BALANCE_MAX as i32,
+                T::INPUT_BALANCE_STEP as i32,
                 Self::INPUT_LABELS.len(),
                 None,
                 true,
@@ -931,7 +944,7 @@ where
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MUTE_NAME, 0);
         card_cntr
-            .add_bool_elems(&elem_id, 1, T::CHANNEL_COUNT, true)
+            .add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
@@ -973,48 +986,32 @@ where
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
                 let mut params = self.params.clone();
-                let gains = &mut params.gains;
-                let state = &mut params.state;
-                gains
+                params
+                    .gains
                     .iter_mut()
                     .zip(elem_value.int().iter().map(|&val| val as i16))
-                    .enumerate()
-                    .filter(|(_, (o, n))| !o.eq(&n))
-                    .try_for_each(|(i, (g, gain))| {
-                        T::set_input_gain(req, node, i, gain, state, timeout_ms).map(|_| *g = gain)
-                    })
-                    .map(|_| self.params = params)?;
+                    .for_each(|(o, n)| *o = n);
+                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
                 Ok(true)
             }
             INPUT_BALANCE_NAME => {
                 let mut params = self.params.clone();
-                let balances = &mut params.balances;
-                let state = &mut params.state;
-                balances
+                params
+                    .balances
                     .iter_mut()
                     .zip(elem_value.int().iter().map(|&val| val as u8))
-                    .enumerate()
-                    .filter(|(_, (o, n))| !o.eq(&n))
-                    .try_for_each(|(i, (b, balance))| {
-                        T::set_input_balance(req, node, i, balance, state, timeout_ms)
-                            .map(|_| *b = balance)
-                    })
-                    .map(|_| self.params = params)?;
+                    .for_each(|(o, n)| *o = n);
+                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
                 Ok(true)
             }
             INPUT_MUTE_NAME => {
                 let mut params = self.params.clone();
-                let mutes = &mut params.mutes;
-                let state = &mut params.state;
-                mutes
+                params
+                    .mutes
                     .iter_mut()
                     .zip(elem_value.boolean())
-                    .enumerate()
-                    .filter(|(_, (o, n))| !n.eq(o))
-                    .try_for_each(|(i, (m, mute))| {
-                        T::set_input_mute(req, node, i, mute, state, timeout_ms).map(|_| *m = mute)
-                    })
-                    .map(|_| self.params = params)?;
+                    .for_each(|(o, n)| *o = n);
+                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
                 Ok(true)
             }
             _ => Ok(false),
