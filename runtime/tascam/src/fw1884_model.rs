@@ -24,7 +24,7 @@ impl Default for Fw1884Model {
     fn default() -> Self {
         Self {
             req: Default::default(),
-            image: vec![0u32; 64],
+            image: Fw1884Protocol::create_hardware_image(),
             clock_ctl: Default::default(),
             input_threshold_ctl: Default::default(),
             coax_output_ctl: Default::default(),

@@ -143,6 +143,15 @@ impl HardwareInformationProtocol {
     }
 }
 
+/// The specification of hardware image.
+pub trait TascamHardwareImageSpecification {
+    const IMAGE_QUADLET_COUNT: usize;
+
+    fn create_hardware_image() -> Vec<u32> {
+        vec![0; Self::IMAGE_QUADLET_COUNT]
+    }
+}
+
 /// Items of surface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MachineItem {

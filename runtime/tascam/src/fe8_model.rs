@@ -16,7 +16,7 @@ impl Default for Fe8Model {
     fn default() -> Self {
         Self {
             req: Default::default(),
-            image: vec![0; TascamExpander::QUADLET_COUNT],
+            image: Fe8Protocol::create_hardware_image(),
             seq_state: Default::default(),
         }
     }
