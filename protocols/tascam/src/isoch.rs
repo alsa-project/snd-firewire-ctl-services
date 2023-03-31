@@ -12,6 +12,40 @@ pub mod fw1884;
 
 use super::*;
 
+/// Operation to cache whole parameters at once.
+pub trait TascamIsochWhollyCachableParamsOperation<T> {
+    /// Cache whole parameters.
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// Operation to update whole parameters at once.
+pub trait TascamIsochWhollyUpdatableParamsOperation<T> {
+    /// Update whole parameters.
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// Operation to update the part of parameters.
+pub trait TascamIsochPartiallyUpdatableParamsOperation<T> {
+    /// Update the part of parameters.
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 /// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkSrc {
