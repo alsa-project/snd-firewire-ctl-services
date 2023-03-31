@@ -36,13 +36,7 @@ impl TascamIsochInputDetectionSpecification for Fw1804Protocol {}
 
 impl TascamIsochCoaxialOutputSpecification for Fw1804Protocol {}
 
-impl IsochMeterOperation for Fw1804Protocol {
-    const INPUT_COUNT: usize = 18;
-    const OUTPUT_COUNT: usize = 18;
-    const HAS_SOLO: bool = false;
-}
-
-impl IsochOpticalOperation for Fw1804Protocol {
+impl TascamIsochOpticalIfaceSpecification for Fw1804Protocol {
     const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)] = &[
         (
             OpticalOutputSource::StreamInputPairs,
@@ -60,6 +54,12 @@ impl IsochOpticalOperation for Fw1804Protocol {
             0x00048800,
         ),
     ];
+}
+
+impl IsochMeterOperation for Fw1804Protocol {
+    const INPUT_COUNT: usize = 18;
+    const OUTPUT_COUNT: usize = 18;
+    const HAS_SOLO: bool = false;
 }
 
 impl IsochRackOperation for Fw1804Protocol {}
