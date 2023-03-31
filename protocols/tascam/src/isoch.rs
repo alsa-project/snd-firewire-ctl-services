@@ -329,8 +329,8 @@ pub struct IsochMeterState {
     pub monitor_mode: MonitorMode,
 }
 
-/// The trait for meter operation.
-pub trait IsochMeterOperation {
+/// The specification of metering.
+pub trait TascamIsochMeterSpecification: TascamHardwareImageSpecification {
     const INPUT_COUNT: usize;
     const OUTPUT_COUNT: usize;
     const HAS_SOLO: bool;
@@ -360,8 +360,15 @@ pub trait IsochMeterOperation {
             monitor_mode: Default::default(),
         }
     }
+}
 
-    fn parse_meter_state(state: &mut IsochMeterState, image: &[u32]) -> Result<(), Error> {
+impl<O> TascamIsochImageParamsOperation<IsochMeterState> for O
+where
+    O: TascamIsochMeterSpecification,
+{
+    fn parse_image(state: &mut IsochMeterState, image: &[u32]) {
+        assert_eq!(image.len(), Self::IMAGE_QUADLET_COUNT);
+
         let monitor = (image[5] & 0x0000ffff) as i16;
         if (state.monitor - monitor).abs() > Self::ROTARY_STEP {
             state.monitor = monitor;
@@ -443,8 +450,6 @@ pub trait IsochMeterOperation {
                 _ => MonitorMode::Computer,
             };
         }
-
-        Ok(())
     }
 }
 
