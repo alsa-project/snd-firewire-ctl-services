@@ -445,9 +445,9 @@ where
 
         if image[59] > 0 && image[59] < 4 {
             state.monitor_mode = match image[59] {
-                2 => MonitorMode::Both,
-                1 => MonitorMode::Inputs,
-                _ => MonitorMode::Computer,
+                2 => MonitorMode::Inputs,
+                1 => MonitorMode::Computer,
+                _ => MonitorMode::Both,
             };
         }
     }
