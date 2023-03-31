@@ -11,7 +11,7 @@ use {
 #[derive(Debug)]
 pub(crate) struct MeterCtl<T>
 where
-    T: IsochMeterOperation,
+    T: TascamIsochMeterSpecification + TascamIsochImageParamsOperation<IsochMeterState>,
 {
     pub elem_id_list: Vec<ElemId>,
     params: IsochMeterState,
@@ -20,7 +20,7 @@ where
 
 impl<T> Default for MeterCtl<T>
 where
-    T: IsochMeterOperation,
+    T: TascamIsochMeterSpecification + TascamIsochImageParamsOperation<IsochMeterState>,
 {
     fn default() -> Self {
         Self {
@@ -71,7 +71,7 @@ fn monitor_mode_to_str(mode: &MonitorMode) -> &'static str {
 
 impl<T> MeterCtl<T>
 where
-    T: IsochMeterOperation,
+    T: TascamIsochMeterSpecification + TascamIsochImageParamsOperation<IsochMeterState>,
 {
     const CLK_SRCS: [Option<ClkSrc>; 5] = [
         Some(ClkSrc::Internal),
@@ -96,7 +96,8 @@ where
     ];
 
     pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
-        T::parse_meter_state(&mut self.params, image)
+        T::parse_image(&mut self.params, image);
+        Ok(())
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {

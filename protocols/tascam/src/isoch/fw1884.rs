@@ -65,7 +65,7 @@ impl TascamHardwareImageSpecification for Fw1884Protocol {
     const IMAGE_QUADLET_COUNT: usize = ISOCH_IMAGE_QUADLET_COUNT;
 }
 
-impl IsochMeterOperation for Fw1884Protocol {
+impl TascamIsochMeterSpecification for Fw1884Protocol {
     const INPUT_COUNT: usize = 18;
     const OUTPUT_COUNT: usize = 18;
     const HAS_SOLO: bool = true;
