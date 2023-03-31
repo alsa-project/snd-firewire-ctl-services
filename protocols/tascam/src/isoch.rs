@@ -636,47 +636,57 @@ pub struct TascamOpticalIfaceParameters {
     pub output_source: OpticalOutputSource,
 }
 
+/// The specification of digital interfaces.
+pub trait TascamIsochOpticalIfaceSpecification {
+    const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)];
+}
+
 const SPDIF_CAPTURE_SOURCES: &[(SpdifCaptureSource, u32, u32)] = &[
     (SpdifCaptureSource::Coaxial, 0x00000000, 0x00010000),
     (SpdifCaptureSource::Optical, 0x00000001, 0x00000100),
 ];
 
-/// The trait for operation of optical input/output interface.
-pub trait IsochOpticalOperation {
-    const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)];
-
-    fn get_spdif_capture_source(
+impl<O> TascamIsochWhollyCachableParamsOperation<TascamOpticalIfaceParameters> for O
+where
+    O: TascamIsochOpticalIfaceSpecification,
+{
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<SpdifCaptureSource, Error> {
-        read_config_flag(req, node, &SPDIF_CAPTURE_SOURCES, timeout_ms)
-    }
-
-    fn set_spdif_capture_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        src: SpdifCaptureSource,
+        states: &mut TascamOpticalIfaceParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_config_flag(req, node, &SPDIF_CAPTURE_SOURCES, src, timeout_ms)
+        let mut config = 0;
+        read_config(req, node, &mut config, timeout_ms)?;
+        deserialize_config_flag(&mut states.capture_source, &SPDIF_CAPTURE_SOURCES, config)?;
+        deserialize_config_flag(
+            &mut states.output_source,
+            &Self::OPTICAL_OUTPUT_SOURCES,
+            config,
+        )?;
+        Ok(())
     }
+}
 
-    fn get_opt_output_source(
+impl<O> TascamIsochWhollyUpdatableParamsOperation<TascamOpticalIfaceParameters> for O
+where
+    O: TascamIsochOpticalIfaceSpecification,
+{
+    /// Update whole parameters.
+    fn update_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<OpticalOutputSource, Error> {
-        read_config_flag(req, node, &Self::OPTICAL_OUTPUT_SOURCES, timeout_ms)
-    }
-
-    fn set_opt_output_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        src: OpticalOutputSource,
+        states: &TascamOpticalIfaceParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_config_flag(req, node, &Self::OPTICAL_OUTPUT_SOURCES, src, timeout_ms)
+        let mut config = 0;
+        serialize_config_flag(&states.capture_source, &SPDIF_CAPTURE_SOURCES, &mut config)?;
+        serialize_config_flag(
+            &states.output_source,
+            &Self::OPTICAL_OUTPUT_SOURCES,
+            &mut config,
+        )?;
+        write_config(req, node, config, timeout_ms)
     }
 }
 

@@ -36,13 +36,7 @@ impl TascamIsochInputDetectionSpecification for Fw1884Protocol {}
 
 impl TascamIsochCoaxialOutputSpecification for Fw1884Protocol {}
 
-impl IsochMeterOperation for Fw1884Protocol {
-    const INPUT_COUNT: usize = 18;
-    const OUTPUT_COUNT: usize = 18;
-    const HAS_SOLO: bool = true;
-}
-
-impl IsochOpticalOperation for Fw1884Protocol {
+impl TascamIsochOpticalIfaceSpecification for Fw1884Protocol {
     const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)] = &[
         (
             OpticalOutputSource::StreamInputPairs,
@@ -65,6 +59,12 @@ impl IsochOpticalOperation for Fw1884Protocol {
             0x00840800,
         ),
     ];
+}
+
+impl IsochMeterOperation for Fw1884Protocol {
+    const INPUT_COUNT: usize = 18;
+    const OUTPUT_COUNT: usize = 18;
+    const HAS_SOLO: bool = true;
 }
 
 impl IsochConsoleOperation for Fw1884Protocol {}

@@ -645,7 +645,9 @@ where
 #[derive(Default, Debug)]
 pub(crate) struct OpticalIfaceCtl<T>
 where
-    T: IsochOpticalOperation,
+    T: TascamIsochOpticalIfaceSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamOpticalIfaceParameters>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamOpticalIfaceParameters>,
 {
     elem_id_list: Vec<ElemId>,
     params: TascamOpticalIfaceParameters,
@@ -673,7 +675,9 @@ fn optical_output_source_to_str(src: &OpticalOutputSource) -> &'static str {
 
 impl<T> OpticalIfaceCtl<T>
 where
-    T: IsochOpticalOperation,
+    T: TascamIsochOpticalIfaceSpecification
+        + TascamIsochWhollyCachableParamsOperation<TascamOpticalIfaceParameters>
+        + TascamIsochWhollyUpdatableParamsOperation<TascamOpticalIfaceParameters>,
 {
     const SPDIF_INPUT_SOURCES: &'static [SpdifCaptureSource] =
         &[SpdifCaptureSource::Coaxial, SpdifCaptureSource::Optical];
@@ -684,11 +688,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_opt_output_source(req, node, timeout_ms)
-            .map(|src| self.params.output_source = src)?;
-        T::get_spdif_capture_source(req, node, timeout_ms)
-            .map(|src| self.params.capture_source = src)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -759,8 +759,7 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|(src, _, _)| params.output_source = *src)?;
-                T::set_opt_output_source(req, node, params.output_source, timeout_ms)
-                    .map(|_| self.params = params)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             SPDIF_IN_SRC_NAME => {
@@ -774,8 +773,7 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&src| params.capture_source = src)?;
-                T::set_spdif_capture_source(req, node, params.capture_source, timeout_ms)
-                    .map(|_| self.params = params)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
