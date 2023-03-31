@@ -71,7 +71,7 @@ impl TascamIsochMeterSpecification for Fw1884Protocol {
     const HAS_SOLO: bool = true;
 }
 
-impl IsochConsoleOperation for Fw1884Protocol {}
+impl TascamIsochConsoleSpecification for Fw1884Protocol {}
 
 /// The target of monitor knob.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

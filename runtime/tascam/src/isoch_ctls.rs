@@ -785,7 +785,10 @@ where
 #[derive(Default, Debug)]
 pub(crate) struct ConsoleCtl<T>
 where
-    T: IsochConsoleOperation,
+    T: TascamIsochConsoleSpecification
+        + TascamIsochWhollyCachableParamsOperation<IsochConsoleState>
+        + TascamIsochWhollyUpdatableParamsOperation<IsochConsoleState>
+        + TascamIsochImageParamsOperation<IsochConsoleState>,
 {
     pub elem_id_list: Vec<ElemId>,
     params: IsochConsoleState,
@@ -797,10 +800,14 @@ const HOST_MODE_NAME: &str = "host-mode";
 
 impl<T> ConsoleCtl<T>
 where
-    T: IsochConsoleOperation,
+    T: TascamIsochConsoleSpecification
+        + TascamIsochWhollyCachableParamsOperation<IsochConsoleState>
+        + TascamIsochWhollyUpdatableParamsOperation<IsochConsoleState>
+        + TascamIsochImageParamsOperation<IsochConsoleState>,
 {
     pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
-        T::parse_console_state(&mut self.params, image)
+        T::parse_image(&mut self.params, image);
+        Ok(())
     }
 
     pub(crate) fn cache(
@@ -809,8 +816,7 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_master_fader_assign(req, node, timeout_ms)
-            .map(|enabled| self.params.master_fader_assign = enabled)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -853,8 +859,7 @@ where
             MASTER_FADER_ASSIGN_NAME => {
                 let mut params = self.params.clone();
                 params.master_fader_assign = elem_value.boolean()[0];
-                T::set_master_fader_assign(req, node, params.master_fader_assign, timeout_ms)
-                    .map(|_| self.params = params)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
