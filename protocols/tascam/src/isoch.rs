@@ -46,6 +46,12 @@ pub trait TascamIsochPartiallyUpdatableParamsOperation<T> {
     ) -> Result<(), Error>;
 }
 
+/// Operation to parse parameters in the image of hardware state.
+pub trait TascamIsochImageParamsOperation<T> {
+    /// Parse the image of hardware state.
+    fn parse_image(params: &mut T, image: &[u32]);
+}
+
 /// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkSrc {
