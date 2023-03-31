@@ -595,7 +595,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -645,8 +647,9 @@ where
                         let msg = format!("Invalid value for index of clock rates: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::update_wholly(req, node, &src, timeout_ms).map(|_| self.params = src)?;
-                Ok(true)
+                let res = T::update_wholly(req, node, &src, timeout_ms).map(|_| self.params = src);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
