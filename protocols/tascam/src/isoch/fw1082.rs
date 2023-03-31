@@ -41,7 +41,7 @@ impl TascamIsochMeterSpecification for Fw1082Protocol {
     const HAS_SOLO: bool = true;
 }
 
-impl IsochConsoleOperation for Fw1082Protocol {}
+impl TascamIsochConsoleSpecification for Fw1082Protocol {}
 
 impl MachineStateOperation for Fw1082Protocol {
     const BOOL_ITEMS: &'static [MachineItem] = &[

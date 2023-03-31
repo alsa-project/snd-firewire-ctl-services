@@ -508,43 +508,6 @@ fn write_config(
     )
 }
 
-fn read_config_flag<T: Copy + Eq>(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    flags: &[(T, u32, u32)],
-    timeout_ms: u32,
-) -> Result<T, Error> {
-    let mut quads = [0; 4];
-    read_quadlet(req, node, CONFIG_FLAG_OFFSET, &mut quads, timeout_ms)?;
-    let val = u32::from_be_bytes(quads);
-    let mask = flags.iter().fold(0, |mask, (_, flag, _)| mask | flag);
-    flags
-        .iter()
-        .find(|&(_, flag, _)| val & mask == *flag)
-        .ok_or_else(|| {
-            let msg = format!("No flag detected: val: 0x{:08x} mask: 0x{:08x}", val, mask);
-            Error::new(FileError::Nxio, &msg)
-        })
-        .map(|&(option, _, _)| option)
-}
-
-fn write_config_flag<T: Copy + Eq>(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    flags: &[(T, u32, u32)],
-    option: T,
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    let (_, _, flag) = flags.iter().find(|(o, _, _)| option.eq(o)).unwrap();
-    write_quadlet(
-        req,
-        node,
-        CONFIG_FLAG_OFFSET,
-        &mut flag.to_be_bytes(),
-        timeout_ms,
-    )
-}
-
 /// Source of output coaxial interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoaxialOutputSource {
@@ -713,37 +676,63 @@ pub struct IsochConsoleState {
     pub master_fader_assign: bool,
 }
 
+/// The specification of console.
+pub trait TascamIsochConsoleSpecification: TascamHardwareImageSpecification {}
+
 const MASTER_FADER_ASSIGNS: [(bool, u32, u32); 2] = [
     (false, 0x00000040, 0x00400000),
     (true, 0x00000000, 0x00004000),
 ];
 
-/// The trait for operation of console model.
-pub trait IsochConsoleOperation {
-    fn parse_console_state(state: &mut IsochConsoleState, image: &[u32]) -> Result<(), Error> {
-        state.host_mode = (image[5] & 0xff000000) != 0xff000000;
-        Ok(())
-    }
-
-    fn get_master_fader_assign(
+impl<O> TascamIsochWhollyCachableParamsOperation<IsochConsoleState> for O
+where
+    O: TascamIsochConsoleSpecification,
+{
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        read_config_flag(req, node, &MASTER_FADER_ASSIGNS, timeout_ms)
-    }
-
-    fn set_master_fader_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enable: bool,
+        states: &mut IsochConsoleState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_config_flag(req, node, &MASTER_FADER_ASSIGNS, enable, timeout_ms)
+        let mut config = 0;
+        read_config(req, node, &mut config, timeout_ms)?;
+        deserialize_config_flag(
+            &mut states.master_fader_assign,
+            &MASTER_FADER_ASSIGNS,
+            config,
+        )
     }
 }
 
-const RACK_STATE_SIZE: usize = 72;
+impl<O> TascamIsochWhollyUpdatableParamsOperation<IsochConsoleState> for O
+where
+    O: TascamIsochConsoleSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &IsochConsoleState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut config = 0;
+        serialize_config_flag(
+            &states.master_fader_assign,
+            &MASTER_FADER_ASSIGNS,
+            &mut config,
+        )?;
+        write_config(req, node, config, timeout_ms)
+    }
+}
+
+impl<O> TascamIsochImageParamsOperation<IsochConsoleState> for O
+where
+    O: TascamIsochConsoleSpecification + TascamHardwareImageSpecification,
+{
+    fn parse_image(params: &mut IsochConsoleState, image: &[u32]) {
+        assert_eq!(image.len(), Self::IMAGE_QUADLET_COUNT);
+        params.host_mode = (image[5] & 0xff000000) != 0xff000000;
+    }
+}
 
 /// The parameters of input.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -755,6 +744,8 @@ pub struct IsochRackInputParameters {
     /// Whether to mute.
     pub mutes: [bool; 18],
 }
+
+const RACK_STATE_SIZE: usize = 72;
 
 fn serialize_input_params(params: &IsochRackInputParameters, raw: &mut [u8; RACK_STATE_SIZE]) {
     (0..18).for_each(|i| {
