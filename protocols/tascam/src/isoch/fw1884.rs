@@ -104,22 +104,29 @@ const MONITOR_KNOB_TARGETS: [(Fw1884MonitorKnobTarget, u32, u32); 3] = [
     ),
 ];
 
-impl Fw1884Protocol {
-    pub fn get_monitor_knob_target(
+impl TascamIsochWhollyCachableParamsOperation<Fw1884MonitorKnobTarget> for Fw1884Protocol {
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<Fw1884MonitorKnobTarget, Error> {
-        read_config_flag(req, node, &MONITOR_KNOB_TARGETS, timeout_ms)
-    }
-
-    pub fn set_monitor_knob_target(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: Fw1884MonitorKnobTarget,
+        states: &mut Fw1884MonitorKnobTarget,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_config_flag(req, node, &MONITOR_KNOB_TARGETS, target, timeout_ms)
+        let mut config = 0;
+        read_config(req, node, &mut config, timeout_ms)?;
+        deserialize_config_flag(states, &MONITOR_KNOB_TARGETS, config)
+    }
+}
+
+impl TascamIsochWhollyUpdatableParamsOperation<Fw1884MonitorKnobTarget> for Fw1884Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &Fw1884MonitorKnobTarget,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut config = 0;
+        serialize_config_flag(states, &MONITOR_KNOB_TARGETS, &mut config)?;
+        write_config(req, node, config, timeout_ms)
     }
 }
 

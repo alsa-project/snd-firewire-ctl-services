@@ -4,7 +4,7 @@
 use {
     super::{isoch_ctls::*, *},
     alsactl::{prelude::*, *},
-    protocols::isoch::fw1884::*,
+    protocols::isoch::{fw1884::*, *},
 };
 
 pub struct Fw1884Model {
@@ -259,8 +259,7 @@ impl SpecificCtl {
     ];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        Fw1884Protocol::get_monitor_knob_target(req, node, timeout_ms)
-            .map(|target| self.params = target)
+        Fw1884Protocol::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -300,15 +299,15 @@ impl SpecificCtl {
         match elem_id.name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
                 let val = elem_value.enumerated()[0];
-                let &target = Self::MONITOR_ROTARY_ASSIGNS
+                let target = Self::MONITOR_ROTARY_ASSIGNS
                     .iter()
                     .nth(val as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index for monitor rotary targets: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                Fw1884Protocol::set_monitor_knob_target(req, node, target, timeout_ms)
-                    .map(|_| self.params = target)?;
+                Fw1884Protocol::update_wholly(req, node, target, timeout_ms)
+                    .map(|_| self.params = *target)?;
                 Ok(true)
             }
             _ => Ok(false),
