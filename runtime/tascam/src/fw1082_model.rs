@@ -35,6 +35,23 @@ impl Default for Fw1082Model {
 
 const TIMEOUT_MS: u32 = 50;
 
+impl IsochConsoleCtlModel<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+    fn cache(&mut self, (unit, node): &mut (SndTascam, FwNode)) -> Result<(), Error> {
+        unit.read_state(&mut self.image)?;
+        self.meter_ctl.parse(&self.image)?;
+        self.console_ctl.parse(&self.image)?;
+
+        self.clock_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_threshold_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.coax_output_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.console_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+}
+
 impl SequencerCtlOperation<SndTascam, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     fn state(&self) -> &SequencerState<Fw1082SurfaceState> {
         &self.seq_state
@@ -124,30 +141,12 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1082Model {
 }
 
 impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
-    fn load(
-        &mut self,
-        unit: &mut (SndTascam, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        unit.0.read_state(&mut self.image)?;
-        self.meter_ctl.parse(&self.image)?;
-        self.console_ctl.parse(&self.image)?;
-
-        self.clock_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.input_threshold_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.coax_output_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.console_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-
+    fn load(&mut self, _: &mut (SndTascam, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.console_ctl.load(card_cntr)?;
-
         Ok(())
     }
 
