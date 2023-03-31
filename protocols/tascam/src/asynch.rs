@@ -19,6 +19,8 @@ use {
     std::{cell::RefCell, sync::Mutex},
 };
 
+const ASYNCH_IMAGE_QUADLET_COUNT: usize = TascamExpander::QUADLET_COUNT;
+
 glib::wrapper! {
     /// The implementation of `hitaki::TascamProtocol` so that it can cache status of hardware
     /// from message in asynchronous packet from the hardware as ALSA firewire-tascam driver does

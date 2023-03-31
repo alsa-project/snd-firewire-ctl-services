@@ -293,6 +293,8 @@ where
     }
 }
 
+const ISOCH_IMAGE_QUADLET_COUNT: usize = 64;
+
 /// Mode of monitor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonitorMode {

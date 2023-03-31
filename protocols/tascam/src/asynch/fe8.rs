@@ -23,6 +23,10 @@ use super::*;
 #[derive(Default)]
 pub struct Fe8Protocol;
 
+impl TascamHardwareImageSpecification for Fe8Protocol {
+    const IMAGE_QUADLET_COUNT: usize = ASYNCH_IMAGE_QUADLET_COUNT;
+}
+
 impl MachineStateOperation for Fe8Protocol {
     const BOOL_ITEMS: &'static [MachineItem] = &[
         MachineItem::Rec(0),

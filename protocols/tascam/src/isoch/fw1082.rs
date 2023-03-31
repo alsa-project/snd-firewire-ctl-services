@@ -31,6 +31,10 @@ impl TascamIsochInputDetectionSpecification for Fw1082Protocol {}
 
 impl TascamIsochCoaxialOutputSpecification for Fw1082Protocol {}
 
+impl TascamHardwareImageSpecification for Fw1082Protocol {
+    const IMAGE_QUADLET_COUNT: usize = ISOCH_IMAGE_QUADLET_COUNT;
+}
+
 impl IsochMeterOperation for Fw1082Protocol {
     const INPUT_COUNT: usize = 10;
     const OUTPUT_COUNT: usize = 4;
