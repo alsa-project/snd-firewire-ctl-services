@@ -97,6 +97,7 @@ where
 
     pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
         T::parse_image(&mut self.params, image);
+        debug!(params = ?self.params);
         Ok(())
     }
 
@@ -935,7 +936,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::update_wholly(req, node, &self.params, timeout_ms)
+        let res = T::update_wholly(req, node, &self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1016,7 +1019,8 @@ where
                     .iter_mut()
                     .zip(elem_value.int().iter().map(|&val| val as i16))
                     .for_each(|(o, n)| *o = n);
-                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 Ok(true)
             }
             INPUT_BALANCE_NAME => {
@@ -1026,8 +1030,9 @@ where
                     .iter_mut()
                     .zip(elem_value.int().iter().map(|&val| val as u8))
                     .for_each(|(o, n)| *o = n);
-                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             INPUT_MUTE_NAME => {
                 let mut params = self.params.clone();
@@ -1036,8 +1041,9 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(o, n)| *o = n);
-                T::update_partially(req, node, &mut self.params, params, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
