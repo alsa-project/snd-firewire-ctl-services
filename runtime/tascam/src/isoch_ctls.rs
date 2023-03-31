@@ -693,18 +693,18 @@ where
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::SPDIF_INPUT_SOURCES
+        let labels: Vec<&str> = T::OPTICAL_OUTPUT_SOURCES
             .iter()
-            .map(|s| spdif_capture_source_to_str(s))
+            .map(|(s, _, _)| optical_output_source_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = T::OPTICAL_OUTPUT_SOURCES
+        let labels: Vec<&str> = Self::SPDIF_INPUT_SOURCES
             .iter()
-            .map(|(s, _, _)| optical_output_source_to_str(s))
+            .map(|s| spdif_capture_source_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_IN_SRC_NAME, 0);
         card_cntr
