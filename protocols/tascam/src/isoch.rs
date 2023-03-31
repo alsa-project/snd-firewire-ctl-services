@@ -209,6 +209,90 @@ pub struct TascamInputDetectionThreshold {
     pub over_level: u16,
 }
 
+/// The specification of input detection.
+pub trait TascamIsochInputDetectionSpecification {
+    /// The minimum value of threshold to detect input signal.
+    const INPUT_SIGNAL_THRESHOLD_MIN: u16 = 1;
+    /// The maximum value of threshold to detect input signal.
+    const INPUT_SIGNAL_THRESHOLD_MAX: u16 = 0x7fff;
+}
+
+const INPUT_THRESHOLD_OFFSET: u64 = 0x0230;
+
+impl<O> TascamIsochWhollyCachableParamsOperation<TascamInputDetectionThreshold> for O
+where
+    O: TascamIsochInputDetectionSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        states: &mut TascamInputDetectionThreshold,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quads = [0; 4];
+        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms).map(|_| {
+            let quad = u32::from_be_bytes(quads);
+            let val = (quad & 0x0000ffff) as u16;
+            states.signal = val.clamp(
+                Self::INPUT_SIGNAL_THRESHOLD_MIN,
+                Self::INPUT_SIGNAL_THRESHOLD_MAX,
+            );
+
+            let val = (quad >> 16) as u16;
+            states.over_level = val.clamp(
+                Self::INPUT_SIGNAL_THRESHOLD_MIN,
+                Self::INPUT_SIGNAL_THRESHOLD_MAX,
+            );
+        })
+    }
+}
+
+impl<O> TascamIsochWhollyUpdatableParamsOperation<TascamInputDetectionThreshold> for O
+where
+    O: TascamIsochInputDetectionSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &TascamInputDetectionThreshold,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params.signal > Self::INPUT_SIGNAL_THRESHOLD_MAX
+            || params.signal < Self::INPUT_SIGNAL_THRESHOLD_MIN
+        {
+            let msg = format!(
+                "Argument should be greater than {} and less than {}, but {}",
+                Self::INPUT_SIGNAL_THRESHOLD_MIN,
+                Self::INPUT_SIGNAL_THRESHOLD_MAX,
+                params.signal
+            );
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        if params.over_level > Self::INPUT_SIGNAL_THRESHOLD_MAX
+            || params.over_level < Self::INPUT_SIGNAL_THRESHOLD_MIN
+        {
+            let msg = format!(
+                "Argument should be greater than {} and less than {}, but {}",
+                Self::INPUT_SIGNAL_THRESHOLD_MIN,
+                Self::INPUT_SIGNAL_THRESHOLD_MAX,
+                params.over_level
+            );
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let quad = ((params.over_level as u32) << 16) | (params.signal as u32);
+
+        write_quadlet(
+            req,
+            node,
+            INPUT_THRESHOLD_OFFSET,
+            &mut quad.to_be_bytes(),
+            timeout_ms,
+        )
+    }
+}
+
 /// Mode of monitor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonitorMode {
@@ -409,7 +493,6 @@ impl Default for CoaxialOutputSource {
 }
 
 const CONFIG_FLAG_OFFSET: u64 = 0x022c;
-const INPUT_THRESHOLD_OFFSET: u64 = 0x0230;
 
 const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
     (CoaxialOutputSource::StreamInputPair, 0x00000002, 0x00020000),
@@ -422,9 +505,6 @@ const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
 
 /// The trait for common operation of isochronous models {
 pub trait IsochCommonOperation {
-    const THRESHOLD_MIN: u16 = 1;
-    const THRESHOLD_MAX: u16 = 0x7fff;
-
     fn get_coaxial_output_source(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -440,104 +520,6 @@ pub trait IsochCommonOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         write_config_flag(req, node, &COAXIAL_OUTPUT_SOURCES, src, timeout_ms)
-    }
-
-    /// Get threshold of input gain for signal detection. The value between 1 and 0x7fff returns.
-    /// The dB level can be calculated by below formula:
-    ///
-    /// ```text
-    /// level = 20 * log10(value / 0x7fff)
-    /// ```
-    fn get_analog_input_threshold_for_signal_detection(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<u16, Error> {
-        let mut quads = [0; 4];
-        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms).map(|_| {
-            let val = (u32::from_be_bytes(quads) & 0x0000ffff) as u16;
-            val.clamp(Self::THRESHOLD_MIN, Self::THRESHOLD_MAX)
-        })
-    }
-
-    /// Set threshold of input gain for signal detection. The value should be between 1 and 0x7fff.
-    /// The value can be calculated by below formula:
-    ///
-    /// ```text
-    /// value = 0x7fff * pow(10, level / 20)
-    /// ```
-    fn set_analog_input_threshold_for_signal_detection(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        value: u16,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if value > Self::THRESHOLD_MAX || value < Self::THRESHOLD_MIN {
-            let msg = format!(
-                "Argument should be greater than {} and less than {}, but {}",
-                Self::THRESHOLD_MAX,
-                Self::THRESHOLD_MIN,
-                value
-            );
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut quads = [0; 4];
-        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)?;
-
-        let val = (u32::from_be_bytes(quads) & 0xffff0000) | (value as u32);
-
-        let mut quads = val.to_be_bytes();
-        write_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)
-    }
-
-    /// Get threshold of input gain for over-level detection. The value between 1 and 0x7fff
-    /// returns. The dB level can be calculated by below formula:
-    ///
-    /// ```text
-    /// level = 20 * log10(value / 0x7fff)
-    /// ```
-    fn get_analog_input_threshold_for_over_level_detection(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<u16, Error> {
-        let mut quads = [0; 4];
-        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms).map(|_| {
-            let val = (u32::from_be_bytes(quads) >> 16) as u16;
-            val.clamp(Self::THRESHOLD_MIN, Self::THRESHOLD_MAX)
-        })
-    }
-
-    /// Set threshold of input gain for over-level detection. The value should be between 1 and
-    /// 0x7fff. The value can be calculated by below formula:
-    ///
-    /// ```text
-    /// value = 0x7fff * pow(10, level / 20)
-    /// ```
-    fn set_analog_input_threshold_for_over_level_detection(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        value: u16,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if value > Self::THRESHOLD_MAX || value < Self::THRESHOLD_MIN {
-            let msg = format!(
-                "Argument should be greater than {} and less than {}, but {}",
-                Self::THRESHOLD_MAX,
-                Self::THRESHOLD_MIN,
-                value
-            );
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let mut quads = [0; 4];
-        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)?;
-
-        let val = (u32::from_be_bytes(quads) & 0x0000ffff) | ((value as u32) << 16);
-
-        let mut quads = val.to_be_bytes();
-        write_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)
     }
 }
 
