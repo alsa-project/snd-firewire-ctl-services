@@ -827,6 +827,7 @@ where
 {
     pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
         T::parse_image(&mut self.params, image);
+        debug!(params = ?self.params);
         Ok(())
     }
 
@@ -836,7 +837,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -879,8 +882,10 @@ where
             MASTER_FADER_ASSIGN_NAME => {
                 let mut params = self.params.clone();
                 params.master_fader_assign = elem_value.boolean()[0];
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
