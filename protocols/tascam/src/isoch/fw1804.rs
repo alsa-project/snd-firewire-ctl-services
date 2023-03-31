@@ -34,13 +34,13 @@ impl TascamIsochClockSpecification for Fw1804Protocol {
 
 impl TascamIsochInputDetectionSpecification for Fw1804Protocol {}
 
+impl TascamIsochCoaxialOutputSpecification for Fw1804Protocol {}
+
 impl IsochMeterOperation for Fw1804Protocol {
     const INPUT_COUNT: usize = 18;
     const OUTPUT_COUNT: usize = 18;
     const HAS_SOLO: bool = false;
 }
-
-impl IsochCommonOperation for Fw1804Protocol {}
 
 impl IsochOpticalOperation for Fw1804Protocol {
     const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)] = &[
