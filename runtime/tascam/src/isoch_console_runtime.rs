@@ -14,12 +14,20 @@ use {
 pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol, Fw1884SurfaceState>;
 pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082SurfaceState>;
 
+pub trait IsochConsoleCtlModel<T, U>:
+    CtlModel<(SndTascam, FwNode)>
+    + MeasureModel<(SndTascam, FwNode)>
+    + SequencerCtlOperation<SndTascam, T, U>
+    + Default
+where
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
+    fn cache(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error>;
+}
+
 pub struct IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTascam, FwNode)>
-        + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<SndTascam, T, U>
-        + Default,
+    S: IsochConsoleCtlModel<T, U>,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     unit: (SndTascam, FwNode),
@@ -37,10 +45,7 @@ where
 
 impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTascam, FwNode)>
-        + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<SndTascam, T, U>
-        + Default,
+    S: IsochConsoleCtlModel<T, U>,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
@@ -68,10 +73,7 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTascam, FwNode)>
-        + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<SndTascam, T, U>
-        + Default,
+    S: IsochConsoleCtlModel<T, U>,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(unit: SndTascam, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
@@ -104,6 +106,7 @@ where
 
         self.seq_cntr.open_port()?;
         self.model.initialize_sequencer(&mut self.unit.1)?;
+        self.model.cache(&mut self.unit)?;
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);

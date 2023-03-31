@@ -10,9 +10,16 @@ use {
 
 pub type Fw1804Runtime = IsochRackRuntime<Fw1804Model>;
 
-pub struct IsochRackRuntime<
-    T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default,
-> {
+pub trait IsochRackCtlModel:
+    CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)>
+{
+    fn cache(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error>;
+}
+
+pub struct IsochRackRuntime<T>
+where
+    T: IsochRackCtlModel + Default,
+{
     unit: (SndTascam, FwNode),
     model: T,
     card_cntr: CardCntr,
@@ -23,8 +30,9 @@ pub struct IsochRackRuntime<
     measure_elems: Vec<ElemId>,
 }
 
-impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default> Drop
-    for IsochRackRuntime<T>
+impl<T> Drop for IsochRackRuntime<T>
+where
+    T: IsochRackCtlModel + Default,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -55,8 +63,9 @@ const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
 const TIMER_NAME: &str = "meter";
 const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default>
-    IsochRackRuntime<T>
+impl<T> IsochRackRuntime<T>
+where
+    T: IsochRackCtlModel + Default,
 {
     pub fn new(unit: SndTascam, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::default();
@@ -81,6 +90,7 @@ impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Defa
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.cache(&mut self.unit)?;
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
