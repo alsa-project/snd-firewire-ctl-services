@@ -90,17 +90,23 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
+
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         self.model.get_measure_elem_list(&mut self.measure_elems);
+        enter.exit();
 
         Ok(())
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -111,9 +117,20 @@ where
                 RackUnitEvent::Shutdown => break,
                 RackUnitEvent::Disconnected => break,
                 RackUnitEvent::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 RackUnitEvent::Elem((elem_id, events)) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
                     if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
@@ -139,6 +156,7 @@ where
                     }
                 }
                 RackUnitEvent::Timer => {
+                    let _enter = debug_span!("timer").entered();
                     let _ = self.card_cntr.measure_elems(
                         &mut self.unit,
                         &self.measure_elems,
@@ -147,6 +165,8 @@ where
                 }
             }
         }
+
+        enter.exit();
 
         Ok(())
     }
