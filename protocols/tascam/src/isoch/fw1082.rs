@@ -478,6 +478,119 @@ impl Default for Fw1082EncoderMode {
 pub struct TascamSurfaceFw1082State {
     mode: Fw1082EncoderMode,
     button_states: [[bool; 3]; 4],
+    enabled_leds: LedState,
+}
+
+const SPECIFIC_ENCODER_MODES: [(SurfaceBoolValue, Fw1082EncoderMode); 3] = [
+    (
+        SurfaceBoolValue(8, 0x20000000),
+        Fw1082EncoderMode::Equalizer,
+    ),
+    (SurfaceBoolValue(8, 0x40000000), Fw1082EncoderMode::Aux0123),
+    (SurfaceBoolValue(8, 0x80000000), Fw1082EncoderMode::Aux4567),
+];
+
+const SPECIFIC_ENCODER_MODE_LEDS: &[(Fw1082EncoderMode, &[u16])] = &[
+    (Fw1082EncoderMode::Equalizer, &[157, 170]),
+    (Fw1082EncoderMode::Aux0123, &[189, 202]),
+    (Fw1082EncoderMode::Aux4567, &[221, 234]),
+];
+
+const SPECIFIC_ENCODER_ITEM_LEDS: &[([MachineItem; 3], &[u16])] = &[
+    (
+        [MachineItem::Low, MachineItem::Aux(3), MachineItem::Aux(7)],
+        &[95, 108],
+    ),
+    (
+        [
+            MachineItem::LowMid,
+            MachineItem::Aux(2),
+            MachineItem::Aux(6),
+        ],
+        &[63, 76],
+    ),
+    (
+        [
+            MachineItem::HighMid,
+            MachineItem::Aux(1),
+            MachineItem::Aux(5),
+        ],
+        &[31, 44],
+    ),
+    (
+        [MachineItem::High, MachineItem::Aux(0), MachineItem::Aux(4)],
+        &[12],
+    ),
+];
+
+impl TascamSurfaceLedOperation<TascamSurfaceFw1082State> for Fw1082Protocol {
+    fn operate_leds(
+        state: &mut TascamSurfaceFw1082State,
+        machine_value: &(MachineItem, ItemValue),
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if let ItemValue::Bool(value) = machine_value.1 {
+            let curr_idx = SPECIFIC_ENCODER_MODES
+                .iter()
+                .position(|(_, m)| state.mode.eq(m))
+                .unwrap();
+
+            if let Some(positions) = SPECIFIC_ENCODER_ITEM_LEDS
+                .iter()
+                .find(|(items, _)| machine_value.0.eq(&items[curr_idx]))
+                .map(|(_, positions)| positions)
+            {
+                operate_led_cached(
+                    &mut state.enabled_leds,
+                    req,
+                    node,
+                    positions[0],
+                    value,
+                    timeout_ms,
+                )?;
+            }
+        } else if let (MachineItem::EncoderMode, ItemValue::U16(value)) = machine_value {
+            let idx = *value as usize;
+
+            // One of encode modes should be activated.
+            SPECIFIC_ENCODER_MODE_LEDS
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, (_, positions))| {
+                    operate_led_cached(
+                        &mut state.enabled_leds,
+                        req,
+                        node,
+                        positions[0],
+                        i == idx,
+                        timeout_ms,
+                    )
+                })?;
+
+            // Recover the state of button LEDs.
+            let enabled_leds = &mut state.enabled_leds;
+            let button_states = &state.button_states;
+            SPECIFIC_ENCODER_ITEM_LEDS
+                .iter()
+                .zip(button_states)
+                .try_for_each(|((_, positions), s)| {
+                    operate_led_cached(enabled_leds, req, node, positions[0], s[idx], timeout_ms)
+                })?;
+        }
+
+        Ok(())
+    }
+
+    fn clear_leds(
+        state: &mut TascamSurfaceFw1082State,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        clear_leds(&mut state.enabled_leds, req, node, timeout_ms)
+    }
 }
 
 impl Fw1082Protocol {
