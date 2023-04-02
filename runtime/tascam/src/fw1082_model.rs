@@ -15,10 +15,10 @@ pub struct Fw1082Model {
     coax_output_ctl: CoaxOutputCtl<Fw1082Protocol>,
     meter_ctl: MeterCtl<Fw1082Protocol>,
     console_ctl: ConsoleCtl<Fw1082Protocol>,
-    seq_state: SequencerState,
     common_state: TascamSurfaceCommonState,
     isoch_state: TascamSurfaceIsochState,
     specific_state: TascamSurfaceFw1082State,
+    machine_state: MachineState,
 }
 
 impl Default for Fw1082Model {
@@ -31,10 +31,10 @@ impl Default for Fw1082Model {
             coax_output_ctl: Default::default(),
             meter_ctl: Default::default(),
             console_ctl: Default::default(),
-            seq_state: Default::default(),
             common_state: Default::default(),
             isoch_state: Default::default(),
             specific_state: Default::default(),
+            machine_state: Fw1082Protocol::create_machine_state(),
         }
     }
 }
@@ -134,12 +134,12 @@ impl SurfaceCtlOperation<SndTascam> for Fw1082Model {
 }
 
 impl SequencerCtlOperation<SndTascam, Fw1082Protocol> for Fw1082Model {
-    fn state(&self) -> &SequencerState {
-        &self.seq_state
+    fn state(&self) -> &MachineState {
+        &self.machine_state
     }
 
-    fn state_mut(&mut self) -> &mut SequencerState {
-        &mut self.seq_state
+    fn state_mut(&mut self) -> &mut MachineState {
+        &mut self.machine_state
     }
 }
 

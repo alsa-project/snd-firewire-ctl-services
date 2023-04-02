@@ -134,11 +134,6 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
     }
 }
 
-#[derive(Default)]
-pub struct SequencerState {
-    machine_state: MachineState,
-}
-
 pub trait SurfaceCtlOperation<T: IsA<TascamProtocol>> {
     fn init(&mut self, node: &mut FwNode) -> Result<(), Error>;
 
@@ -166,14 +161,12 @@ where
     S: IsA<TascamProtocol>,
     T: MachineStateOperation,
 {
-    fn state(&self) -> &SequencerState;
-    fn state_mut(&mut self) -> &mut SequencerState;
+    fn state(&self) -> &MachineState;
+    fn state_mut(&mut self) -> &mut MachineState;
 
     fn initialize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
         self.init(node)?;
-        T::initialize_machine(&mut self.state_mut().machine_state);
-        let machine_values = T::get_machine_current_values(&self.state().machine_state);
-        machine_values
+        T::get_machine_current_values(self.state())
             .iter()
             .try_for_each(|machine_value| self.ack(machine_value, node))
     }
@@ -190,7 +183,7 @@ where
     ) -> Result<(), Error> {
         let inputs = self.peek(unit, index, before, after)?;
         inputs.iter().try_for_each(|input| {
-            let outputs = T::change_machine_value(&mut self.state_mut().machine_state, input);
+            let outputs = T::change_machine_value(self.state_mut(), input);
             outputs.iter().try_for_each(|output| {
                 let event = converter.seq_event_from_machine_event(output)?;
                 seq_cntr.schedule_event(event)?;
@@ -208,7 +201,7 @@ where
     ) -> Result<(), Error> {
         events.iter().try_for_each(|event| {
             let input = converter.seq_event_to_machine_event(event)?;
-            let outputs = T::change_machine_value(&mut self.state_mut().machine_state, &input);
+            let outputs = T::change_machine_value(self.state_mut(), &input);
             outputs.iter().try_for_each(|output| {
                 if !output.eq(&input) {
                     let event = converter.seq_event_from_machine_event(output)?;

@@ -153,7 +153,7 @@ pub trait TascamHardwareImageSpecification {
 }
 
 /// Items of surface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MachineItem {
     // Channel section.
     Master,
@@ -312,7 +312,7 @@ impl std::fmt::Display for MachineItem {
 }
 
 /// The state machine of control surface.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct MachineState {
     /// The boolean value of each item.
     bool_items: Vec<bool>,
@@ -325,7 +325,7 @@ pub struct MachineState {
 }
 
 /// The event of state machine.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ItemValue {
     Bool(bool),
     U16(u16),
@@ -362,11 +362,13 @@ pub trait MachineStateOperation {
         MachineItem::Low,
     ];
 
-    fn initialize_machine(state: &mut MachineState) {
-        state.bool_items = vec![false; Self::BOOL_ITEMS.len()];
-        state.u16_items = vec![0; Self::U16_ITEMS.len()];
-        state.bank = 0;
-        state.transport = MachineItem::Stop;
+    fn create_machine_state() -> MachineState {
+        MachineState {
+            bool_items: vec![false; Self::BOOL_ITEMS.len()],
+            u16_items: vec![0; Self::U16_ITEMS.len()],
+            bank: 0,
+            transport: MachineItem::Stop,
+        }
     }
 
     fn get_machine_current_values(state: &MachineState) -> Vec<(MachineItem, ItemValue)> {
