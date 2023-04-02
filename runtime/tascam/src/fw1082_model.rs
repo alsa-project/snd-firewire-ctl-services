@@ -4,7 +4,7 @@
 use {
     super::{isoch_ctls::*, *},
     alsactl::*,
-    protocols::isoch::fw1082::*,
+    protocols::isoch::{fw1082::*, *},
 };
 
 pub struct Fw1082Model {
@@ -16,6 +16,9 @@ pub struct Fw1082Model {
     meter_ctl: MeterCtl<Fw1082Protocol>,
     console_ctl: ConsoleCtl<Fw1082Protocol>,
     seq_state: SequencerState<Fw1082SurfaceState>,
+    common_state: TascamSurfaceCommonState,
+    isoch_state: TascamSurfaceIsochState,
+    specific_state: TascamSurfaceFw1082State,
 }
 
 impl Default for Fw1082Model {
@@ -29,6 +32,9 @@ impl Default for Fw1082Model {
             meter_ctl: Default::default(),
             console_ctl: Default::default(),
             seq_state: Default::default(),
+            common_state: Default::default(),
+            isoch_state: Default::default(),
+            specific_state: Default::default(),
         }
     }
 }
@@ -48,6 +54,81 @@ impl IsochConsoleCtlModel<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.console_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
+        Ok(())
+    }
+}
+
+impl SurfaceCtlOperation<SndTascam> for Fw1082Model {
+    fn init(&mut self, _: &mut FwNode) -> Result<(), Error> {
+        Fw1082Protocol::init(&mut self.common_state);
+        Fw1082Protocol::init(&mut self.isoch_state);
+        Fw1082Protocol::init(&mut self.specific_state);
+        Ok(())
+    }
+
+    fn peek(
+        &mut self,
+        unit: &mut SndTascam,
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Result<Vec<(MachineItem, ItemValue)>, Error> {
+        unit.read_state(&mut self.image)?;
+        let mut machine_values =
+            Fw1082Protocol::peek(&self.common_state, &self.image, index, before, after);
+        machine_values.append(&mut Fw1082Protocol::peek(
+            &self.isoch_state,
+            &self.image,
+            index,
+            before,
+            after,
+        ));
+        machine_values.append(&mut Fw1082Protocol::peek(
+            &self.specific_state,
+            &self.image,
+            index,
+            before,
+            after,
+        ));
+        Ok(machine_values)
+    }
+
+    fn ack(
+        &mut self,
+        machine_value: &(MachineItem, ItemValue),
+        node: &mut FwNode,
+    ) -> Result<(), Error> {
+        Fw1082Protocol::operate_leds(
+            &mut self.common_state,
+            machine_value,
+            &mut self.req,
+            node,
+            TIMEOUT_MS,
+        )
+        .map(|_| Fw1082Protocol::ack(&mut self.common_state, machine_value))?;
+        Fw1082Protocol::operate_leds(
+            &mut self.isoch_state,
+            machine_value,
+            &mut self.req,
+            node,
+            TIMEOUT_MS,
+        )
+        .map(|_| Fw1082Protocol::ack(&mut self.isoch_state, machine_value))?;
+        Fw1082Protocol::operate_leds(
+            &mut self.specific_state,
+            machine_value,
+            &mut self.req,
+            node,
+            TIMEOUT_MS,
+        )
+        .map(|_| Fw1082Protocol::ack(&mut self.specific_state, machine_value))?;
+        Ok(())
+    }
+
+    fn fin(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        Fw1082Protocol::clear_leds(&mut self.common_state, &mut self.req, node, TIMEOUT_MS)?;
+        Fw1082Protocol::clear_leds(&mut self.isoch_state, &mut self.req, node, TIMEOUT_MS)?;
+        Fw1082Protocol::clear_leds(&mut self.specific_state, &mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
 }
