@@ -872,6 +872,53 @@ pub struct TascamSurfaceIsochState {
     shifted: bool,
     shifted_items: Vec<bool>,
     bank: u16,
+    enabled_leds: LedState,
+}
+
+/// The trait to express specification of LEDS for isochronous models.
+pub trait TascamSurfaceLedIsochSpecification {
+    const BANK_LEDS: [&'static [u16]; 4];
+}
+
+impl<O> TascamSurfaceLedOperation<TascamSurfaceIsochState> for O
+where
+    O: TascamSurfaceLedIsochSpecification,
+{
+    fn operate_leds(
+        state: &mut TascamSurfaceIsochState,
+        machine_value: &(MachineItem, ItemValue),
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if let (MachineItem::Bank, ItemValue::U16(value)) = machine_value {
+            Self::BANK_LEDS
+                .iter()
+                .enumerate()
+                .try_for_each(|(i, positions)| {
+                    let enable = *value == i as u16;
+                    operate_led_cached(
+                        &mut state.enabled_leds,
+                        req,
+                        node,
+                        positions[0],
+                        enable,
+                        timeout_ms,
+                    )
+                })?;
+        }
+
+        Ok(())
+    }
+
+    fn clear_leds(
+        state: &mut TascamSurfaceIsochState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        clear_leds(&mut state.enabled_leds, req, node, timeout_ms)
+    }
 }
 
 /// The trait for operation specific to isoch models.
