@@ -108,8 +108,10 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        let enter = debug_span!("init").entered();
         self.seq_cntr.open_port()?;
         self.model.initialize_sequencer(&mut self.unit.1)?;
+        enter.exit();
 
         let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
@@ -185,6 +187,7 @@ where
                     );
                 }
                 ConsoleUnitEvent::SeqAppl(events) => {
+                    let _enter = debug_span!("application").entered();
                     let _ = self.model.dispatch_appl_events(
                         &mut self.unit.1,
                         &mut self.seq_cntr,
@@ -193,6 +196,11 @@ where
                     );
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
+                    let _enter = debug_span!("surface").entered();
+                    debug!(
+                        "index: {}, before: 0x{:08x}, after: 0x{:08x}",
+                        index, before, after
+                    );
                     let _ = self.model.dispatch_surface_event(
                         &mut self.unit.0,
                         &mut self.unit.1,

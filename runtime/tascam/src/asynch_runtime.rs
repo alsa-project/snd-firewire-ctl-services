@@ -88,18 +88,21 @@ where
     pub(crate) fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
 
+        let enter = debug_span!("init").entered();
         self.unit.0.bind(&mut self.unit.1)?;
-
         self.seq_cntr.open_port()?;
-
         self.model.initialize_sequencer(&mut self.unit.1)?;
+        enter.exit();
 
         Ok(())
     }
 
     pub(crate) fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("listen").entered();
         self.unit.0.listen()?;
+        enter.exit();
 
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -109,9 +112,14 @@ where
             match ev {
                 AsyncUnitEvent::Shutdown | AsyncUnitEvent::Disconnected => break,
                 AsyncUnitEvent::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 AsyncUnitEvent::Surface((index, before, after)) => {
+                    let _enter = debug_span!("surface").entered();
+                    debug!(
+                        "index: {}, before: 0x{:08x}, after: 0x{:08x}",
+                        index, before, after
+                    );
                     let _ = self.model.dispatch_surface_event(
                         &mut self.unit.0,
                         &mut self.unit.1,
@@ -123,6 +131,7 @@ where
                     );
                 }
                 AsyncUnitEvent::SeqAppl(events) => {
+                    let _enter = debug_span!("application").entered();
                     let _ = self.model.dispatch_appl_events(
                         &mut self.unit.1,
                         &mut self.seq_cntr,
@@ -132,8 +141,11 @@ where
                 }
             }
         }
+        enter.exit();
 
+        let enter = debug_span!("unlisten").entered();
         self.unit.0.unlisten();
+        enter.exit();
 
         Ok(())
     }
