@@ -86,12 +86,6 @@ impl MachineStateOperation for Fe8Protocol {
     const HAS_BANK: bool = false;
 }
 
-/// State of control surface in FE-8.
-#[derive(Default, Debug)]
-pub struct Fe8SurfaceState {
-    common: TascamSurfaceCommonState,
-}
-
 impl TascamSurfaceLedNormalSpecification for Fe8Protocol {
     const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
         (&[MachineItem::Rec(0)], &[0x05]),
@@ -212,42 +206,6 @@ impl TascamSurfaceStateCommonSpecification for Fe8Protocol {
             MachineItem::Input(7),
         ),
     ];
-}
-
-impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
-    fn initialize_surface_state(state: &mut Fe8SurfaceState) {
-        Self::init(&mut state.common);
-    }
-
-    fn decode_surface_image(
-        state: &Fe8SurfaceState,
-        image: &[u32],
-        index: u32,
-        before: u32,
-        after: u32,
-    ) -> Vec<(MachineItem, ItemValue)> {
-        Self::peek(&state.common, image, index, before, after)
-    }
-
-    fn feedback_to_surface(
-        state: &mut Fe8SurfaceState,
-        machine_value: &(MachineItem, ItemValue),
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::operate_leds(&mut state.common, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.common, machine_value))
-    }
-
-    fn finalize_surface(
-        state: &mut Fe8SurfaceState,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::clear_leds(&mut state.common, req, node, timeout_ms)
-    }
 }
 
 impl FireWireLedOperation for Fe8Protocol {

@@ -15,7 +15,7 @@ pub struct Fw1082Model {
     coax_output_ctl: CoaxOutputCtl<Fw1082Protocol>,
     meter_ctl: MeterCtl<Fw1082Protocol>,
     console_ctl: ConsoleCtl<Fw1082Protocol>,
-    seq_state: SequencerState<Fw1082SurfaceState>,
+    seq_state: SequencerState,
     common_state: TascamSurfaceCommonState,
     isoch_state: TascamSurfaceIsochState,
     specific_state: TascamSurfaceFw1082State,
@@ -41,7 +41,7 @@ impl Default for Fw1082Model {
 
 const TIMEOUT_MS: u32 = 50;
 
-impl IsochConsoleCtlModel<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+impl IsochConsoleCtlModel<Fw1082Protocol> for Fw1082Model {
     fn cache(&mut self, (unit, node): &mut (SndTascam, FwNode)) -> Result<(), Error> {
         unit.read_state(&mut self.image)?;
         self.meter_ctl.parse(&self.image)?;
@@ -133,62 +133,13 @@ impl SurfaceCtlOperation<SndTascam> for Fw1082Model {
     }
 }
 
-impl SequencerCtlOperation<SndTascam, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
-    fn state(&self) -> &SequencerState<Fw1082SurfaceState> {
+impl SequencerCtlOperation<SndTascam, Fw1082Protocol> for Fw1082Model {
+    fn state(&self) -> &SequencerState {
         &self.seq_state
     }
 
-    fn state_mut(&mut self) -> &mut SequencerState<Fw1082SurfaceState> {
+    fn state_mut(&mut self) -> &mut SequencerState {
         &mut self.seq_state
-    }
-
-    fn image(&self) -> &[u32] {
-        &self.image
-    }
-
-    fn image_mut(&mut self) -> &mut Vec<u32> {
-        &mut self.image
-    }
-
-    fn initialize_surface(
-        &mut self,
-        node: &mut FwNode,
-        machine_values: &[(MachineItem, ItemValue)],
-    ) -> Result<(), Error> {
-        machine_values
-            .iter()
-            .filter(|(item, _)| {
-                MachineItem::Bank.eq(item)
-                    || MachineItem::EncoderMode.eq(item)
-                    || Fw1082Protocol::TRANSPORT_ITEMS
-                        .iter()
-                        .find(|i| item.eq(i))
-                        .is_some()
-            })
-            .try_for_each(|entry| self.feedback_to_surface(node, entry))
-    }
-
-    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error> {
-        Fw1082Protocol::finalize_surface(
-            &mut self.seq_state.surface_state,
-            &mut self.req,
-            node,
-            TIMEOUT_MS,
-        )
-    }
-
-    fn feedback_to_surface(
-        &mut self,
-        node: &mut FwNode,
-        event: &(MachineItem, ItemValue),
-    ) -> Result<(), Error> {
-        Fw1082Protocol::feedback_to_surface(
-            &mut self.seq_state.surface_state,
-            event,
-            &mut self.req,
-            node,
-            TIMEOUT_MS,
-        )
     }
 }
 

@@ -135,10 +135,9 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 }
 
 #[derive(Default)]
-pub struct SequencerState<U> {
+pub struct SequencerState {
     map: Vec<MachineItem>,
     machine_state: MachineState,
-    surface_state: U,
 }
 
 pub trait SurfaceCtlOperation<T: IsA<TascamProtocol>> {
@@ -163,41 +162,22 @@ pub trait SurfaceCtlOperation<T: IsA<TascamProtocol>> {
 
 const BOOL_TRUE: i32 = 0x7f;
 
-pub trait SequencerCtlOperation<
+pub trait SequencerCtlOperation<S, T>: SurfaceCtlOperation<S>
+where
     S: IsA<TascamProtocol>,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
-    U,
->
+    T: MachineStateOperation,
 {
-    fn state(&self) -> &SequencerState<U>;
-    fn state_mut(&mut self) -> &mut SequencerState<U>;
-
-    fn image(&self) -> &[u32];
-    fn image_mut(&mut self) -> &mut Vec<u32>;
-
-    fn initialize_surface(
-        &mut self,
-        node: &mut FwNode,
-        machine_values: &[(MachineItem, ItemValue)],
-    ) -> Result<(), Error>;
-    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error>;
-
-    fn feedback_to_surface(
-        &mut self,
-        node: &mut FwNode,
-        event: &(MachineItem, ItemValue),
-    ) -> Result<(), Error>;
+    fn state(&self) -> &SequencerState;
+    fn state_mut(&mut self) -> &mut SequencerState;
 
     fn initialize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        self.init(node)?;
         self.initialize_message_map();
-        T::initialize_surface_state(&mut self.state_mut().surface_state);
         T::initialize_machine(&mut self.state_mut().machine_state);
         let machine_values = T::get_machine_current_values(&self.state().machine_state);
-        self.initialize_surface(node, &machine_values)
-    }
-
-    fn finalize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
-        self.finalize_surface(node)
+        machine_values
+            .iter()
+            .try_for_each(|machine_value| self.ack(machine_value, node))
     }
 
     fn initialize_message_map(&mut self) {
@@ -229,26 +209,19 @@ pub trait SequencerCtlOperation<
         before: u32,
         after: u32,
     ) -> Result<(), Error> {
-        unit.read_state(self.image_mut())?;
-        let inputs = T::decode_surface_image(
-            &self.state().surface_state,
-            self.image(),
-            index,
-            before,
-            after,
-        );
+        let inputs = self.peek(unit, index, before, after)?;
         inputs.iter().try_for_each(|input| {
             let outputs = self.dispatch_machine_event(input);
             outputs.iter().try_for_each(|output| {
                 self.feedback_to_appl(seq_cntr, output)?;
-                self.feedback_to_surface(node, output)
+                self.ack(output, node)
             })
         })
     }
 
     fn dispatch_appl_events(
         &mut self,
-        unit: &mut FwNode,
+        node: &mut FwNode,
         seq_cntr: &mut SeqCntr,
         events: &[Event],
     ) -> Result<(), Error> {
@@ -264,7 +237,7 @@ pub trait SequencerCtlOperation<
                     if !output.eq(&input) {
                         self.feedback_to_appl(seq_cntr, output)?;
                     }
-                    self.feedback_to_surface(unit, output)
+                    self.ack(output, node)
                 })
             })
     }

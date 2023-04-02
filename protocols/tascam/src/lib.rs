@@ -501,34 +501,6 @@ pub trait TascamSurfaceStateOperation<T> {
     fn ack(state: &mut T, machine_value: &(MachineItem, ItemValue));
 }
 
-/// The trait for operation of constol surface.
-pub trait SurfaceImageOperation<T> {
-    fn initialize_surface_state(state: &mut T);
-
-    fn decode_surface_image(
-        state: &T,
-        image: &[u32],
-        index: u32,
-        before: u32,
-        after: u32,
-    ) -> Vec<(MachineItem, ItemValue)>;
-
-    fn feedback_to_surface(
-        state: &mut T,
-        machine_value: &(MachineItem, ItemValue),
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
-
-    fn finalize_surface(
-        state: &mut T,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
-}
-
 /// Common state of surface.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TascamSurfaceCommonState {
@@ -694,70 +666,6 @@ fn detect_u16_value(u16_val: &SurfaceU16Value, after: u32) -> u16 {
 
 fn detect_u16_value_in_image(u16_val: &SurfaceU16Value, image: &[u32]) -> u16 {
     ((image[u16_val.0] & u16_val.1) >> u16_val.2) as u16
-}
-
-/// The trait for operation to convert between image and machine value.
-trait SurfaceImageCommonOperation {
-    const STATEFUL_ITEMS: &'static [(SurfaceBoolValue, MachineItem)];
-    const STATELESS_ITEMS: &'static [(SurfaceBoolValue, MachineItem)];
-    const ROTARIES: &'static [(SurfaceU16Value, MachineItem)];
-    const FADERS: &'static [(SurfaceBoolValue, SurfaceU16Value, MachineItem)];
-
-    fn initialize_surface_common_state(state: &mut TascamSurfaceCommonState) {
-        state.stateful_items = vec![Default::default(); Self::STATEFUL_ITEMS.len()];
-    }
-
-    fn decode_surface_image_common(
-        machine_values: &mut Vec<(MachineItem, ItemValue)>,
-        state: &TascamSurfaceCommonState,
-        image: &[u32],
-        index: u32,
-        before: u32,
-        after: u32,
-    ) {
-        Self::STATEFUL_ITEMS
-            .iter()
-            .zip(&state.stateful_items)
-            .filter(|((bool_val, _), _)| {
-                detect_stateful_bool_action(bool_val, index, before, after)
-            })
-            .for_each(|((_, item), &s)| machine_values.push((*item, ItemValue::Bool(!s))));
-
-        Self::STATELESS_ITEMS
-            .iter()
-            .filter(|(bool_val, _)| detect_bool_action(bool_val, index, before, after))
-            .for_each(|(bool_val, item)| {
-                let value = detect_bool_value(bool_val, before);
-                machine_values.push((*item, ItemValue::Bool(value)));
-            });
-
-        Self::ROTARIES
-            .iter()
-            .filter(|(u16_val, _)| detect_u16_action(u16_val, index, before, after))
-            .for_each(|(u16_val, item)| {
-                let value = detect_u16_value(u16_val, after);
-                machine_values.push((*item, ItemValue::U16(value)));
-            });
-
-        Self::FADERS
-            .iter()
-            .filter(|(bool_val, _, _)| detect_bool_action(bool_val, index, before, after))
-            .for_each(|(_, u16_val, item)| {
-                let value = detect_u16_value_in_image(u16_val, image);
-                machine_values.push((*item, ItemValue::U16(value)));
-            });
-    }
-
-    fn feedback_to_surface_common(
-        state: &mut TascamSurfaceCommonState,
-        machine_value: &(MachineItem, ItemValue),
-    ) {
-        Self::STATEFUL_ITEMS
-            .iter()
-            .zip(&mut state.stateful_items)
-            .find(|((_, item), _)| machine_value.0.eq(item))
-            .map(|((_, _), s)| *s = !*s);
-    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
