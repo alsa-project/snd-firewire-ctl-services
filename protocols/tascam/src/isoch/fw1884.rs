@@ -261,8 +261,8 @@ impl MachineStateOperation for Fw1884Protocol {
 /// State of control surface in FW-1884.
 #[derive(Default, Debug)]
 pub struct Fw1884SurfaceState {
-    common: SurfaceCommonState,
-    isoch: SurfaceIsochState,
+    common: TascamSurfaceCommonState,
+    isoch: TascamSurfaceIsochState,
     led_state: LedState,
 }
 

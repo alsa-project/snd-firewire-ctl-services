@@ -145,9 +145,9 @@ impl MachineStateOperation for Fw1082Protocol {
 /// State of control surface in FW-1082.
 #[derive(Default, Debug)]
 pub struct Fw1082SurfaceState {
-    common: SurfaceCommonState,
-    isoch: SurfaceIsochState,
-    specific: SurfaceSpecificState,
+    common: TascamSurfaceCommonState,
+    isoch: TascamSurfaceIsochState,
+    specific: TascamSurfaceFw1082State,
     led_state: LedState,
 }
 
@@ -423,8 +423,8 @@ impl Default for Fw1082EncoderMode {
 }
 
 /// State of surface specific to FW-1082.
-#[derive(Default, Debug)]
-struct SurfaceSpecificState {
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct TascamSurfaceFw1082State {
     mode: Fw1082EncoderMode,
     button_states: [[bool; 3]; 4],
 }
@@ -501,13 +501,13 @@ impl Fw1082Protocol {
         ),
     ];
 
-    fn initialize_surface_specific_state(state: &mut SurfaceSpecificState) {
+    fn initialize_surface_specific_state(state: &mut TascamSurfaceFw1082State) {
         state.mode = Fw1082EncoderMode::Equalizer;
     }
 
     fn decode_surface_image_specific(
         machine_values: &mut Vec<(MachineItem, ItemValue)>,
-        state: &SurfaceSpecificState,
+        state: &TascamSurfaceFw1082State,
         index: u32,
         before: u32,
         after: u32,
@@ -552,7 +552,7 @@ impl Fw1082Protocol {
     }
 
     fn feedback_to_surface_specific(
-        state: &mut SurfaceSpecificState,
+        state: &mut TascamSurfaceFw1082State,
         machine_value: &(MachineItem, ItemValue),
     ) {
         match machine_value.1 {

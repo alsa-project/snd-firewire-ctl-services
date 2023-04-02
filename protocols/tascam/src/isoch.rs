@@ -867,8 +867,8 @@ where
 }
 
 /// State of surface in isoch models.
-#[derive(Default, Debug)]
-struct SurfaceIsochState {
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct TascamSurfaceIsochState {
     shifted: bool,
     shifted_items: Vec<bool>,
     bank: u16,
@@ -880,7 +880,7 @@ trait SurfaceImageIsochOperation {
     const SHIFTED_ITEMS: &'static [(SurfaceBoolValue, [MachineItem; 2])];
     const BANK_CURSORS: [SurfaceBoolValue; 2];
 
-    fn initialize_surface_isoch_state(state: &mut SurfaceIsochState) {
+    fn initialize_surface_isoch_state(state: &mut TascamSurfaceIsochState) {
         state.shifted = false;
         state.shifted_items = vec![false; Self::SHIFTED_ITEMS.len()];
         state.bank = 0;
@@ -888,7 +888,7 @@ trait SurfaceImageIsochOperation {
 
     fn decode_surface_image_isoch(
         machine_values: &mut Vec<(MachineItem, ItemValue)>,
-        state: &SurfaceIsochState,
+        state: &TascamSurfaceIsochState,
         index: u32,
         before: u32,
         after: u32,
@@ -947,7 +947,7 @@ trait SurfaceImageIsochOperation {
     }
 
     fn feedback_to_surface_isoch(
-        state: &mut SurfaceIsochState,
+        state: &mut TascamSurfaceIsochState,
         machine_value: &(MachineItem, ItemValue),
     ) {
         match machine_value {

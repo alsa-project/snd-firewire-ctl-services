@@ -494,18 +494,18 @@ pub trait SurfaceImageOperation<T> {
 }
 
 /// Common state of surface.
-#[derive(Default, Debug)]
-struct SurfaceCommonState {
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct TascamSurfaceCommonState {
     stateful_items: Vec<bool>,
 }
 
 /// Boolean value in surface image.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-struct SurfaceBoolValue(usize, u32); // index, mask.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SurfaceBoolValue(usize, u32); // index, mask.
 
 /// U16 value in surface image.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-struct SurfaceU16Value(usize, u32, usize); // index, mask, shift
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SurfaceU16Value(usize, u32, usize); // index, mask, shift
 
 fn detect_stateful_bool_action(
     bool_val: &SurfaceBoolValue,
@@ -543,13 +543,13 @@ trait SurfaceImageCommonOperation {
     const ROTARIES: &'static [(SurfaceU16Value, MachineItem)];
     const FADERS: &'static [(SurfaceBoolValue, SurfaceU16Value, MachineItem)];
 
-    fn initialize_surface_common_state(state: &mut SurfaceCommonState) {
+    fn initialize_surface_common_state(state: &mut TascamSurfaceCommonState) {
         state.stateful_items = vec![Default::default(); Self::STATEFUL_ITEMS.len()];
     }
 
     fn decode_surface_image_common(
         machine_values: &mut Vec<(MachineItem, ItemValue)>,
-        state: &SurfaceCommonState,
+        state: &TascamSurfaceCommonState,
         image: &[u32],
         index: u32,
         before: u32,
@@ -589,7 +589,7 @@ trait SurfaceImageCommonOperation {
     }
 
     fn feedback_to_surface_common(
-        state: &mut SurfaceCommonState,
+        state: &mut TascamSurfaceCommonState,
         machine_value: &(MachineItem, ItemValue),
     ) {
         Self::STATEFUL_ITEMS
