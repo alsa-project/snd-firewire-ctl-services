@@ -584,6 +584,81 @@ where
     }
 }
 
+/// The trait to express specification for common state of surface.
+pub trait TascamSurfaceStateCommonSpecification {
+    /// The surface items to be stateful.
+    const STATEFUL_ITEMS: &'static [(SurfaceBoolValue, MachineItem)];
+    /// The surface items to be stateless.
+    const STATELESS_ITEMS: &'static [(SurfaceBoolValue, MachineItem)];
+    /// The surface rotaries.
+    const ROTARIES: &'static [(SurfaceU16Value, MachineItem)];
+    /// The surface faders.
+    const FADERS: &'static [(SurfaceBoolValue, SurfaceU16Value, MachineItem)];
+}
+
+impl<O> TascamSurfaceStateOperation<TascamSurfaceCommonState> for O
+where
+    O: TascamSurfaceStateCommonSpecification,
+{
+    fn init(state: &mut TascamSurfaceCommonState) {
+        state.stateful_items = vec![Default::default(); Self::STATEFUL_ITEMS.len()];
+    }
+
+    fn peek(
+        state: &TascamSurfaceCommonState,
+        image: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        let mut machine_values = Vec::new();
+
+        Self::STATEFUL_ITEMS
+            .iter()
+            .zip(&state.stateful_items)
+            .filter(|((bool_val, _), _)| {
+                detect_stateful_bool_action(bool_val, index, before, after)
+            })
+            .for_each(|((_, item), &s)| machine_values.push((*item, ItemValue::Bool(!s))));
+
+        Self::STATELESS_ITEMS
+            .iter()
+            .filter(|(bool_val, _)| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(bool_val, item)| {
+                let value = detect_bool_value(bool_val, before);
+                machine_values.push((*item, ItemValue::Bool(value)));
+            });
+
+        Self::ROTARIES
+            .iter()
+            .filter(|(u16_val, _)| detect_u16_action(u16_val, index, before, after))
+            .for_each(|(u16_val, item)| {
+                let value = detect_u16_value(u16_val, after);
+                machine_values.push((*item, ItemValue::U16(value)));
+            });
+
+        Self::FADERS
+            .iter()
+            .filter(|(bool_val, _, _)| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(_, u16_val, item)| {
+                let value = detect_u16_value_in_image(u16_val, image);
+                machine_values.push((*item, ItemValue::U16(value)));
+            });
+
+        machine_values
+    }
+
+    fn ack(state: &mut TascamSurfaceCommonState, machine_value: &(MachineItem, ItemValue)) {
+        if let ItemValue::Bool(val) = machine_value.1 {
+            Self::STATEFUL_ITEMS
+                .iter()
+                .zip(&mut state.stateful_items)
+                .find(|((_, item), _)| machine_value.0.eq(item))
+                .map(|((_, _), s)| *s = val);
+        }
+    }
+}
+
 /// Boolean value in surface image.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SurfaceBoolValue(usize, u32); // index, mask.
