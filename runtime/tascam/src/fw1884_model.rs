@@ -17,6 +17,8 @@ pub struct Fw1884Model {
     meter_ctl: MeterCtl<Fw1884Protocol>,
     console_ctl: ConsoleCtl<Fw1884Protocol>,
     specific_ctl: SpecificCtl,
+    common_state: TascamSurfaceCommonState,
+    isoch_state: TascamSurfaceIsochState,
     seq_state: SequencerState<Fw1884SurfaceState>,
 }
 
@@ -32,6 +34,8 @@ impl Default for Fw1884Model {
             console_ctl: Default::default(),
             meter_ctl: Default::default(),
             specific_ctl: Default::default(),
+            common_state: Default::default(),
+            isoch_state: Default::default(),
             seq_state: Default::default(),
         }
     }
@@ -54,6 +58,64 @@ impl IsochConsoleCtlModel<Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
         self.specific_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.console_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
+        Ok(())
+    }
+}
+
+impl SurfaceCtlOperation<SndTascam> for Fw1884Model {
+    fn init(&mut self, _: &mut FwNode) -> Result<(), Error> {
+        Fw1884Protocol::init(&mut self.common_state);
+        Fw1884Protocol::init(&mut self.isoch_state);
+        Ok(())
+    }
+
+    fn peek(
+        &mut self,
+        unit: &mut SndTascam,
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Result<Vec<(MachineItem, ItemValue)>, Error> {
+        unit.read_state(&mut self.image)?;
+        let mut machine_values =
+            Fw1884Protocol::peek(&self.common_state, &self.image, index, before, after);
+        machine_values.append(&mut Fw1884Protocol::peek(
+            &self.isoch_state,
+            &self.image,
+            index,
+            before,
+            after,
+        ));
+        Ok(machine_values)
+    }
+
+    fn ack(
+        &mut self,
+        machine_value: &(MachineItem, ItemValue),
+        node: &mut FwNode,
+    ) -> Result<(), Error> {
+        Fw1884Protocol::operate_leds(
+            &mut self.common_state,
+            machine_value,
+            &mut self.req,
+            node,
+            TIMEOUT_MS,
+        )
+        .map(|_| Fw1884Protocol::ack(&mut self.common_state, machine_value))?;
+        Fw1884Protocol::operate_leds(
+            &mut self.isoch_state,
+            machine_value,
+            &mut self.req,
+            node,
+            TIMEOUT_MS,
+        )
+        .map(|_| Fw1884Protocol::ack(&mut self.isoch_state, machine_value))?;
+        Ok(())
+    }
+
+    fn fin(&mut self, node: &mut FwNode) -> Result<(), Error> {
+        Fw1884Protocol::clear_leds(&mut self.common_state, &mut self.req, node, TIMEOUT_MS)?;
+        Fw1884Protocol::clear_leds(&mut self.isoch_state, &mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
 }

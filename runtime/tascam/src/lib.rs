@@ -141,6 +141,26 @@ pub struct SequencerState<U> {
     surface_state: U,
 }
 
+pub trait SurfaceCtlOperation<T: IsA<TascamProtocol>> {
+    fn init(&mut self, node: &mut FwNode) -> Result<(), Error>;
+
+    fn peek(
+        &mut self,
+        unit: &mut T,
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Result<Vec<(MachineItem, ItemValue)>, Error>;
+
+    fn ack(
+        &mut self,
+        machine_value: &(MachineItem, ItemValue),
+        node: &mut FwNode,
+    ) -> Result<(), Error>;
+
+    fn fin(&mut self, node: &mut FwNode) -> Result<(), Error>;
+}
+
 const BOOL_TRUE: i32 = 0x7f;
 
 pub trait SequencerCtlOperation<
