@@ -16,6 +16,39 @@
 //!   ARM:      0x000100b7
 //!   Hardware: 0x00030000
 //! ```
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! andlog-input-0/1 ------+--------------------+----------> stream-output-0/1
+//! andlog-input-2/3 ------|--+-----------------|----------> stream-output-2/3
+//! andlog-input-4/5 ------|--|--+--------------|----------> stream-output-4/5
+//! andlog-input-6/7 ------|--|--|--+-----------|----------> stream-output-6/7
+//! coaxial-input-0/1 -----|--|--|--|-----------|----------> stream-output-8/9
+//! optical-input-0/1 -----|--|--|--|-----------|----------> stream-output-10/11
+//! optical-input-2/3 -----|--|--|--|-----------|----------> stream-output-12/13
+//! optical-input-4/5 -----|--|--|--|-----------|----------> stream-output-14/15
+//! optical-input-6/7 -----|--|--|--|-----------|----------> stream-output-16/17
+//!                        v  v  v  v           |       
+//!                      ++==========++         |       
+//!                      || monitor  ||         |       
+//!                      ++==========++         |       
+//!                            |                |       
+//!                            v                |       
+//!                      ++==========++         |       
+//! stream-input-0/1 --> ||  mixer   || --+-----|--+-------> analog-output-0/1
+//!                      ++==========++   |     |  |    
+//!                                       |     |  |    
+//! stream-input-2/3   -------------------|-----|--+-------> analog-output-2/3
+//! stream-input-4/5   -------------------|-----|--+-------> analog-output-4/5
+//! stream-input-6/7   -------------------|-----|--+-------> analog-output-6/7
+//!                                       v     |  |    
+//! stream-input-8/9   ------------> (one of) --|--|--+----> coaxial-output-0/1
+//!                                             |  |  |
+//!                                             v  v  v
+//! stream-input-10.17 -----------------------> (one of) --> optical-output-0..7
+//! ```
 
 use super::*;
 
