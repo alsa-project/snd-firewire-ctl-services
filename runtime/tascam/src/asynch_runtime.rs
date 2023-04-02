@@ -23,6 +23,7 @@ where
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<Dispatcher>,
+    converter: EventConverter<T>,
     _phantom: PhantomData<T>,
 }
 
@@ -79,6 +80,7 @@ where
             tx,
             rx,
             dispatchers: Default::default(),
+            converter: Default::default(),
             _phantom: Default::default(),
         })
     }
@@ -114,6 +116,7 @@ where
                         &mut self.unit.0,
                         &mut self.unit.1,
                         &mut self.seq_cntr,
+                        &self.converter,
                         index,
                         before,
                         after,
@@ -123,6 +126,7 @@ where
                     let _ = self.model.dispatch_appl_events(
                         &mut self.unit.1,
                         &mut self.seq_cntr,
+                        &self.converter,
                         &events,
                     );
                 }

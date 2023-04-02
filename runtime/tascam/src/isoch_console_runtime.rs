@@ -38,6 +38,7 @@ where
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
     measure_elems: Vec<ElemId>,
+    converter: EventConverter<T>,
     _phantom: PhantomData<T>,
 }
 
@@ -98,6 +99,7 @@ where
             dispatchers: Default::default(),
             timer: Default::default(),
             measure_elems: Default::default(),
+            converter: Default::default(),
             _phantom: Default::default(),
         })
     }
@@ -186,6 +188,7 @@ where
                     let _ = self.model.dispatch_appl_events(
                         &mut self.unit.1,
                         &mut self.seq_cntr,
+                        &self.converter,
                         &events,
                     );
                 }
@@ -194,6 +197,7 @@ where
                         &mut self.unit.0,
                         &mut self.unit.1,
                         &mut self.seq_cntr,
+                        &self.converter,
                         index,
                         before,
                         after,
