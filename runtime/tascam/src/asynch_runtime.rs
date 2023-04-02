@@ -10,12 +10,12 @@ use {
     std::sync::mpsc,
 };
 
-pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
+pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol>;
 
-pub struct AsynchRuntime<S, T, U>
+pub struct AsynchRuntime<S, T>
 where
-    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: SequencerCtlOperation<TascamExpander, T> + Default,
+    T: MachineStateOperation,
 {
     unit: (TascamExpander, FwNode),
     model: S,
@@ -23,19 +23,18 @@ where
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<Dispatcher>,
-    _phantom0: PhantomData<T>,
-    _phantom1: PhantomData<U>,
+    _phantom: PhantomData<T>,
 }
 
-impl<S, T, U> Drop for AsynchRuntime<S, T, U>
+impl<S, T> Drop for AsynchRuntime<S, T>
 where
-    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: SequencerCtlOperation<TascamExpander, T> + Default,
+    T: MachineStateOperation,
 {
     fn drop(&mut self) {
         self.unit.0.unbind();
 
-        let _ = self.model.finalize_surface(&mut self.unit.1);
+        let _ = self.model.fin(&mut self.unit.1);
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -60,12 +59,12 @@ enum AsyncUnitEvent {
 
 const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
 
-impl<S, T, U> AsynchRuntime<S, T, U>
+impl<S, T> AsynchRuntime<S, T>
 where
-    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: SequencerCtlOperation<TascamExpander, T> + Default,
+    T: MachineStateOperation,
 {
-    pub fn new(node: FwNode, name: String) -> Result<Self, Error> {
+    pub(crate) fn new(node: FwNode, name: String) -> Result<Self, Error> {
         let unit = TascamExpander::new();
 
         let seq_cntr = SeqCntr::new(&name)?;
@@ -80,12 +79,11 @@ where
             tx,
             rx,
             dispatchers: Default::default(),
-            _phantom0: Default::default(),
-            _phantom1: Default::default(),
+            _phantom: Default::default(),
         })
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
+    pub(crate) fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
 
         self.unit.0.bind(&mut self.unit.1)?;
@@ -97,7 +95,7 @@ where
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub(crate) fn run(&mut self) -> Result<(), Error> {
         self.unit.0.listen()?;
 
         loop {

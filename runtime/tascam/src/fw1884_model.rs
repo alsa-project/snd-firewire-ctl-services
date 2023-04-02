@@ -19,7 +19,7 @@ pub struct Fw1884Model {
     specific_ctl: SpecificCtl,
     common_state: TascamSurfaceCommonState,
     isoch_state: TascamSurfaceIsochState,
-    seq_state: SequencerState<Fw1884SurfaceState>,
+    seq_state: SequencerState,
 }
 
 impl Default for Fw1884Model {
@@ -43,7 +43,7 @@ impl Default for Fw1884Model {
 
 const TIMEOUT_MS: u32 = 50;
 
-impl IsochConsoleCtlModel<Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
+impl IsochConsoleCtlModel<Fw1884Protocol> for Fw1884Model {
     fn cache(&mut self, (unit, node): &mut (SndTascam, FwNode)) -> Result<(), Error> {
         unit.read_state(&mut self.image)?;
         self.meter_ctl.parse(&self.image)?;
@@ -120,61 +120,13 @@ impl SurfaceCtlOperation<SndTascam> for Fw1884Model {
     }
 }
 
-impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
-    fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
+impl SequencerCtlOperation<SndTascam, Fw1884Protocol> for Fw1884Model {
+    fn state(&self) -> &SequencerState {
         &self.seq_state
     }
 
-    fn state_mut(&mut self) -> &mut SequencerState<Fw1884SurfaceState> {
+    fn state_mut(&mut self) -> &mut SequencerState {
         &mut self.seq_state
-    }
-
-    fn image(&self) -> &[u32] {
-        &self.image
-    }
-
-    fn image_mut(&mut self) -> &mut Vec<u32> {
-        &mut self.image
-    }
-
-    fn initialize_surface(
-        &mut self,
-        node: &mut FwNode,
-        machine_values: &[(MachineItem, ItemValue)],
-    ) -> Result<(), Error> {
-        machine_values
-            .iter()
-            .filter(|(item, _)| {
-                MachineItem::Bank.eq(item)
-                    || Fw1884Protocol::TRANSPORT_ITEMS
-                        .iter()
-                        .find(|i| item.eq(i))
-                        .is_some()
-            })
-            .try_for_each(|entry| self.feedback_to_surface(node, entry))
-    }
-
-    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error> {
-        Fw1884Protocol::finalize_surface(
-            &mut self.seq_state.surface_state,
-            &mut self.req,
-            node,
-            TIMEOUT_MS,
-        )
-    }
-
-    fn feedback_to_surface(
-        &mut self,
-        node: &mut FwNode,
-        event: &(MachineItem, ItemValue),
-    ) -> Result<(), Error> {
-        Fw1884Protocol::feedback_to_surface(
-            &mut self.seq_state.surface_state,
-            event,
-            &mut self.req,
-            node,
-            TIMEOUT_MS,
-        )
     }
 }
 

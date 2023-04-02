@@ -11,24 +11,23 @@ use {
     std::{marker::PhantomData, sync::mpsc, time::Duration},
 };
 
-pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol, Fw1884SurfaceState>;
-pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082SurfaceState>;
+pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol>;
+pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol>;
 
-pub trait IsochConsoleCtlModel<T, U>:
+pub trait IsochConsoleCtlModel<T>:
     CtlModel<(SndTascam, FwNode)>
     + MeasureModel<(SndTascam, FwNode)>
-    + SequencerCtlOperation<SndTascam, T, U>
-    + Default
+    + SequencerCtlOperation<SndTascam, T>
 where
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    T: MachineStateOperation,
 {
     fn cache(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error>;
 }
 
-pub struct IsochConsoleRuntime<S, T, U>
+pub struct IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T, U>,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: IsochConsoleCtlModel<T> + Default,
+    T: MachineStateOperation,
 {
     unit: (SndTascam, FwNode),
     model: S,
@@ -39,17 +38,16 @@ where
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
     measure_elems: Vec<ElemId>,
-    _phantom0: PhantomData<T>,
-    _phantom1: PhantomData<U>,
+    _phantom: PhantomData<T>,
 }
 
-impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
+impl<S, T> Drop for IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T, U>,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: IsochConsoleCtlModel<T> + Default,
+    T: MachineStateOperation,
 {
     fn drop(&mut self) {
-        let _ = self.model.finalize_sequencer(&mut self.unit.1);
+        let _ = self.model.fin(&mut self.unit.1);
         self.dispatchers.clear();
     }
 }
@@ -71,12 +69,17 @@ const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
 const TIMER_NAME: &str = "metering";
 const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-impl<S, T, U> IsochConsoleRuntime<S, T, U>
+impl<S, T> IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T, U>,
-    T: MachineStateOperation + SurfaceImageOperation<U>,
+    S: IsochConsoleCtlModel<T> + Default,
+    T: MachineStateOperation,
 {
-    pub fn new(unit: SndTascam, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
+    pub(crate) fn new(
+        unit: SndTascam,
+        node: FwNode,
+        name: &str,
+        sysnum: u32,
+    ) -> Result<Self, Error> {
         let card_cntr = CardCntr::default();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -95,12 +98,11 @@ where
             dispatchers: Default::default(),
             timer: Default::default(),
             measure_elems: Default::default(),
-            _phantom0: Default::default(),
-            _phantom1: Default::default(),
+            _phantom: Default::default(),
         })
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
+    pub(crate) fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
@@ -122,7 +124,7 @@ where
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub(crate) fn run(&mut self) -> Result<(), Error> {
         let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {

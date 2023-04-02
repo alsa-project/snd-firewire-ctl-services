@@ -258,13 +258,6 @@ impl MachineStateOperation for Fw1884Protocol {
     const HAS_BANK: bool = true;
 }
 
-/// State of control surface in FW-1884.
-#[derive(Default, Debug)]
-pub struct Fw1884SurfaceState {
-    common: TascamSurfaceCommonState,
-    isoch: TascamSurfaceIsochState,
-}
-
 impl TascamSurfaceLedNormalSpecification for Fw1884Protocol {
     const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
         (&[MachineItem::Ol(0)], &[3]),
@@ -539,50 +532,6 @@ impl TascamSurfaceStateIsochSpecification for Fw1884Protocol {
         SurfaceBoolValue(9, 0x00080000),
         SurfaceBoolValue(9, 0x00100000),
     ];
-}
-
-impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
-    fn initialize_surface_state(state: &mut Fw1884SurfaceState) {
-        Self::init(&mut state.common);
-        Self::init(&mut state.isoch);
-    }
-
-    fn decode_surface_image(
-        state: &Fw1884SurfaceState,
-        image: &[u32],
-        index: u32,
-        before: u32,
-        after: u32,
-    ) -> Vec<(MachineItem, ItemValue)> {
-        let mut machine_values = Self::peek(&state.common, image, index, before, after);
-        machine_values.append(&mut Self::peek(&state.common, image, index, before, after));
-        machine_values
-    }
-
-    fn feedback_to_surface(
-        state: &mut Fw1884SurfaceState,
-        machine_value: &(MachineItem, ItemValue),
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::operate_leds(&mut state.common, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.common, machine_value))?;
-        Self::operate_leds(&mut state.isoch, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.isoch, machine_value))?;
-        Ok(())
-    }
-
-    fn finalize_surface(
-        state: &mut Fw1884SurfaceState,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::clear_leds(&mut state.common, req, node, timeout_ms)?;
-        Self::clear_leds(&mut state.isoch, req, node, timeout_ms)?;
-        Ok(())
-    }
 }
 
 impl FireWireLedOperation for Fw1884Protocol {

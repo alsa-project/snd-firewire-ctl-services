@@ -142,14 +142,6 @@ impl MachineStateOperation for Fw1082Protocol {
     const HAS_BANK: bool = true;
 }
 
-/// State of control surface in FW-1082.
-#[derive(Default, Debug)]
-pub struct Fw1082SurfaceState {
-    common: TascamSurfaceCommonState,
-    isoch: TascamSurfaceIsochState,
-    specific: TascamSurfaceFw1082State,
-}
-
 impl TascamSurfaceLedNormalSpecification for Fw1082Protocol {
     const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
         (&[MachineItem::Rec(0)], &[5]),
@@ -327,61 +319,6 @@ impl TascamSurfaceStateIsochSpecification for Fw1082Protocol {
         SurfaceBoolValue(9, 0x00080000),
         SurfaceBoolValue(9, 0x00100000),
     ];
-}
-
-impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
-    fn initialize_surface_state(state: &mut Fw1082SurfaceState) {
-        Self::init(&mut state.common);
-        Self::init(&mut state.isoch);
-        Self::init(&mut state.specific);
-    }
-
-    fn decode_surface_image(
-        state: &Fw1082SurfaceState,
-        image: &[u32],
-        index: u32,
-        before: u32,
-        after: u32,
-    ) -> Vec<(MachineItem, ItemValue)> {
-        let mut machine_values = Self::peek(&state.common, image, index, before, after);
-        machine_values.append(&mut Self::peek(&state.isoch, image, index, before, after));
-        machine_values.append(&mut Self::peek(
-            &state.specific,
-            image,
-            index,
-            before,
-            after,
-        ));
-        machine_values
-    }
-
-    fn feedback_to_surface(
-        state: &mut Fw1082SurfaceState,
-        machine_value: &(MachineItem, ItemValue),
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::operate_leds(&mut state.common, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.common, machine_value))?;
-        Self::operate_leds(&mut state.isoch, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.common, machine_value))?;
-        Self::operate_leds(&mut state.specific, machine_value, req, node, timeout_ms)
-            .map(|_| Self::ack(&mut state.common, machine_value))?;
-        Ok(())
-    }
-
-    fn finalize_surface(
-        state: &mut Fw1082SurfaceState,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::clear_leds(&mut state.common, req, node, timeout_ms)?;
-        Self::clear_leds(&mut state.isoch, req, node, timeout_ms)?;
-        Self::clear_leds(&mut state.specific, req, node, timeout_ms)?;
-        Ok(())
-    }
 }
 
 /// The mode of encoder items.
