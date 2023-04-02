@@ -302,6 +302,34 @@ impl TascamSurfaceStateCommonSpecification for Fw1082Protocol {
     ];
 }
 
+impl TascamSurfaceStateIsochSpecification for Fw1082Protocol {
+    const SHIFT_ITEM: SurfaceBoolValue = SurfaceBoolValue(8, 0x01000000);
+
+    const SHIFTED_ITEMS: &'static [(SurfaceBoolValue, [MachineItem; 2])] = &[
+        (
+            SurfaceBoolValue(9, 0x00000008),
+            [MachineItem::Func(3), MachineItem::Func(7)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000004),
+            [MachineItem::Func(2), MachineItem::Func(6)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000002),
+            [MachineItem::Func(1), MachineItem::Func(5)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000001),
+            [MachineItem::Func(0), MachineItem::Func(4)],
+        ),
+    ];
+
+    const BANK_CURSORS: [SurfaceBoolValue; 2] = [
+        SurfaceBoolValue(9, 0x00080000),
+        SurfaceBoolValue(9, 0x00100000),
+    ];
+}
+
 impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     fn initialize_surface_state(state: &mut Fw1082SurfaceState) {
         Self::initialize_surface_common_state(&mut state.common);

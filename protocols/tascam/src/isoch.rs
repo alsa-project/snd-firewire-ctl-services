@@ -921,6 +921,96 @@ where
     }
 }
 
+/// The trait to express state of surface specific to isochronous models.
+pub trait TascamSurfaceStateIsochSpecification {
+    const SHIFT_ITEM: SurfaceBoolValue;
+    const SHIFTED_ITEMS: &'static [(SurfaceBoolValue, [MachineItem; 2])];
+    const BANK_CURSORS: [SurfaceBoolValue; 2];
+}
+
+impl<O> TascamSurfaceStateOperation<TascamSurfaceIsochState> for O
+where
+    O: TascamSurfaceStateIsochSpecification,
+{
+    fn init(state: &mut TascamSurfaceIsochState) {
+        state.shifted = false;
+        state.shifted_items = vec![false; Self::SHIFTED_ITEMS.len()];
+        state.bank = 0;
+    }
+
+    fn peek(
+        state: &TascamSurfaceIsochState,
+        _: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        let mut machine_values = Vec::new();
+
+        let shifted = if detect_bool_action(&Self::SHIFT_ITEM, index, before, after) {
+            let shifted = detect_bool_value(&Self::SHIFT_ITEM, before);
+            machine_values.push((MachineItem::Shift, ItemValue::Bool(shifted)));
+            shifted
+        } else {
+            state.shifted
+        };
+
+        if shifted != state.shifted {
+            let prev_idx = state.shifted as usize;
+            let curr_idx = shifted as usize;
+
+            Self::SHIFTED_ITEMS
+                .iter()
+                .zip(&state.shifted_items)
+                .filter(|(_, &s)| s)
+                .for_each(|((_, pairs), _)| {
+                    machine_values.push((pairs[prev_idx], ItemValue::Bool(false)));
+                    machine_values.push((pairs[curr_idx], ItemValue::Bool(true)));
+                });
+        }
+
+        Self::SHIFTED_ITEMS
+            .iter()
+            .filter(|(bool_val, _)| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(bool_val, pairs)| {
+                let value = detect_bool_value(bool_val, before);
+                machine_values.push((pairs[shifted as usize], ItemValue::Bool(value)));
+            });
+
+        Self::BANK_CURSORS
+            .iter()
+            .enumerate()
+            .filter(|(_, bool_val)| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(idx, bool_val)| {
+                let is_right = idx > 0;
+                let push_event = detect_bool_value(bool_val, before);
+                if push_event {
+                    let mut bank = state.bank;
+
+                    if !is_right && bank > BANK_MIN {
+                        bank -= 1;
+                    } else if is_right && bank < BANK_MAX {
+                        bank += 1;
+                    }
+
+                    if bank != state.bank {
+                        machine_values.push((MachineItem::Bank, ItemValue::U16(bank)));
+                    }
+                }
+            });
+
+        machine_values
+    }
+
+    fn ack(state: &mut TascamSurfaceIsochState, machine_value: &(MachineItem, ItemValue)) {
+        match machine_value {
+            &(MachineItem::Shift, ItemValue::Bool(value)) => state.shifted = value,
+            &(MachineItem::Bank, ItemValue::U16(value)) => state.bank = value,
+            _ => (),
+        }
+    }
+}
+
 /// The trait for operation specific to isoch models.
 trait SurfaceImageIsochOperation {
     const SHIFT_ITEM: SurfaceBoolValue;
