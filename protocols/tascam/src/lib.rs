@@ -818,21 +818,3 @@ pub trait FireWireLedOperation {
         operate_led(req, node, Self::POSITIONS[0], enable, timeout_ms)
     }
 }
-
-/// The trait for operation of normal LED in surface.
-trait SurfaceNormalLedOperation {
-    const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])];
-
-    fn find_normal_led_pos(item: &MachineItem) -> Option<u16> {
-        Self::NORMAL_LEDS
-            .iter()
-            .find(|(items, _)| {
-                if items.len() == 1 {
-                    items[0].eq(item)
-                } else {
-                    items.iter().find(|i| item.eq(i)).is_some()
-                }
-            })
-            .map(|(_, positions)| positions[0])
-    }
-}
