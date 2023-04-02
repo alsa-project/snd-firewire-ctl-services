@@ -301,32 +301,44 @@ where
 
 const ISOCH_IMAGE_QUADLET_COUNT: usize = 64;
 
-/// Mode of monitor.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MonitorMode {
+/// Mode of output mixer.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MixerMode {
+    /// From stream input 0/1 only.
     Computer,
+    /// From monitor outputs 0/1 only.
     Inputs,
+    /// Multiplex signals from stream input 0/1 and monitor output 0/1.
     Both,
 }
 
-impl Default for MonitorMode {
+impl Default for MixerMode {
     fn default() -> Self {
         Self::Computer
     }
 }
 
 /// State of meter.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct IsochMeterState {
+    /// The value of monitor knob.
     pub monitor: i16,
+    /// The value of solo knob.
     pub solo: Option<i16>,
+    /// Detected signal levels for inputs.
     pub inputs: Vec<i32>,
+    /// Detected signal levels for outputs.
     pub outputs: Vec<i32>,
+    /// Detected rate of sampling clock.
     pub rate: Option<ClkRate>,
+    /// detected source of sampling clock.
     pub src: Option<ClkSrc>,
+    /// Detected signal levels of mixer outputs.
+    pub mixer_meters: [i32; 2],
+    /// Detected signal levels of monitor outputs.
     pub monitor_meters: [i32; 2],
-    pub analog_mixer_meters: [i32; 2],
-    pub monitor_mode: MonitorMode,
+    /// The mode of mixer.
+    pub mixer_mode: MixerMode,
 }
 
 /// The specification of metering.
@@ -355,9 +367,9 @@ pub trait TascamIsochMeterSpecification: TascamHardwareImageSpecification {
             outputs: vec![Default::default(); Self::OUTPUT_COUNT],
             rate: Default::default(),
             src: Default::default(),
+            mixer_meters: Default::default(),
             monitor_meters: Default::default(),
-            analog_mixer_meters: Default::default(),
-            monitor_mode: Default::default(),
+            mixer_mode: Default::default(),
         }
     }
 }
@@ -428,7 +440,7 @@ where
         };
 
         state
-            .monitor_meters
+            .mixer_meters
             .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
@@ -436,7 +448,7 @@ where
             });
 
         state
-            .analog_mixer_meters
+            .monitor_meters
             .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
@@ -444,10 +456,10 @@ where
             });
 
         if image[59] > 0 && image[59] < 4 {
-            state.monitor_mode = match image[59] {
-                2 => MonitorMode::Inputs,
-                1 => MonitorMode::Computer,
-                _ => MonitorMode::Both,
+            state.mixer_mode = match image[59] {
+                2 => MixerMode::Inputs,
+                1 => MixerMode::Computer,
+                _ => MixerMode::Both,
             };
         }
     }
