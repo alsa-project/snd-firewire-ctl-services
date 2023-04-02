@@ -107,7 +107,7 @@ impl TascamIsochMeterSpecification for Fw1884Protocol {
 impl TascamIsochConsoleSpecification for Fw1884Protocol {}
 
 /// The target of monitor knob.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Fw1884MonitorKnobTarget {
     /// For analog output 1/2.
     AnalogOutputPair0,

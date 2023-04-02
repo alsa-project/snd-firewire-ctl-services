@@ -60,7 +60,7 @@ impl TascamHardwareImageSpecification for Fw1082Protocol {
 impl TascamIsochMeterSpecification for Fw1082Protocol {
     const INPUT_COUNT: usize = 10;
     const OUTPUT_COUNT: usize = 4;
-    const HAS_SOLO: bool = true;
+    const HAS_SOLO: bool = false;
 }
 
 impl TascamIsochConsoleSpecification for Fw1082Protocol {}

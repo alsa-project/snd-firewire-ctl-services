@@ -37,9 +37,9 @@ const INPUT_METER_NAME: &str = "input-meters";
 const OUTPUT_METER_NAME: &str = "output-meters";
 const DETECTED_CLK_SRC_NAME: &str = "detected-clock-source";
 const DETECTED_CLK_RATE_NAME: &str = "detected-clock-rate";
+const MIXER_METER_NAME: &str = "mixer-meters";
 const MONITOR_METER_NAME: &str = "monitor-meters";
-const ANALOG_MIXER_METER_NAME: &str = "analog-mixer-meters";
-const MONITOR_MODE_NAME: &str = "monitor-mode";
+const MIXER_MODE_NAME: &str = "mixer-mode";
 
 fn clk_src_to_str(src: &Option<ClkSrc>) -> &'static str {
     match src {
@@ -61,11 +61,11 @@ fn clk_rate_to_str(rate: &Option<ClkRate>) -> &'static str {
     }
 }
 
-fn monitor_mode_to_str(mode: &MonitorMode) -> &'static str {
+fn mixer_mode_to_str(mode: &MixerMode) -> &'static str {
     match mode {
-        MonitorMode::Computer => "computer",
-        MonitorMode::Inputs => "input",
-        MonitorMode::Both => "both",
+        MixerMode::Computer => "computer",
+        MixerMode::Inputs => "input",
+        MixerMode::Both => "both",
     }
 }
 
@@ -89,11 +89,7 @@ where
         None,
     ];
 
-    const MONITOR_MODES: [MonitorMode; 3] = [
-        MonitorMode::Computer,
-        MonitorMode::Inputs,
-        MonitorMode::Both,
-    ];
+    const MIXER_MODES: [MixerMode; 3] = [MixerMode::Computer, MixerMode::Inputs, MixerMode::Both];
 
     pub(crate) fn parse(&mut self, image: &[u32]) -> Result<(), Error> {
         T::parse_image(&mut self.params, image);
@@ -160,7 +156,7 @@ where
             )
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_METER_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -174,7 +170,7 @@ where
             )
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_MIXER_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_METER_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -200,11 +196,11 @@ where
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::MONITOR_MODES
+        let labels: Vec<&str> = Self::MIXER_MODES
             .iter()
-            .map(|s| monitor_mode_to_str(s))
+            .map(|s| mixer_mode_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
@@ -252,6 +248,16 @@ where
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
+            MIXER_METER_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .monitor_meters
+                    .iter()
+                    .map(|&l| l as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
             MONITOR_METER_NAME => {
                 let vals: Vec<i32> = self
                     .params
@@ -262,20 +268,10 @@ where
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            ANALOG_MIXER_METER_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .analog_mixer_meters
+            MIXER_MODE_NAME => {
+                let pos = Self::MIXER_MODES
                     .iter()
-                    .map(|&l| l as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            MONITOR_MODE_NAME => {
-                let pos = Self::MONITOR_MODES
-                    .iter()
-                    .position(|m| self.params.monitor_mode.eq(m))
+                    .position(|m| self.params.mixer_mode.eq(m))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
