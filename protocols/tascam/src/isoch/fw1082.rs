@@ -16,6 +16,28 @@
 //!   ARM:      0x000100b7
 //!   Hardware: 0x00050000
 //! ```
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//!
+//! andlog-input-0/1 ------+----------------------------> stream-output-0/1
+//! andlog-input-2/3 ------|--+-------------------------> stream-output-2/3
+//! andlog-input-4/5 ------|--|--+----------------------> stream-output-4/5
+//! andlog-input-6/7 ------|--|--|--+-------------------> stream-output-6/7
+//! spdif-input-0/1 -------|--|--|--|-------------------> stream-output-8/9
+//!                        v  v  v  v
+//!                      ++===========++
+//!                      ||  monitor  ||
+//!                      ++===========++
+//!                             |
+//!                             v
+//!                      ++===========++
+//! stream-input-0/1 --> ||   mixer   || ---------------> analog-output-0/1
+//!                      ++===========++
+//!
+//! stream-input-2/3 -----------------------------------> spdif-output-0/1
+//! ```
 
 use super::*;
 
