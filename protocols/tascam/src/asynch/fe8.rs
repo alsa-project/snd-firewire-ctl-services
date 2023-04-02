@@ -90,7 +90,6 @@ impl MachineStateOperation for Fe8Protocol {
 #[derive(Default, Debug)]
 pub struct Fe8SurfaceState {
     common: TascamSurfaceCommonState,
-    led_state: LedState,
 }
 
 impl TascamSurfaceLedNormalSpecification for Fe8Protocol {
@@ -217,7 +216,7 @@ impl TascamSurfaceStateCommonSpecification for Fe8Protocol {
 
 impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
     fn initialize_surface_state(state: &mut Fe8SurfaceState) {
-        Self::initialize_surface_common_state(&mut state.common);
+        Self::init(&mut state.common);
     }
 
     fn decode_surface_image(
@@ -227,18 +226,7 @@ impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
         before: u32,
         after: u32,
     ) -> Vec<(MachineItem, ItemValue)> {
-        let mut machine_values = Vec::new();
-
-        Self::decode_surface_image_common(
-            &mut machine_values,
-            &state.common,
-            image,
-            index,
-            before,
-            after,
-        );
-
-        machine_values
+        Self::peek(&state.common, image, index, before, after)
     }
 
     fn feedback_to_surface(
@@ -248,15 +236,8 @@ impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::feedback_to_surface_common(&mut state.common, machine_value);
-
-        if let ItemValue::Bool(value) = machine_value.1 {
-            if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
-                operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
-            }
-        }
-
-        Ok(())
+        Self::operate_leds(&mut state.common, machine_value, req, node, timeout_ms)
+            .map(|_| Self::ack(&mut state.common, machine_value))
     }
 
     fn finalize_surface(
@@ -265,132 +246,10 @@ impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        clear_leds(&mut state.led_state, req, node, timeout_ms)
+        Self::clear_leds(&mut state.common, req, node, timeout_ms)
     }
-}
-
-impl SurfaceImageCommonOperation for Fe8Protocol {
-    const STATEFUL_ITEMS: &'static [(SurfaceBoolValue, MachineItem)] = &[
-        (SurfaceBoolValue(13, 0x00008000), MachineItem::Solo(7)),
-        (SurfaceBoolValue(13, 0x00004000), MachineItem::Solo(6)),
-        (SurfaceBoolValue(13, 0x00002000), MachineItem::Solo(5)),
-        (SurfaceBoolValue(13, 0x00001000), MachineItem::Solo(4)),
-        (SurfaceBoolValue(13, 0x00000800), MachineItem::Solo(3)),
-        (SurfaceBoolValue(13, 0x00000400), MachineItem::Solo(2)),
-        (SurfaceBoolValue(13, 0x00000200), MachineItem::Solo(1)),
-        (SurfaceBoolValue(13, 0x00000100), MachineItem::Solo(0)),
-        (SurfaceBoolValue(13, 0x00000008), MachineItem::Select(3)),
-        (SurfaceBoolValue(13, 0x00000004), MachineItem::Select(2)),
-        (SurfaceBoolValue(13, 0x00000002), MachineItem::Select(1)),
-        (SurfaceBoolValue(13, 0x00000001), MachineItem::Select(0)),
-        (SurfaceBoolValue(13, 0x00000080), MachineItem::Select(7)),
-        (SurfaceBoolValue(13, 0x00000040), MachineItem::Select(6)),
-        (SurfaceBoolValue(13, 0x00000020), MachineItem::Select(5)),
-        (SurfaceBoolValue(13, 0x00000010), MachineItem::Select(4)),
-        (SurfaceBoolValue(14, 0x00000008), MachineItem::Mute(3)),
-        (SurfaceBoolValue(14, 0x00000004), MachineItem::Mute(2)),
-        (SurfaceBoolValue(14, 0x00000002), MachineItem::Mute(1)),
-        (SurfaceBoolValue(14, 0x00000001), MachineItem::Mute(0)),
-        (SurfaceBoolValue(14, 0x00000080), MachineItem::Mute(7)),
-        (SurfaceBoolValue(14, 0x00000040), MachineItem::Mute(6)),
-        (SurfaceBoolValue(14, 0x00000020), MachineItem::Mute(5)),
-        (SurfaceBoolValue(14, 0x00000010), MachineItem::Mute(4)),
-    ];
-
-    const STATELESS_ITEMS: &'static [(SurfaceBoolValue, MachineItem)] = &[];
-
-    const ROTARIES: &'static [(SurfaceU16Value, MachineItem)] = &[
-        (SurfaceU16Value(20, 0x0000ffff, 0), MachineItem::Rotary(0)),
-        (SurfaceU16Value(21, 0x0000ffff, 0), MachineItem::Rotary(1)),
-        (SurfaceU16Value(22, 0x0000ffff, 0), MachineItem::Rotary(2)),
-        (SurfaceU16Value(23, 0x0000ffff, 0), MachineItem::Rotary(3)),
-        (SurfaceU16Value(24, 0x0000ffff, 0), MachineItem::Rotary(4)),
-        (SurfaceU16Value(25, 0x0000ffff, 0), MachineItem::Rotary(5)),
-        (SurfaceU16Value(26, 0x0000ffff, 0), MachineItem::Rotary(6)),
-        (SurfaceU16Value(27, 0x0000ffff, 0), MachineItem::Rotary(7)),
-    ];
-
-    const FADERS: &'static [(SurfaceBoolValue, SurfaceU16Value, MachineItem)] = &[
-        (
-            SurfaceBoolValue(11, 0x00000001),
-            SurfaceU16Value(0, 0x0000ffff, 0),
-            MachineItem::Input(0),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000002),
-            SurfaceU16Value(1, 0x0000ffff, 0),
-            MachineItem::Input(1),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000004),
-            SurfaceU16Value(2, 0x0000ffff, 0),
-            MachineItem::Input(2),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000008),
-            SurfaceU16Value(3, 0x0000ffff, 0),
-            MachineItem::Input(3),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000010),
-            SurfaceU16Value(4, 0x0000ffff, 0),
-            MachineItem::Input(4),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000020),
-            SurfaceU16Value(5, 0x0000ffff, 0),
-            MachineItem::Input(5),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000040),
-            SurfaceU16Value(6, 0x0000ffff, 0),
-            MachineItem::Input(6),
-        ),
-        (
-            SurfaceBoolValue(11, 0x00000080),
-            SurfaceU16Value(7, 0x0000ffff, 0),
-            MachineItem::Input(7),
-        ),
-    ];
 }
 
 impl FireWireLedOperation for Fe8Protocol {
     const POSITIONS: &'static [u16] = &[0x16, 0x8e];
-}
-
-impl SurfaceNormalLedOperation for Fe8Protocol {
-    const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
-        (&[MachineItem::Rec(0)], &[0x05]),
-        (&[MachineItem::Rec(1)], &[0x18, 0x25]),
-        (&[MachineItem::Rec(2)], &[0x38, 0x45]),
-        (&[MachineItem::Rec(3)], &[0x58, 0x65]),
-        (&[MachineItem::Rec(4)], &[0x76, 0x82]),
-        (&[MachineItem::Rec(5)], &[0x98, 0xa5]),
-        (&[MachineItem::Rec(6)], &[0xb8, 0xc5]),
-        (&[MachineItem::Rec(7)], &[0xd8, 0xe5]),
-        (&[MachineItem::Select(0)], &[0x00]),
-        (&[MachineItem::Select(1)], &[0x13, 0x20]),
-        (&[MachineItem::Select(2)], &[0x33, 0x40]),
-        (&[MachineItem::Select(3)], &[0x53, 0x60]),
-        (&[MachineItem::Select(4)], &[0x73, 0x80]),
-        (&[MachineItem::Select(5)], &[0x93, 0xa0]),
-        (&[MachineItem::Select(6)], &[0xb3, 0xc0]),
-        (&[MachineItem::Select(7)], &[0xd3, 0xe0]),
-        (&[MachineItem::Solo(0)], &[0x01]),
-        (&[MachineItem::Solo(1)], &[0x14, 0x21]),
-        (&[MachineItem::Solo(2)], &[0x34, 0x41]),
-        (&[MachineItem::Solo(3)], &[0x54, 0x61]),
-        (&[MachineItem::Solo(4)], &[0x74, 0x81]),
-        (&[MachineItem::Solo(5)], &[0x94, 0xa1]),
-        (&[MachineItem::Solo(6)], &[0xb4, 0xc1]),
-        (&[MachineItem::Solo(7)], &[0xd4, 0xe1]),
-        (&[MachineItem::Mute(0)], &[0x02]),
-        (&[MachineItem::Mute(1)], &[0x15, 0x22]),
-        (&[MachineItem::Mute(2)], &[0x35, 0x42]),
-        (&[MachineItem::Mute(3)], &[0x55, 0x62]),
-        (&[MachineItem::Mute(4)], &[0x75, 0x82]),
-        (&[MachineItem::Mute(5)], &[0x95, 0xa2]),
-        (&[MachineItem::Mute(6)], &[0xb5, 0xc2]),
-        (&[MachineItem::Mute(7)], &[0xd5, 0xe2]),
-    ];
 }
