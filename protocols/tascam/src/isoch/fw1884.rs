@@ -353,6 +353,10 @@ impl TascamSurfaceLedNormalSpecification for Fw1884Protocol {
     ];
 }
 
+impl TascamSurfaceLedIsochSpecification for Fw1884Protocol {
+    const BANK_LEDS: [&'static [u16]; 4] = [&[127, 140], &[159, 172], &[191, 204], &[223, 236]];
+}
+
 impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
     fn initialize_surface_state(state: &mut Fw1884SurfaceState) {
         Self::initialize_surface_common_state(&mut state.common);
