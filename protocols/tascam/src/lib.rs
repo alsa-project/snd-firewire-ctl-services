@@ -465,6 +465,24 @@ pub trait MachineStateOperation {
     }
 }
 
+/// The trait to operate LED in surface.
+pub trait TascamSurfaceLedOperation<T> {
+    fn operate_leds(
+        state: &mut T,
+        machine_value: &(MachineItem, ItemValue),
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+
+    fn clear_leds(
+        state: &mut T,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 /// The trait for operation of constol surface.
 pub trait SurfaceImageOperation<T> {
     fn initialize_surface_state(state: &mut T);
