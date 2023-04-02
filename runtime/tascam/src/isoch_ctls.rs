@@ -98,7 +98,7 @@ where
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MONITOR_ROTARY_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -113,7 +113,7 @@ where
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         if T::HAS_SOLO {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SOLO_ROTARY_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SOLO_ROTARY_NAME, 0);
             card_cntr
                 .add_int_elems(
                     &elem_id,
@@ -185,13 +185,13 @@ where
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::CLK_SRCS.iter().map(|s| clk_src_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DETECTED_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DETECTED_CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::CLK_RATES.iter().map(|s| clk_rate_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DETECTED_CLK_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DETECTED_CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
@@ -325,7 +325,7 @@ where
             .iter()
             .map(|&s| clk_src_to_str(&Some(s)))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
@@ -334,7 +334,7 @@ where
             .iter()
             .map(|&r| clk_rate_to_str(&Some(r)))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
@@ -464,7 +464,7 @@ where
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
+            ElemIfaceType::Card,
             0,
             0,
             SIGNAL_DETECTION_THRESHOLD_NAME,
@@ -484,7 +484,7 @@ where
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
+            ElemIfaceType::Card,
             0,
             0,
             OVER_LEVEL_DETECTION_THRESHOLD_NAME,
@@ -839,12 +839,12 @@ where
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_FADER_ASSIGN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MASTER_FADER_ASSIGN_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HOST_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HOST_MODE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
