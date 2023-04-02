@@ -10,7 +10,7 @@ pub struct Fe8Model {
     req: FwReq,
     image: Vec<u32>,
     common_state: TascamSurfaceCommonState,
-    seq_state: SequencerState,
+    machine_state: MachineState,
 }
 
 impl Default for Fe8Model {
@@ -19,7 +19,7 @@ impl Default for Fe8Model {
             req: Default::default(),
             image: Fe8Protocol::create_hardware_image(),
             common_state: Default::default(),
-            seq_state: Default::default(),
+            machine_state: Fe8Protocol::create_machine_state(),
         }
     }
 }
@@ -69,11 +69,11 @@ impl SurfaceCtlOperation<TascamExpander> for Fe8Model {
 }
 
 impl SequencerCtlOperation<TascamExpander, Fe8Protocol> for Fe8Model {
-    fn state(&self) -> &SequencerState {
-        &self.seq_state
+    fn state(&self) -> &MachineState {
+        &self.machine_state
     }
 
-    fn state_mut(&mut self) -> &mut SequencerState {
-        &mut self.seq_state
+    fn state_mut(&mut self) -> &mut MachineState {
+        &mut self.machine_state
     }
 }

@@ -19,7 +19,7 @@ pub struct Fw1884Model {
     specific_ctl: SpecificCtl,
     common_state: TascamSurfaceCommonState,
     isoch_state: TascamSurfaceIsochState,
-    seq_state: SequencerState,
+    machine_state: MachineState,
 }
 
 impl Default for Fw1884Model {
@@ -36,7 +36,7 @@ impl Default for Fw1884Model {
             specific_ctl: Default::default(),
             common_state: Default::default(),
             isoch_state: Default::default(),
-            seq_state: Default::default(),
+            machine_state: Fw1884Protocol::create_machine_state(),
         }
     }
 }
@@ -121,12 +121,12 @@ impl SurfaceCtlOperation<SndTascam> for Fw1884Model {
 }
 
 impl SequencerCtlOperation<SndTascam, Fw1884Protocol> for Fw1884Model {
-    fn state(&self) -> &SequencerState {
-        &self.seq_state
+    fn state(&self) -> &MachineState {
+        &self.machine_state
     }
 
-    fn state_mut(&mut self) -> &mut SequencerState {
-        &mut self.seq_state
+    fn state_mut(&mut self) -> &mut MachineState {
+        &mut self.machine_state
     }
 }
 
