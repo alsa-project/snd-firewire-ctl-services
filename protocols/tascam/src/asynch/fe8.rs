@@ -89,7 +89,7 @@ impl MachineStateOperation for Fe8Protocol {
 /// State of control surface in FE-8.
 #[derive(Default, Debug)]
 pub struct Fe8SurfaceState {
-    common: SurfaceCommonState,
+    common: TascamSurfaceCommonState,
     led_state: LedState,
 }
 
