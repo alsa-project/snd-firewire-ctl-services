@@ -136,7 +136,6 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
 #[derive(Default)]
 pub struct SequencerState {
-    map: Vec<MachineItem>,
     machine_state: MachineState,
 }
 
@@ -172,7 +171,6 @@ where
 
     fn initialize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
         self.init(node)?;
-        self.initialize_message_map();
         T::initialize_machine(&mut self.state_mut().machine_state);
         let machine_values = T::get_machine_current_values(&self.state().machine_state);
         machine_values
@@ -180,40 +178,22 @@ where
             .try_for_each(|machine_value| self.ack(machine_value, node))
     }
 
-    fn initialize_message_map(&mut self) {
-        let map = &mut self.state_mut().map;
-        T::BOOL_ITEMS.iter().chain(T::U16_ITEMS).for_each(|&item| {
-            assert!(
-                map.iter().find(|i| item.eq(i)).is_none(),
-                "Programming error for list of machine item: {}",
-                item,
-            );
-            map.push(item);
-        });
-
-        if T::HAS_TRANSPORT {
-            map.extend_from_slice(&T::TRANSPORT_ITEMS);
-        }
-
-        if T::HAS_BANK {
-            map.push(MachineItem::Bank);
-        }
-    }
-
     fn dispatch_surface_event(
         &mut self,
         unit: &mut S,
         node: &mut FwNode,
         seq_cntr: &mut SeqCntr,
+        converter: &EventConverter<T>,
         index: u32,
         before: u32,
         after: u32,
     ) -> Result<(), Error> {
         let inputs = self.peek(unit, index, before, after)?;
         inputs.iter().try_for_each(|input| {
-            let outputs = self.dispatch_machine_event(input);
+            let outputs = T::change_machine_value(&mut self.state_mut().machine_state, input);
             outputs.iter().try_for_each(|output| {
-                self.feedback_to_appl(seq_cntr, output)?;
+                let event = converter.seq_event_from_machine_event(output)?;
+                seq_cntr.schedule_event(event)?;
                 self.ack(output, node)
             })
         })
@@ -223,91 +203,19 @@ where
         &mut self,
         node: &mut FwNode,
         seq_cntr: &mut SeqCntr,
+        converter: &EventConverter<T>,
         events: &[Event],
     ) -> Result<(), Error> {
-        // NOTE: At present, controller event is handled for my convenience.
-        events
-            .iter()
-            .filter(|ev| EventType::Controller == ev.event_type())
-            .filter_map(|ev| ev.ctl_data().ok())
-            .try_for_each(|ctl_data| {
-                let input = self.parse_appl_event(&ctl_data)?;
-                let outputs = self.dispatch_machine_event(&input);
-                outputs.iter().try_for_each(|output| {
-                    if !output.eq(&input) {
-                        self.feedback_to_appl(seq_cntr, output)?;
-                    }
-                    self.ack(output, node)
-                })
-            })
-    }
-
-    fn parse_appl_event(&self, data: &EventDataCtl) -> Result<(MachineItem, ItemValue), Error> {
-        if data.channel() != 0 {
-            let msg = format!("Channel {} is not supported yet.", data.channel());
-            Err(Error::new(FileError::Inval, &msg))?;
-        }
-
-        let index = data.param();
-        let &machine_item = self.state().map.iter().nth(index as usize).ok_or_else(|| {
-            let msg = format!("Unsupported control number: {}", index);
-            Error::new(FileError::Inval, &msg)
-        })?;
-
-        let value = data.value();
-        let item_value = if T::BOOL_ITEMS.iter().find(|i| machine_item.eq(i)).is_some() {
-            ItemValue::Bool(value == BOOL_TRUE)
-        } else if T::TRANSPORT_ITEMS
-            .iter()
-            .find(|i| machine_item.eq(i))
-            .is_some()
-        {
-            ItemValue::Bool(value == BOOL_TRUE)
-        } else if T::U16_ITEMS.iter().find(|i| machine_item.eq(i)).is_some() {
-            ItemValue::U16(value as u16)
-        } else if machine_item.eq(&MachineItem::Bank) {
-            ItemValue::U16(value as u16)
-        } else {
-            // Programming error.
-            unreachable!();
-        };
-
-        Ok((machine_item, item_value))
-    }
-
-    fn dispatch_machine_event(
-        &mut self,
-        input: &(MachineItem, ItemValue),
-    ) -> Vec<(MachineItem, ItemValue)> {
-        T::change_machine_value(&mut self.state_mut().machine_state, input)
-    }
-
-    fn feedback_to_appl(
-        &mut self,
-        cntr: &mut SeqCntr,
-        event: &(MachineItem, ItemValue),
-    ) -> Result<(), Error> {
-        let index = self
-            .state()
-            .map
-            .iter()
-            .position(|item| event.0.eq(item))
-            .ok_or_else(|| {
-                let msg = format!("Unsupported machine item: {}", event.0);
-                Error::new(FileError::Inval, &msg)
-            })?;
-
-        let value = match event.1 {
-            ItemValue::Bool(val) => {
-                if val {
-                    BOOL_TRUE
-                } else {
-                    0
+        events.iter().try_for_each(|event| {
+            let input = converter.seq_event_to_machine_event(event)?;
+            let outputs = T::change_machine_value(&mut self.state_mut().machine_state, &input);
+            outputs.iter().try_for_each(|output| {
+                if !output.eq(&input) {
+                    let event = converter.seq_event_from_machine_event(output)?;
+                    seq_cntr.schedule_event(event)?;
                 }
-            }
-            ItemValue::U16(val) => val as i32,
-        };
-
-        cntr.schedule_event(index as u32, value)
+                self.ack(output, node)
+            })
+        })
     }
 }
