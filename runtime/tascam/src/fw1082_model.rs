@@ -98,30 +98,39 @@ impl SurfaceCtlOperation<SndTascam> for Fw1082Model {
         machine_value: &(MachineItem, ItemValue),
         node: &mut FwNode,
     ) -> Result<(), Error> {
-        Fw1082Protocol::operate_leds(
+        let res = Fw1082Protocol::operate_leds(
             &mut self.common_state,
             machine_value,
             &mut self.req,
             node,
             TIMEOUT_MS,
         )
-        .map(|_| Fw1082Protocol::ack(&mut self.common_state, machine_value))?;
-        Fw1082Protocol::operate_leds(
+        .map(|_| Fw1082Protocol::ack(&mut self.common_state, machine_value));
+        debug!(params = ?self.common_state);
+        res?;
+
+        let res = Fw1082Protocol::operate_leds(
             &mut self.isoch_state,
             machine_value,
             &mut self.req,
             node,
             TIMEOUT_MS,
         )
-        .map(|_| Fw1082Protocol::ack(&mut self.isoch_state, machine_value))?;
-        Fw1082Protocol::operate_leds(
+        .map(|_| Fw1082Protocol::ack(&mut self.isoch_state, machine_value));
+        debug!(params = ?self.isoch_state);
+        res?;
+
+        let res = Fw1082Protocol::operate_leds(
             &mut self.specific_state,
             machine_value,
             &mut self.req,
             node,
             TIMEOUT_MS,
         )
-        .map(|_| Fw1082Protocol::ack(&mut self.specific_state, machine_value))?;
+        .map(|_| Fw1082Protocol::ack(&mut self.specific_state, machine_value));
+        debug!(params = ?self.specific_state);
+        res?;
+
         Ok(())
     }
 

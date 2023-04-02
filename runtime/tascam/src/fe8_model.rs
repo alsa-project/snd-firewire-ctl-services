@@ -51,14 +51,16 @@ impl SurfaceCtlOperation<TascamExpander> for Fe8Model {
         machine_value: &(MachineItem, ItemValue),
         node: &mut FwNode,
     ) -> Result<(), Error> {
-        Fe8Protocol::operate_leds(
+        let res = Fe8Protocol::operate_leds(
             &mut self.common_state,
             machine_value,
             &mut self.req,
             node,
             TIMEOUT_MS,
         )
-        .map(|_| Fe8Protocol::ack(&mut self.common_state, machine_value))
+        .map(|_| Fe8Protocol::ack(&mut self.common_state, machine_value));
+        debug!(params = ?self.common_state, ?res);
+        res
     }
 
     fn fin(&mut self, node: &mut FwNode) -> Result<(), Error> {
