@@ -483,6 +483,24 @@ pub trait TascamSurfaceLedOperation<T> {
     ) -> Result<(), Error>;
 }
 
+/// The trait to operate local state of surface.
+pub trait TascamSurfaceStateOperation<T> {
+    /// Initialize the state.
+    fn init(state: &mut T);
+
+    /// Peek machine value from image and event.
+    fn peek(
+        state: &T,
+        image: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Vec<(MachineItem, ItemValue)>;
+
+    /// Ack the machine value returned from peek method.
+    fn ack(state: &mut T, machine_value: &(MachineItem, ItemValue));
+}
+
 /// The trait for operation of constol surface.
 pub trait SurfaceImageOperation<T> {
     fn initialize_surface_state(state: &mut T);
