@@ -515,6 +515,55 @@ pub trait SurfaceImageOperation<T> {
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TascamSurfaceCommonState {
     stateful_items: Vec<bool>,
+    enabled_leds: LedState,
+}
+
+/// The trait to express specification of normal LEDs.
+pub trait TascamSurfaceLedNormalSpecification {
+    const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])];
+}
+
+impl<O> TascamSurfaceLedOperation<TascamSurfaceCommonState> for O
+where
+    O: TascamSurfaceLedNormalSpecification,
+{
+    fn operate_leds(
+        state: &mut TascamSurfaceCommonState,
+        machine_value: &(MachineItem, ItemValue),
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if let ItemValue::Bool(value) = machine_value.1 {
+            if let Some((_, positions)) = Self::NORMAL_LEDS.iter().find(|(items, _)| {
+                if items.len() == 1 {
+                    machine_value.0.eq(&items[0])
+                } else {
+                    items.iter().find(|i| machine_value.0.eq(i)).is_some()
+                }
+            }) {
+                operate_led_cached(
+                    &mut state.enabled_leds,
+                    req,
+                    node,
+                    positions[0],
+                    value,
+                    timeout_ms,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn clear_leds(
+        state: &mut TascamSurfaceCommonState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        clear_leds(&mut state.enabled_leds, req, node, timeout_ms)
+    }
 }
 
 /// Boolean value in surface image.
@@ -618,7 +667,7 @@ trait SurfaceImageCommonOperation {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 struct LedState(Vec<u16>);
 
 fn operate_led(
