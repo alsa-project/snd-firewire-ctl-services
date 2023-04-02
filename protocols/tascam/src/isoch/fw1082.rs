@@ -588,10 +588,13 @@ impl SurfaceImageIsochOperation for Fw1082Protocol {
 }
 
 /// The mode of encoder items.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Fw1082EncoderMode {
+    /// For equalizer.
     Equalizer,
+    /// For AUX-0, 1, 2, 3.
     Aux0123,
+    /// For AUX-4, 5, 6, 7.
     Aux4567,
 }
 
@@ -718,6 +721,149 @@ impl TascamSurfaceLedOperation<TascamSurfaceFw1082State> for Fw1082Protocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         clear_leds(&mut state.enabled_leds, req, node, timeout_ms)
+    }
+}
+
+const SPECIFIC_ENCODER_BOOL_ITEMS: [(SurfaceBoolValue, [MachineItem; 3]); 4] = [
+    (
+        SurfaceBoolValue(9, 0x00000800),
+        [MachineItem::Low, MachineItem::Aux(3), MachineItem::Aux(7)],
+    ),
+    (
+        SurfaceBoolValue(9, 0x00000400),
+        [
+            MachineItem::LowMid,
+            MachineItem::Aux(2),
+            MachineItem::Aux(6),
+        ],
+    ),
+    (
+        SurfaceBoolValue(9, 0x00000200),
+        [
+            MachineItem::HighMid,
+            MachineItem::Aux(1),
+            MachineItem::Aux(5),
+        ],
+    ),
+    (
+        SurfaceBoolValue(9, 0x00000100),
+        [MachineItem::High, MachineItem::Aux(0), MachineItem::Aux(4)],
+    ),
+];
+
+const SPECIFIC_ENCODER_U16_ITEMS: [(SurfaceU16Value, [MachineItem; 3]); 4] = [
+    (
+        SurfaceU16Value(14, 0x0000ffff, 0),
+        [
+            MachineItem::Gain,
+            MachineItem::Rotary(0),
+            MachineItem::Rotary(4),
+        ],
+    ),
+    (
+        SurfaceU16Value(14, 0xffff0000, 16),
+        [
+            MachineItem::Freq,
+            MachineItem::Rotary(1),
+            MachineItem::Rotary(5),
+        ],
+    ),
+    (
+        SurfaceU16Value(15, 0x0000ffff, 0),
+        [
+            MachineItem::Q,
+            MachineItem::Rotary(2),
+            MachineItem::Rotary(6),
+        ],
+    ),
+    (
+        SurfaceU16Value(10, 0x0000ffff, 0),
+        [
+            MachineItem::Pan,
+            MachineItem::Rotary(3),
+            MachineItem::Rotary(7),
+        ],
+    ),
+];
+
+impl TascamSurfaceStateOperation<TascamSurfaceFw1082State> for Fw1082Protocol {
+    fn init(state: &mut TascamSurfaceFw1082State) {
+        state.mode = Fw1082EncoderMode::Equalizer;
+    }
+
+    fn peek(
+        state: &TascamSurfaceFw1082State,
+        _: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        let mut machine_values = Vec::new();
+
+        let mut curr_mode = state.mode;
+
+        // One of encoder modes should be enabled always.
+        SPECIFIC_ENCODER_MODES
+            .iter()
+            .enumerate()
+            .filter(|(_, (bool_val, _))| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(idx, (bool_val, mode))| {
+                let push_event = detect_bool_value(bool_val, before);
+                if push_event {
+                    curr_mode = *mode;
+                    machine_values.push((MachineItem::EncoderMode, ItemValue::U16(idx as u16)));
+                }
+            });
+
+        let idx = SPECIFIC_ENCODER_MODES
+            .iter()
+            .position(|(_, m)| curr_mode.eq(m))
+            .unwrap();
+
+        SPECIFIC_ENCODER_BOOL_ITEMS
+            .iter()
+            .zip(state.button_states)
+            .filter(|((bool_val, _), _)| {
+                detect_stateful_bool_action(bool_val, index, before, after)
+            })
+            .for_each(|((_, items), s)| {
+                machine_values.push((items[idx], ItemValue::Bool(!s[idx])));
+            });
+
+        SPECIFIC_ENCODER_U16_ITEMS
+            .iter()
+            .filter(|(u16_val, _)| detect_u16_action(u16_val, index, before, after))
+            .for_each(|(u16_val, items)| {
+                let value = detect_u16_value(u16_val, after);
+                machine_values.push((items[idx], ItemValue::U16(value)));
+            });
+
+        machine_values
+    }
+
+    fn ack(state: &mut TascamSurfaceFw1082State, machine_value: &(MachineItem, ItemValue)) {
+        match machine_value.1 {
+            ItemValue::Bool(value) => {
+                SPECIFIC_ENCODER_BOOL_ITEMS
+                    .iter()
+                    .zip(&mut state.button_states)
+                    .for_each(|((_, items), s)| {
+                        let _ = items
+                            .iter()
+                            .zip(s)
+                            .find(|(item, _)| machine_value.0.eq(item))
+                            .map(|(_, s)| *s = value);
+                    });
+            }
+            ItemValue::U16(value) => {
+                if machine_value.0.eq(&MachineItem::EncoderMode) {
+                    let _ = SPECIFIC_ENCODER_MODES
+                        .iter()
+                        .nth(value as usize)
+                        .map(|(_, m)| state.mode = *m);
+                }
+            }
+        }
     }
 }
 
