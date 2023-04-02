@@ -168,7 +168,10 @@ where
         self.init(node)?;
         T::get_machine_current_values(self.state())
             .iter()
-            .try_for_each(|machine_value| self.ack(machine_value, node))
+            .try_for_each(|machine_value| {
+                debug!(?machine_value);
+                self.ack(machine_value, node)
+            })
     }
 
     fn dispatch_surface_event(
@@ -184,6 +187,7 @@ where
         let inputs = self.peek(unit, index, before, after)?;
         inputs.iter().try_for_each(|input| {
             let outputs = T::change_machine_value(self.state_mut(), input);
+            debug!(?outputs, ?input);
             outputs.iter().try_for_each(|output| {
                 let event = converter.seq_event_from_machine_event(output)?;
                 seq_cntr.schedule_event(event)?;
@@ -202,6 +206,7 @@ where
         events.iter().try_for_each(|event| {
             let input = converter.seq_event_to_machine_event(event)?;
             let outputs = T::change_machine_value(self.state_mut(), &input);
+            debug!(?outputs, ?input);
             outputs.iter().try_for_each(|output| {
                 if !output.eq(&input) {
                     let event = converter.seq_event_from_machine_event(output)?;
