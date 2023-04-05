@@ -23,9 +23,14 @@ pub type UltraliteRuntime = RegisterDspRuntime<UltraLite>;
 pub type AudioExpressRuntime = RegisterDspRuntime<AudioExpress>;
 pub type H4preRuntime = RegisterDspRuntime<H4pre>;
 
+pub trait RegisterDspCtlModel {
+    fn cache(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
+}
+
 pub struct RegisterDspRuntime<T>
 where
     T: Default
+        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>
@@ -48,6 +53,7 @@ where
 impl<T> Drop for RegisterDspRuntime<T>
 where
     T: Default
+        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>
@@ -89,6 +95,7 @@ const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100
 impl<T> RegisterDspRuntime<T>
 where
     T: Default
+        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>
@@ -120,6 +127,7 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.cache(&mut self.unit)?;
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         NotifyModel::<(SndMotu, FwNode), u32>::get_notified_elem_list(
