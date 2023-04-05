@@ -41,7 +41,7 @@ use {
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     protocols::{config_rom::*, *},
-    std::convert::TryFrom,
+    std::{convert::TryFrom, marker::PhantomData},
 };
 
 pub enum MotuRuntime {
