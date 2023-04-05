@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828mk2 {
     req: FwReq,
     clk_ctls: V2ClkCtl<F828mk2Protocol>,
-    opt_iface_ctl: OptIfaceCtl,
+    opt_iface_ctl: V2OptIfaceCtl<F828mk2Protocol>,
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClockCtl<F828mk2Protocol>,
     mixer_output_ctl: MixerOutputCtl,
@@ -36,19 +36,6 @@ impl PhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct OptIfaceCtl((usize, usize), Vec<ElemId>);
-
-impl V2OptIfaceCtlOperation<F828mk2Protocol> for OptIfaceCtl {
-    fn state(&self) -> &(usize, usize) {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut (usize, usize) {
-        &mut self.0
-    }
-}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -159,11 +146,11 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.opt_iface_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
+        self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
@@ -235,10 +222,14 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phone_assign_ctl

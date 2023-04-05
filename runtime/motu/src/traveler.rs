@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct Traveler {
     req: FwReq,
     clk_ctls: V2ClkCtl<TravelerProtocol>,
-    opt_iface_ctl: OptIfaceCtl,
+    opt_iface_ctl: V2OptIfaceCtl<TravelerProtocol>,
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClockCtl<TravelerProtocol>,
     mixer_output_ctl: MixerOutputCtl,
@@ -37,19 +37,6 @@ impl PhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct OptIfaceCtl((usize, usize), Vec<ElemId>);
-
-impl V2OptIfaceCtlOperation<TravelerProtocol> for OptIfaceCtl {
-    fn state(&self) -> &(usize, usize) {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut (usize, usize) {
-        &mut self.0
-    }
-}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -163,11 +150,11 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.opt_iface_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
+        self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
@@ -244,10 +231,14 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phone_assign_ctl
@@ -305,7 +296,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Traveler {
         elem_id_list.extend_from_slice(&self.mic_input_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.opt_iface_ctl.1);
+        elem_id_list.extend_from_slice(&self.opt_iface_ctl.elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
@@ -319,7 +310,8 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Traveler {
                 .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         }
         if *msg & TravelerProtocol::NOTIFY_FORMAT_CHANGE > 0 {
-            self.opt_iface_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.opt_iface_ctl
+                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         }
         Ok(())
     }
