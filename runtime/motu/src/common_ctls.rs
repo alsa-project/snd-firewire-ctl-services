@@ -8,7 +8,68 @@ pub(crate) use {
     hinawa::FwReq,
 };
 
+#[derive(Default, Debug)]
+pub(crate) struct PhoneAssignCtl<T: AssignOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    pub assign: usize,
+    _phantom: PhantomData<T>,
+}
+
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
+
+impl<T: AssignOperation> PhoneAssignCtl<T> {
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_phone_assign(req, node, timeout_ms).map(|val| self.assign = val)
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::ASSIGN_PORTS
+            .iter()
+            .map(|e| target_port_to_string(&e.0))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+    }
+
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            PHONE_ASSIGN_NAME => {
+                elem_value.set_enum(&[self.assign as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub(crate) fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            PHONE_ASSIGN_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                T::set_phone_assign(req, node, val, timeout_ms).map(|_| self.assign = val)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
 
 pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     fn state(&self) -> &usize;
