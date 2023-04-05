@@ -1009,10 +1009,24 @@ impl<T: RegisterDspMonauralInputOperation> RegisterDspMonauralInputCtl<T> {
     }
 }
 
-pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation> {
-    fn state(&self) -> &RegisterDspStereoInputState;
-    fn state_mut(&mut self) -> &mut RegisterDspStereoInputState;
+#[derive(Debug)]
+pub(crate) struct RegisterDspStereoInputCtl<T: RegisterDspStereoInputOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: RegisterDspStereoInputState,
+    _phantom: PhantomData<T>,
+}
 
+impl<T: RegisterDspStereoInputOperation> Default for RegisterDspStereoInputCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_stereo_input_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
     const GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 6400,
@@ -1020,17 +1034,16 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
         mute_avail: false,
     };
 
-    fn load(
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        T::read_stereo_input_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::read_stereo_input_state(req, node, &mut self.state, timeout_ms)
+    }
 
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -1043,70 +1056,74 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
                 Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::INPUT_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PHANTOM_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PAD_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_JACK_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PAIRED_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::INPUT_PAIR_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state().gain);
+                copy_int_to_elem_value(elem_value, &self.state.gain);
                 Ok(true)
             }
             INPUT_INVERT_NAME => {
-                elem_value.set_bool(&self.state().invert);
+                elem_value.set_bool(&self.state.invert);
                 Ok(true)
             }
             MIC_PHANTOM_NAME => {
-                elem_value.set_bool(&self.state().phantom);
+                elem_value.set_bool(&self.state.phantom);
                 Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.state().pad);
+                elem_value.set_bool(&self.state.pad);
                 Ok(true)
             }
             INPUT_JACK_NAME => {
-                elem_value.set_bool(&self.state().jack);
+                elem_value.set_bool(&self.state.jack);
                 Ok(true)
             }
             INPUT_PAIRED_NAME => {
-                elem_value.set_bool(&self.state().paired);
+                elem_value.set_bool(&self.state.paired);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1115,50 +1132,39 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
             INPUT_GAIN_NAME => {
                 let vals = &elem_value.int()[..T::INPUT_COUNT];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_stereo_input_gain(req, &mut unit.1, &gain, self.state_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_stereo_input_gain(req, node, &gain, &mut self.state, timeout_ms)?;
+                Ok(true)
             }
             INPUT_INVERT_NAME => {
                 let invert = &elem_value.boolean()[..T::INPUT_COUNT];
-                T::write_stereo_input_invert(
-                    req,
-                    &mut unit.1,
-                    &invert,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_stereo_input_invert(req, node, &invert, &mut self.state, timeout_ms)?;
+                Ok(true).map(|_| true)
             }
             MIC_PHANTOM_NAME => {
                 let phantom = &elem_value.boolean()[..T::MIC_COUNT];
-                T::write_mic_phantom(req, &mut unit.1, &phantom, self.state_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_mic_phantom(req, node, &phantom, &mut self.state, timeout_ms)?;
+                Ok(true)
             }
             MIC_PAD_NAME => {
                 let pad = &elem_value.boolean()[..T::MIC_COUNT];
-                T::write_mic_pad(req, &mut unit.1, &pad, self.state_mut(), timeout_ms).map(|_| true)
+                T::write_mic_pad(req, node, &pad, &mut self.state, timeout_ms)?;
+                Ok(true)
             }
             INPUT_PAIRED_NAME => {
                 let paired = &elem_value.boolean()[..T::INPUT_PAIR_COUNT];
-                T::write_stereo_input_paired(
-                    req,
-                    &mut unit.1,
-                    &paired,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_stereo_input_paired(req, node, &paired, &mut self.state, timeout_ms)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(self.state_mut(), params)
+    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(&mut self.state, params)
     }
 
-    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(self.state_mut(), event)
+    pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(&mut self.state, event)
     }
 }
 

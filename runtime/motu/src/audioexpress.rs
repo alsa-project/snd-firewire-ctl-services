@@ -15,7 +15,7 @@ pub struct AudioExpress {
     mixer_output_ctl: RegisterDspMixerOutputCtl<AudioExpressProtocol>,
     mixer_source_ctl: RegisterDspMixerStereoSourceCtl<AudioExpressProtocol>,
     output_ctl: RegisterDspOutputCtl<AudioExpressProtocol>,
-    input_ctl: InputCtl,
+    input_ctl: RegisterDspStereoInputCtl<AudioExpressProtocol>,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
@@ -24,27 +24,6 @@ pub struct AudioExpress {
 struct ClkCtl;
 
 impl V3ClkCtlOperation<AudioExpressProtocol> for ClkCtl {}
-
-struct InputCtl(RegisterDspStereoInputState, Vec<ElemId>);
-
-impl Default for InputCtl {
-    fn default() -> Self {
-        Self(
-            AudioExpressProtocol::create_stereo_input_state(),
-            Default::default(),
-        )
-    }
-}
-
-impl RegisterDspStereoInputCtlOperation<AudioExpressProtocol> for InputCtl {
-    fn state(&self) -> &RegisterDspStereoInputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut RegisterDspStereoInputState {
-        &mut self.0
-    }
-}
 
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
@@ -78,6 +57,7 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
         self.output_ctl.parse_dsp_parameter(&self.params);
+        self.input_ctl.parse_dsp_parameter(&self.params);
 
         self.phone_assign_ctl
             .0
@@ -90,6 +70,8 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.output_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.input_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
@@ -97,9 +79,7 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
-        self.input_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
+        self.input_ctl.load(card_cntr)?;
         self.meter_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
@@ -187,7 +167,7 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
             Ok(true)
         } else if self
             .input_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -225,7 +205,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for AudioExpress {
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.input_ctl.1);
+        elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
     }
 
     fn parse_notification(
