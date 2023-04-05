@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct Traveler {
     req: FwReq,
-    clk_ctls: ClkCtl,
+    clk_ctls: V2ClkCtl<TravelerProtocol>,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClockCtl<TravelerProtocol>,
@@ -37,11 +37,6 @@ impl PhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V2ClkCtlOperation<TravelerProtocol> for ClkCtl {}
 
 #[derive(Default)]
 struct OptIfaceCtl((usize, usize), Vec<ElemId>);
@@ -164,6 +159,8 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.clk_ctls
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
@@ -200,14 +197,11 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -241,10 +235,14 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl
