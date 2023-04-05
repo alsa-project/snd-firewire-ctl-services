@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F8pre {
     req: FwReq,
     clk_ctls: V2ClkCtl<F8preProtocol>,
-    opt_iface_ctl: OptIfaceCtl,
+    opt_iface_ctl: V2OptIfaceCtl<F8preProtocol>,
     phone_assign_ctl: PhoneAssignCtl,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
@@ -34,19 +34,6 @@ impl PhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct OptIfaceCtl((usize, usize), Vec<ElemId>);
-
-impl V2OptIfaceCtlOperation<F8preProtocol> for OptIfaceCtl {
-    fn state(&self) -> &(usize, usize) {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut (usize, usize) {
-        &mut self.0
-    }
-}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -134,11 +121,11 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
     ) -> Result<(), Error> {
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.opt_iface_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
+        self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
@@ -197,10 +184,14 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phone_assign_ctl

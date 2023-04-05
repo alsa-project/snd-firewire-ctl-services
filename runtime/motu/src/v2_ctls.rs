@@ -117,6 +117,14 @@ impl<T: V2ClkOperation> V2ClkCtl<T> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct V2OptIfaceCtl<T: V2OptIfaceOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    input_mode: usize,
+    output_mode: usize,
+    _phantom: PhantomData<T>,
+}
+
 fn opt_iface_mode_to_str(mode: &V2OptIfaceMode) -> &'static str {
     match mode {
         V2OptIfaceMode::None => "None",
@@ -128,21 +136,19 @@ fn opt_iface_mode_to_str(mode: &V2OptIfaceMode) -> &'static str {
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
-pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
-    fn state(&self) -> &(usize, usize);
-    fn state_mut(&mut self) -> &mut (usize, usize);
-
-    fn load(
+impl<T: V2OptIfaceOperation> V2OptIfaceCtl<T> {
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        self.cache(unit, req, timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::get_opt_in_iface_mode(req, node, timeout_ms).map(|val| self.input_mode = val)?;
+        T::get_opt_out_iface_mode(req, node, timeout_ms).map(|val| self.output_mode = val)?;
+        Ok(())
+    }
 
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = T::OPT_IFACE_MODES
             .iter()
             .map(|e| opt_iface_mode_to_str(&e.0))
@@ -151,70 +157,60 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IN_IFACE_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_IFACE_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn cache(
+    pub(crate) fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::get_opt_in_iface_mode(req, &mut unit.1, timeout_ms)
-            .map(|val| self.state_mut().0 = val)?;
-        T::get_opt_out_iface_mode(req, &mut unit.1, timeout_ms).map(|val| self.state_mut().1 = val)
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().0 as u32))
-                    .map(|_| true)
+                elem_value.set_enum(&[self.input_mode as u32]);
+                Ok(true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().1 as u32))
-                    .map(|_| true)
+                elem_value.set_enum(&[self.output_mode as u32]);
+                Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        unit: &mut SndMotu,
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.0.lock()?;
-                let res = T::set_opt_in_iface_mode(req, &mut unit.1, val as usize, timeout_ms);
-                if res.is_ok() {
-                    self.state_mut().0 = val as usize;
-                }
-                unit.0.unlock()?;
-                res
-            })
-            .map(|_| true),
-            OPT_OUT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.0.lock()?;
-                let res = T::set_opt_out_iface_mode(req, &mut unit.1, val as usize, timeout_ms);
-                if res.is_ok() {
-                    self.state_mut().1 = val as usize;
-                }
-                unit.0.unlock()?;
-                res
-            })
-            .map(|_| true),
+            OPT_IN_IFACE_MODE_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                unit.lock()?;
+                let res = T::set_opt_in_iface_mode(req, node, val, timeout_ms)
+                    .map(|_| self.input_mode = val);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
+            OPT_OUT_IFACE_MODE_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                unit.lock()?;
+                let res = T::set_opt_out_iface_mode(req, node, val, timeout_ms)
+                    .map(|_| self.output_mode = val);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
             _ => Ok(false),
         }
     }
