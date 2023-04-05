@@ -21,12 +21,8 @@ pub struct F896hd {
     meter_ctl: RegisterDspMeterCtl<F896hdProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F896hd {
-    fn load(
-        &mut self,
-        (unit, node): &mut (SndMotu, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+impl RegisterDspCtlModel for F896hd {
+    fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
@@ -50,6 +46,12 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
+        Ok(())
+    }
+}
+
+impl CtlModel<(SndMotu, FwNode)> for F896hd {
+    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
