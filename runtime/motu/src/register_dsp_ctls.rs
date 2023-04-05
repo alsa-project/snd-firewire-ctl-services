@@ -232,15 +232,29 @@ impl<T: RegisterDspMixerReturnOperation> RegisterDspMixerReturnCtl<T> {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct RegisterDspMixerMonauralSourceCtl<T: RegisterDspMixerMonauralSourceOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: RegisterDspMixerMonauralSourceState,
+    _phantom: PhantomData<T>,
+}
+
 const MIXER_SOURCE_GAIN_NAME: &str = "mixer-source-gain";
 const MIXER_SOURCE_PAN_NAME: &str = "mixer-source-pan";
 const MIXER_SOURCE_MUTE_NAME: &str = "mixer-source-mute";
 const MIXER_SOURCE_SOLO_NAME: &str = "mixer-source-solo";
 
-pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonauralSourceOperation> {
-    fn state(&self) -> &RegisterDspMixerMonauralSourceState;
-    fn state_mut(&mut self) -> &mut RegisterDspMixerMonauralSourceState;
+impl<T: RegisterDspMixerMonauralSourceOperation> Default for RegisterDspMixerMonauralSourceCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_mixer_monaural_source_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
 
+impl<T: RegisterDspMixerMonauralSourceOperation> RegisterDspMixerMonauralSourceCtl<T> {
     const GAIN_TLV: DbInterval = DbInterval {
         min: -6400,
         max: 0,
@@ -248,17 +262,16 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
         mute_avail: false,
     };
 
-    fn load(
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        T::read_mixer_monaural_source_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::read_mixer_monaural_source_state(req, node, &mut self.state, timeout_ms)
+    }
 
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -271,7 +284,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAN_NAME, 0);
         card_cntr
@@ -285,51 +298,55 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state().0[mixer].gain);
+                copy_int_to_elem_value(elem_value, &self.state.0[mixer].gain);
                 Ok(true)
             }
             MIXER_SOURCE_PAN_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state().0[mixer].pan);
+                copy_int_to_elem_value(elem_value, &self.state.0[mixer].pan);
                 Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state().0[mixer].mute);
+                elem_value.set_bool(&self.state.0[mixer].mute);
                 Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state().0[mixer].solo);
+                elem_value.set_bool(&self.state.0[mixer].solo);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -341,10 +358,10 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.index() as usize;
                 T::write_mixer_monaural_source_gain(
                     req,
-                    &mut unit.1,
+                    node,
                     mixer,
                     &gain,
-                    self.state_mut(),
+                    &mut self.state,
                     timeout_ms,
                 )
                 .map(|_| true)
@@ -355,10 +372,10 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.index() as usize;
                 T::write_mixer_monaural_source_pan(
                     req,
-                    &mut unit.1,
+                    node,
                     mixer,
                     &pan,
-                    self.state_mut(),
+                    &mut self.state,
                     timeout_ms,
                 )
                 .map(|_| true)
@@ -368,10 +385,10 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.index() as usize;
                 T::write_mixer_monaural_source_mute(
                     req,
-                    &mut unit.1,
+                    node,
                     mixer,
                     &mute,
-                    self.state_mut(),
+                    &mut self.state,
                     timeout_ms,
                 )
                 .map(|_| true)
@@ -381,10 +398,10 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.index() as usize;
                 T::write_mixer_monaural_source_solo(
                     req,
-                    &mut unit.1,
+                    node,
                     mixer,
                     &solo,
-                    self.state_mut(),
+                    &mut self.state,
                     timeout_ms,
                 )
                 .map(|_| true)
@@ -393,12 +410,12 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
         }
     }
 
-    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(self.state_mut(), params)
+    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(&mut self.state, params)
     }
 
-    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(self.state_mut(), event)
+    pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(&mut self.state, event)
     }
 }
 
