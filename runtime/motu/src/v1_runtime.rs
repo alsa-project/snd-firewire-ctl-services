@@ -18,7 +18,10 @@ pub trait Version1CtlModel {
 
 pub struct Version1Runtime<T>
 where
-    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + Default,
 {
     unit: (SndMotu, FwNode),
     model: T,
@@ -33,7 +36,10 @@ where
 
 impl<T> Drop for Version1Runtime<T>
 where
-    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + Default,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -62,7 +68,10 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> Version1Runtime<T>
 where
-    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + Default,
 {
     pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::default();
