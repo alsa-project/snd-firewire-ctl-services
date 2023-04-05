@@ -1134,7 +1134,7 @@ pub struct RegisterDspMonauralInputState {
 const STEREO_INPUT_COUNT: usize = 6;
 
 /// State of input in Audio Express, and 4 pre.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspStereoInputState {
     pub gain: [u8; STEREO_INPUT_COUNT],
     pub invert: [bool; STEREO_INPUT_COUNT],
