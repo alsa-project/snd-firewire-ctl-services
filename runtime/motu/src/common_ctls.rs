@@ -152,6 +152,13 @@ impl<T: WordClkOperation> WordClockCtl<T> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct AesebuRateConvertCtl<T: AesebuRateConvertOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    mode: usize,
+    _phantom: PhantomData<T>,
+}
+
 fn aesebu_rate_convert_mode_to_str(mode: &AesebuRateConvertMode) -> &'static str {
     match mode {
         AesebuRateConvertMode::None => "None",
@@ -163,49 +170,53 @@ fn aesebu_rate_convert_mode_to_str(mode: &AesebuRateConvertMode) -> &'static str
 
 const AESEBU_RATE_CONVERT_MODE_NAME: &str = "AES/EBU-rate-convert";
 
-pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl<T: AesebuRateConvertOperation> AesebuRateConvertCtl<T> {
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_aesebu_rate_convert_mode(req, node, timeout_ms).map(|mode| self.mode = mode)
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = T::AESEBU_RATE_CONVERT_MODES
             .iter()
             .map(|l| aesebu_rate_convert_mode_to_str(l))
             .collect();
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Card, 0, 0, AESEBU_RATE_CONVERT_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_aesebu_rate_convert_mode(req, &mut unit.1, timeout_ms).map(|val| val as u32)
-            })
-            .map(|_| true),
+            AESEBU_RATE_CONVERT_MODE_NAME => {
+                elem_value.set_enum(&[self.mode as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_aesebu_rate_convert_mode(req, &mut unit.1, val as usize, timeout_ms)
-            })
-            .map(|_| true),
+            AESEBU_RATE_CONVERT_MODE_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                T::set_aesebu_rate_convert_mode(req, node, val as usize, timeout_ms)
+                    .map(|_| self.mode = val)?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }

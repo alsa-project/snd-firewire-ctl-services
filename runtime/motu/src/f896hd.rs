@@ -11,7 +11,7 @@ pub struct F896hd {
     clk_ctls: ClkCtl,
     opt_iface_ctl: OptIfaceCtl,
     word_clk_ctl: WordClockCtl<F896hdProtocol>,
-    aesebu_rate_convert_ctl: AesebuRateConvertCtl,
+    aesebu_rate_convert_ctl: AesebuRateConvertCtl<F896hdProtocol>,
     level_meters_ctl: LevelMetersCtl,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
@@ -21,11 +21,6 @@ pub struct F896hd {
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct AesebuRateConvertCtl;
-
-impl AesebuRateConvertCtlOperation<F896hdProtocol> for AesebuRateConvertCtl {}
 
 #[derive(Default)]
 struct LevelMetersCtl(LevelMeterState, Vec<ElemId>);
@@ -144,6 +139,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
     ) -> Result<(), Error> {
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.aesebu_rate_convert_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
@@ -186,13 +183,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             Ok(true)
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.aesebu_rate_convert_ctl.read(
-            unit,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.aesebu_rate_convert_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.level_meters_ctl.read(
             unit,
@@ -240,8 +231,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
