@@ -980,7 +980,7 @@ pub trait RegisterDspOutputOperation {
 }
 
 /// State of inputs in 828mkII.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspLineInputState {
     pub level: Vec<NominalSignalLevel>,
     /// + 6dB.
