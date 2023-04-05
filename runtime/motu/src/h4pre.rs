@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct H4pre {
     req: FwReq,
-    clk_ctls: ClkCtl,
+    clk_ctls: V3ClkCtl<H4preProtocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<H4preProtocol>,
     mixer_return_ctl: RegisterDspMixerReturnCtl<H4preProtocol>,
     params: SndMotuRegisterDspParameter,
@@ -18,11 +18,6 @@ pub struct H4pre {
     input_ctl: RegisterDspStereoInputCtl<H4preProtocol>,
     meter_ctl: RegisterDspMeterCtl<H4preProtocol>,
 }
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V3ClkCtlOperation<H4preProtocol> for ClkCtl {}
 
 impl CtlModel<(SndMotu, FwNode)> for H4pre {
     fn load(
@@ -66,14 +61,11 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
@@ -96,61 +88,61 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
 
     fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        (unit, node): &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.phone_assign_ctl.0.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.mixer_return_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.mixer_output_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.mixer_source_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self
             .output_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .input_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .meter_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {

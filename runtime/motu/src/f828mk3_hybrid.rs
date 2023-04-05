@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828mk3Hybrid {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: ClkCtl,
+    clk_ctls: V3ClkCtl<F828mk3HybridProtocol>,
     port_assign_ctl: PortAssignCtl,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl<F828mk3HybridProtocol>,
@@ -24,11 +24,6 @@ pub struct F828mk3Hybrid {
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V3ClkCtlOperation<F828mk3HybridProtocol> for ClkCtl {}
 
 #[derive(Default)]
 struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
@@ -177,6 +172,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.clk_ctls
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
@@ -231,10 +228,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -281,10 +275,14 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .port_assign_ctl

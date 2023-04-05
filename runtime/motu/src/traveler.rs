@@ -37,12 +37,9 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
 
         self.meter_ctl.read_dsp_meter(unit)?;
 
-        self.clk_ctls
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.word_clk_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.opt_iface_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -52,14 +49,10 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.output_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.line_input_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.mic_input_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.line_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mic_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
