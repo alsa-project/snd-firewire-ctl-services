@@ -891,7 +891,7 @@ const MASTER_VOLUME_OFFSET: usize = 0x0c0c;
 const PHONE_VOLUME_OFFSET: usize = 0x0c10;
 
 /// State of output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspOutputState {
     pub master_volume: u8,
     pub phone_volume: u8,

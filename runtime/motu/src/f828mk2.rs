@@ -16,23 +16,10 @@ pub struct F828mk2 {
     params: SndMotuRegisterDspParameter,
     mixer_output_ctl: RegisterDspMixerOutputCtl<F828mk2Protocol>,
     mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<F828mk2Protocol>,
-    output_ctl: OutputCtl,
+    output_ctl: RegisterDspOutputCtl<F828mk2Protocol>,
     line_input_ctl: LineInputCtl,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct OutputCtl(RegisterDspOutputState, Vec<ElemId>);
-
-impl RegisterDspOutputCtlOperation<F828mk2Protocol> for OutputCtl {
-    fn state(&self) -> &RegisterDspOutputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut RegisterDspOutputState {
-        &mut self.0
-    }
 }
 
 struct LineInputCtl(RegisterDspLineInputState, Vec<ElemId>);
@@ -84,6 +71,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+        self.output_ctl.parse_dsp_parameter(&self.params);
 
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -100,6 +88,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.output_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
@@ -108,9 +98,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
-        self.output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
+        self.output_ctl.load(card_cntr)?;
         self.line_input_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.line_input_ctl.1 = elem_id_list)?;
@@ -215,7 +203,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             Ok(true)
         } else if self
             .output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -267,7 +255,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.line_input_ctl.1);
     }
 

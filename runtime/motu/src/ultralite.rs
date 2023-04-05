@@ -15,7 +15,7 @@ pub struct UltraLite {
     params: SndMotuRegisterDspParameter,
     mixer_output_ctl: RegisterDspMixerOutputCtl<UltraliteProtocol>,
     mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<UltraliteProtocol>,
-    output_ctl: OutputCtl,
+    output_ctl: RegisterDspOutputCtl<UltraliteProtocol>,
     input_ctl: InputCtl,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
@@ -23,19 +23,6 @@ pub struct UltraLite {
 
 #[derive(Default)]
 struct MainAssignCtl(usize, Vec<ElemId>);
-
-#[derive(Default)]
-struct OutputCtl(RegisterDspOutputState, Vec<ElemId>);
-
-impl RegisterDspOutputCtlOperation<UltraliteProtocol> for OutputCtl {
-    fn state(&self) -> &RegisterDspOutputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut RegisterDspOutputState {
-        &mut self.0
-    }
-}
 
 struct InputCtl(RegisterDspMonauralInputState, Vec<ElemId>);
 
@@ -86,6 +73,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+        self.output_ctl.parse_dsp_parameter(&self.params);
 
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -96,6 +84,8 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.output_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.main_assign_ctl
@@ -104,9 +94,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
-        self.output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
+        self.output_ctl.load(card_cntr)?;
         self.input_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
@@ -195,7 +183,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             Ok(true)
         } else if self
             .output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -243,7 +231,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for UltraLite {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
     }
 
