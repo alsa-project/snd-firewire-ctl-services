@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use super::{common_ctls::*, register_dsp_ctls::*, register_dsp_runtime::*, v3_ctls::*};
+use super::{register_dsp_ctls::*, register_dsp_runtime::*, v3_ctls::*};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct H4pre {
     req: FwReq,
     clk_ctls: ClkCtl,
-    phone_assign_ctl: PhoneAssignCtl,
+    phone_assign_ctl: RegisterDspPhoneAssignCtl<H4preProtocol>,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
@@ -19,21 +19,6 @@ pub struct H4pre {
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct PhoneAssignCtl(usize, Vec<ElemId>);
-
-impl PhoneAssignCtlOperation<H4preProtocol> for PhoneAssignCtl {
-    fn state(&self) -> &usize {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut usize {
-        &mut self.0
-    }
-}
-
-impl RegisterDspPhoneAssignCtlOperation<H4preProtocol> for PhoneAssignCtl {}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -146,11 +131,14 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         unit.0.read_parameter(&mut self.params)?;
+        self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+
+        self.phone_assign_ctl
+            .0
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.mixer_output_ctl.1.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.0.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
@@ -182,7 +170,7 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -213,10 +201,13 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.0.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .mixer_output_ctl
@@ -273,7 +264,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for H4pre {
 
 impl NotifyModel<(SndMotu, FwNode), bool> for H4pre {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
@@ -304,7 +295,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for H4pre {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -345,7 +336,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for H4pre {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)

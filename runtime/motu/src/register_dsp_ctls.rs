@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub(crate) use super::{common_ctls::PhoneAssignCtlOperation, register_dsp_runtime::*};
+pub(crate) use super::{common_ctls::PhoneAssignCtl, register_dsp_runtime::*};
 
-pub trait RegisterDspPhoneAssignCtlOperation<T: AssignOperation>:
-    PhoneAssignCtlOperation<T>
-{
-    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+#[derive(Default, Debug)]
+pub(crate) struct RegisterDspPhoneAssignCtl<T: AssignOperation>(pub PhoneAssignCtl<T>);
+
+impl<T: AssignOperation> RegisterDspPhoneAssignCtl<T> {
+    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         let idx = params.headphone_output_paired_assignment() as usize;
         if idx < T::ASSIGN_PORTS.len() {
-            *self.state_mut() = idx;
+            self.0.assign = idx;
         }
     }
 }
