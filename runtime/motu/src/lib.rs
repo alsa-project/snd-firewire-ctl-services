@@ -176,7 +176,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
     }
 }
 
-pub fn clk_rate_to_str(rate: &ClkRate) -> &'static str {
+pub(crate) fn clk_rate_to_str(rate: &ClkRate) -> &'static str {
     match rate {
         ClkRate::R44100 => "44100",
         ClkRate::R48000 => "48000",
@@ -187,7 +187,7 @@ pub fn clk_rate_to_str(rate: &ClkRate) -> &'static str {
     }
 }
 
-pub fn target_port_to_string(port: &TargetPort) -> String {
+pub(crate) fn target_port_to_string(port: &TargetPort) -> String {
     match port {
         TargetPort::Disabled => "Disabled".to_string(),
         TargetPort::AnalogPair(ch) => format!("Analog-{}/{}", *ch * 2 + 1, *ch * 2 + 2),
@@ -211,7 +211,7 @@ pub fn target_port_to_string(port: &TargetPort) -> String {
     }
 }
 
-pub fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
+pub(crate) fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     match level {
         NominalSignalLevel::Consumer => "-10dBu",
         NominalSignalLevel::Professional => "+4dBV",

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {
+pub(crate) use {
     super::*,
     alsactl::*,
-    core::{card_cntr::CardCntr, elem_value_accessor::ElemValueAccessor},
+    core::{card_cntr::*, elem_value_accessor::*},
     hinawa::FwReq,
 };
 

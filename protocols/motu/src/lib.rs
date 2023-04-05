@@ -12,7 +12,10 @@ pub mod version_3;
 
 use {
     glib::{Error, FileError},
-    hinawa::{prelude::{FwNodeExt, FwReqExtManual}, FwNode, FwReq, FwTcode},
+    hinawa::{
+        prelude::{FwNodeExt, FwReqExtManual},
+        FwNode, FwReq, FwTcode,
+    },
     std::{thread, time},
 };
 

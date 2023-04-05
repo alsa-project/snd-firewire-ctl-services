@@ -81,14 +81,10 @@ pub trait RegisterDspMixerOutputOperation {
         state.volume.copy_from_slice(vols);
 
         let flags = param.mixer_output_paired_flag();
-        state
-            .mute
-            .iter_mut()
-            .zip(flags)
-            .for_each(|(mute, &flag)| {
-                let val = (flag as u32) << 8;
-                *mute = val & MIXER_OUTPUT_MUTE_FLAG > 0;
-            });
+        state.mute.iter_mut().zip(flags).for_each(|(mute, &flag)| {
+            let val = (flag as u32) << 8;
+            *mute = val & MIXER_OUTPUT_MUTE_FLAG > 0;
+        });
         state
             .destination
             .iter_mut()

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use super::command_dsp_runtime::*;
+pub(crate) use super::command_dsp_runtime::*;
 
 const REVERB_ENABLE: &str = "reverb-enable";
 const REVERB_SPLIT_POINT_NAME: &str = "reverb-split-point";

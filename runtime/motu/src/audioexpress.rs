@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use super::register_dsp_runtime::*;
+use super::{common_ctls::*, register_dsp_ctls::*, register_dsp_runtime::*, v3_ctls::*};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -125,7 +125,10 @@ struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
 impl Default for MeterCtl {
     fn default() -> Self {
-        Self(AudioExpressProtocol::create_meter_state(), Default::default())
+        Self(
+            AudioExpressProtocol::create_meter_state(),
+            Default::default(),
+        )
     }
 }
 
