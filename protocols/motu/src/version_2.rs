@@ -598,7 +598,7 @@ impl RegisterDspMeterOperation for TravelerProtocol {
 }
 
 /// State of inputs in Traveler.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TravelerMicInputState {
     pub gain: [u8; TravelerProtocol::MIC_INPUT_COUNT],
     pub pad: [bool; TravelerProtocol::MIC_INPUT_COUNT],
