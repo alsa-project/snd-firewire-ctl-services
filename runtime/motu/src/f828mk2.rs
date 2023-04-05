@@ -10,7 +10,7 @@ pub struct F828mk2 {
     req: FwReq,
     clk_ctls: V2ClkCtl<F828mk2Protocol>,
     opt_iface_ctl: V2OptIfaceCtl<F828mk2Protocol>,
-    phone_assign_ctl: PhoneAssignCtl,
+    phone_assign_ctl: RegisterDspPhoneAssignCtl<F828mk2Protocol>,
     word_clk_ctl: WordClockCtl<F828mk2Protocol>,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
@@ -21,21 +21,6 @@ pub struct F828mk2 {
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct PhoneAssignCtl(usize, Vec<ElemId>);
-
-impl PhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {
-    fn state(&self) -> &usize {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut usize {
-        &mut self.0
-    }
-}
-
-impl RegisterDspPhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -142,18 +127,22 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        unit.0.read_parameter(&mut self.params)?;
+        self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.opt_iface_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.phone_assign_ctl
+            .0
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
-        self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.0.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -185,7 +174,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -231,10 +220,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.0.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .word_clk_ctl
@@ -307,7 +299,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk2 {
 
 impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
@@ -338,7 +330,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -379,7 +371,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F828mk2 {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
