@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct UltraliteMk3Hybrid {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: ClkCtl,
+    clk_ctls: V3ClkCtl<UltraliteMk3HybridProtocol>,
     port_assign_ctl: PortAssignCtl,
     phone_assign_ctl: PhoneAssignCtl<UltraliteMk3HybridProtocol>,
     sequence_number: u8,
@@ -22,11 +22,6 @@ pub struct UltraliteMk3Hybrid {
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V3ClkCtlOperation<UltraliteMk3HybridProtocol> for ClkCtl {}
 
 #[derive(Default)]
 struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
@@ -170,6 +165,8 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.clk_ctls
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
@@ -216,14 +213,11 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -263,10 +257,14 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .port_assign_ctl

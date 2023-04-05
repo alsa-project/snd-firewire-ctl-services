@@ -35,8 +35,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
 
         self.meter_ctl.read_dsp_meter(unit)?;
 
-        self.clk_ctls
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -44,14 +43,11 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.output_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.input_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.main_assign_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
@@ -100,14 +96,10 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(
-            unit,
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.phone_assign_ctl.0.write(
             &mut self.req,
