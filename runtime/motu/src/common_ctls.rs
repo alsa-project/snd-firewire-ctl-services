@@ -69,6 +69,13 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct WordClockCtl<T: WordClkOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    speed_mode: WordClkSpeedMode,
+    _phantom: PhantomData<T>,
+}
+
 fn word_clk_speed_mode_to_str(mode: &WordClkSpeedMode) -> &'static str {
     match mode {
         WordClkSpeedMode::ForceLowRate => "Force 44.1/48.0 kHz",
@@ -83,68 +90,63 @@ const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
     WordClkSpeedMode::FollowSystemClk,
 ];
 
-pub trait WordClkCtlOperation<T: WordClkOperation> {
-    fn state(&self) -> &WordClkSpeedMode;
-    fn state_mut(&mut self) -> &mut WordClkSpeedMode;
-
-    fn load(
+impl<T: WordClkOperation> WordClockCtl<T> {
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        self.cache(unit, req, timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::get_word_out(req, node, timeout_ms).map(|mode| self.speed_mode = mode)
+    }
 
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = WORD_OUT_MODES
             .iter()
             .map(|m| word_clk_speed_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, WORD_OUT_MODE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn cache(
+    pub(crate) fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::get_word_out(req, &mut unit.1, timeout_ms).map(|mode| *self.state_mut() = mode)
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            WORD_OUT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            WORD_OUT_MODE_NAME => {
                 let pos = WORD_OUT_MODES
                     .iter()
-                    .position(|m| self.state().eq(m))
+                    .position(|m| self.speed_mode.eq(m))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            WORD_OUT_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let &mode = WORD_OUT_MODES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid argument for index of word clock speed: {}", val);
+            WORD_OUT_MODE_NAME => {
+                let pos = elem_value.enumerated()[0] as usize;
+                let &mode = WORD_OUT_MODES.iter().nth(pos).ok_or_else(|| {
+                    let msg = format!("Invalid argument for index of word clock speed: {}", pos);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                T::set_word_out(req, &mut unit.1, mode, timeout_ms)
-                    .map(|_| *self.state_mut() = mode)
-            })
-            .map(|_| true),
+                T::set_word_out(req, node, mode, timeout_ms).map(|_| self.speed_mode = mode)?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }

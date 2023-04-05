@@ -11,7 +11,7 @@ pub struct F828mk2 {
     clk_ctls: ClkCtl,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
-    word_clk_ctl: WordClkCtl,
+    word_clk_ctl: WordClockCtl<F828mk2Protocol>,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
@@ -36,19 +36,6 @@ impl PhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<F828mk2Protocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
-
-impl WordClkCtlOperation<F828mk2Protocol> for WordClkCtl {
-    fn state(&self) -> &WordClkSpeedMode {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut WordClkSpeedMode {
-        &mut self.0
-    }
-}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -173,6 +160,9 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.word_clk_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -180,9 +170,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.word_clk_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
+        self.word_clk_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
@@ -261,7 +249,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -302,12 +290,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for F828mk2 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
+        elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
         if *msg & F828mk2Protocol::NOTIFY_PORT_CHANGE > 0 {
-            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.word_clk_ctl
+                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         }
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())

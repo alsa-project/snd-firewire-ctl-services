@@ -10,7 +10,7 @@ pub struct F896hd {
     req: FwReq,
     clk_ctls: ClkCtl,
     opt_iface_ctl: OptIfaceCtl,
-    word_clk_ctl: WordClkCtl,
+    word_clk_ctl: WordClockCtl<F896hdProtocol>,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl,
     level_meters_ctl: LevelMetersCtl,
     mixer_output_ctl: MixerOutputCtl,
@@ -20,19 +20,6 @@ pub struct F896hd {
     params: SndMotuRegisterDspParameter,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
-
-impl WordClkCtlOperation<F896hdProtocol> for WordClkCtl {
-    fn state(&self) -> &WordClkSpeedMode {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut WordClkSpeedMode {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -155,13 +142,14 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.word_clk_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
-        self.word_clk_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
+        self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
         self.level_meters_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -248,7 +236,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
