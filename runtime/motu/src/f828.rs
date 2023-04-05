@@ -22,6 +22,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_input_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.specific_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
@@ -31,7 +32,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -39,10 +40,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
             Ok(true)
         } else if self.monitor_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .specific_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.specific_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -51,32 +49,32 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
 
     fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        (unit, node): &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(
-            &mut unit.0,
-            &mut self.req,
-            &mut unit.1,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.monitor_input_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .specific_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.specific_ctls.write(
+            unit,
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -108,13 +106,25 @@ fn opt_iface_mode_to_str(mode: &V1OptIfaceMode) -> &'static str {
     }
 }
 
-#[derive(Default)]
-struct SpecificCtl;
+#[derive(Default, Debug)]
+struct SpecificCtl {
+    elem_id_list: Vec<ElemId>,
+    optical_input_iface_mode: usize,
+    optical_output_iface_mode: usize,
+}
 
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 impl SpecificCtl {
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        F828Protocol::get_optical_input_iface_mode(req, node, timeout_ms)
+            .map(|val| self.optical_input_iface_mode = val)?;
+        F828Protocol::get_optical_output_iface_mode(req, node, timeout_ms)
+            .map(|val| self.optical_output_iface_mode = val)?;
+        Ok(())
+    }
+
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = F828Protocol::OPT_IFACE_MODES
             .iter()
@@ -122,70 +132,58 @@ impl SpecificCtl {
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IN_IFACE_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_IFACE_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                F828Protocol::get_optical_input_iface_mode(req, &mut unit.1, timeout_ms)
-                    .map(|val| val as u32)
-            })
-            .map(|_| true),
-            OPT_OUT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                F828Protocol::get_optical_output_iface_mode(req, &mut unit.1, timeout_ms)
-                    .map(|val| val as u32)
-            })
-            .map(|_| true),
+            OPT_IN_IFACE_MODE_NAME => {
+                elem_value.set_enum(&[self.optical_input_iface_mode as u32]);
+                Ok(true)
+            }
+            OPT_OUT_IFACE_MODE_NAME => {
+                elem_value.set_enum(&[self.optical_output_iface_mode as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
     fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        unit: &mut SndMotu,
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.0.lock()?;
-                let res = F828Protocol::set_optical_input_iface_mode(
-                    req,
-                    &mut unit.1,
-                    val as usize,
-                    timeout_ms,
-                );
-                unit.0.unlock()?;
-                res
-            })
-            .map(|_| true),
-            OPT_OUT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.0.lock()?;
-                let res = F828Protocol::set_optical_output_iface_mode(
-                    req,
-                    &mut unit.1,
-                    val as usize,
-                    timeout_ms,
-                );
-                unit.0.unlock()?;
-                res
-            })
-            .map(|_| true),
+            OPT_IN_IFACE_MODE_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                unit.lock()?;
+                let res = F828Protocol::set_optical_input_iface_mode(req, node, val, timeout_ms)
+                    .map(|_| self.optical_input_iface_mode = val);
+                unit.unlock()?;
+                res.map(|_| true)
+            }
+            OPT_OUT_IFACE_MODE_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                unit.lock()?;
+                let res = F828Protocol::set_optical_output_iface_mode(req, node, val, timeout_ms)
+                    .map(|_| self.optical_output_iface_mode = val);
+                unit.unlock()?;
+                res.map(|_| true)
+            }
             _ => Ok(false),
         }
     }
