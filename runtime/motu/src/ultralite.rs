@@ -16,34 +16,13 @@ pub struct UltraLite {
     mixer_output_ctl: RegisterDspMixerOutputCtl<UltraliteProtocol>,
     mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<UltraliteProtocol>,
     output_ctl: RegisterDspOutputCtl<UltraliteProtocol>,
-    input_ctl: InputCtl,
+    input_ctl: RegisterDspMonauralInputCtl<UltraliteProtocol>,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
 
 #[derive(Default)]
 struct MainAssignCtl(usize, Vec<ElemId>);
-
-struct InputCtl(RegisterDspMonauralInputState, Vec<ElemId>);
-
-impl Default for InputCtl {
-    fn default() -> Self {
-        Self(
-            UltraliteProtocol::create_monaural_input_state(),
-            Default::default(),
-        )
-    }
-}
-
-impl RegisterDspMonauralInputCtlOperation<UltraliteProtocol> for InputCtl {
-    fn state(&self) -> &RegisterDspMonauralInputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut RegisterDspMonauralInputState {
-        &mut self.0
-    }
-}
 
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
@@ -74,6 +53,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
         self.output_ctl.parse_dsp_parameter(&self.params);
+        self.input_ctl.parse_dsp_parameter(&self.params);
 
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -86,6 +66,8 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.output_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.input_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.main_assign_ctl
@@ -95,9 +77,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
-        self.input_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
+        self.input_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -188,7 +168,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             Ok(true)
         } else if self
             .input_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -232,7 +212,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for UltraLite {
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.input_ctl.1);
+        elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
     }
 
     fn parse_notification(
