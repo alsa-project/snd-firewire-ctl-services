@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use super::v1_runtime::*;
+use super::{common_ctls::*, v1_ctls::*, v1_runtime::*};
 
 const TIMEOUT_MS: u32 = 100;
 

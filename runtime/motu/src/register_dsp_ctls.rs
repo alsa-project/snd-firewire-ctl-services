@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use super::register_dsp_runtime::*;
+pub(crate) use super::{common_ctls::PhoneAssignCtlOperation, register_dsp_runtime::*};
 
 pub trait RegisterDspPhoneAssignCtlOperation<T: AssignOperation>:
     PhoneAssignCtlOperation<T>

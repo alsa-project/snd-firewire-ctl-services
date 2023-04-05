@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub use {
+pub(crate) use {
     super::{
-        command_dsp_ctls::*, f828mk3::*, f828mk3_hybrid::*, track16::*, traveler_mk3::*,
-        ultralite_mk3::*, ultralite_mk3_hybrid::*, *,
+        f828mk3::*, f828mk3_hybrid::*, track16::*, traveler_mk3::*, ultralite_mk3::*,
+        ultralite_mk3_hybrid::*, *,
     },
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*},
-    glib::source,
+    core::card_cntr::*,
     hinawa::{prelude::FwRespExtManual, FwRcode, FwResp, FwTcode},
+    protocols::command_dsp::*,
+};
+
+use {
+    core::dispatcher::*,
+    glib::source,
     nix::sys::signal::Signal,
-    protocols::{command_dsp::*, version_3::*},
     std::{
         sync::{mpsc, Arc, Mutex},
         thread,

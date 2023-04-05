@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use super::command_dsp_runtime::*;
+pub(crate) use super::{command_dsp_runtime::*, protocols::version_3::*};
 
 fn clk_src_to_str(src: &V3ClkSrc) -> &'static str {
     match src {

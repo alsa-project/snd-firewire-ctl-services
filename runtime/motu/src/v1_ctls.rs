@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use super::v1_runtime::*;
+pub(crate) use super::{protocols::version_1::*, v1_runtime::*};
 
 fn clk_src_to_str(src: &V1ClkSrc) -> &'static str {
     match src {
