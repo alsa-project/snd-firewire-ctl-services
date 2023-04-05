@@ -12,9 +12,13 @@ use {core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mps
 pub type F828Runtime = Version1Runtime<F828>;
 pub type F896Runtime = Version1Runtime<F896>;
 
+pub trait Version1CtlModel {
+    fn cache(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
+}
+
 pub struct Version1Runtime<T>
 where
-    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     unit: (SndMotu, FwNode),
     model: T,
@@ -29,7 +33,7 @@ where
 
 impl<T> Drop for Version1Runtime<T>
 where
-    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -58,7 +62,7 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> Version1Runtime<T>
 where
-    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
+    T: Version1CtlModel + CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::default();
@@ -83,6 +87,7 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.cache(&mut self.unit)?;
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
         self.model
             .get_notified_elem_list(&mut self.notified_elem_id_list);
