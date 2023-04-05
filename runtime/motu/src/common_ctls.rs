@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub(crate) use {
-    super::*,
-    alsactl::*,
-    core::{card_cntr::*, elem_value_accessor::*},
-    hinawa::FwReq,
-};
+pub(crate) use {super::*, alsactl::*, core::card_cntr::*, hinawa::FwReq};
 
 #[derive(Default, Debug)]
 pub(crate) struct PhoneAssignCtl<T: AssignOperation> {
@@ -66,65 +61,6 @@ impl<T: AssignOperation> PhoneAssignCtl<T> {
                 T::set_phone_assign(req, node, val, timeout_ms).map(|_| self.assign = val)?;
                 Ok(true)
             }
-            _ => Ok(false),
-        }
-    }
-}
-
-pub trait PhoneAssignCtlOperation<T: AssignOperation> {
-    fn state(&self) -> &usize;
-    fn state_mut(&mut self) -> &mut usize;
-
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        self.cache(unit, req, timeout_ms)?;
-
-        let labels: Vec<String> = T::ASSIGN_PORTS
-            .iter()
-            .map(|e| target_port_to_string(&e.0))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-    }
-
-    fn cache(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::get_phone_assign(req, &mut unit.1, timeout_ms).map(|val| *self.state_mut() = val)
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            PHONE_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(*self.state() as u32))
-                    .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            PHONE_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_phone_assign(req, &mut unit.1, val as usize, timeout_ms)
-                    .map(|_| *self.state_mut() = val as usize)
-            })
-            .map(|_| true),
             _ => Ok(false),
         }
     }

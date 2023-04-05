@@ -9,7 +9,6 @@ const TIMEOUT_MS: u32 = 100;
 pub struct UltraLite {
     req: FwReq,
     clk_ctls: V2ClkCtl<UltraliteProtocol>,
-    main_assign_ctl: MainAssignCtl,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<UltraliteProtocol>,
     mixer_return_ctl: RegisterDspMixerReturnCtl<UltraliteProtocol>,
     params: SndMotuRegisterDspParameter,
@@ -17,12 +16,10 @@ pub struct UltraLite {
     mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<UltraliteProtocol>,
     output_ctl: RegisterDspOutputCtl<UltraliteProtocol>,
     input_ctl: RegisterDspMonauralInputCtl<UltraliteProtocol>,
+    main_assign_ctl: MainAssignCtl,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct MainAssignCtl(usize, Vec<ElemId>);
 
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
@@ -68,16 +65,18 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.input_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.main_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.main_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
         self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
+        self.main_assign_ctl.load(card_cntr)?;
+
         Ok(())
     }
 
@@ -124,11 +123,6 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .main_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
-            Ok(true)
         } else if self.phone_assign_ctl.0.write(
             &mut self.req,
             &mut unit.1,
@@ -171,6 +165,14 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
+        } else if self.main_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -179,15 +181,19 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for UltraLite {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.main_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.main_assign_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & UltraliteProtocol::NOTIFY_PORT_CHANGE > 0 {
             // Just after changing, busy rcode returns so often.
             std::thread::sleep(std::time::Duration::from_millis(10));
             self.main_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -319,18 +325,20 @@ impl MeasureModel<(SndMotu, FwNode)> for UltraLite {
     }
 }
 
+#[derive(Default, Debug)]
+struct MainAssignCtl {
+    elem_id_list: Vec<ElemId>,
+    state: usize,
+}
+
 const MAIN_ASSIGNMENT_NAME: &str = "main-assign";
 
 impl MainAssignCtl {
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        self.cache(unit, req, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        UltraliteProtocol::get_main_assign(req, node, timeout_ms).map(|idx| self.state = idx)
+    }
 
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = UltraliteProtocol::KNOB_TARGETS
             .iter()
             .map(|e| target_port_to_string(&e.0))
@@ -338,24 +346,13 @@ impl MainAssignCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_ASSIGNMENT_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-
-        Ok(())
-    }
-
-    fn cache(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        UltraliteProtocol::get_main_assign(req, &mut unit.1, timeout_ms).map(|idx| self.0 = idx)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGNMENT_NAME => {
-                elem_value.set_enum(&[self.0 as u32]);
+                elem_value.set_enum(&[self.state as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -364,18 +361,19 @@ impl MainAssignCtl {
 
     fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            MAIN_ASSIGNMENT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                UltraliteProtocol::set_main_assign(req, &mut unit.1, val as usize, timeout_ms)
-                    .map(|_| self.0 = val as usize)
-            })
-            .map(|_| true),
+            MAIN_ASSIGNMENT_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                UltraliteProtocol::set_main_assign(req, node, val, timeout_ms)
+                    .map(|_| self.state = val)?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
