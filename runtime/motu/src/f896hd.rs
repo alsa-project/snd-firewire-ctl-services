@@ -12,7 +12,7 @@ pub struct F896hd {
     opt_iface_ctl: OptIfaceCtl,
     word_clk_ctl: WordClockCtl<F896hdProtocol>,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl<F896hdProtocol>,
-    level_meters_ctl: LevelMetersCtl,
+    level_meters_ctl: LevelMetersCtl<F896hdProtocol>,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
@@ -20,19 +20,6 @@ pub struct F896hd {
     params: SndMotuRegisterDspParameter,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct LevelMetersCtl(LevelMeterState, Vec<ElemId>);
-
-impl LevelMetersCtlOperation<F896hdProtocol> for LevelMetersCtl {
-    fn state(&self) -> &LevelMeterState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut LevelMeterState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -141,6 +128,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.level_meters_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
@@ -148,9 +137,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
         self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.level_meters_ctl.1.append(&mut elem_id_list))?;
+        self.level_meters_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
@@ -185,13 +172,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.level_meters_ctl.read(
-            unit,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.level_meters_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -238,10 +219,13 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .level_meters_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.level_meters_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .mixer_output_ctl
@@ -276,13 +260,17 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for F896hd {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.level_meters_ctl.1);
+        elem_id_list.extend_from_slice(&self.level_meters_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & F896hdProtocol::NOTIFY_PROGRAMMABLE_METER_MASK > 0 {
             self.level_meters_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
@@ -294,7 +282,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F896hd {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.level_meters_ctl.refer(elem_id, elem_value)? {
+        if self.level_meters_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

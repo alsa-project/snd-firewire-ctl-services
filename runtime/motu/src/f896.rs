@@ -12,48 +12,35 @@ pub struct F896 {
     monitor_input_ctl: V1MonitorInputCtl<F896Protocol>,
     word_clk_ctl: WordClockCtl<F896Protocol>,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl<F896Protocol>,
-    level_meters_ctl: LevelMetersCtl,
-}
-
-#[derive(Default)]
-struct LevelMetersCtl(LevelMeterState);
-
-impl LevelMetersCtlOperation<F896Protocol> for LevelMetersCtl {
-    fn state(&self) -> &LevelMeterState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut LevelMeterState {
-        &mut self.0
-    }
+    level_meters_ctl: LevelMetersCtl<F896Protocol>,
 }
 
 impl CtlModel<(SndMotu, FwNode)> for F896 {
     fn load(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        (_, node): &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.clk_ctls
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.word_clk_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.level_meters_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        let _ = self
-            .level_meters_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.level_meters_ctl.load(card_cntr)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -65,13 +52,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.level_meters_ctl.read(
-            unit,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.level_meters_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -80,45 +61,44 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
 
     fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        (unit, node): &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(
-            &mut unit.0,
-            &mut self.req,
-            &mut unit.1,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.monitor_input_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
             &mut self.req,
-            &mut unit.1,
+            node,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .level_meters_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.level_meters_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
