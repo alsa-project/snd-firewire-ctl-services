@@ -1194,35 +1194,44 @@ impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
     }
 }
 
-pub struct RegisterDspMeterImage([u8; 48]);
-
-impl Default for RegisterDspMeterImage {
-    fn default() -> Self {
-        Self([0u8; 48])
-    }
+#[derive(Debug)]
+pub(crate) struct RegisterDspMeterCtl<T: RegisterDspMeterOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: RegisterDspMeterState,
+    image: [u8; 48],
+    _phantom: PhantomData<T>,
 }
 
 const INPUT_METER_NAME: &str = "input-meter";
 const OUTPUT_METER_NAME: &str = "output-meter";
 const OUTPUT_METER_TARGET_NAME: &str = "output-meter-target";
 
-pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
-    fn state(&self) -> &RegisterDspMeterState;
-    fn state_mut(&mut self) -> &mut RegisterDspMeterState;
+impl<T: RegisterDspMeterOperation> Default for RegisterDspMeterCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_meter_state(),
+            image: [0; 48],
+            _phantom: Default::default(),
+        }
+    }
+}
 
-    fn load(
+impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
+    ) -> Result<(), Error> {
         if T::SELECTABLE {
-            T::select_output(req, &mut unit.1, 0, self.state_mut(), timeout_ms)?;
+            T::select_output(req, node, 0, &mut self.state, timeout_ms)?;
         }
 
-        let mut measured_elem_id_list = Vec::new();
+        Ok(())
+    }
 
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -1235,7 +1244,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_NAME, 0);
         card_cntr
@@ -1249,7 +1258,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         if T::SELECTABLE {
             let labels: Vec<String> = T::OUTPUT_PORT_PAIRS
@@ -1260,25 +1269,25 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
                 ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_TARGET_NAME, 0);
             card_cntr
                 .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
         }
 
-        Ok(measured_elem_id_list)
+        Ok(())
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state().inputs);
+                copy_int_to_elem_value(elem_value, &self.state.inputs);
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state().outputs);
+                copy_int_to_elem_value(elem_value, &self.state.outputs);
                 Ok(true)
             }
             OUTPUT_METER_TARGET_NAME => {
                 if T::SELECTABLE {
-                    if let Some(selected) = self.state().selected {
+                    if let Some(selected) = self.state.selected {
                         elem_value.set_enum(&[selected as u32]);
                         Ok(true)
                     } else {
@@ -1292,10 +1301,10 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1305,7 +1314,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
                 if T::SELECTABLE {
                     let target = elem_value.enumerated()[0] as usize;
                     if target < T::OUTPUT_PORT_PAIRS.len() {
-                        T::select_output(req, &mut unit.1, target, self.state_mut(), timeout_ms)
+                        T::select_output(req, node, target, &mut self.state, timeout_ms)
                             .map(|_| true)
                     } else {
                         let msg = format!("Invalid index for output meter pair: {}", target);
@@ -1319,12 +1328,9 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
         }
     }
 
-    fn read_dsp_meter(
-        &mut self,
-        unit: &SndMotu,
-        image: &mut RegisterDspMeterImage,
-    ) -> Result<(), Error> {
-        unit.read_byte_meter(&mut image.0)
-            .map(|_| T::parse_dsp_meter(self.state_mut(), &image.0))
+    pub(crate) fn read_dsp_meter(&mut self, unit: &SndMotu) -> Result<(), Error> {
+        unit.read_byte_meter(&mut self.image)?;
+        T::parse_dsp_meter(&mut self.state, &self.image);
+        Ok(())
     }
 }

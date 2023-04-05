@@ -1579,7 +1579,7 @@ pub trait RegisterDspStereoInputOperation {
 }
 
 /// Information of meter.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspMeterState {
     pub inputs: Vec<u8>,
     pub outputs: Vec<u8>,
