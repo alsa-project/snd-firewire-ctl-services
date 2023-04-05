@@ -10,8 +10,8 @@ pub struct AudioExpress {
     req: FwReq,
     clk_ctls: ClkCtl,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<AudioExpressProtocol>,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<AudioExpressProtocol>,
     mixer_output_ctl: MixerOutputCtl,
-    mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
@@ -34,19 +34,6 @@ impl RegisterDspMixerOutputCtlOperation<AudioExpressProtocol> for MixerOutputCtl
     }
 
     fn state_mut(&mut self) -> &mut RegisterDspMixerOutputState {
-        &mut self.0
-    }
-}
-
-#[derive(Default)]
-struct MixerReturnCtl(bool, Vec<ElemId>);
-
-impl RegisterDspMixerReturnCtlOperation<AudioExpressProtocol> for MixerReturnCtl {
-    fn state(&self) -> &bool {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut bool {
         &mut self.0
     }
 }
@@ -139,14 +126,15 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
+        self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .load(card_cntr, unit, &mut self.req, &self.params, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
@@ -212,13 +200,16 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .mixer_return_ctl
+            .mixer_output_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)

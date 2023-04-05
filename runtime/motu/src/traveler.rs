@@ -12,8 +12,8 @@ pub struct Traveler {
     opt_iface_ctl: V2OptIfaceCtl<TravelerProtocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<TravelerProtocol>,
     word_clk_ctl: WordClockCtl<TravelerProtocol>,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<TravelerProtocol>,
     mixer_output_ctl: MixerOutputCtl,
-    mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     line_input_ctl: LineInputCtl,
@@ -32,19 +32,6 @@ impl RegisterDspMixerOutputCtlOperation<TravelerProtocol> for MixerOutputCtl {
     }
 
     fn state_mut(&mut self) -> &mut RegisterDspMixerOutputState {
-        &mut self.0
-    }
-}
-
-#[derive(Default)]
-struct MixerReturnCtl(bool, Vec<ElemId>);
-
-impl RegisterDspMixerReturnCtlOperation<TravelerProtocol> for MixerReturnCtl {
-    fn state(&self) -> &bool {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut bool {
         &mut self.0
     }
 }
@@ -143,16 +130,17 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
+        self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
@@ -185,9 +173,9 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             Ok(true)
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -242,13 +230,16 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .mixer_return_ctl
+            .mixer_output_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)

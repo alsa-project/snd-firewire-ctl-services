@@ -11,7 +11,7 @@ pub struct H4pre {
     clk_ctls: ClkCtl,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<H4preProtocol>,
     mixer_output_ctl: MixerOutputCtl,
-    mixer_return_ctl: MixerReturnCtl,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<H4preProtocol>,
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     input_ctl: InputCtl,
@@ -34,19 +34,6 @@ impl RegisterDspMixerOutputCtlOperation<AudioExpressProtocol> for MixerOutputCtl
     }
 
     fn state_mut(&mut self) -> &mut RegisterDspMixerOutputState {
-        &mut self.0
-    }
-}
-
-#[derive(Default)]
-struct MixerReturnCtl(bool, Vec<ElemId>);
-
-impl RegisterDspMixerReturnCtlOperation<H4preProtocol> for MixerReturnCtl {
-    fn state(&self) -> &bool {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut bool {
         &mut self.0
     }
 }
@@ -136,14 +123,15 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
+        self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .load(card_cntr, unit, &mut self.req, &self.params, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
@@ -172,9 +160,9 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             Ok(true)
         } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -209,13 +197,16 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .mixer_return_ctl
+            .mixer_output_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
