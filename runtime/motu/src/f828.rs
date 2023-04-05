@@ -9,14 +9,9 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828 {
     req: FwReq,
     clk_ctls: V1ClkCtl<F828Protocol>,
-    monitor_input_ctl: MonitorInputCtl,
+    monitor_input_ctl: V1MonitorInputCtl<F828Protocol>,
     specific_ctls: SpecificCtl,
 }
-
-#[derive(Default)]
-struct MonitorInputCtl;
-
-impl V1MonitorInputCtlOperation<F828Protocol> for MonitorInputCtl {}
 
 impl CtlModel<(SndMotu, FwNode)> for F828 {
     fn load(
@@ -25,6 +20,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.monitor_input_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
@@ -40,13 +37,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.monitor_input_ctl.read(
-            unit,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self.monitor_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self
             .specific_ctls
@@ -74,10 +65,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .monitor_input_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.monitor_input_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .specific_ctls
