@@ -16,31 +16,10 @@ pub struct F896hd {
     mixer_return_ctl: RegisterDspMixerReturnCtl<F896hdProtocol>,
     params: SndMotuRegisterDspParameter,
     mixer_output_ctl: RegisterDspMixerOutputCtl<F896hdProtocol>,
-    mixer_source_ctl: MixerSourceCtl,
+    mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<F896hdProtocol>,
     output_ctl: OutputCtl,
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
-
-impl Default for MixerSourceCtl {
-    fn default() -> Self {
-        Self(
-            F896hdProtocol::create_mixer_monaural_source_state(),
-            Default::default(),
-        )
-    }
-}
-
-impl RegisterDspMixerMonauralSourceCtlOperation<F896hdProtocol> for MixerSourceCtl {
-    fn state(&self) -> &RegisterDspMixerMonauralSourceState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut RegisterDspMixerMonauralSourceState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -82,6 +61,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
     ) -> Result<(), Error> {
         unit.0.read_parameter(&mut self.params)?;
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+        self.mixer_source_ctl.parse_dsp_parameter(&self.params);
 
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -97,6 +77,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.mixer_output_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_source_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
@@ -105,9 +87,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         self.level_meters_ctl.load(card_cntr)?;
         self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr)?;
-        self.mixer_source_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
+        self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
@@ -210,10 +190,13 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .mixer_source_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_source_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .output_ctl
@@ -266,7 +249,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F896hd {
 impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_source_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
     }
 

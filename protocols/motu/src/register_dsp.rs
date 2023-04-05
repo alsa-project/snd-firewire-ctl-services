@@ -262,7 +262,7 @@ pub trait RegisterDspMixerReturnOperation {
 }
 
 /// State of sources in mixer entiry.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct RegisterDspMixerMonauralSourceEntry {
     pub gain: Vec<u8>,
     pub pan: Vec<u8>,
@@ -271,7 +271,7 @@ pub struct RegisterDspMixerMonauralSourceEntry {
 }
 
 /// State of mixer sources.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspMixerMonauralSourceState(
     pub [RegisterDspMixerMonauralSourceEntry; MIXER_COUNT],
 );
