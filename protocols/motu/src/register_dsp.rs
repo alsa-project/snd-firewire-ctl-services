@@ -1125,7 +1125,7 @@ pub trait Traveler828mk2LineInputOperation {
 const MONAURAL_INPUT_COUNT: usize = 10;
 
 /// State of input in Ultralite.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspMonauralInputState {
     pub gain: [u8; MONAURAL_INPUT_COUNT],
     pub invert: [bool; MONAURAL_INPUT_COUNT],
