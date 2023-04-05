@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F896hd {
     req: FwReq,
-    clk_ctls: ClkCtl,
+    clk_ctls: V2ClkCtl<F896hdProtocol>,
     opt_iface_ctl: OptIfaceCtl,
     word_clk_ctl: WordClockCtl<F896hdProtocol>,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl<F896hdProtocol>,
@@ -21,11 +21,6 @@ pub struct F896hd {
     meter: RegisterDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V2ClkCtlOperation<F896hdProtocol> for ClkCtl {}
 
 #[derive(Default)]
 struct OptIfaceCtl((usize, usize), Vec<ElemId>);
@@ -124,6 +119,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.clk_ctls
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl
@@ -157,14 +154,11 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -196,10 +190,14 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl

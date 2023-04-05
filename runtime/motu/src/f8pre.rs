@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F8pre {
     req: FwReq,
-    clk_ctls: ClkCtl,
+    clk_ctls: V2ClkCtl<F8preProtocol>,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
     mixer_output_ctl: MixerOutputCtl,
@@ -34,11 +34,6 @@ impl PhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {
 }
 
 impl RegisterDspPhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {}
-
-#[derive(Default)]
-struct ClkCtl;
-
-impl V2ClkCtlOperation<F8preProtocol> for ClkCtl {}
 
 #[derive(Default)]
 struct OptIfaceCtl((usize, usize), Vec<ElemId>);
@@ -137,6 +132,9 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.clk_ctls
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -160,14 +158,11 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -193,10 +188,14 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        if self.clk_ctls.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl
