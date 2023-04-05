@@ -56,7 +56,7 @@ const MIXER_OUTPUT_DESTINATION_MASK: u32 = 0x00000f00;
 const MIXER_OUTPUT_VOLUME_MASK: u32 = 0x000000ff;
 
 /// State of mixer output.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspMixerOutputState {
     pub volume: [u8; MIXER_COUNT],
     pub mute: [bool; MIXER_COUNT],
