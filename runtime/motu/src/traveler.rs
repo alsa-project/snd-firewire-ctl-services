@@ -23,9 +23,6 @@ pub struct Traveler {
     meter_ctl: MeterCtl,
 }
 
-#[derive(Default)]
-struct MicInputCtl(TravelerMicInputState, Vec<ElemId>);
-
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
 impl Default for MeterCtl {
@@ -76,6 +73,8 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.line_input_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mic_input_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
@@ -86,9 +85,7 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.line_input_ctl.load(card_cntr)?;
-        self.mic_input_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.mic_input_ctl.1 = elem_id_list)?;
+        self.mic_input_ctl.load(card_cntr)?;
         self.meter_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
@@ -218,26 +215,28 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for Traveler {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.mic_input_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.opt_iface_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.mic_input_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & TravelerProtocol::NOTIFY_MIC_PARAM_MASK > 0 {
-            self.mic_input_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.mic_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         if *msg & TravelerProtocol::NOTIFY_PORT_CHANGE > 0 {
             self.phone_assign_ctl
                 .0
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-            self.word_clk_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
+            self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         if *msg & TravelerProtocol::NOTIFY_FORMAT_CHANGE > 0 {
-            self.opt_iface_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+            self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -375,6 +374,12 @@ impl MeasureModel<(SndMotu, FwNode)> for Traveler {
     }
 }
 
+#[derive(Default, Debug)]
+struct MicInputCtl {
+    elem_id_list: Vec<ElemId>,
+    state: TravelerMicInputState,
+}
+
 const MIC_GAIN_NAME: &str = "mic-gain-name";
 const MIC_PAD_NAME: &str = "mic-pad-name";
 
@@ -386,17 +391,11 @@ impl MicInputCtl {
         mute_avail: false,
     };
 
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        self.cache(unit, req, timeout_ms)?;
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        TravelerProtocol::read_mic_input_state(req, node, &mut self.state, timeout_ms)
+    }
 
-        let mut notified_elem_id_list = Vec::new();
-
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -409,34 +408,25 @@ impl MicInputCtl {
                 Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PAD_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, TravelerProtocol::MIC_INPUT_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
-    }
-
-    fn cache(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        TravelerProtocol::read_mic_input_state(req, &mut unit.1, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals: Vec<i32> = self.0.gain.iter().map(|&val| val as i32).collect();
+                let vals: Vec<i32> = self.state.gain.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.0.pad);
+                elem_value.set_bool(&self.state.pad);
                 Ok(true)
             }
             _ => Ok(false),
@@ -453,14 +443,24 @@ impl MicInputCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals = &elem_value.int()[..TravelerProtocol::MIC_INPUT_COUNT];
-                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                TravelerProtocol::write_mic_gain(req, &mut unit.1, &gain, &mut self.0, timeout_ms)
-                    .map(|_| true)
+                let gain: Vec<u8> = elem_value
+                    .int()
+                    .iter()
+                    .take(TravelerProtocol::MIC_INPUT_COUNT)
+                    .map(|&val| val as u8)
+                    .collect();
+                TravelerProtocol::write_mic_gain(
+                    req,
+                    &mut unit.1,
+                    &gain,
+                    &mut self.state,
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             MIC_PAD_NAME => {
                 let pad = &elem_value.boolean()[..TravelerProtocol::MIC_INPUT_COUNT];
-                TravelerProtocol::write_mic_pad(req, &mut unit.1, &pad, &mut self.0, timeout_ms)
+                TravelerProtocol::write_mic_pad(req, &mut unit.1, &pad, &mut self.state, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
