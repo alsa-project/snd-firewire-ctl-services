@@ -529,7 +529,7 @@ const MIXER_STEREO_SOURCE_COUNT: usize = 6;
 const MIXER_STEREO_SOURCE_PAIR_COUNT: usize = MIXER_STEREO_SOURCE_COUNT / 2;
 
 /// State of sources in mixer entiry.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct RegisterDspMixerStereoSourceEntry {
     pub gain: [u8; MIXER_STEREO_SOURCE_COUNT],
     pub pan: [u8; MIXER_STEREO_SOURCE_COUNT],
@@ -540,7 +540,7 @@ pub struct RegisterDspMixerStereoSourceEntry {
 }
 
 /// State of mixer sources.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegisterDspMixerStereoSourceState(pub [RegisterDspMixerStereoSourceEntry; MIXER_COUNT]);
 
 const MIXER_SOURCE_PAIRED_WIDTH_FLAG: u32 = 0x00400000;
