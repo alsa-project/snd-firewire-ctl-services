@@ -12,8 +12,8 @@ pub struct F828mk2 {
     opt_iface_ctl: V2OptIfaceCtl<F828mk2Protocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<F828mk2Protocol>,
     word_clk_ctl: WordClockCtl<F828mk2Protocol>,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<F828mk2Protocol>,
     mixer_output_ctl: MixerOutputCtl,
-    mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     line_input_ctl: LineInputCtl,
@@ -31,19 +31,6 @@ impl RegisterDspMixerOutputCtlOperation<F828mk2Protocol> for MixerOutputCtl {
     }
 
     fn state_mut(&mut self) -> &mut RegisterDspMixerOutputState {
-        &mut self.0
-    }
-}
-
-#[derive(Default)]
-struct MixerReturnCtl(bool, Vec<ElemId>);
-
-impl RegisterDspMixerReturnCtlOperation<F828mk2Protocol> for MixerReturnCtl {
-    fn state(&self) -> &bool {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut bool {
         &mut self.0
     }
 }
@@ -139,16 +126,17 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.phone_assign_ctl
             .0
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
+        self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
@@ -178,9 +166,9 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             Ok(true)
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -233,13 +221,16 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .mixer_return_ctl
+            .mixer_output_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)

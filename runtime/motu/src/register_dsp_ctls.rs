@@ -158,39 +158,50 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct RegisterDspMixerReturnCtl<T: RegisterDspMixerReturnOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: bool,
+    _phantom: PhantomData<T>,
+}
+
 const MIXER_RETURN_ENABLE_NAME: &str = "mixer-return-enable";
 
-pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation> {
-    fn state(&self) -> &bool;
-    fn state_mut(&mut self) -> &mut bool;
-
-    fn load(
+impl<T: RegisterDspMixerReturnOperation> RegisterDspMixerReturnCtl<T> {
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        T::read_mixer_return_enable(req, &mut unit.1, self.state_mut(), timeout_ms)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_ENABLE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+    ) -> Result<(), Error> {
+        T::read_mixer_return_enable(req, node, &mut self.state, timeout_ms)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_ENABLE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+    }
+
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_RETURN_ENABLE_NAME => {
-                elem_value.set_bool(&[*self.state()]);
+                elem_value.set_bool(&[self.state]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -198,7 +209,9 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
         match elem_id.name().as_str() {
             MIXER_RETURN_ENABLE_NAME => {
                 let val = elem_value.boolean()[0];
-                T::write_mixer_return_enable(req, &mut unit.1, val, timeout_ms).map(|_| true)
+                T::write_mixer_return_enable(req, node, val, timeout_ms)
+                    .map(|_| self.state = val)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
