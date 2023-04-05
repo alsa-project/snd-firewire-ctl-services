@@ -106,49 +106,64 @@ impl<T: V1ClkOperation> V1ClkCtl<T> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct V1MonitorInputCtl<T: V1MonitorInputOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    mode: usize,
+    _phantom: PhantomData<T>,
+}
+
 const MONITOR_INPUT_NAME: &str = "monitor-input";
 
-pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl<T: V1MonitorInputOperation> V1MonitorInputCtl<T> {
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_monitor_input(req, node, timeout_ms).map(|mode| self.mode = mode)
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::MONITOR_INPUT_MODES
             .iter()
             .map(|e| target_port_to_string(e))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_INPUT_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        Ok(())
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn read(
+    pub(crate) fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_monitor_input(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
-            })
-            .map(|_| true),
+            MONITOR_INPUT_NAME => {
+                elem_value.set_enum(&[self.mode as u32]);
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                T::set_monitor_input(req, &mut unit.1, val as usize, timeout_ms)
-            })
-            .map(|_| true),
+            MONITOR_INPUT_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                T::set_monitor_input(req, node, val, timeout_ms).map(|_| self.mode = val)?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
