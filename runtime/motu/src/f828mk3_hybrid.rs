@@ -12,7 +12,7 @@ pub struct F828mk3Hybrid {
     clk_ctls: ClkCtl,
     port_assign_ctl: PortAssignCtl,
     opt_iface_ctl: OptIfaceCtl,
-    phone_assign_ctl: PhoneAssignCtl,
+    phone_assign_ctl: PhoneAssignCtl<F828mk3HybridProtocol>,
     word_clk_ctl: WordClockCtl<F828mk3HybridProtocol>,
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
@@ -23,19 +23,6 @@ pub struct F828mk3Hybrid {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PhoneAssignCtl(usize, Vec<ElemId>);
-
-impl PhoneAssignCtlOperation<F828mk3HybridProtocol> for PhoneAssignCtl {
-    fn state(&self) -> &usize {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut usize {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -190,6 +177,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.phone_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
@@ -198,9 +187,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
-        self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
         self.reverb_ctl
             .load(card_cntr)
@@ -309,10 +296,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .word_clk_ctl
@@ -409,7 +399,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
 impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Hybrid {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
     }
 
@@ -418,7 +408,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Hybrid {
             self.port_assign_ctl
                 .cache(unit, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
             self.word_clk_ctl
                 .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         }

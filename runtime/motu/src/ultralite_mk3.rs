@@ -11,7 +11,7 @@ pub struct UltraLiteMk3 {
     resp: FwResp,
     clk_ctls: ClkCtl,
     port_assign_ctl: PortAssignCtl,
-    phone_assign_ctl: PhoneAssignCtl,
+    phone_assign_ctl: PhoneAssignCtl<UltraliteMk3Protocol>,
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
     monitor_ctl: MonitorCtl,
@@ -21,19 +21,6 @@ pub struct UltraLiteMk3 {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PhoneAssignCtl(usize, Vec<ElemId>);
-
-impl PhoneAssignCtlOperation<UltraliteMk3Protocol> for PhoneAssignCtl {
-    fn state(&self) -> &usize {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut usize {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -183,13 +170,14 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.phone_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
-        self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.load(card_cntr)?;
         self.reverb_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.reverb_ctl.1.append(&mut elem_id_list))?;
@@ -285,10 +273,13 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.reverb_ctl.write(
             &mut self.sequence_number,
@@ -380,7 +371,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
 impl NotifyModel<(SndMotu, FwNode), u32> for UltraLiteMk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
@@ -388,7 +379,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for UltraLiteMk3 {
             self.port_assign_ctl
                 .cache(unit, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         }
         Ok(())
     }

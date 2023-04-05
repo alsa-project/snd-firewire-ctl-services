@@ -12,7 +12,7 @@ pub struct TravelerMk3 {
     clk_ctls: ClkCtl,
     port_assign_ctl: PortAssignCtl,
     opt_iface_ctl: OptIfaceCtl,
-    phone_assign_ctl: PhoneAssignCtl,
+    phone_assign_ctl: PhoneAssignCtl<TravelerMk3Protocol>,
     word_clk_ctl: WordClockCtl<TravelerMk3Protocol>,
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
@@ -23,19 +23,6 @@ pub struct TravelerMk3 {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PhoneAssignCtl(usize, Vec<ElemId>);
-
-impl PhoneAssignCtlOperation<TravelerMk3Protocol> for PhoneAssignCtl {
-    fn state(&self) -> &usize {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut usize {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -190,6 +177,8 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
         unit: &mut (SndMotu, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
+        self.phone_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
@@ -198,9 +187,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
-        self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
         self.reverb_ctl
             .load(card_cntr)
@@ -309,10 +296,13 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .word_clk_ctl
