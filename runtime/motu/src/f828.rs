@@ -13,17 +13,18 @@ pub struct F828 {
     specific_ctls: SpecificCtl,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F828 {
-    fn load(
-        &mut self,
-        (_, node): &mut (SndMotu, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+impl Version1CtlModel for F828 {
+    fn cache(&mut self, (_, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_input_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.specific_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
+        Ok(())
+    }
+}
 
+impl CtlModel<(SndMotu, FwNode)> for F828 {
+    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
         self.specific_ctls.load(card_cntr)?;

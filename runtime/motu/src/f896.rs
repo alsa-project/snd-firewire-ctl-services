@@ -15,21 +15,20 @@ pub struct F896 {
     level_meters_ctl: LevelMetersCtl<F896Protocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F896 {
-    fn load(
-        &mut self,
-        (_, node): &mut (SndMotu, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.clk_ctls
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.word_clk_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+impl Version1CtlModel for F896 {
+    fn cache(&mut self, (_, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
+        self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.level_meters_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
+        Ok(())
+    }
+}
 
+impl CtlModel<(SndMotu, FwNode)> for F896 {
+    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
