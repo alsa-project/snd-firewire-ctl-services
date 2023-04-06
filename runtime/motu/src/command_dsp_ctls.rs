@@ -1522,14 +1522,18 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     ) -> Result<bool, Error> {
         assert_eq!(levels.len(), Self::CH_COUNT);
 
-        ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-            let pos = Self::ROLL_OFF_LEVELS
-                .iter()
-                .position(|l| levels[idx].eq(l))
-                .unwrap();
-            Ok(pos as u32)
-        })
-        .map(|_| true)
+        let vals: Vec<u32> = levels
+            .iter()
+            .map(|level| {
+                let pos = Self::ROLL_OFF_LEVELS
+                    .iter()
+                    .position(|l| level.eq(l))
+                    .unwrap();
+                pos as u32
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
     }
 
     fn read_filter_type_5(
@@ -1538,14 +1542,18 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     ) -> Result<bool, Error> {
         assert_eq!(filter_types.len(), Self::CH_COUNT);
 
-        ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-            let pos = Self::FILTER_TYPE_5
-                .iter()
-                .position(|f| filter_types[idx].eq(f))
-                .unwrap();
-            Ok(pos as u32)
-        })
-        .map(|_| true)
+        let vals: Vec<u32> = filter_types
+            .iter()
+            .map(|filter_type| {
+                let pos = Self::FILTER_TYPE_5
+                    .iter()
+                    .position(|f| filter_type.eq(f))
+                    .unwrap();
+                pos as u32
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
     }
 
     fn read_filter_type_4(
@@ -1554,14 +1562,18 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     ) -> Result<bool, Error> {
         assert_eq!(filter_types.len(), Self::CH_COUNT);
 
-        ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-            let pos = Self::FILTER_TYPE_4
-                .iter()
-                .position(|f| filter_types[idx].eq(f))
-                .unwrap();
-            Ok(pos as u32)
-        })
-        .map(|_| true)
+        let vals: Vec<u32> = filter_types
+            .iter()
+            .map(|filter_type| {
+                let pos = Self::FILTER_TYPE_4
+                    .iter()
+                    .position(|f| filter_type.eq(f))
+                    .unwrap();
+                pos as u32
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
     }
 
     fn read_equalizer(
@@ -1643,8 +1655,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1653,7 +1665,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         F: Fn(&mut CommandDspEqualizerState, &[bool]),
     {
         let vals = &elem_value.boolean()[..Self::CH_COUNT];
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
         })
@@ -1662,8 +1674,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_int_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1672,7 +1684,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         F: Fn(&mut CommandDspEqualizerState, &[i32]),
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
         })
@@ -1681,8 +1693,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_u32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1692,7 +1704,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
         })
@@ -1701,8 +1713,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1715,7 +1727,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
             .collect();
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
         })
@@ -1724,8 +1736,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_roll_off_level<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1745,7 +1757,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 })
                 .map(|&l| levels.push(l))
         })?;
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &levels);
             Ok(())
         })
@@ -1754,8 +1766,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_filter_type_5<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1775,7 +1787,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 })
                 .map(|&filter_type| filter_types.push(filter_type))
         })?;
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &filter_types);
             Ok(())
         })
@@ -1784,8 +1796,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_filter_type_4<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -1805,7 +1817,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 })
                 .map(|&filter_type| filter_types.push(filter_type))
         })?;
-        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &filter_types);
             Ok(())
         })
@@ -1814,8 +1826,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_equalizer(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1825,8 +1837,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         if name == Self::ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1836,8 +1848,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HPF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1847,8 +1859,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HPF_SLOPE_NAME {
             self.write_roll_off_level(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.hpf_slope.copy_from_slice(vals),
@@ -1856,8 +1868,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HPF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1867,8 +1879,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LPF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1878,8 +1890,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LPF_SLOPE_NAME {
             self.write_roll_off_level(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.lpf_slope.copy_from_slice(vals),
@@ -1887,8 +1899,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LPF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1898,8 +1910,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1909,8 +1921,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_TYPE_NAME {
             self.write_filter_type_5(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.lf_type.copy_from_slice(vals),
@@ -1918,8 +1930,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1929,8 +1941,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1940,8 +1952,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_WIDTH_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1951,8 +1963,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1962,8 +1974,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.lmf_type.copy_from_slice(vals),
@@ -1971,8 +1983,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1982,8 +1994,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -1993,8 +2005,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_WIDTH_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2004,8 +2016,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2015,8 +2027,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.mf_type.copy_from_slice(vals),
@@ -2024,8 +2036,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2035,8 +2047,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2046,8 +2058,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_WIDTH_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2057,8 +2069,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2068,8 +2080,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.hmf_type.copy_from_slice(vals),
@@ -2077,8 +2089,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2088,8 +2100,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2099,8 +2111,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_WIDTH_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2110,8 +2122,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2121,8 +2133,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_TYPE_NAME {
             self.write_filter_type_5(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.hf_type.copy_from_slice(vals),
@@ -2130,8 +2142,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_FREQ_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2141,8 +2153,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2152,8 +2164,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_WIDTH_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -2168,8 +2180,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3153,8 +3165,8 @@ where
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3165,7 +3177,7 @@ where
         func(&mut state.equalizer)?;
         T::write_input_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
             self.state_mut(),
@@ -3525,8 +3537,8 @@ where
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3537,7 +3549,7 @@ where
         func(&mut state.equalizer)?;
         T::write_output_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
             self.state_mut(),
