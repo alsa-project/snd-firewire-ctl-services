@@ -9,8 +9,19 @@ fn to_i32(val: f32) -> i32 {
     (val * F32_CONVERT_SCALE) as i32
 }
 
+fn to_i32_elem_value(src: &[f32], elem_value: &mut ElemValue) {
+    let vals: Vec<i32> = src.iter().map(|&val| to_i32(val)).collect();
+    elem_value.set_int(&vals);
+}
+
 fn from_i32(val: i32) -> f32 {
     (val as f32) / F32_CONVERT_SCALE
+}
+
+fn from_i32_elem_value(dst: &mut [f32], elem_value: &ElemValue) {
+    dst.iter_mut()
+        .zip(elem_value.int())
+        .for_each(|(dst, &val)| *dst = from_i32(val));
 }
 
 #[derive(Default, Debug)]
@@ -662,6 +673,13 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct CommandDspMixerCtl<T: CommandDspMixerOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: CommandDspMixerState,
+    _phantom: PhantomData<T>,
+}
+
 fn mixer_source_stereo_pair_mode_to_str(mode: &SourceStereoPairMode) -> &'static str {
     match mode {
         SourceStereoPairMode::Width => "width",
@@ -684,18 +702,25 @@ const MIXER_SOURCE_STEREO_PAIR_MODE_NAME: &str = "mixer-source-stereo-mode";
 const MIXER_SOURCE_STEREO_BALANCE_NAME: &str = "mixer-source-stereo-balance";
 const MIXER_SOURCE_STEREO_WIDTH_NAME: &str = "mixer-source-stereo-width";
 
-pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
-    fn state(&self) -> &CommandDspMixerState;
-    fn state_mut(&mut self) -> &mut CommandDspMixerState;
+impl<T: CommandDspMixerOperation> Default for CommandDspMixerCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_mixer_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
 
+impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
     const SOURCE_STEREO_PAIR_MODES: [SourceStereoPairMode; 2] =
         [SourceStereoPairMode::Width, SourceStereoPairMode::LrBalance];
 
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
+    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_mixer_commands(&mut self.state, cmds);
+    }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::OUTPUT_PORTS
             .iter()
             .map(|p| target_port_to_string(p))
@@ -704,92 +729,92 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DESTINATION_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, T::MIXER_COUNT, &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_MUTE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_VOLUME_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::OUTPUT_VOLUME_MIN),
+                to_i32(T::OUTPUT_VOLUME_MAX),
                 1,
                 T::MIXER_COUNT,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_REVERB_SEND_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::OUTPUT_VOLUME_MIN),
+                to_i32(T::OUTPUT_VOLUME_MAX),
                 1,
                 T::MIXER_COUNT,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_REVERB_RETURN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::OUTPUT_VOLUME_MIN),
+                to_i32(T::OUTPUT_VOLUME_MAX),
                 1,
                 T::MIXER_COUNT,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, T::MIXER_COUNT, T::SOURCE_PORTS.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, T::MIXER_COUNT, T::SOURCE_PORTS.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                (T::SOURCE_GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::SOURCE_GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::SOURCE_GAIN_MIN),
+                to_i32(T::SOURCE_GAIN_MAX),
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::SOURCE_PAN_MIN),
+                to_i32(T::SOURCE_PAN_MAX),
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::SOURCE_STEREO_PAIR_MODES
             .iter()
@@ -811,7 +836,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Mixer,
@@ -824,14 +849,14 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::SOURCE_PAN_MIN),
+                to_i32(T::SOURCE_PAN_MAX),
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Mixer,
@@ -844,254 +869,364 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::SOURCE_PAN_MIN),
+                to_i32(T::SOURCE_PAN_MAX),
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) -> Result<bool, Error> {
-        let vals: Vec<i32> = vals
-            .iter()
-            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
-            .collect();
-
-        elem_value.set_int(&vals);
-        Ok(true)
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_DESTINATION_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIXER_COUNT, |idx| {
-                    let pos = T::OUTPUT_PORTS
-                        .iter()
-                        .position(|p| self.state().output_assign[idx].eq(p))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .state
+                    .output_assign
+                    .iter()
+                    .map(|assign| {
+                        let pos = T::OUTPUT_PORTS.iter().position(|p| assign.eq(p)).unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&self.state().output_mute);
+                elem_value.set_bool(&self.state.output_mute);
                 Ok(true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
-                Self::read_f32_values(elem_value, &self.state().output_volume)
+                to_i32_elem_value(&self.state.output_volume, elem_value);
+                Ok(true)
             }
-            MIXER_REVERB_SEND_NAME => Self::read_f32_values(elem_value, &self.state().reverb_send),
+            MIXER_REVERB_SEND_NAME => {
+                to_i32_elem_value(&self.state.reverb_send, elem_value);
+                Ok(true)
+            }
             MIXER_REVERB_RETURN_NAME => {
-                Self::read_f32_values(elem_value, &self.state().reverb_return)
+                to_i32_elem_value(&self.state.reverb_return, elem_value);
+                Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state().source[mixer].mute);
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                elem_value.set_bool(&src.mute);
                 Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state().source[mixer].solo);
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                elem_value.set_bool(&src.solo);
                 Ok(true)
             }
             MIXER_SOURCE_PAN_NAME => {
                 let mixer = elem_id.index() as usize;
-                Self::read_f32_values(elem_value, &self.state().source[mixer].pan)
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                to_i32_elem_value(&src.pan, elem_value);
+                Ok(true)
             }
             MIXER_SOURCE_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                Self::read_f32_values(elem_value, &self.state().source[mixer].gain)
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                to_i32_elem_value(&src.gain, elem_value);
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
                 let mixer = elem_id.index() as usize;
-                ElemValueAccessor::<u32>::set_vals(elem_value, T::SOURCE_PORTS.len(), |idx| {
-                    let pos = Self::SOURCE_STEREO_PAIR_MODES
-                        .iter()
-                        .position(|m| self.state().source[mixer].stereo_mode[idx].eq(m))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals: Vec<u32> = src
+                    .stereo_mode
+                    .iter()
+                    .map(|mode| {
+                        let pos = Self::SOURCE_STEREO_PAIR_MODES
+                            .iter()
+                            .position(|m| mode.eq(m))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
                 let mixer = elem_id.index() as usize;
-                Self::read_f32_values(elem_value, &self.state().source[mixer].stereo_balance)
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                to_i32_elem_value(&src.stereo_balance, elem_value);
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
                 let mixer = elem_id.index() as usize;
-                Self::read_f32_values(elem_value, &self.state().source[mixer].stereo_width)
+                let src = self.state.source.iter().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                to_i32_elem_value(&src.stereo_width, elem_value);
+                Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn f32_array_from_i32_values(elem_value: &ElemValue, count: usize) -> Vec<f32> {
-        let vals = &elem_value.int()[..count];
-        vals.iter()
-            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
-            .collect()
-    }
-
-    fn write(
+    pub(crate) fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_DESTINATION_NAME => {
-                let vals = &elem_value.enumerated()[..T::MIXER_COUNT];
-                let mut dsts = Vec::new();
-                vals.iter().try_for_each(|&val| {
-                    T::OUTPUT_PORTS
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of output destinations: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&p| dsts.push(p))
-                })?;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.output_assign.copy_from_slice(&dsts);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state
+                    .output_assign
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(assign, &val)| {
+                        let pos = val as usize;
+                        T::OUTPUT_PORTS
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of output destinations: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&p| *assign = p)
+                    })?;
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
+                let mut state = self.state.clone();
                 let vals = &elem_value.boolean()[..T::MIXER_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.output_mute.copy_from_slice(&vals);
-                    Ok(())
-                })
+                state.output_mute.copy_from_slice(&vals);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.output_volume.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                from_i32_elem_value(&mut state.output_volume, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_REVERB_SEND_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reverb_send.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                from_i32_elem_value(&mut state.reverb_send, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_REVERB_RETURN_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reverb_return.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                from_i32_elem_value(&mut state.reverb_return, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
-                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].mute.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
+                src.mute.copy_from_slice(&vals);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
-                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].solo.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
+                src.solo.copy_from_slice(&vals);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_PAN_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].pan.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                from_i32_elem_value(&mut src.pan, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_GAIN_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].gain.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                from_i32_elem_value(&mut src.gain, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
-                let vals = &elem_value.enumerated()[..T::SOURCE_PORTS.len()];
-                let mut stereo_modes = Vec::new();
-                vals.iter().try_for_each(|&val| {
-                    Self::SOURCE_STEREO_PAIR_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of stereo pair modes: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&mode| stereo_modes.push(mode))
-                })?;
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer]
-                        .stereo_mode
-                        .copy_from_slice(&stereo_modes);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                src.stereo_mode
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(mode, &val)| {
+                        let pos = val as usize;
+                        Self::SOURCE_STEREO_PAIR_MODES
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of stereo pair modes: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&m| *mode = m)
+                    })?;
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].stereo_balance.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                from_i32_elem_value(&mut src.stereo_balance, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
+                let mut state = self.state.clone();
                 let mixer = elem_id.index() as usize;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.source[mixer].stereo_width.copy_from_slice(&vals);
-                    Ok(())
-                })
+                let src = state.source.iter_mut().nth(mixer).ok_or_else(|| {
+                    let msg = format!("Invalid index for mixer source: {}", mixer);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                from_i32_elem_value(&mut src.stereo_width, elem_value);
+                T::write_mixer_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             _ => Ok(false),
         }
-    }
-
-    fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_mixer_commands(self.state_mut(), cmds);
-    }
-
-    fn write_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspMixerState) -> Result<(), Error>,
-    {
-        let mut state = self.state().clone();
-        func(&mut state)?;
-        T::write_mixer_state(
-            req,
-            &mut unit.1,
-            sequence_number,
-            state,
-            self.state_mut(),
-            timeout_ms,
-        )
-        .map(|_| true)
     }
 }
 

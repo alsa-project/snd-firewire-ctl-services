@@ -17,33 +17,12 @@ pub struct TravelerMk3 {
     sequence_number: u8,
     reverb_ctl: CommandDspReverbCtl<TravelerMk3Protocol>,
     monitor_ctl: CommandDspMonitorCtl<TravelerMk3Protocol>,
-    mixer_ctl: MixerCtl,
+    mixer_ctl: CommandDspMixerCtl<TravelerMk3Protocol>,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
-
-impl Default for MixerCtl {
-    fn default() -> Self {
-        Self(
-            TravelerMk3Protocol::create_mixer_state(),
-            Default::default(),
-        )
-    }
-}
-
-impl CommandDspMixerCtlOperation<TravelerMk3Protocol> for MixerCtl {
-    fn state(&self) -> &CommandDspMixerState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut CommandDspMixerState {
-        &mut self.0
-    }
 }
 
 struct InputCtl(CommandDspInputState, Vec<ElemId>);
@@ -146,9 +125,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
         self.word_clk_ctl.load(card_cntr)?;
         self.reverb_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
-        self.mixer_ctl
-            .load(card_cntr)
-            .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
+        self.mixer_ctl.load(card_cntr)?;
         self.input_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
@@ -285,8 +262,8 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             Ok(true)
         } else if self.mixer_ctl.write(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -373,7 +350,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for TravelerMk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
         elem_id_list.extend_from_slice(&self.resource_ctl.1);
