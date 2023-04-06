@@ -22,12 +22,8 @@ pub struct UltraliteMk3Hybrid {
     meter_ctl: CommandDspMeterCtl<UltraliteMk3HybridProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
-    fn load(
-        &mut self,
-        (unit, node): &mut (SndMotu, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+impl CommandDspCtlModel for UltraliteMk3Hybrid {
+    fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -36,6 +32,12 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
 
         self.meter_ctl.read_dsp_meter(unit)?;
 
+        Ok(())
+    }
+}
+
+impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
+    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
