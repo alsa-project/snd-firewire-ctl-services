@@ -2996,7 +2996,7 @@ pub trait CommandDspOutputOperation: CommandDspOperation {
 }
 
 /// Information of Meter.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CommandDspMeterState {
     pub inputs: Vec<f32>,
     pub outputs: Vec<f32>,
