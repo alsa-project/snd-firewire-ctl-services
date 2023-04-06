@@ -14,26 +14,13 @@ pub struct UltraliteMk3Hybrid {
     phone_assign_ctl: PhoneAssignCtl<UltraliteMk3HybridProtocol>,
     sequence_number: u8,
     reverb_ctl: CommandDspReverbCtl<UltraliteMk3HybridProtocol>,
-    monitor_ctl: MonitorCtl,
+    monitor_ctl: CommandDspReverbCtl<UltraliteMk3HybridProtocol>,
     mixer_ctl: MixerCtl,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct MonitorCtl(CommandDspMonitorState, Vec<ElemId>);
-
-impl CommandDspMonitorCtlOperation<UltraliteMk3HybridProtocol> for MonitorCtl {
-    fn state(&self) -> &CommandDspMonitorState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut CommandDspMonitorState {
-        &mut self.0
-    }
 }
 
 struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
@@ -150,9 +137,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
         self.port_assign_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
         self.reverb_ctl.load(card_cntr)?;
-        self.monitor_ctl
-            .load(card_cntr)
-            .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
+        self.monitor_ctl.load(card_cntr)?;
         self.mixer_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
@@ -265,8 +250,8 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
             Ok(true)
         } else if self.monitor_ctl.write(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -380,7 +365,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for UltraliteMk3Hybrid {
 impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for UltraliteMk3Hybrid {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.monitor_ctl.1);
+        elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.1);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
