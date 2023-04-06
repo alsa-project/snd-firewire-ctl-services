@@ -2757,6 +2757,13 @@ fn input_stereo_pair_mode_to_string(mode: &InputStereoPairMode) -> &'static str 
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct CommandDspInputCtl<T: CommandDspInputOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: CommandDspInputState,
+    _phantom: PhantomData<T>,
+}
+
 const INPUT_PHASE_NAME: &str = "input-phase";
 const INPUT_PAIR_NAME: &str = "input-pair";
 const INPUT_GAIN_NAME: &str = "input-gain";
@@ -2773,10 +2780,17 @@ const MIC_LIMITTER_NAME: &str = "mic-limitter";
 const MIC_LOOKAHEAD_NAME: &str = "mic-lookahead";
 const MIC_SOFT_CLIP_NAME: &str = "mic-soft-clip";
 
-pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
-    fn state(&self) -> &CommandDspInputState;
-    fn state_mut(&mut self) -> &mut CommandDspInputState;
+impl<T: CommandDspInputOperation> Default for CommandDspInputCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_input_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
 
+impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
     const STEREO_PAIR_MODES: [InputStereoPairMode; 2] = [
         InputStereoPairMode::LeftRight,
         InputStereoPairMode::MonauralStereo,
@@ -2784,18 +2798,16 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
 
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PHASE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::INPUT_PORTS.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PAIR_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::INPUT_PORTS.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
         card_cntr
@@ -2809,12 +2821,12 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_SWAP_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, T::INPUT_PORTS.len(), true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::STEREO_PAIR_MODES
             .iter()
@@ -2823,7 +2835,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, T::INPUT_PORTS.len(), &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_WIDTH_NAME, 0);
         card_cntr
@@ -2837,7 +2849,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_REVERB_SEND_NAME, 0);
         card_cntr
@@ -2851,7 +2863,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_REVERB_BALANCE_NAME, 0);
         card_cntr
@@ -2865,117 +2877,131 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         if T::MIC_COUNT > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PAD_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PHANTOM_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_LIMITTER_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_LOOKAHEAD_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_SOFT_CLIP_NAME, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
         }
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) -> Result<bool, Error> {
+    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) {
         let vals: Vec<i32> = vals
             .iter()
             .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
             .collect();
-
         elem_value.set_int(&vals);
-        Ok(true)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_PHASE_NAME => {
-                elem_value.set_bool(&self.state().phase);
+                elem_value.set_bool(&self.state.phase);
                 Ok(true)
             }
             INPUT_PAIR_NAME => {
-                elem_value.set_bool(&self.state().pair);
+                elem_value.set_bool(&self.state.pair);
                 Ok(true)
             }
             INPUT_GAIN_NAME => {
-                elem_value.set_int(&self.state().gain);
+                elem_value.set_int(&self.state.gain);
                 Ok(true)
             }
             INPUT_SWAP_NAME => {
-                elem_value.set_bool(&self.state().swap);
+                elem_value.set_bool(&self.state.swap);
                 Ok(true)
             }
             INPUT_STEREO_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, T::INPUT_PORTS.len(), |idx| {
-                    let pos = Self::STEREO_PAIR_MODES
-                        .iter()
-                        .position(|p| self.state().stereo_mode[idx].eq(p))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .state
+                    .stereo_mode
+                    .iter()
+                    .map(|mode| {
+                        let pos = Self::STEREO_PAIR_MODES
+                            .iter()
+                            .position(|m| mode.eq(m))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
-            INPUT_WIDTH_NAME => Self::read_f32_values(elem_value, &self.state().width),
-            INPUT_REVERB_SEND_NAME => Self::read_f32_values(elem_value, &self.state().reverb_send),
+            INPUT_WIDTH_NAME => {
+                Self::read_f32_values(elem_value, &self.state.width);
+                Ok(true)
+            }
+            INPUT_REVERB_SEND_NAME => {
+                Self::read_f32_values(elem_value, &self.state.reverb_send);
+                Ok(true)
+            }
             INPUT_REVERB_BALANCE_NAME => {
-                Self::read_f32_values(elem_value, &self.state().reverb_balance)
+                Self::read_f32_values(elem_value, &self.state.reverb_balance);
+                Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.state().pad);
+                elem_value.set_bool(&self.state.pad);
                 Ok(true)
             }
             MIC_PHANTOM_NAME => {
-                elem_value.set_bool(&self.state().phantom);
+                elem_value.set_bool(&self.state.phantom);
                 Ok(true)
             }
             MIC_LIMITTER_NAME => {
-                elem_value.set_bool(&self.state().limitter);
+                elem_value.set_bool(&self.state.limitter);
                 Ok(true)
             }
             MIC_LOOKAHEAD_NAME => {
-                elem_value.set_bool(&self.state().lookahead);
+                elem_value.set_bool(&self.state.lookahead);
                 Ok(true)
             }
             MIC_SOFT_CLIP_NAME => {
-                elem_value.set_bool(&self.state().soft_clip);
+                elem_value.set_bool(&self.state.soft_clip);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn f32_array_from_i32_values(elem_value: &ElemValue) -> Vec<f32> {
-        let vals = &elem_value.int()[..T::INPUT_PORTS.len()];
-        vals.iter()
-            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
-            .collect()
+    fn f32_array_from_i32_values(elem_value: &ElemValue, vals: &mut [f32]) {
+        vals.iter_mut().zip(elem_value.int()).for_each(|(val, &v)| {
+            *val = (v as f32) / Self::F32_CONVERT_SCALE;
+        });
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2983,28 +3009,28 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         match elem_id.name().as_str() {
             INPUT_PHASE_NAME => {
                 let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.phase.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_PAIR_NAME => {
                 let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.pair.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_GAIN_NAME => {
                 let vals = &elem_value.int()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.gain.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_SWAP_NAME => {
                 let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.swap.copy_from_slice(&vals);
                     Ok(())
                 })
@@ -3022,63 +3048,58 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                         })
                         .map(|&m| modes.push(m))
                 })?;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.stereo_mode.copy_from_slice(&modes);
                     Ok(())
                 })
             }
-            INPUT_WIDTH_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.width.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
+            INPUT_WIDTH_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                Self::f32_array_from_i32_values(elem_value, &mut state.width);
+                Ok(())
+            }),
             INPUT_REVERB_SEND_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reverb_send.copy_from_slice(&vals);
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    Self::f32_array_from_i32_values(elem_value, &mut state.reverb_send);
                     Ok(())
                 })
             }
             INPUT_REVERB_BALANCE_NAME => {
-                let vals = Self::f32_array_from_i32_values(elem_value);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reverb_balance.copy_from_slice(&vals);
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    Self::f32_array_from_i32_values(elem_value, &mut state.reverb_balance);
                     Ok(())
                 })
             }
             MIC_PAD_NAME => {
                 let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.pad.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_PHANTOM_NAME => {
                 let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.phantom.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_LIMITTER_NAME => {
                 let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.limitter.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_LOOKAHEAD_NAME => {
                 let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.lookahead.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_SOFT_CLIP_NAME => {
                 let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
                     state.soft_clip.copy_from_slice(&vals);
                     Ok(())
                 })
@@ -3087,38 +3108,37 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         }
     }
 
-    fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_input_commands(self.state_mut(), cmds);
+    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_input_commands(&mut self.state, cmds);
     }
 
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
     where
         F: Fn(&mut CommandDspInputState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state)?;
         T::write_input_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)
     }
 }
 
-impl<O, T> CommandDspEqualizerCtlOperation<T, CommandDspInputState> for O
+impl<T> CommandDspEqualizerCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
 where
-    O: CommandDspInputCtlOperation<T>,
     T: CommandDspInputOperation,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
@@ -3164,7 +3184,7 @@ where
     const HF_WIDTH_NAME: &'static str = "input-equalizer-hf-width";
 
     fn state(&self) -> &CommandDspEqualizerState {
-        &self.state().equalizer
+        &self.state.equalizer
     }
 
     fn write_equalizer_state<F>(
@@ -3178,23 +3198,22 @@ where
     where
         F: Fn(&mut CommandDspEqualizerState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state.equalizer)?;
         T::write_input_state(
             req,
             node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)
     }
 }
 
-impl<O, T> CommandDspDynamicsCtlOperation<T, CommandDspInputState> for O
+impl<T> CommandDspDynamicsCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
 where
-    O: CommandDspInputCtlOperation<T>,
     T: CommandDspInputOperation,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
@@ -3215,7 +3234,7 @@ where
     const LEVELER_REDUCE_NAME: &'static str = "input-dynamics-leveler-reduce";
 
     fn state(&self) -> &CommandDspDynamicsState {
-        &self.state().dynamics
+        &self.state.dynamics
     }
 
     fn write_dynamics_state<F>(
@@ -3229,14 +3248,14 @@ where
     where
         F: Fn(&mut CommandDspDynamicsState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state.dynamics)?;
         T::write_input_state(
             req,
             node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)

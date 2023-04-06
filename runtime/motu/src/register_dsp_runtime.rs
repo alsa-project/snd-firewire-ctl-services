@@ -7,7 +7,7 @@ pub(crate) use {
     },
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, elem_value_accessor::*},
+    core::card_cntr::*,
     hinawa::FwReq,
     protocols::register_dsp::*,
 };
