@@ -3624,17 +3624,18 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct CommandDspResourceCtl {
+    pub elem_id_list: Vec<ElemId>,
+    state: u32,
+}
+
 const RESOURCE_USAGE_NAME: &str = "resource-usage";
 
-pub trait CommandDspResourcebCtlOperation {
-    fn state(&self) -> &u32;
-    fn state_mut(&mut self) -> &mut u32;
-
+impl CommandDspResourceCtl {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RESOURCE_USAGE_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -3647,29 +3648,30 @@ pub trait CommandDspResourcebCtlOperation {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(notified_elem_id_list)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RESOURCE_USAGE_NAME => {
-                let val = *self.state() as i32;
-                elem_value.set_int(&[val]);
+                elem_value.set_int(&[self.state as i32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn parse_commands(&mut self, cmds: &[DspCmd]) {
+    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
         cmds.iter().for_each(|cmd| {
             if let DspCmd::Resource(c) = cmd {
                 match c {
                     // TODO: flag?
                     ResourceCmd::Usage(usage, _) => {
-                        *self.state_mut() = (*usage * Self::F32_CONVERT_SCALE) as u32;
+                        self.state = (*usage * Self::F32_CONVERT_SCALE) as u32;
                     }
                     _ => (),
                 }
