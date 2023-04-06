@@ -3680,26 +3680,32 @@ impl CommandDspResourceCtl {
     }
 }
 
-pub struct CommandDspMeterImage([f32; 400]);
-
-impl Default for CommandDspMeterImage {
-    fn default() -> Self {
-        Self([0f32; 400])
-    }
+#[derive(Debug)]
+pub(crate) struct CommandDspMeterCtl<T: CommandDspMeterOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: CommandDspMeterState,
+    image: [f32; 400],
+    _phantom: PhantomData<T>,
 }
 
 const INPUT_METER_NAME: &str = "input-meter";
 const OUTPUT_METER_NAME: &str = "output-meter";
 
-pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
-    fn state(&self) -> &CommandDspMeterState;
-    fn state_mut(&mut self) -> &mut CommandDspMeterState;
+impl<T: CommandDspMeterOperation> Default for CommandDspMeterCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_meter_state(),
+            image: [0.0; 400],
+            _phantom: Default::default(),
+        }
+    }
+}
 
+impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut measured_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -3712,7 +3718,7 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_NAME, 0);
         card_cntr
@@ -3726,15 +3732,16 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
                 None,
                 false,
             )
-            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
-        Ok(measured_elem_id_list)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
                 let levels: Vec<i32> = self
-                    .state()
+                    .state
                     .inputs
                     .iter()
                     .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
@@ -3744,7 +3751,7 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
             }
             OUTPUT_METER_NAME => {
                 let levels: Vec<i32> = self
-                    .state()
+                    .state
                     .outputs
                     .iter()
                     .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
@@ -3756,13 +3763,9 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
         }
     }
 
-    fn read_dsp_meter(
-        &mut self,
-        unit: &(SndMotu, FwNode),
-        meter: &mut CommandDspMeterImage,
-    ) -> Result<(), Error> {
-        unit.0
-            .read_float_meter(&mut meter.0)
-            .map(|_| T::parse_dsp_meter(self.state_mut(), &meter.0))
+    pub(crate) fn read_dsp_meter(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        unit.read_float_meter(&mut self.image)?;
+        T::parse_dsp_meter(&mut self.state, &self.image);
+        Ok(())
     }
 }
