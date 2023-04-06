@@ -10,7 +10,7 @@ pub struct F828mk3 {
     req: FwReq,
     resp: FwResp,
     clk_ctls: V3ClkCtl<F828mk3Protocol>,
-    port_assign_ctl: PortAssignCtl,
+    port_assign_ctl: V3PortAssignCtl<F828mk3Protocol>,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl<F828mk3Protocol>,
     word_clk_ctl: WordClockCtl<F828mk3Protocol>,
@@ -23,19 +23,6 @@ pub struct F828mk3 {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
-
-impl V3PortAssignCtlOperation<F828mk3Protocol> for PortAssignCtl {
-    fn state(&self) -> &V3PortAssignState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut V3PortAssignState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -162,15 +149,15 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
     ) -> Result<(), Error> {
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.port_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
+        self.port_assign_ctl.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
@@ -272,10 +259,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .port_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.port_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl
@@ -384,19 +374,22 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & F828mk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-            self.word_clk_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
+            self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())

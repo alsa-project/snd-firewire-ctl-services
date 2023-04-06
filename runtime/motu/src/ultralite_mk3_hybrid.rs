@@ -10,7 +10,7 @@ pub struct UltraliteMk3Hybrid {
     req: FwReq,
     resp: FwResp,
     clk_ctls: V3ClkCtl<UltraliteMk3HybridProtocol>,
-    port_assign_ctl: PortAssignCtl,
+    port_assign_ctl: V3PortAssignCtl<UltraliteMk3HybridProtocol>,
     phone_assign_ctl: PhoneAssignCtl<UltraliteMk3HybridProtocol>,
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
@@ -21,19 +21,6 @@ pub struct UltraliteMk3Hybrid {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
-
-impl V3PortAssignCtlOperation<UltraliteMk3HybridProtocol> for PortAssignCtl {
-    fn state(&self) -> &V3PortAssignState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut V3PortAssignState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -167,13 +154,13 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
     ) -> Result<(), Error> {
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.port_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
+        self.port_assign_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
         self.reverb_ctl
             .load(card_cntr)
@@ -266,10 +253,13 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .port_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.port_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.phone_assign_ctl.write(
             &mut self.req,
@@ -368,16 +358,20 @@ impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Hybrid {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for UltraliteMk3Hybrid {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & UltraliteMk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         Ok(())
     }

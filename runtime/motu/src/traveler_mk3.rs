@@ -10,7 +10,7 @@ pub struct TravelerMk3 {
     req: FwReq,
     resp: FwResp,
     clk_ctls: V3ClkCtl<TravelerMk3Protocol>,
-    port_assign_ctl: PortAssignCtl,
+    port_assign_ctl: V3PortAssignCtl<TravelerMk3Protocol>,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl<TravelerMk3Protocol>,
     word_clk_ctl: WordClockCtl<TravelerMk3Protocol>,
@@ -23,19 +23,6 @@ pub struct TravelerMk3 {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
-
-impl V3PortAssignCtlOperation<TravelerMk3Protocol> for PortAssignCtl {
-    fn state(&self) -> &V3PortAssignState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut V3PortAssignState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -174,15 +161,15 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
     ) -> Result<(), Error> {
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.port_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
+        self.port_assign_ctl.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
@@ -284,10 +271,13 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .port_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.port_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl
