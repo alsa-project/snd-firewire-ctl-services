@@ -17,29 +17,11 @@ pub struct Track16 {
     reverb_ctl: CommandDspReverbCtl<Track16Protocol>,
     monitor_ctl: CommandDspMonitorCtl<Track16Protocol>,
     mixer_ctl: CommandDspMixerCtl<Track16Protocol>,
-    input_ctl: InputCtl,
+    input_ctl: CommandDspInputCtl<Track16Protocol>,
     output_ctl: OutputCtl,
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-struct InputCtl(CommandDspInputState, Vec<ElemId>);
-
-impl Default for InputCtl {
-    fn default() -> Self {
-        Self(Track16Protocol::create_input_state(), Default::default())
-    }
-}
-
-impl CommandDspInputCtlOperation<Track16Protocol> for InputCtl {
-    fn state(&self) -> &CommandDspInputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut CommandDspInputState {
-        &mut self.0
-    }
 }
 
 struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
@@ -113,15 +95,13 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
         self.reverb_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
-        self.input_ctl
-            .load(card_cntr)
-            .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
+        self.input_ctl.load(card_cntr)?;
         self.input_ctl
             .load_equalizer(card_cntr)
-            .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
         self.input_ctl
             .load_dynamics(card_cntr)
-            .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
         self.output_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
@@ -251,8 +231,8 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
             Ok(true)
         } else if self.input_ctl.write(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -350,7 +330,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for Track16 {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.input_ctl.1);
+        elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
         elem_id_list.extend_from_slice(&self.resource_ctl.1);
     }
