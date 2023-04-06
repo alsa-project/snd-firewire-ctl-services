@@ -3,6 +3,23 @@
 
 pub(crate) use super::command_dsp_runtime::*;
 
+const F32_CONVERT_SCALE: f32 = 1000000.0;
+
+fn to_i32(val: f32) -> i32 {
+    (val * F32_CONVERT_SCALE) as i32
+}
+
+fn from_i32(val: i32) -> f32 {
+    (val as f32) / F32_CONVERT_SCALE
+}
+
+#[derive(Default, Debug)]
+pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: CommandDspReverbState,
+    _phantom: PhantomData<T>,
+}
+
 const REVERB_ENABLE: &str = "reverb-enable";
 const REVERB_SPLIT_POINT_NAME: &str = "reverb-split-point";
 const REVERB_PRE_DELAY_NAME: &str = "reverb-pre-delay";
@@ -35,10 +52,7 @@ fn reverb_room_shape_to_str(shape: &RoomShape) -> &'static str {
     }
 }
 
-pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
-    fn state(&self) -> &CommandDspReverbState;
-    fn state_mut(&mut self) -> &mut CommandDspReverbState;
-
+impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
     const SPLIT_POINTS: [SplitPoint; 2] = [SplitPoint::Output, SplitPoint::Mixer];
 
     const ROOM_SHAPES: [RoomShape; 5] = [
@@ -49,15 +63,15 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         RoomShape::E,
     ];
 
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
+    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_reverb_commands(&mut self.state, cmds);
+    }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ENABLE, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::SPLIT_POINTS
             .iter()
@@ -66,7 +80,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SPLIT_POINT_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_DECAY_TIME_NAME, 0);
         card_cntr
@@ -80,7 +94,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_DELAY_NAME, 0);
         card_cntr
@@ -94,7 +108,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SHELF_FILTER_FREQ_NAME, 0);
@@ -109,7 +123,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SHELF_FILTER_ATTR_NAME, 0);
@@ -124,7 +138,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_FREQ_TIME_NAME, 0);
         card_cntr
@@ -138,7 +152,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_FREQ_CROSSOVER_NAME, 0);
@@ -153,21 +167,21 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_WIDTH_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::WIDTH_MIN),
+                to_i32(T::WIDTH_MAX),
                 1,
                 1,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::ROOM_SHAPES
             .iter()
@@ -177,7 +191,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_REFLECTION_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_REFLECTION_SIZE_NAME, 0);
@@ -192,7 +206,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_REFLECTION_LEVEL_NAME, 0);
@@ -200,61 +214,60 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::REFLECTION_LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::REFLECTION_LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+                to_i32(T::REFLECTION_LEVEL_MIN),
+                to_i32(T::REFLECTION_LEVEL_MAX),
                 1,
                 1,
                 None,
                 true,
             )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_ENABLE => {
-                elem_value.set_bool(&[self.state().enable]);
+                elem_value.set_bool(&[self.state.enable]);
                 Ok(true)
             }
             REVERB_SPLIT_POINT_NAME => {
                 let pos = Self::SPLIT_POINTS
                     .iter()
-                    .position(|p| self.state().split_point.eq(p))
+                    .position(|p| self.state.split_point.eq(p))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[self.state().pre_delay as i32]);
+                elem_value.set_int(&[self.state.pre_delay as i32]);
                 Ok(true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                elem_value.set_int(&[self.state().shelf_filter_freq as i32]);
+                elem_value.set_int(&[self.state.shelf_filter_freq as i32]);
                 Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                elem_value.set_int(&[self.state().shelf_filter_attenuation]);
+                elem_value.set_int(&[self.state.shelf_filter_attenuation]);
                 Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
-                elem_value.set_int(&[self.state().decay_time as i32]);
+                elem_value.set_int(&[self.state.decay_time as i32]);
                 Ok(true)
             }
             REVERB_FREQ_TIME_NAME => {
-                let vals: Vec<i32> = self
-                    .state()
-                    .freq_time
-                    .iter()
-                    .map(|&val| val as i32)
-                    .collect();
+                let vals: Vec<i32> = self.state.freq_time.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
                 let vals: Vec<i32> = self
-                    .state()
+                    .state
                     .freq_crossover
                     .iter()
                     .map(|&val| val as i32)
@@ -263,24 +276,24 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
-                let val = (self.state().width * Self::F32_CONVERT_SCALE) as i32;
+                let val = to_i32(self.state.width);
                 elem_value.set_int(&[val]);
                 Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
                 let pos = Self::ROOM_SHAPES
                     .iter()
-                    .position(|m| self.state().reflection_mode.eq(m))
+                    .position(|m| self.state.reflection_mode.eq(m))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                elem_value.set_int(&[self.state().reflection_size as i32]);
+                elem_value.set_int(&[self.state.reflection_size as i32]);
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                let val = (self.state().reflection_level * Self::F32_CONVERT_SCALE) as i32;
+                let val = to_i32(self.state.reflection_level);
                 elem_value.set_int(&[val]);
                 Ok(true)
             }
@@ -288,134 +301,198 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            REVERB_ENABLE => self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+            REVERB_ENABLE => {
+                let mut state = self.state.clone();
                 state.enable = elem_value.boolean()[0];
-                Ok(())
-            }),
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
+            }
             REVERB_SPLIT_POINT_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &split_point =
-                    Self::SPLIT_POINTS.iter().nth(val as usize).ok_or_else(|| {
+                let mut state = self.state.clone();
+                let val = elem_value.enumerated()[0] as usize;
+                state.split_point = Self::SPLIT_POINTS
+                    .iter()
+                    .nth(val)
+                    .ok_or_else(|| {
                         let msg = format!("Invalid index for split points: {}", val);
                         Error::new(FileError::Inval, &msg)
-                    })?;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.split_point = split_point;
-                    Ok(())
-                })
+                    })
+                    .map(|&p| p)?;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.pre_delay = elem_value.int()[0] as u32;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.pre_delay = elem_value.int()[0] as u32;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.shelf_filter_freq = elem_value.int()[0] as u32;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.shelf_filter_freq = elem_value.int()[0] as u32;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.shelf_filter_attenuation = elem_value.int()[0];
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.shelf_filter_attenuation = elem_value.int()[0] as i32;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.decay_time = elem_value.int()[0] as u32;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.decay_time = elem_value.int()[0] as u32;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_FREQ_TIME_NAME => {
-                let vals = &elem_value.int()[..T::FREQ_TIME_COUNT];
-                let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.freq_time.copy_from_slice(&raw);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state
+                    .freq_time
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(time, &val)| *time = val as u32);
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                let vals = &elem_value.int()[..T::FREQ_CROSSOVER_COUNT];
-                let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.freq_crossover.copy_from_slice(&raw);
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state
+                    .freq_crossover
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(freq, &val)| *freq = val as u32);
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_WIDTH_NAME => {
-                let val = (elem_value.int()[0] as f32) / Self::F32_CONVERT_SCALE;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.width = val;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.width = from_i32(elem_value.int()[0]);
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let &mode = Self::ROOM_SHAPES.iter().nth(val as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for reflection modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_mode = mode;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                state.reflection_mode = Self::ROOM_SHAPES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for reflection modes: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                let val = elem_value.int()[0];
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_size = val as u32;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.reflection_size = elem_value.int()[0] as u32;
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                let val = (elem_value.int()[0] as f32) / Self::F32_CONVERT_SCALE;
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_level = val;
-                    Ok(())
-                })
+                let mut state = self.state.clone();
+                state.reflection_level = from_i32(elem_value.int()[0]);
+                T::write_reverb_state(
+                    req,
+                    node,
+                    sequence_number,
+                    state,
+                    &mut self.state,
+                    timeout_ms,
+                )?;
+                Ok(true)
             }
             _ => Ok(false),
         }
-    }
-
-    fn write_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspReverbState) -> Result<(), Error>,
-    {
-        let mut state = self.state().clone();
-        func(&mut state)?;
-        T::write_reverb_state(
-            req,
-            &mut unit.1,
-            sequence_number,
-            state,
-            self.state_mut(),
-            timeout_ms,
-        )
-        .map(|_| true)
-    }
-
-    fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_reverb_commands(self.state_mut(), cmds);
     }
 }
 
