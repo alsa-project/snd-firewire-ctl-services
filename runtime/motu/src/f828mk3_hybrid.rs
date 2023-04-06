@@ -289,8 +289,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             Ok(true)
         } else if self.input_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -316,8 +316,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             Ok(true)
         } else if self.output_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,

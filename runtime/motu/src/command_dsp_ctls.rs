@@ -2408,27 +2408,32 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     ) -> Result<bool, Error> {
         assert_eq!(modes.len(), Self::CH_COUNT);
 
-        ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-            let pos = Self::LEVEL_DETECT_MODES
-                .iter()
-                .position(|m| modes[idx].eq(m))
-                .unwrap();
-            Ok(pos as u32)
-        })
-        .map(|_| true)
+        let vals: Vec<u32> = modes
+            .iter()
+            .map(|mode| {
+                let pos = Self::LEVEL_DETECT_MODES
+                    .iter()
+                    .position(|m| mode.eq(m))
+                    .unwrap();
+                pos as u32
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
     }
 
     fn read_leveler_mode(elem_value: &mut ElemValue, modes: &[LevelerMode]) -> Result<bool, Error> {
         assert_eq!(modes.len(), Self::CH_COUNT);
 
-        ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-            let pos = Self::LEVELER_MODES
-                .iter()
-                .position(|m| modes[idx].eq(m))
-                .unwrap();
-            Ok(pos as u32)
-        })
-        .map(|_| true)
+        let vals: Vec<u32> = modes
+            .iter()
+            .map(|mode| {
+                let pos = Self::LEVELER_MODES.iter().position(|m| mode.eq(m)).unwrap();
+                pos as u32
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
     }
 
     fn read_dynamics(
@@ -2470,8 +2475,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2480,7 +2485,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         F: Fn(&mut CommandDspDynamicsState, &[bool]),
     {
         let vals = &elem_value.boolean()[..Self::CH_COUNT];
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
         })
@@ -2489,8 +2494,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_int_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2499,7 +2504,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         F: Fn(&mut CommandDspDynamicsState, &[i32]),
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
         })
@@ -2508,8 +2513,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_u32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2519,7 +2524,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
         })
@@ -2528,8 +2533,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2542,7 +2547,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
             .collect();
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
         })
@@ -2551,8 +2556,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_level_detect_mode<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2572,7 +2577,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 })
                 .map(|&mode| modes.push(mode))
         })?;
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &modes);
             Ok(())
         })
@@ -2581,8 +2586,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_leveler_mode<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -2602,7 +2607,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 })
                 .map(|&mode| modes.push(mode))
         })?;
-        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &modes);
             Ok(())
         })
@@ -2611,8 +2616,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_dynamics(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2622,8 +2627,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         if name == Self::ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.enable.copy_from_slice(vals),
@@ -2631,8 +2636,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_enable.copy_from_slice(vals),
@@ -2640,8 +2645,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_DETECT_MODE_NAME {
             self.write_level_detect_mode(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_detect_mode.copy_from_slice(vals),
@@ -2649,8 +2654,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_THRESHOLD_NAME {
             self.write_int_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_threshold.copy_from_slice(vals),
@@ -2658,8 +2663,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_RATIO_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_ratio.copy_from_slice(vals),
@@ -2667,8 +2672,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_ATTACK_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_attack.copy_from_slice(vals),
@@ -2676,8 +2681,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_RELEASE_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_release.copy_from_slice(vals),
@@ -2685,8 +2690,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_GAIN_NAME {
             self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.comp_gain.copy_from_slice(vals),
@@ -2694,8 +2699,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.leveler_enable.copy_from_slice(vals),
@@ -2703,8 +2708,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_MODE_NAME {
             self.write_leveler_mode(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.leveler_mode.copy_from_slice(vals),
@@ -2712,8 +2717,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_MAKEUP_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.leveler_makeup.copy_from_slice(vals),
@@ -2721,8 +2726,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_REDUCE_NAME {
             self.write_u32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| state.leveler_reduce.copy_from_slice(vals),
@@ -2735,8 +2740,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3216,8 +3221,8 @@ where
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3228,7 +3233,7 @@ where
         func(&mut state.dynamics)?;
         T::write_input_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
             self.state_mut(),
@@ -3588,8 +3593,8 @@ where
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
@@ -3600,7 +3605,7 @@ where
         func(&mut state.dynamics)?;
         T::write_output_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
             self.state_mut(),

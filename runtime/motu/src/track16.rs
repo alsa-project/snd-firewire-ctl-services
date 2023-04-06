@@ -269,8 +269,8 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
             Ok(true)
         } else if self.input_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -296,8 +296,8 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
             Ok(true)
         } else if self.output_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
