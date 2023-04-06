@@ -10,7 +10,7 @@ pub struct Track16 {
     req: FwReq,
     resp: FwResp,
     clk_ctls: V3ClkCtl<Track16Protocol>,
-    port_assign_ctl: PortAssignCtl,
+    port_assign_ctl: V3PortAssignCtl<Track16Protocol>,
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl<Track16Protocol>,
     sequence_number: u8,
@@ -22,19 +22,6 @@ pub struct Track16 {
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
-
-impl V3PortAssignCtlOperation<Track16Protocol> for PortAssignCtl {
-    fn state(&self) -> &V3PortAssignState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut V3PortAssignState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -161,13 +148,13 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
     ) -> Result<(), Error> {
         self.clk_ctls
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.port_assign_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
 
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
+        self.port_assign_ctl.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
         self.reverb_ctl
@@ -266,10 +253,13 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .port_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.port_assign_ctl.write(
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .opt_iface_ctl
@@ -373,16 +363,20 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
 
 impl NotifyModel<(SndMotu, FwNode), u32> for Track16 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        (_, node): &mut (SndMotu, FwNode),
+        msg: &u32,
+    ) -> Result<(), Error> {
         if *msg & Track16Protocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
         }
         Ok(())
     }

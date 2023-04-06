@@ -116,27 +116,30 @@ impl<T: V3ClkOperation> V3ClkCtl<T> {
     }
 }
 
+#[derive(Default, Debug)]
+pub(crate) struct V3PortAssignCtl<T: V3PortAssignOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    main: usize,
+    mixer_return: usize,
+    _phantom: PhantomData<T>,
+}
+
 const MAIN_ASSIGN_NAME: &str = "main-assign";
 const RETURN_ASSIGN_NAME: &str = "return-assign";
 
-#[derive(Default)]
-pub struct V3PortAssignState(usize, usize);
-
-pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
-    fn state(&self) -> &V3PortAssignState;
-    fn state_mut(&mut self) -> &mut V3PortAssignState;
-
-    fn load(
+impl<T: V3PortAssignOperation> V3PortAssignCtl<T> {
+    pub(crate) fn cache(
         &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        self.cache(unit, req, timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::get_main_assign(req, node, timeout_ms).map(|idx| self.main = idx)?;
+        T::get_return_assign(req, node, timeout_ms).map(|idx| self.mixer_return = idx)?;
+        Ok(())
+    }
 
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::ASSIGN_PORTS
             .iter()
             .map(|p| target_port_to_string(&p.0))
@@ -145,60 +148,54 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RETURN_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
+            .map(|mut elem_id_list| self.elem_id_list.extend_from_slice(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
-    }
-
-    fn cache(
-        &mut self,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::get_main_assign(req, &mut unit.1, timeout_ms).map(|idx| self.state_mut().0 = idx)?;
-        T::get_return_assign(req, &mut unit.1, timeout_ms).map(|idx| self.state_mut().1 = idx)?;
         Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGN_NAME => {
-                elem_value.set_enum(&[self.state().0 as u32]);
+                elem_value.set_enum(&[self.main as u32]);
                 Ok(true)
             }
             RETURN_ASSIGN_NAME => {
-                elem_value.set_enum(&[self.state().1 as u32]);
+                elem_value.set_enum(&[self.mixer_return as u32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            MAIN_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_main_assign(req, &mut unit.1, val as usize, timeout_ms)
-                    .map(|_| self.state_mut().0 = val as usize)
-            })
-            .map(|_| true),
-            RETURN_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_return_assign(req, &mut unit.1, val as usize, timeout_ms)
-                    .map(|_| self.state_mut().1 = val as usize)
-            })
-            .map(|_| true),
+            MAIN_ASSIGN_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                T::set_main_assign(req, node, val, timeout_ms).map(|_| self.main = val)?;
+                Ok(true)
+            }
+            RETURN_ASSIGN_NAME => {
+                let val = elem_value.enumerated()[0] as usize;
+                T::set_return_assign(req, node, val, timeout_ms)
+                    .map(|_| self.mixer_return = val)?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
