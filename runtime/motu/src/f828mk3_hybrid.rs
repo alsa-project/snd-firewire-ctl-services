@@ -11,7 +11,7 @@ pub struct F828mk3Hybrid {
     resp: FwResp,
     clk_ctls: V3ClkCtl<F828mk3HybridProtocol>,
     port_assign_ctl: V3PortAssignCtl<F828mk3HybridProtocol>,
-    opt_iface_ctl: OptIfaceCtl,
+    opt_iface_ctl: V3OptIfaceCtl<F828mk3HybridProtocol>,
     phone_assign_ctl: PhoneAssignCtl<F828mk3HybridProtocol>,
     word_clk_ctl: WordClockCtl<F828mk3HybridProtocol>,
     sequence_number: u8,
@@ -24,11 +24,6 @@ pub struct F828mk3Hybrid {
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
 }
-
-#[derive(Default)]
-struct OptIfaceCtl;
-
-impl V3OptIfaceCtlOperation<F828mk3HybridProtocol> for OptIfaceCtl {}
 
 #[derive(Default)]
 struct ReverbCtl(CommandDspReverbState, Vec<ElemId>);
@@ -163,6 +158,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.port_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+        self.opt_iface_ctl
+            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.word_clk_ctl
@@ -211,7 +208,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
 
     fn read(
         &mut self,
-        unit: &mut (SndMotu, FwNode),
+        _: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -219,10 +216,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -259,7 +253,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         &mut self,
         unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctls.write(
@@ -279,10 +273,14 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            &mut unit.1,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.phone_assign_ctl.write(
             &mut self.req,
