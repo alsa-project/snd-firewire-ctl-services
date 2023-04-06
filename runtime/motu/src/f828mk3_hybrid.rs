@@ -19,31 +19,10 @@ pub struct F828mk3Hybrid {
     monitor_ctl: CommandDspMonitorCtl<F828mk3HybridProtocol>,
     mixer_ctl: CommandDspMixerCtl<F828mk3HybridProtocol>,
     input_ctl: CommandDspInputCtl<F828mk3HybridProtocol>,
-    output_ctl: OutputCtl,
+    output_ctl: CommandDspOutputCtl<F828mk3HybridProtocol>,
     resource_ctl: ResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
-
-impl Default for OutputCtl {
-    fn default() -> Self {
-        Self(
-            F828mk3HybridProtocol::create_output_state(),
-            Default::default(),
-        )
-    }
-}
-
-impl CommandDspOutputCtlOperation<F828mk3HybridProtocol> for OutputCtl {
-    fn state(&self) -> &CommandDspOutputState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut CommandDspOutputState {
-        &mut self.0
-    }
 }
 
 #[derive(Default)]
@@ -112,15 +91,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
         self.input_ctl
             .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
-        self.output_ctl
-            .load(card_cntr)
-            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+        self.output_ctl.load(card_cntr)?;
         self.output_ctl
             .load_equalizer(card_cntr)
-            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
         self.output_ctl
             .load_dynamics(card_cntr)
-            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
         self.resource_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.resource_ctl.1.append(&mut elem_id_list))?;
@@ -275,8 +252,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             Ok(true)
         } else if self.output_ctl.write(
             &mut self.sequence_number,
-            unit,
             &mut self.req,
+            &mut unit.1,
             elem_id,
             new,
             TIMEOUT_MS,
@@ -353,7 +330,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3Hybrid {
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.resource_ctl.1);
     }
 

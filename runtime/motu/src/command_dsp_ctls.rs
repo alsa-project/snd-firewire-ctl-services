@@ -3262,21 +3262,33 @@ where
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct CommandDspOutputCtl<T: CommandDspOutputOperation> {
+    pub elem_id_list: Vec<ElemId>,
+    state: CommandDspOutputState,
+    _phantom: PhantomData<T>,
+}
+
 const OUTPUT_REVERB_SEND_NAME: &str = "output-reverb-send";
 const OUTPUT_REVERB_RETURN_NAME: &str = "output-reverb-return";
 const OUTPUT_MASTER_MONITOR_NAME: &str = "output-master-monitor";
 const OUTPUT_MASTER_TALKBACK_NAME: &str = "output-master-talkback";
 const OUTPUT_MASTER_LISTENBACK_NAME: &str = "output-master-listenback";
 
-pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
-    fn state(&self) -> &CommandDspOutputState;
-    fn state_mut(&mut self) -> &mut CommandDspOutputState;
+impl<T: CommandDspOutputOperation> Default for CommandDspOutputCtl<T> {
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            state: T::create_output_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
 
+impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
-
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (OUTPUT_REVERB_SEND_NAME, T::GAIN_MIN, T::GAIN_MAX),
             (OUTPUT_REVERB_RETURN_NAME, T::VOLUME_MIN, T::VOLUME_MAX),
@@ -3295,7 +3307,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
                     None,
                     true,
                 )
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })?;
 
         [
@@ -3308,19 +3320,14 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
             card_cntr
                 .add_bool_elems(&elem_id, 1, T::OUTPUT_PORTS.len(), true)
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
     fn read_bool_values(elem_value: &mut ElemValue, vals: &[bool]) -> Result<bool, Error> {
         elem_value.set_bool(&vals);
-        Ok(true)
-    }
-
-    fn read_int_values(elem_value: &mut ElemValue, vals: &[i32]) -> Result<bool, Error> {
-        elem_value.set_int(&vals);
         Ok(true)
     }
 
@@ -3334,20 +3341,24 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         Ok(true)
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub(crate) fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OUTPUT_REVERB_SEND_NAME => Self::read_f32_values(elem_value, &self.state().reverb_send),
+            OUTPUT_REVERB_SEND_NAME => Self::read_f32_values(elem_value, &self.state.reverb_send),
             OUTPUT_REVERB_RETURN_NAME => {
-                Self::read_f32_values(elem_value, &self.state().reverb_return)
+                Self::read_f32_values(elem_value, &self.state.reverb_return)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
-                Self::read_bool_values(elem_value, &self.state().master_monitor)
+                Self::read_bool_values(elem_value, &self.state.master_monitor)
             }
             OUTPUT_MASTER_TALKBACK_NAME => {
-                Self::read_bool_values(elem_value, &self.state().master_talkback)
+                Self::read_bool_values(elem_value, &self.state.master_talkback)
             }
             OUTPUT_MASTER_LISTENBACK_NAME => {
-                Self::read_bool_values(elem_value, &self.state().master_listenback)
+                Self::read_bool_values(elem_value, &self.state.master_listenback)
             }
             _ => Ok(false),
         }
@@ -3356,8 +3367,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -3366,26 +3377,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         F: Fn(&mut CommandDspOutputState, &[bool]),
     {
         let vals = &elem_value.boolean()[..T::OUTPUT_PORTS.len()];
-        self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
-    }
-
-    fn write_int_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
-        req: &mut FwReq,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspOutputState, &[i32]),
-    {
-        let vals = &elem_value.int()[..T::OUTPUT_PORTS.len()];
-        self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
         })
@@ -3394,8 +3386,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_value: &ElemValue,
         timeout_ms: u32,
         func: F,
@@ -3408,17 +3400,17 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
             .collect();
-        self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+        self.write_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
         })
     }
 
-    fn write(
+    pub(crate) fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -3426,8 +3418,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         match elem_id.name().as_str() {
             OUTPUT_REVERB_SEND_NAME => self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -3436,8 +3428,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             ),
             OUTPUT_REVERB_RETURN_NAME => self.write_f32_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -3446,8 +3438,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             ),
             OUTPUT_MASTER_MONITOR_NAME => self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -3456,8 +3448,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             ),
             OUTPUT_MASTER_TALKBACK_NAME => self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -3466,8 +3458,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
             ),
             OUTPUT_MASTER_LISTENBACK_NAME => self.write_bool_values(
                 sequence_number,
-                unit,
                 req,
+                node,
                 elem_value,
                 timeout_ms,
                 |state, vals| {
@@ -3478,38 +3470,37 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         }
     }
 
-    fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_output_commands(self.state_mut(), cmds);
+    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_output_commands(&mut self.state, cmds);
     }
 
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
+        node: &mut FwNode,
         timeout_ms: u32,
         func: F,
     ) -> Result<bool, Error>
     where
         F: Fn(&mut CommandDspOutputState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state)?;
         T::write_output_state(
             req,
-            &mut unit.1,
+            node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)
     }
 }
 
-impl<O, T> CommandDspEqualizerCtlOperation<T, CommandDspOutputState> for O
+impl<T> CommandDspEqualizerCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    O: CommandDspOutputCtlOperation<T>,
     T: CommandDspOutputOperation,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
@@ -3555,7 +3546,7 @@ where
     const HF_WIDTH_NAME: &'static str = "output-equalizer-hf-width";
 
     fn state(&self) -> &CommandDspEqualizerState {
-        &self.state().equalizer
+        &self.state.equalizer
     }
 
     fn write_equalizer_state<F>(
@@ -3569,23 +3560,22 @@ where
     where
         F: Fn(&mut CommandDspEqualizerState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state.equalizer)?;
         T::write_output_state(
             req,
             node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)
     }
 }
 
-impl<O, T> CommandDspDynamicsCtlOperation<T, CommandDspOutputState> for O
+impl<T> CommandDspDynamicsCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    O: CommandDspOutputCtlOperation<T>,
     T: CommandDspOutputOperation,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
@@ -3606,7 +3596,7 @@ where
     const LEVELER_REDUCE_NAME: &'static str = "output-dynamics-leveler-reduce";
 
     fn state(&self) -> &CommandDspDynamicsState {
-        &self.state().dynamics
+        &self.state.dynamics
     }
 
     fn write_dynamics_state<F>(
@@ -3620,14 +3610,14 @@ where
     where
         F: Fn(&mut CommandDspDynamicsState) -> Result<(), Error>,
     {
-        let mut state = self.state().clone();
+        let mut state = self.state.clone();
         func(&mut state.dynamics)?;
         T::write_output_state(
             req,
             node,
             sequence_number,
             state,
-            self.state_mut(),
+            &mut self.state,
             timeout_ms,
         )
         .map(|_| true)
