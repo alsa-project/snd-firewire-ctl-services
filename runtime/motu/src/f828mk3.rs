@@ -20,22 +20,9 @@ pub struct F828mk3 {
     mixer_ctl: CommandDspMixerCtl<F828mk3Protocol>,
     input_ctl: CommandDspInputCtl<F828mk3Protocol>,
     output_ctl: CommandDspOutputCtl<F828mk3Protocol>,
-    resource_ctl: ResourceCtl,
+    resource_ctl: CommandDspResourceCtl,
     meter: CommandDspMeterImage,
     meter_ctl: MeterCtl,
-}
-
-#[derive(Default)]
-struct ResourceCtl(u32, Vec<ElemId>);
-
-impl CommandDspResourcebCtlOperation for ResourceCtl {
-    fn state(&self) -> &u32 {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut u32 {
-        &mut self.0
-    }
 }
 
 struct MeterCtl(CommandDspMeterState, Vec<ElemId>);
@@ -95,9 +82,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
         self.output_ctl
             .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
-        self.resource_ctl
-            .load(card_cntr)
-            .map(|mut elem_id_list| self.resource_ctl.1.append(&mut elem_id_list))?;
+        self.resource_ctl.load(card_cntr)?;
         self.meter_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
@@ -328,7 +313,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3 {
         elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.resource_ctl.1);
+        elem_id_list.extend_from_slice(&self.resource_ctl.elem_id_list);
     }
 
     fn parse_notification(
