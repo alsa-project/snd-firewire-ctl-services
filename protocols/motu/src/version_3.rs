@@ -129,91 +129,6 @@ where
     }
 }
 
-/// The trait for sampling clock protocol in version 3.
-pub trait V3ClkOperation {
-    const CLK_RATES: &'static [(ClkRate, u8)];
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)];
-
-    const HAS_LCD: bool;
-
-    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_CLK,
-            CLK_RATE_MASK,
-            CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_CLK,
-            CLK_RATE_MASK,
-            CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_CLK,
-            CLK_SRC_MASK,
-            CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_CLK,
-            CLK_SRC_MASK,
-            CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn update_clk_display(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        label: &str,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        update_clk_display(req, node, label, timeout_ms)
-    }
-}
-
 const PORT_MAIN_LABEL: &str = "main-out-assign-v3";
 const PORT_MAIN_MASK: u32 = 0x000000f0;
 const PORT_MAIN_SHIFT: usize = 4;
@@ -471,20 +386,6 @@ impl MotuVersion3ClockSpecification for AudioExpressProtocol {
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
 }
 
-impl V3ClkOperation for AudioExpressProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
-        &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
-
-    const HAS_LCD: bool = false;
-}
-
 impl RegisterDspMixerOutputOperation for AudioExpressProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
@@ -568,23 +469,6 @@ const F828MK3_CLOCK_SRCS: &[V3ClkSrc] = &[
 ];
 
 const F828MK3_CLOCK_SRC_VALS: &[u8] = &[0x00, 0x01, 0x10, 0x18, 0x19];
-
-const F828MK3_CLK_RATES: &[(ClkRate, u8)] = &[
-    (ClkRate::R44100, 0x00),
-    (ClkRate::R48000, 0x01),
-    (ClkRate::R88200, 0x02),
-    (ClkRate::R96000, 0x03),
-    (ClkRate::R176400, 0x04),
-    (ClkRate::R192000, 0x05),
-];
-
-const F828MK3_CLK_SRCS: &[(V3ClkSrc, u8)] = &[
-    (V3ClkSrc::Internal, 0x00),
-    (V3ClkSrc::WordClk, 0x01),
-    (V3ClkSrc::SpdifCoax, 0x10),
-    (V3ClkSrc::SignalOptA, 0x18),
-    (V3ClkSrc::SignalOptB, 0x19),
-];
 
 const F828MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
     TargetPort::MainPair,
@@ -811,12 +695,6 @@ impl MotuVersion3ClockSpecification for F828mk3Protocol {
     const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
 }
 
-impl V3ClkOperation for F828mk3Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
-    const HAS_LCD: bool = true;
-}
-
 impl V3PortAssignOperation for F828mk3Protocol {}
 
 impl V3OptIfaceOperation for F828mk3Protocol {
@@ -878,12 +756,6 @@ impl MotuVersion3ClockSpecification for F828mk3HybridProtocol {
 
     const CLOCK_SRCS: &'static [V3ClkSrc] = F828MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
-}
-
-impl V3ClkOperation for F828mk3HybridProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
-    const HAS_LCD: bool = true;
 }
 
 impl V3PortAssignOperation for F828mk3HybridProtocol {}
@@ -957,20 +829,6 @@ impl MotuVersion3ClockSpecification for H4preProtocol {
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
 }
 
-impl V3ClkOperation for H4preProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
-        &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
-
-    const HAS_LCD: bool = false;
-}
-
 impl RegisterDspMixerOutputOperation for H4preProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
@@ -1033,16 +891,6 @@ const ULTRALITE_MK3_CLOCK_RATE_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03];
 const ULTRALITE_MK3_CLOCK_SRCS: &[V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SpdifCoax];
 
 const ULTRALITE_MK3_CLOCK_SRC_VALS: &[u8] = &[0x00, 0x01];
-
-const ULTRALITE_MK3_CLK_RATES: &[(ClkRate, u8)] = &[
-    (ClkRate::R44100, 0x00),
-    (ClkRate::R48000, 0x01),
-    (ClkRate::R88200, 0x02),
-    (ClkRate::R96000, 0x03),
-];
-
-const ULTRALITE_MK3_CLK_SRCS: &[(V3ClkSrc, u8)] =
-    &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
 const ULTRALITE_MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
     TargetPort::MainPair,
@@ -1151,12 +999,6 @@ impl MotuVersion3ClockSpecification for UltraliteMk3Protocol {
     const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
 }
 
-impl V3ClkOperation for UltraliteMk3Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
-    const HAS_LCD: bool = true;
-}
-
 impl V3PortAssignOperation for UltraliteMk3Protocol {}
 
 impl CommandDspOperation for UltraliteMk3Protocol {}
@@ -1210,12 +1052,6 @@ impl MotuVersion3ClockSpecification for UltraliteMk3HybridProtocol {
 
     const CLOCK_SRCS: &'static [V3ClkSrc] = ULTRALITE_MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
-}
-
-impl V3ClkOperation for UltraliteMk3HybridProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
-    const HAS_LCD: bool = true;
 }
 
 impl V3PortAssignOperation for UltraliteMk3HybridProtocol {}
@@ -1300,26 +1136,6 @@ impl MotuVersion3ClockSpecification for TravelerMk3Protocol {
         V3ClkSrc::SignalOptB,
     ];
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x08, 0x10, 0x18, 0x19];
-}
-
-impl V3ClkOperation for TravelerMk3Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-        (ClkRate::R176400, 0x04),
-        (ClkRate::R192000, 0x05),
-    ];
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = &[
-        (V3ClkSrc::Internal, 0x00),
-        (V3ClkSrc::WordClk, 0x01),
-        (V3ClkSrc::AesEbuXlr, 0x08),
-        (V3ClkSrc::SpdifCoax, 0x10),
-        (V3ClkSrc::SignalOptA, 0x18),
-        (V3ClkSrc::SignalOptB, 0x19),
-    ];
-    const HAS_LCD: bool = true;
 }
 
 impl V3PortAssignOperation for TravelerMk3Protocol {}
@@ -1588,20 +1404,6 @@ impl MotuVersion3ClockSpecification for Track16Protocol {
 
     const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SignalOptA];
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x18];
-}
-
-impl V3ClkOperation for Track16Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-        (ClkRate::R176400, 0x04),
-        (ClkRate::R192000, 0x05),
-    ];
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
-        &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SignalOptA, 0x18)];
-    const HAS_LCD: bool = false;
 }
 
 impl V3PortAssignOperation for Track16Protocol {}

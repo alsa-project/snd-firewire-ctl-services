@@ -262,28 +262,6 @@ where
     }
 }
 
-fn update_clk_display(
-    req: &FwReq,
-    node: &mut FwNode,
-    label: &str,
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    let mut chars = [0x20; DISPLAY_CHARS];
-    chars
-        .iter_mut()
-        .zip(label.bytes())
-        .for_each(|(c, l)| *c = l);
-
-    (0..(DISPLAY_CHARS / 4)).try_for_each(|i| {
-        let mut frame = [0; 4];
-        frame.copy_from_slice(&chars[(i * 4)..(i * 4 + 4)]);
-        frame.reverse();
-        let quad = u32::from_ne_bytes(frame);
-        let offset = OFFSET_CLK_DISPLAY + 4 * i as u32;
-        write_quad(req, node, offset, quad, timeout_ms)
-    })
-}
-
 const PORT_PHONE_LABEL: &str = "phone-assign";
 const PORT_PHONE_MASK: u32 = 0x0000000f;
 const PORT_PHONE_SHIFT: usize = 0;
