@@ -742,4 +742,3 @@ impl MotuAesebuRateConvertSpecification for F896Protocol {
 }
 
 impl MotuLevelMetersSpecification for F896Protocol {}
-impl LevelMetersOperation for F896Protocol {}
