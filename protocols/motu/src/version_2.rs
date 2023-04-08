@@ -625,9 +625,11 @@ impl RegisterDspMeterOperation for TravelerProtocol {
 }
 
 /// State of inputs in Traveler.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TravelerMicInputState {
+    /// The gain of microphone input. The value is between 0x00 and 0x35.
     pub gain: [u8; TravelerProtocol::MIC_INPUT_COUNT],
+    /// Whether to pad microphone input.
     pub pad: [bool; TravelerProtocol::MIC_INPUT_COUNT],
 }
 
@@ -646,12 +648,54 @@ impl TravelerProtocol {
     /// Notification mask for signal format of optical input/output interfaces.
     pub const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000;
 
+    /// The number of microphone inputs.
     pub const MIC_INPUT_COUNT: usize = 4;
 
+    /// The minimum value of microphone input.
     pub const MIC_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of microphone input.
     pub const MIC_GAIN_MAX: u8 = 0x35;
+    /// The step value of microphone input.
     pub const MIC_GAIN_STEP: u8 = 0x01;
+}
 
+impl MotuWhollyCacheableParamsOperation<TravelerMicInputState> for TravelerProtocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut TravelerMicInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, timeout_ms).map(|val| {
+            (0..Self::MIC_INPUT_COUNT).for_each(|i| {
+                let v = ((val >> (i * 8)) & 0xff) as u8;
+                params.gain[i] = v & TRAVELER_MIC_GAIN_MASK;
+                params.pad[i] = v & TRAVELER_MIC_PAD_FLAG > 0;
+            });
+        })
+    }
+}
+
+impl MotuWhollyUpdatableParamsOperation<TravelerMicInputState> for TravelerProtocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &TravelerMicInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = (0..Self::MIC_INPUT_COUNT).fold(0u32, |val, i| {
+            let mut v = TRAVELER_MIC_CHANGE_FLAG;
+            if params.pad[i] {
+                v |= TRAVELER_MIC_PAD_FLAG;
+            }
+            v |= params.gain[i] & TRAVELER_MIC_GAIN_MASK;
+            val | ((v as u32) << (i * 8))
+        });
+        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms)
+    }
+}
+
+impl TravelerProtocol {
     pub fn read_mic_input_state(
         req: &mut FwReq,
         node: &mut FwNode,
