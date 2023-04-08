@@ -9,6 +9,7 @@
 use super::{register_dsp::*, *};
 
 /// Signal source of sampling clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V2ClkSrc {
     /// Internal.
     Internal,
@@ -26,6 +27,21 @@ pub enum V2ClkSrc {
     AesebuXlr,
 }
 
+impl Default for V2ClkSrc {
+    fn default() -> Self {
+        Self::Internal
+    }
+}
+
+/// The parameters of media and sampling clocks.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Version2ClockParameters {
+    /// The rate of media clock.
+    pub rate: ClkRate,
+    /// The source of sampling clock.
+    pub source: V2ClkSrc,
+}
+
 const CLK_RATE_LABEL: &str = "clock-rate-v2";
 const CLK_RATE_MASK: u32 = 0x00000038;
 const CLK_RATE_SHIFT: usize = 3;
@@ -33,6 +49,85 @@ const CLK_RATE_SHIFT: usize = 3;
 const CLK_SRC_LABEL: &str = "clock-source-v2";
 const CLK_SRC_MASK: u32 = 0x00000007;
 const CLK_SRC_SHIFT: usize = 0;
+
+/// The trait for specification of sampling and media clocks.
+pub trait MotuVersion2ClockSpecification {
+    const CLK_RATES: &'static [ClkRate];
+    const CLK_RATE_VALS: &'static [u8];
+
+    const CLK_SRCS: &'static [V2ClkSrc];
+    const CLK_SRC_VALS: &'static [u8];
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<Version2ClockParameters> for O
+where
+    O: MotuVersion2ClockSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Version2ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.rate,
+            &quad,
+            CLK_RATE_MASK,
+            CLK_RATE_SHIFT,
+            Self::CLK_RATES,
+            Self::CLK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.source,
+            &quad,
+            CLK_SRC_MASK,
+            CLK_SRC_SHIFT,
+            Self::CLK_SRCS,
+            Self::CLK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<Version2ClockParameters> for O
+where
+    O: MotuVersion2ClockSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Version2ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        serialize_flag(
+            &params.rate,
+            &mut quad,
+            CLK_RATE_MASK,
+            CLK_RATE_SHIFT,
+            Self::CLK_RATES,
+            Self::CLK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.source,
+            &mut quad,
+            CLK_SRC_MASK,
+            CLK_SRC_SHIFT,
+            Self::CLK_SRCS,
+            Self::CLK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
+    }
+}
 
 /// The trait for version 2 protocol.
 pub trait V2ClkOperation {
@@ -237,6 +332,25 @@ impl MotuWordClockOutputSpecification for F828mk2Protocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk2Protocol {}
 
+impl MotuVersion2ClockSpecification for F828mk2Protocol {
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+
+    const CLK_SRCS: &'static [V2ClkSrc] = &[
+        V2ClkSrc::Internal,
+        V2ClkSrc::SignalOpt,
+        V2ClkSrc::SpdifCoax,
+        V2ClkSrc::WordClk,
+        V2ClkSrc::AdatDsub,
+    ];
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+}
+
 impl V2ClkOperation for F828mk2Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -371,6 +485,19 @@ impl AssignOperation for F8preProtocol {
         &[(TargetPort::PhonePair, 0x01), (TargetPort::MainPair, 0x02)];
 }
 
+impl MotuVersion2ClockSpecification for F8preProtocol {
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+
+    const CLK_SRCS: &'static [V2ClkSrc] = &[V2ClkSrc::Internal, V2ClkSrc::AdatOpt];
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
+}
+
 impl V2ClkOperation for F8preProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -480,6 +607,28 @@ impl AssignOperation for TravelerProtocol {
 impl MotuWordClockOutputSpecification for TravelerProtocol {}
 
 impl MotuClockNameDisplaySpecification for TravelerProtocol {}
+
+impl MotuVersion2ClockSpecification for TravelerProtocol {
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+        ClkRate::R176400,
+        ClkRate::R192000,
+    ];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+    const CLK_SRCS: &'static [V2ClkSrc] = &[
+        V2ClkSrc::Internal,
+        V2ClkSrc::SignalOpt,
+        V2ClkSrc::SpdifCoax,
+        V2ClkSrc::WordClk,
+        V2ClkSrc::AdatDsub,
+        V2ClkSrc::AesebuXlr,
+    ];
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05, 0x07];
+}
 
 impl V2ClkOperation for TravelerProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
@@ -713,6 +862,19 @@ impl AssignOperation for UltraliteProtocol {
 
 impl MotuClockNameDisplaySpecification for UltraliteProtocol {}
 
+impl MotuVersion2ClockSpecification for UltraliteProtocol {
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+
+    const CLK_SRCS: &'static [V2ClkSrc] = &[V2ClkSrc::Internal, V2ClkSrc::SpdifCoax];
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x02];
+}
+
 impl V2ClkOperation for UltraliteProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -883,6 +1045,27 @@ impl MotuAesebuRateConvertSpecification for F896hdProtocol {
 }
 
 impl MotuLevelMetersSpecification for F896hdProtocol {}
+
+impl MotuVersion2ClockSpecification for F896hdProtocol {
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+        ClkRate::R176400,
+        ClkRate::R192000,
+    ];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+    const CLK_SRCS: &'static [V2ClkSrc] = &[
+        V2ClkSrc::Internal,
+        V2ClkSrc::AdatOpt,
+        V2ClkSrc::AesebuXlr,
+        V2ClkSrc::WordClk,
+        V2ClkSrc::AdatDsub,
+    ];
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+}
 
 impl V2ClkOperation for F896hdProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
