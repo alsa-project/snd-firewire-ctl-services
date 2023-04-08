@@ -679,7 +679,7 @@ pub trait LevelMetersOperation {
 }
 
 /// Port to assign.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TargetPort {
     Disabled,
     AnalogPair(usize),

@@ -32,9 +32,16 @@ impl Default for V1ClkSrc {
 }
 
 /// Mode of optical interface.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V1OptIfaceMode {
     Adat,
     Spdif,
+}
+
+impl Default for V1OptIfaceMode {
+    fn default() -> Self {
+        Self::Adat
+    }
 }
 
 // 828 registers:
@@ -464,13 +471,23 @@ impl MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters> for F828
     }
 }
 
+/// The parameter of optical interface for 828.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct F828OpticalIfaceParameters {
+    /// The mode of signal in optical input interface.
+    pub input_mode: V1OptIfaceMode,
+    /// The mode of signal in optical output interface.
+    pub output_mode: V1OptIfaceMode,
+}
+
 const CONF_828_OPT_OUT_IFACE_LABEL: &str = "opt-out-iface-v1";
 const CONF_828_OPT_IN_IFACE_LABEL: &str = "opt-in-iface-v1";
 const CONF_828_STREAM_INPUT_ENABLE_LABEL: &str = "stream-input-enable-v1";
 const CONF_828_OUTPUT_ENABLE_LABEL: &str = "output-enable-v1";
 
 impl F828Protocol {
-    pub const OPT_IFACE_MODES: [V1OptIfaceMode; 2] = [V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
+    /// The available modes of optical interface.
+    pub const OPT_IFACE_MODES: &[V1OptIfaceMode] = &[V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
 
     fn get_opt_iface_mode(
         mask: u32,
@@ -513,7 +530,73 @@ impl F828Protocol {
             timeout_ms,
         )
     }
+}
 
+impl MotuWhollyCacheableParamsOperation<F828OpticalIfaceParameters> for F828Protocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut F828OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.input_mode,
+            &quad,
+            CONF_828_OPT_IN_IFACE_MASK,
+            CONF_828_OPT_IN_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            &CONF_828_OPT_IFACE_VALS,
+            CONF_828_OPT_IN_IFACE_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.output_mode,
+            &quad,
+            CONF_828_OPT_OUT_IFACE_MASK,
+            CONF_828_OPT_OUT_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            &CONF_828_OPT_IFACE_VALS,
+            CONF_828_OPT_OUT_IFACE_LABEL,
+        )
+    }
+}
+
+impl MotuWhollyUpdatableParamsOperation<F828OpticalIfaceParameters> for F828Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &F828OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
+
+        serialize_flag(
+            &params.input_mode,
+            &mut quad,
+            CONF_828_OPT_IN_IFACE_MASK,
+            CONF_828_OPT_IN_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            &CONF_828_OPT_IFACE_VALS,
+            CONF_828_OPT_IN_IFACE_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.output_mode,
+            &mut quad,
+            CONF_828_OPT_OUT_IFACE_MASK,
+            CONF_828_OPT_OUT_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            &CONF_828_OPT_IFACE_VALS,
+            CONF_828_OPT_OUT_IFACE_LABEL,
+        )?;
+
+        write_quad(req, node, CONF_828_OFFSET, quad, timeout_ms)
+    }
+}
+
+impl F828Protocol {
     pub fn get_optical_output_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
