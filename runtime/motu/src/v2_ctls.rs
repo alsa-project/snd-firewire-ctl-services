@@ -4,36 +4,43 @@
 pub(crate) use super::{protocols::version_2::*, register_dsp_runtime::*};
 
 #[derive(Default, Debug)]
-pub(crate) struct V2ClkCtl<T: V2ClkOperation> {
+pub(crate) struct V2ClkCtl<T>
+where
+    T: MotuVersion2ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2ClockParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    rate: usize,
-    source: usize,
+    params: Version2ClockParameters,
     _phantom: PhantomData<T>,
 }
 
 const RATE_NAME: &str = "sampling- rate";
 const SRC_NAME: &str = "clock-source";
 
-impl<T: V2ClkOperation> V2ClkCtl<T> {
+impl<T> V2ClkCtl<T>
+where
+    T: MotuVersion2ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2ClockParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_clk_rate(req, node, timeout_ms).map(|pos| self.rate = pos)?;
-        T::get_clk_src(req, node, timeout_ms).map(|pos| self.source = pos)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::CLK_RATES.iter().map(|e| clk_rate_to_str(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_RATES.iter().map(|r| clk_rate_to_str(r)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|e| clk_src_to_str(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|s| clk_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -49,11 +56,19 @@ impl<T: V2ClkOperation> V2ClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                elem_value.set_enum(&[self.rate as u32]);
+                let pos = T::CLK_RATES
+                    .iter()
+                    .position(|r| self.params.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             SRC_NAME => {
-                elem_value.set_enum(&[self.source as u32]);
+                let pos = T::CLK_SRCS
+                    .iter()
+                    .position(|s| self.params.source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -71,16 +86,36 @@ impl<T: V2ClkOperation> V2ClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
+                let mut params = self.params.clone();
                 let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for rate of media clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&r| params.rate = r)?;
                 unit.lock()?;
-                let res = T::set_clk_rate(req, node, pos, timeout_ms).map(|_| self.rate = pos);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
             SRC_NAME => {
+                let mut params = self.params.clone();
                 let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for source of sampling clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.source = s)?;
                 unit.lock()?;
-                let res = T::set_clk_src(req, node, pos, timeout_ms).map(|_| self.source = pos);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
@@ -90,10 +125,15 @@ impl<T: V2ClkOperation> V2ClkCtl<T> {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct V2LcdClkCtl<T: V2ClkOperation> {
+pub(crate) struct V2LcdClkCtl<T>
+where
+    T: MotuVersion2ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<ClockNameDisplayParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    rate: usize,
-    source: usize,
+    params: Version2ClockParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -109,30 +149,34 @@ fn clk_src_to_str(src: &V2ClkSrc) -> &'static str {
     }
 }
 
-impl<T: V2ClkOperation> V2LcdClkCtl<T> {
+impl<T> V2LcdClkCtl<T>
+where
+    T: MotuVersion2ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<ClockNameDisplayParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_clk_rate(req, node, timeout_ms).map(|pos| self.rate = pos)?;
-        T::get_clk_src(req, node, timeout_ms).and_then(|pos| {
-            let label = clk_src_to_str(&T::CLK_SRCS[pos].0);
-            T::update_clk_display(req, node, &label, timeout_ms).map(|_| {
-                self.source = pos;
-            })
-        })
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)?;
+        let label = clk_src_to_str(&self.params.source);
+        let params = ClockNameDisplayParameters(label.to_string());
+        T::update_wholly(req, node, &params, timeout_ms)?;
+        Ok(())
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::CLK_RATES.iter().map(|e| clk_rate_to_str(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_RATES.iter().map(|r| clk_rate_to_str(r)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|e| clk_src_to_str(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|s| clk_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -148,11 +192,19 @@ impl<T: V2ClkOperation> V2LcdClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                elem_value.set_enum(&[self.rate as u32]);
+                let pos = T::CLK_RATES
+                    .iter()
+                    .position(|r| self.params.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             SRC_NAME => {
-                elem_value.set_enum(&[self.source as u32]);
+                let pos = T::CLK_SRCS
+                    .iter()
+                    .position(|s| self.params.source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -170,20 +222,40 @@ impl<T: V2ClkOperation> V2LcdClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                let idx = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for rate of media clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&r| params.rate = r)?;
                 unit.lock()?;
-                let res = T::set_clk_rate(req, node, idx, timeout_ms).map(|_| self.rate = idx);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
             SRC_NAME => {
-                let idx = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for source of sampling clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.source = s)?;
                 unit.lock()?;
-                let res = T::set_clk_src(req, node, idx, timeout_ms).and_then(|_| {
-                    let label = clk_src_to_str(&T::CLK_SRCS[idx].0);
-                    T::update_clk_display(req, node, &label, timeout_ms)
-                        .or_else(|_| T::set_clk_src(req, node, self.source, timeout_ms))
-                        .map(|_| self.source = idx)
+                let res = T::update_wholly(req, node, &params, timeout_ms).and_then(|_| {
+                    let label = clk_src_to_str(&params.source);
+                    let p = ClockNameDisplayParameters(label.to_string());
+                    T::update_wholly(req, node, &p, timeout_ms)
+                        .map(|_| self.params = params)
+                        .or_else(|_| T::update_wholly(req, node, &self.params, timeout_ms))
                 });
                 let _ = unit.unlock();
                 res.map(|_| true)
