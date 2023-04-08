@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct UltraLite {
     req: FwReq,
-    clk_ctls: V2ClkCtl<UltraliteProtocol>,
+    clk_ctls: V2LcdClkCtl<UltraliteProtocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<UltraliteProtocol>,
     mixer_return_ctl: RegisterDspMixerReturnCtl<UltraliteProtocol>,
     params: SndMotuRegisterDspParameter,

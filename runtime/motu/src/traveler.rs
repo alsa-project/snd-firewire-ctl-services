@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct Traveler {
     req: FwReq,
-    clk_ctls: V2ClkCtl<TravelerProtocol>,
+    clk_ctls: V2LcdClkCtl<TravelerProtocol>,
     opt_iface_ctl: V2OptIfaceCtl<TravelerProtocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<TravelerProtocol>,
     word_clk_ctl: WordClockCtl<TravelerProtocol>,
