@@ -254,6 +254,8 @@ impl V2ClkOperation for F828mk2Protocol {
     const HAS_LCD: bool = true;
 }
 
+impl MotuClockNameDisplaySpecification for F828mk2Protocol {}
+
 impl V2OptIfaceOperation for F828mk2Protocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
         (V2OptIfaceMode::None, 0x00),
@@ -499,6 +501,8 @@ impl V2ClkOperation for TravelerProtocol {
     const HAS_LCD: bool = true;
 }
 
+impl MotuClockNameDisplaySpecification for TravelerProtocol {}
+
 impl V2OptIfaceOperation for TravelerProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
         (V2OptIfaceMode::None, 0x00),
@@ -720,6 +724,8 @@ impl V2ClkOperation for UltraliteProtocol {
 
     const HAS_LCD: bool = true;
 }
+
+impl MotuClockNameDisplaySpecification for UltraliteProtocol {}
 
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[

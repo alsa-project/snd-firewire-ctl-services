@@ -228,6 +228,40 @@ impl Default for ClkRate {
 const BUSY_DURATION: u64 = 150;
 const DISPLAY_CHARS: usize = 4 * 4;
 
+/// Parameters of clock name in LCD display.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct ClockNameDisplayParameters(pub String);
+
+/// The trait for specification of LCD to display clock name.
+pub trait MotuClockNameDisplaySpecification {}
+
+impl<O> MotuWhollyUpdatableParamsOperation<ClockNameDisplayParameters> for O
+where
+    O: MotuClockNameDisplaySpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &ClockNameDisplayParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut chars = [0x20; DISPLAY_CHARS];
+        chars
+            .iter_mut()
+            .zip(params.0.bytes())
+            .for_each(|(c, l)| *c = l);
+
+        (0..(DISPLAY_CHARS / 4)).try_for_each(|i| {
+            let mut frame = [0; 4];
+            frame.copy_from_slice(&chars[(i * 4)..(i * 4 + 4)]);
+            frame.reverse();
+            let quad = u32::from_ne_bytes(frame);
+            let offset = OFFSET_CLK_DISPLAY + 4 * i as u32;
+            write_quad(req, node, offset, quad, timeout_ms)
+        })
+    }
+}
+
 fn update_clk_display(
     req: &FwReq,
     node: &mut FwNode,

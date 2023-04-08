@@ -670,6 +670,8 @@ impl AssignOperation for F828mk3Protocol {
 
 impl MotuWordClockOutputSpecification for F828mk3Protocol {}
 
+impl MotuClockNameDisplaySpecification for F828mk3Protocol {}
+
 impl V3ClkOperation for F828mk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
     const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
@@ -728,6 +730,8 @@ impl AssignOperation for F828mk3HybridProtocol {
 }
 
 impl MotuWordClockOutputSpecification for F828mk3HybridProtocol {}
+
+impl MotuClockNameDisplaySpecification for F828mk3HybridProtocol {}
 
 impl V3ClkOperation for F828mk3HybridProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
@@ -964,6 +968,8 @@ impl AssignOperation for UltraliteMk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
 
+impl MotuClockNameDisplaySpecification for UltraliteMk3Protocol {}
+
 impl V3ClkOperation for UltraliteMk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
     const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
@@ -1014,6 +1020,8 @@ pub struct UltraliteMk3HybridProtocol;
 impl AssignOperation for UltraliteMk3HybridProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
+
+impl MotuClockNameDisplaySpecification for UltraliteMk3HybridProtocol {}
 
 impl V3ClkOperation for UltraliteMk3HybridProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
@@ -1080,6 +1088,8 @@ impl AssignOperation for TravelerMk3Protocol {
         (TargetPort::OpticalBPair(3), 0x0e), // = Stream-28/29
     ];
 }
+
+impl MotuClockNameDisplaySpecification for TravelerMk3Protocol {}
 
 impl V3ClkOperation for TravelerMk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
