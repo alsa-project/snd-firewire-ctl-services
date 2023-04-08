@@ -136,22 +136,32 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct V1MonitorInputCtl<T: V1MonitorInputOperation> {
+pub(crate) struct V1MonitorInputCtl<T>
+where
+    T: MotuVersion1MonitorInputSpecification
+        + MotuWhollyCacheableParamsOperation<Version1MonitorInputParameters>
+        + MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    mode: usize,
+    params: Version1MonitorInputParameters,
     _phantom: PhantomData<T>,
 }
 
 const MONITOR_INPUT_NAME: &str = "monitor-input";
 
-impl<T: V1MonitorInputOperation> V1MonitorInputCtl<T> {
+impl<T> V1MonitorInputCtl<T>
+where
+    T: MotuVersion1MonitorInputSpecification
+        + MotuWhollyCacheableParamsOperation<Version1MonitorInputParameters>
+        + MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_monitor_input(req, node, timeout_ms).map(|mode| self.mode = mode)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -172,7 +182,11 @@ impl<T: V1MonitorInputOperation> V1MonitorInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MONITOR_INPUT_NAME => {
-                elem_value.set_enum(&[self.mode as u32]);
+                let pos = T::MONITOR_INPUT_MODES
+                    .iter()
+                    .position(|m| self.params.0.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -189,8 +203,17 @@ impl<T: V1MonitorInputOperation> V1MonitorInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MONITOR_INPUT_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_monitor_input(req, node, val, timeout_ms).map(|_| self.mode = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::MONITOR_INPUT_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of monitor input mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.0 = mode)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
