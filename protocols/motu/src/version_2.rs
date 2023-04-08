@@ -233,6 +233,7 @@ impl AssignOperation for F828mk2Protocol {
     ];
 }
 
+impl MotuWordClockOutputSpecification for F828mk2Protocol {}
 impl WordClkOperation for F828mk2Protocol {}
 
 impl V2ClkOperation for F828mk2Protocol {
@@ -475,6 +476,7 @@ impl AssignOperation for TravelerProtocol {
     ];
 }
 
+impl MotuWordClockOutputSpecification for TravelerProtocol {}
 impl WordClkOperation for TravelerProtocol {}
 
 impl V2ClkOperation for TravelerProtocol {
@@ -869,6 +871,7 @@ impl AssignOperation for F896hdProtocol {
     ];
 }
 
+impl MotuWordClockOutputSpecification for F896hdProtocol {}
 impl WordClkOperation for F896hdProtocol {}
 
 impl AesebuRateConvertOperation for F896hdProtocol {
