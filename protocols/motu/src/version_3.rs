@@ -668,6 +668,7 @@ impl AssignOperation for F828mk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
 }
 
+impl MotuWordClockOutputSpecification for F828mk3Protocol {}
 impl WordClkOperation for F828mk3Protocol {}
 
 impl V3ClkOperation for F828mk3Protocol {
@@ -727,6 +728,7 @@ impl AssignOperation for F828mk3HybridProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
 }
 
+impl MotuWordClockOutputSpecification for F828mk3HybridProtocol {}
 impl WordClkOperation for F828mk3HybridProtocol {}
 
 impl V3ClkOperation for F828mk3HybridProtocol {
@@ -1107,6 +1109,7 @@ impl V3OptIfaceOperation for TravelerMk3Protocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
 }
 
+impl MotuWordClockOutputSpecification for TravelerMk3Protocol {}
 impl WordClkOperation for TravelerMk3Protocol {}
 
 impl CommandDspOperation for TravelerMk3Protocol {}
@@ -1374,6 +1377,7 @@ impl V3OptIfaceOperation for Track16Protocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A];
 }
 
+impl MotuWordClockOutputSpecification for Track16Protocol {}
 impl WordClkOperation for Track16Protocol {}
 
 impl CommandDspOperation for Track16Protocol {}

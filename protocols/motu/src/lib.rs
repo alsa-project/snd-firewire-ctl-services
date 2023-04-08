@@ -318,6 +318,64 @@ const WORD_OUT_SHIFT: usize = 27;
 
 const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 
+/// The trait for specification of speed of word clock signal in XLR output interface.
+pub trait MotuWordClockOutputSpecification {
+    const WORD_CLOCK_OUTPUT_SPEED_MODES: &'static [WordClkSpeedMode] = &[
+        WordClkSpeedMode::ForceLowRate,
+        WordClkSpeedMode::FollowSystemClk,
+    ];
+}
+
+const WORD_CLOCK_OUTPUT_SPEED_MODE_VALS: &[u8] = &[0x00, 0x01];
+
+impl<O: MotuWordClockOutputSpecification> MotuWhollyCacheableParamsOperation<WordClkSpeedMode>
+    for O
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut WordClkSpeedMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        deserialize_flag(
+            params,
+            &quad,
+            WORD_OUT_MASK,
+            WORD_OUT_SHIFT,
+            Self::WORD_CLOCK_OUTPUT_SPEED_MODES,
+            WORD_CLOCK_OUTPUT_SPEED_MODE_VALS,
+            WORD_OUT_LABEL,
+        )
+    }
+}
+
+impl<O: MotuWordClockOutputSpecification> MotuWhollyUpdatableParamsOperation<WordClkSpeedMode>
+    for O
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &WordClkSpeedMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        serialize_flag(
+            params,
+            &mut quad,
+            WORD_OUT_MASK,
+            WORD_OUT_SHIFT,
+            Self::WORD_CLOCK_OUTPUT_SPEED_MODES,
+            WORD_CLOCK_OUTPUT_SPEED_MODE_VALS,
+            WORD_OUT_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
+    }
+}
+
 /// The trait for word-clock protocol.
 pub trait WordClkOperation {
     fn get_word_out(

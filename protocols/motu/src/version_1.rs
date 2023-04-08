@@ -631,6 +631,7 @@ impl F896Protocol {
     pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
 }
 
+impl MotuWordClockOutputSpecification for F896Protocol {}
 impl WordClkOperation for F896Protocol {}
 
 impl MotuVersion1ClockSpecification for F896Protocol {
