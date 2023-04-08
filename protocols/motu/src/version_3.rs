@@ -216,19 +216,6 @@ pub trait V3PortAssignOperation: AssignOperation {
     }
 }
 
-/// Direction of optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum V3OptIfaceTarget {
-    A,
-    B,
-}
-
-impl Default for V3OptIfaceTarget {
-    fn default() -> Self {
-        Self::A
-    }
-}
-
 /// Mode of optical interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V3OptIfaceMode {
@@ -252,12 +239,12 @@ pub struct V3OpticalIfaceParameters {
     pub output_modes: Vec<V3OptIfaceMode>,
 }
 
-fn get_opt_iface_masks(target: V3OptIfaceTarget, is_out: bool) -> (u32, u32) {
+fn get_opt_iface_masks(is_b: bool, is_out: bool) -> (u32, u32) {
     let mut enabled_mask = 0x00000001;
     if is_out {
         enabled_mask <<= 8;
     }
-    if target == V3OptIfaceTarget::B {
+    if is_b {
         enabled_mask <<= 1;
     }
 
@@ -265,7 +252,7 @@ fn get_opt_iface_masks(target: V3OptIfaceTarget, is_out: bool) -> (u32, u32) {
     if is_out {
         no_adat_mask <<= 2;
     }
-    if target == V3OptIfaceTarget::B {
+    if is_b {
         no_adat_mask <<= 4;
     }
 
@@ -273,51 +260,6 @@ fn get_opt_iface_masks(target: V3OptIfaceTarget, is_out: bool) -> (u32, u32) {
 }
 
 const OFFSET_OPT: u32 = 0x0c94;
-
-fn set_opt_iface_mode(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    target: V3OptIfaceTarget,
-    is_out: bool,
-    mode: V3OptIfaceMode,
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
-    read_quad(req, node, OFFSET_OPT, timeout_ms).and_then(|mut quad| {
-        match mode {
-            V3OptIfaceMode::Disabled => {
-                quad &= !enabled_mask;
-                quad &= !no_adat_mask;
-            }
-            V3OptIfaceMode::Adat => {
-                quad |= enabled_mask;
-                quad &= !no_adat_mask;
-            }
-            V3OptIfaceMode::Spdif => {
-                quad |= enabled_mask;
-                quad |= no_adat_mask;
-            }
-        }
-        write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
-    })
-}
-
-fn get_opt_iface_mode(
-    req: &mut FwReq,
-    node: &mut FwNode,
-    target: V3OptIfaceTarget,
-    is_out: bool,
-    timeout_ms: u32,
-) -> Result<V3OptIfaceMode, Error> {
-    read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
-        let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
-        match (quad & enabled_mask > 0, quad & no_adat_mask > 0) {
-            (false, false) | (false, true) => V3OptIfaceMode::Disabled,
-            (true, false) => V3OptIfaceMode::Adat,
-            (true, true) => V3OptIfaceMode::Spdif,
-        }
-    })
-}
 
 /// The trait for specification of optical input and output interfaces.
 pub trait MotuVersion3OpticalIfaceSpecification {
@@ -339,12 +281,7 @@ pub trait MotuVersion3OpticalIfaceSpecification {
 }
 
 fn serialize_opt_iface_mode(mode: &V3OptIfaceMode, quad: &mut u32, is_b: bool, is_out: bool) {
-    let target = if is_b {
-        V3OptIfaceTarget::B
-    } else {
-        V3OptIfaceTarget::A
-    };
-    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(is_b, is_out);
     *quad &= !(enabled_mask | no_adat_mask);
     match *mode {
         V3OptIfaceMode::Disabled => {}
@@ -354,12 +291,7 @@ fn serialize_opt_iface_mode(mode: &V3OptIfaceMode, quad: &mut u32, is_b: bool, i
 }
 
 fn deserialize_opt_iface_mode(mode: &mut V3OptIfaceMode, quad: &u32, is_b: bool, is_out: bool) {
-    let target = if is_b {
-        V3OptIfaceTarget::B
-    } else {
-        V3OptIfaceTarget::A
-    };
-    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(is_b, is_out);
     *mode = match (*quad & enabled_mask > 0, *quad & no_adat_mask > 0) {
         (false, false) | (false, true) => V3OptIfaceMode::Disabled,
         (true, false) => V3OptIfaceMode::Adat,
@@ -420,55 +352,6 @@ where
             .for_each(|(i, mode)| serialize_opt_iface_mode(mode, &mut quad, i > 0, false));
 
         write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
-    }
-}
-
-/// The trait for optical interface protocol in version 3.
-pub trait V3OptIfaceOperation {
-    const TARGETS: &'static [V3OptIfaceTarget];
-
-    const MODES: &'static [V3OptIfaceMode; 3] = &[
-        V3OptIfaceMode::Disabled,
-        V3OptIfaceMode::Adat,
-        V3OptIfaceMode::Spdif,
-    ];
-
-    fn set_opt_input_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: V3OptIfaceTarget,
-        mode: V3OptIfaceMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_opt_iface_mode(req, node, target, false, mode, timeout_ms)
-    }
-
-    fn get_opt_input_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: V3OptIfaceTarget,
-        timeout_ms: u32,
-    ) -> Result<V3OptIfaceMode, Error> {
-        get_opt_iface_mode(req, node, target, false, timeout_ms)
-    }
-
-    fn set_opt_output_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: V3OptIfaceTarget,
-        mode: V3OptIfaceMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_opt_iface_mode(req, node, target, true, mode, timeout_ms)
-    }
-
-    fn get_opt_output_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: V3OptIfaceTarget,
-        timeout_ms: u32,
-    ) -> Result<V3OptIfaceMode, Error> {
-        get_opt_iface_mode(req, node, target, true, timeout_ms)
     }
 }
 
@@ -814,10 +697,6 @@ impl MotuVersion3OpticalIfaceSpecification for F828mk3Protocol {
     const OPT_IFACE_COUNT: usize = 2;
 }
 
-impl V3OptIfaceOperation for F828mk3Protocol {
-    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
-}
-
 impl CommandDspOperation for F828mk3Protocol {}
 
 impl CommandDspReverbOperation for F828mk3Protocol {}
@@ -879,10 +758,6 @@ impl V3PortAssignOperation for F828mk3HybridProtocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for F828mk3HybridProtocol {
     const OPT_IFACE_COUNT: usize = 2;
-}
-
-impl V3OptIfaceOperation for F828mk3HybridProtocol {
-    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
 }
 
 impl CommandDspOperation for F828mk3HybridProtocol {}
@@ -1265,10 +1140,6 @@ impl MotuVersion3OpticalIfaceSpecification for TravelerMk3Protocol {
     const OPT_IFACE_COUNT: usize = 2;
 }
 
-impl V3OptIfaceOperation for TravelerMk3Protocol {
-    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
-}
-
 impl MotuWordClockOutputSpecification for TravelerMk3Protocol {}
 
 impl CommandDspOperation for TravelerMk3Protocol {}
@@ -1535,10 +1406,6 @@ impl V3PortAssignOperation for Track16Protocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for Track16Protocol {
     const OPT_IFACE_COUNT: usize = 1;
-}
-
-impl V3OptIfaceOperation for Track16Protocol {
-    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A];
 }
 
 impl MotuWordClockOutputSpecification for Track16Protocol {}
