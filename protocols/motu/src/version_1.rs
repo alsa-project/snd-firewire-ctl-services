@@ -111,7 +111,6 @@ const CONF_828_MONITOR_INPUT_CH_VALS: &[u8] = &[
 ];
 
 const CONF_828_STREAM_INPUT_ENABLE_MASK: u32 = 0x00000080;
-const CONF_828_STREAM_INPUT_ENABLE_SHIFT: usize = 7;
 
 const CONF_828_MONITOR_INPUT_DISABLE_MASK: u32 = 0x00000040;
 
@@ -482,7 +481,6 @@ pub struct F828OpticalIfaceParameters {
 
 const CONF_828_OPT_OUT_IFACE_LABEL: &str = "opt-out-iface-v1";
 const CONF_828_OPT_IN_IFACE_LABEL: &str = "opt-in-iface-v1";
-const CONF_828_STREAM_INPUT_ENABLE_LABEL: &str = "stream-input-enable-v1";
 const CONF_828_OUTPUT_ENABLE_LABEL: &str = "output-enable-v1";
 
 impl F828Protocol {
@@ -554,48 +552,44 @@ impl MotuWhollyUpdatableParamsOperation<F828OpticalIfaceParameters> for F828Prot
     }
 }
 
-impl F828Protocol {
-    pub fn get_stream_input_enable(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        get_idx_from_val(
-            CONF_828_OFFSET,
-            CONF_828_STREAM_INPUT_ENABLE_MASK,
-            CONF_828_STREAM_INPUT_ENABLE_SHIFT,
-            CONF_828_STREAM_INPUT_ENABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            timeout_ms,
-        )
-        .map(|val| val > 0)
-    }
+/// The parameter of stream input for 828.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct F828StreamInputParameters(pub bool);
 
-    pub fn set_stream_input_enable(
+impl MotuWhollyCacheableParamsOperation<F828StreamInputParameters> for F828Protocol {
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        enable: bool,
+        params: &mut F828StreamInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let idx = match enable {
-            false => 0x00,
-            true => 0x01,
-        };
-        set_idx_to_val(
-            CONF_828_OFFSET,
-            CONF_828_STREAM_INPUT_ENABLE_MASK,
-            CONF_828_STREAM_INPUT_ENABLE_SHIFT,
-            CONF_828_STREAM_INPUT_ENABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
+        let quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
 
+        params.0 = quad & CONF_828_STREAM_INPUT_ENABLE_MASK > 0;
+
+        Ok(())
+    }
+}
+
+impl MotuWhollyUpdatableParamsOperation<F828StreamInputParameters> for F828Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &F828StreamInputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
+
+        quad &= !CONF_828_STREAM_INPUT_ENABLE_MASK;
+        if params.0 {
+            quad |= CONF_828_STREAM_INPUT_ENABLE_MASK;
+        }
+
+        write_quad(req, node, CONF_828_OFFSET, quad, timeout_ms)
+    }
+}
+
+impl F828Protocol {
     pub fn get_output_enable(
         req: &mut FwReq,
         node: &mut FwNode,
