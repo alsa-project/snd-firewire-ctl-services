@@ -352,7 +352,7 @@ impl MeasureModel<(SndMotu, FwNode)> for Traveler {
 #[derive(Default, Debug)]
 struct MicInputCtl {
     elem_id_list: Vec<ElemId>,
-    state: TravelerMicInputState,
+    params: TravelerMicInputState,
 }
 
 const MIC_GAIN_NAME: &str = "mic-gain-name";
@@ -367,7 +367,7 @@ impl MicInputCtl {
     };
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        TravelerProtocol::read_mic_input_state(req, node, &mut self.state, timeout_ms)
+        TravelerProtocol::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -396,12 +396,12 @@ impl MicInputCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals: Vec<i32> = self.state.gain.iter().map(|&val| val as i32).collect();
+                let vals: Vec<i32> = self.params.gain.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.state.pad);
+                elem_value.set_bool(&self.params.pad);
                 Ok(true)
             }
             _ => Ok(false),
@@ -418,19 +418,23 @@ impl MicInputCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let gain: Vec<u8> = elem_value
-                    .int()
-                    .iter()
-                    .take(TravelerProtocol::MIC_INPUT_COUNT)
-                    .map(|&val| val as u8)
-                    .collect();
-                TravelerProtocol::write_mic_gain(req, node, &gain, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                params
+                    .gain
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
+                res.map(|_| true)
             }
             MIC_PAD_NAME => {
-                let pad = &elem_value.boolean()[..TravelerProtocol::MIC_INPUT_COUNT];
-                TravelerProtocol::write_mic_pad(req, node, &pad, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..TravelerProtocol::MIC_INPUT_COUNT];
+                params.pad.copy_from_slice(vals);
+                let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
