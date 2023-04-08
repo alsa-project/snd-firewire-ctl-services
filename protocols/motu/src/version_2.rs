@@ -130,10 +130,26 @@ where
 }
 
 /// Mode of optical interface.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V2OptIfaceMode {
     None,
     Adat,
     Spdif,
+}
+
+impl Default for V2OptIfaceMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+/// The parameters of optical interfaces.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Version2OpticalIfaceParameters {
+    /// The mode of signal in optical input interface.
+    pub input_mode: V2OptIfaceMode,
+    /// The mode of signal in optical output interface.
+    pub output_mode: V2OptIfaceMode,
 }
 
 const OPT_IN_IFACE_LABEL: &str = "optical-input-iface-v2";
@@ -145,6 +161,81 @@ const OPT_OUT_IFACE_MASK: u32 = 0x00000c00;
 const OPT_OUT_IFACE_SHIFT: usize = 10;
 
 const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
+
+/// The trait for specificification of mode of optical input and output interfaces.
+pub trait MotuVersion2OpticalIfaceSpecification {
+    const OPT_IFACE_MODES: &'static [V2OptIfaceMode];
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<Version2OpticalIfaceParameters> for O
+where
+    O: MotuVersion2OpticalIfaceSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Version2OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.input_mode,
+            &quad,
+            OPT_IN_IFACE_MASK,
+            OPT_IN_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            OPT_IFACE_MODE_VALS,
+            OPT_IN_IFACE_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.output_mode,
+            &quad,
+            OPT_OUT_IFACE_MASK,
+            OPT_OUT_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            OPT_IFACE_MODE_VALS,
+            OPT_OUT_IFACE_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<Version2OpticalIfaceParameters> for O
+where
+    O: MotuVersion2OpticalIfaceSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Version2OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
+        serialize_flag(
+            &params.input_mode,
+            &mut quad,
+            OPT_IN_IFACE_MASK,
+            OPT_IN_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            OPT_IFACE_MODE_VALS,
+            OPT_IN_IFACE_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.output_mode,
+            &mut quad,
+            OPT_OUT_IFACE_MASK,
+            OPT_OUT_IFACE_SHIFT,
+            Self::OPT_IFACE_MODES,
+            OPT_IFACE_MODE_VALS,
+            OPT_OUT_IFACE_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
+    }
+}
 
 /// The trait for optical interface mode in version 2.
 pub trait V2OptIfaceOperation {
@@ -264,6 +355,14 @@ impl MotuVersion2ClockSpecification for F828mk2Protocol {
         V2ClkSrc::AdatDsub,
     ];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+}
+
+impl MotuVersion2OpticalIfaceSpecification for F828mk2Protocol {
+    const OPT_IFACE_MODES: &'static [V2OptIfaceMode] = &[
+        V2OptIfaceMode::None,
+        V2OptIfaceMode::Adat,
+        V2OptIfaceMode::Spdif,
+    ];
 }
 
 impl V2OptIfaceOperation for F828mk2Protocol {
@@ -394,6 +493,11 @@ impl MotuVersion2ClockSpecification for F8preProtocol {
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
 }
 
+impl MotuVersion2OpticalIfaceSpecification for F8preProtocol {
+    const OPT_IFACE_MODES: &'static [V2OptIfaceMode] =
+        &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
+}
+
 impl V2OptIfaceOperation for F8preProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
@@ -510,6 +614,14 @@ impl MotuVersion2ClockSpecification for TravelerProtocol {
         V2ClkSrc::AesebuXlr,
     ];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05, 0x07];
+}
+
+impl MotuVersion2OpticalIfaceSpecification for TravelerProtocol {
+    const OPT_IFACE_MODES: &'static [V2OptIfaceMode] = &[
+        V2OptIfaceMode::None,
+        V2OptIfaceMode::Adat,
+        V2OptIfaceMode::Spdif,
+    ];
 }
 
 impl V2OptIfaceOperation for TravelerProtocol {
@@ -911,6 +1023,11 @@ impl MotuVersion2ClockSpecification for F896hdProtocol {
         V2ClkSrc::AdatDsub,
     ];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+}
+
+impl MotuVersion2OpticalIfaceSpecification for F896hdProtocol {
+    const OPT_IFACE_MODES: &'static [V2OptIfaceMode] =
+        &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
 }
 
 impl V2OptIfaceOperation for F896hdProtocol {
