@@ -4,14 +4,24 @@
 pub(crate) use super::{common_ctls::PhoneAssignCtl, register_dsp_runtime::*};
 
 #[derive(Default, Debug)]
-pub(crate) struct RegisterDspPhoneAssignCtl<T: AssignOperation>(pub PhoneAssignCtl<T>);
+pub(crate) struct RegisterDspPhoneAssignCtl<T>(pub PhoneAssignCtl<T>)
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>;
 
-impl<T: AssignOperation> RegisterDspPhoneAssignCtl<T> {
+impl<T> RegisterDspPhoneAssignCtl<T>
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>,
+{
     pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         let idx = params.headphone_output_paired_assignment() as usize;
-        if idx < T::ASSIGN_PORTS.len() {
-            self.0.assign = idx;
-        }
+        let _ = T::ASSIGN_PORT_TARGETS
+            .iter()
+            .nth(idx)
+            .map(|&p| self.0.params.0 = p);
     }
 }
 
