@@ -113,6 +113,56 @@ fn write_quad(
     })
 }
 
+fn serialize_flag<T: Copy + Eq>(
+    flag: &T,
+    quad: &mut u32,
+    mask: u32,
+    shift: usize,
+    flags: &[T],
+    vals: &[u8],
+    label: &str,
+) -> Result<(), Error> {
+    flags
+        .iter()
+        .zip(vals)
+        .find(|(f, _)| flag.eq(f))
+        .ok_or_else(|| {
+            let label = format!(
+                "Invalid argument for {}, 0x{:08x}, 0x{:08x}",
+                label, *quad, mask
+            );
+            Error::new(FileError::Io, &label)
+        })
+        .map(|(_, &val)| {
+            *quad &= !mask;
+            *quad |= (val as u32) << shift;
+        })
+}
+
+fn deserialize_flag<T: Copy + Eq>(
+    flag: &mut T,
+    quad: &u32,
+    mask: u32,
+    shift: usize,
+    flags: &[T],
+    vals: &[u8],
+    label: &str,
+) -> Result<(), Error> {
+    let val = ((*quad & mask) >> shift) as u8;
+    flags
+        .iter()
+        .zip(vals)
+        .find(|(_, v)| val.eq(v))
+        .ok_or_else(|| {
+            let label = format!(
+                "Invalid value for {}, 0x{:08x}, 0x{:08x}",
+                label, quad, mask
+            );
+            Error::new(FileError::Io, &label)
+        })
+        .map(|(&f, _)| *flag = f)
+}
+
 fn get_idx_from_val(
     offset: u32,
     mask: u32,
@@ -153,6 +203,7 @@ fn set_idx_to_val(
 }
 
 /// Nominal rate of sampling clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkRate {
     /// 44.1 kHx.
     R44100,
@@ -166,6 +217,12 @@ pub enum ClkRate {
     R176400,
     /// 192.2 kHx.
     R192000,
+}
+
+impl Default for ClkRate {
+    fn default() -> Self {
+        Self::R44100
+    }
 }
 
 const BUSY_DURATION: u64 = 150;
@@ -663,5 +720,91 @@ pub enum NominalSignalLevel {
 impl Default for NominalSignalLevel {
     fn default() -> Self {
         Self::Consumer
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn flag_serdes() {
+        const TEST0_MASK: u32 = 0x000000ff;
+        const TEST0_SHIFT: usize = 0;
+        const TEST0_LABEL: &'static str = "test0";
+        const TEST0_TARGETS: &[TargetPort] = &[
+            TargetPort::AesEbuPair,
+            TargetPort::PhonePair,
+            TargetPort::MainPair,
+            TargetPort::SpdifPair,
+        ];
+        const TEST0_VALS: &[u8] = &[0x01, 0x02, 0x04, 0x08];
+
+        const TEST1_MASK: u32 = 0x0000ff00;
+        const TEST1_SHIFT: usize = 8;
+        const TEST1_LABEL: &'static str = "test1";
+        const TEST1_TARGETS: &[LevelMetersHoldTimeMode] = &[
+            LevelMetersHoldTimeMode::Off,
+            LevelMetersHoldTimeMode::Sec2,
+            LevelMetersHoldTimeMode::Sec4,
+            LevelMetersHoldTimeMode::Sec10,
+            LevelMetersHoldTimeMode::Sec60,
+            LevelMetersHoldTimeMode::Sec300,
+            LevelMetersHoldTimeMode::Sec480,
+        ];
+        const TEST1_VALS: &[u8] = &[0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
+
+        let orig0 = TargetPort::SpdifPair;
+        let mut quad = 0;
+        serialize_flag(
+            &orig0,
+            &mut quad,
+            TEST0_MASK,
+            TEST0_SHIFT,
+            TEST0_TARGETS,
+            TEST0_VALS,
+            TEST0_LABEL,
+        )
+        .unwrap();
+        assert_eq!(quad, 0x00000008);
+
+        let orig1 = LevelMetersHoldTimeMode::Off;
+        serialize_flag(
+            &orig1,
+            &mut quad,
+            TEST1_MASK,
+            TEST1_SHIFT,
+            TEST1_TARGETS,
+            TEST1_VALS,
+            TEST1_LABEL,
+        )
+        .unwrap();
+        assert_eq!(quad, 0x00000108);
+
+        let mut target0 = TargetPort::default();
+        deserialize_flag(
+            &mut target0,
+            &quad,
+            TEST0_MASK,
+            TEST0_SHIFT,
+            TEST0_TARGETS,
+            TEST0_VALS,
+            TEST0_LABEL,
+        )
+        .unwrap();
+        assert_eq!(target0, orig0);
+
+        let mut target1 = LevelMetersHoldTimeMode::default();
+        deserialize_flag(
+            &mut target1,
+            &quad,
+            TEST1_MASK,
+            TEST1_SHIFT,
+            TEST1_TARGETS,
+            TEST1_VALS,
+            TEST1_LABEL,
+        )
+        .unwrap();
+        assert_eq!(target1, orig1);
     }
 }

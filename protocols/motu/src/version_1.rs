@@ -9,6 +9,7 @@
 use super::*;
 
 /// Signal source of sampling clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V1ClkSrc {
     /// Internal.
     Internal,
@@ -22,6 +23,12 @@ pub enum V1ClkSrc {
     AdatDsub,
     /// AES/EBU on XLR interface.
     AesebuXlr,
+}
+
+impl Default for V1ClkSrc {
+    fn default() -> Self {
+        Self::Internal
+    }
 }
 
 /// Mode of optical interface.
@@ -249,6 +256,100 @@ const CONF_896_CLK_SRC_SHIFT: usize = 0;
 const CLK_RATE_LABEL: &str = "clock-rate-v1";
 const CLK_SRC_LABEL: &str = "clock-source-v1";
 
+/// The parameters of media and sampling clock.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Version1ClockParameters {
+    /// The rate of media clock.
+    pub rate: ClkRate,
+    /// The source of sampling clock.
+    pub source: V1ClkSrc,
+}
+
+/// The trait for specification of sampling and media clock in version 1 protocol.
+pub trait MotuVersion1ClockSpecification {
+    const CLK_OFFSET: u32;
+
+    const CLK_RATE_MASK: u32;
+    const CLK_RATE_SHIFT: usize;
+    const CLK_RATE_VALS: &'static [u8];
+    const CLK_RATES: &'static [ClkRate];
+
+    const CLK_SRC_MASK: u32;
+    const CLK_SRC_SHIFT: usize;
+    const CLK_SRC_VALS: &'static [u8];
+    const CLK_SRCS: &'static [V1ClkSrc];
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<Version1ClockParameters> for O
+where
+    O: MotuVersion1ClockSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Version1ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, Self::CLK_OFFSET, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.rate,
+            &quad,
+            Self::CLK_RATE_MASK,
+            Self::CLK_RATE_SHIFT,
+            Self::CLK_RATES,
+            Self::CLK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.source,
+            &quad,
+            Self::CLK_SRC_MASK,
+            Self::CLK_SRC_SHIFT,
+            Self::CLK_SRCS,
+            Self::CLK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<Version1ClockParameters> for O
+where
+    O: MotuVersion1ClockSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Version1ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, Self::CLK_OFFSET, timeout_ms)?;
+
+        serialize_flag(
+            &params.rate,
+            &mut quad,
+            Self::CLK_RATE_MASK,
+            Self::CLK_RATE_SHIFT,
+            Self::CLK_RATES,
+            Self::CLK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.source,
+            &mut quad,
+            Self::CLK_SRC_MASK,
+            Self::CLK_SRC_SHIFT,
+            Self::CLK_SRCS,
+            Self::CLK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )?;
+
+        write_quad(req, node, Self::CLK_OFFSET, quad, timeout_ms)
+    }
+}
+
 /// The trait for configuration of sampling clock in version 1 protocol.
 pub trait V1ClkOperation {
     const CLK_OFFSET: u32;
@@ -352,6 +453,25 @@ pub trait V1MonitorInputOperation {
 /// The protocol implementation for 828.
 #[derive(Default)]
 pub struct F828Protocol;
+
+impl MotuVersion1ClockSpecification for F828Protocol {
+    const CLK_OFFSET: u32 = CONF_828_OFFSET;
+
+    const CLK_RATE_MASK: u32 = CONF_828_CLK_RATE_MASK;
+    const CLK_RATE_SHIFT: usize = CONF_828_CLK_RATE_SHIFT;
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01];
+    const CLK_RATES: &'static [ClkRate] = &[ClkRate::R44100, ClkRate::R48000];
+
+    const CLK_SRC_MASK: u32 = CONF_828_CLK_SRC_MASK;
+    const CLK_SRC_SHIFT: usize = CONF_828_CLK_SRC_SHIFT;
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x21];
+    const CLK_SRCS: &'static [V1ClkSrc] = &[
+        V1ClkSrc::Internal,
+        V1ClkSrc::AdatDsub,
+        V1ClkSrc::Spdif,
+        V1ClkSrc::AdatOpt,
+    ];
+}
 
 impl V1ClkOperation for F828Protocol {
     const CLK_OFFSET: u32 = CONF_828_OFFSET;
@@ -661,6 +781,31 @@ impl F896Protocol {
 }
 
 impl WordClkOperation for F896Protocol {}
+
+impl MotuVersion1ClockSpecification for F896Protocol {
+    const CLK_OFFSET: u32 = OFFSET_CLK;
+
+    const CLK_RATE_MASK: u32 = CONF_896_CLK_RATE_MASK;
+    const CLK_RATE_SHIFT: usize = CONF_896_CLK_RATE_SHIFT;
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+    const CLK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+
+    const CLK_SRC_MASK: u32 = CONF_896_CLK_SRC_MASK;
+    const CLK_SRC_SHIFT: usize = CONF_896_CLK_SRC_SHIFT;
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+    const CLK_SRCS: &'static [V1ClkSrc] = &[
+        V1ClkSrc::Internal,
+        V1ClkSrc::AdatOpt,
+        V1ClkSrc::AesebuXlr,
+        V1ClkSrc::WordClk,
+        V1ClkSrc::AdatDsub,
+    ];
+}
 
 impl V1ClkOperation for F896Protocol {
     const CLK_OFFSET: u32 = OFFSET_CLK;
