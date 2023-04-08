@@ -83,8 +83,6 @@ impl Default for V1OptIfaceMode {
 
 const CONF_828_OFFSET: u32 = 0x00000b00;
 
-const CONF_BOOL_VALS: [u8; 2] = [0x00, 0x01];
-
 const CONF_828_OPT_IN_IFACE_MASK: u32 = 0x00008000;
 const CONF_828_OPT_IN_IFACE_SHIFT: usize = 15;
 
@@ -115,7 +113,6 @@ const CONF_828_STREAM_INPUT_ENABLE_MASK: u32 = 0x00000080;
 const CONF_828_MONITOR_INPUT_DISABLE_MASK: u32 = 0x00000040;
 
 const CONF_828_OUTPUT_ENABLE_MASK: u32 = 0x00000008;
-const CONF_828_OUTPUT_ENABLE_SHIFT: usize = 3;
 
 const CONF_828_CLK_RATE_MASK: u32 = 0x00000004;
 const CONF_828_CLK_RATE_SHIFT: usize = 2;
@@ -481,7 +478,6 @@ pub struct F828OpticalIfaceParameters {
 
 const CONF_828_OPT_OUT_IFACE_LABEL: &str = "opt-out-iface-v1";
 const CONF_828_OPT_IN_IFACE_LABEL: &str = "opt-in-iface-v1";
-const CONF_828_OUTPUT_ENABLE_LABEL: &str = "output-enable-v1";
 
 impl F828Protocol {
     /// The available modes of optical interface.
@@ -589,46 +585,40 @@ impl MotuWhollyUpdatableParamsOperation<F828StreamInputParameters> for F828Proto
     }
 }
 
-impl F828Protocol {
-    pub fn get_output_enable(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        get_idx_from_val(
-            CONF_828_OFFSET,
-            CONF_828_OUTPUT_ENABLE_MASK,
-            CONF_828_OUTPUT_ENABLE_SHIFT,
-            CONF_828_OUTPUT_ENABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            timeout_ms,
-        )
-        .map(|val| val > 0)
-    }
+/// The parameter of output for 828.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct F828OutputParameters(pub bool);
 
-    pub fn set_output_enable(
+impl MotuWhollyCacheableParamsOperation<F828OutputParameters> for F828Protocol {
+    fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
-        enable: bool,
+        params: &mut F828OutputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let idx = match enable {
-            false => 0x00,
-            true => 0x01,
-        };
-        set_idx_to_val(
-            CONF_828_OFFSET,
-            CONF_828_OUTPUT_ENABLE_MASK,
-            CONF_828_OUTPUT_ENABLE_SHIFT,
-            CONF_828_OUTPUT_ENABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            idx,
-            timeout_ms,
-        )
+        let quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
+
+        params.0 = quad & CONF_828_OUTPUT_ENABLE_MASK > 0;
+
+        Ok(())
+    }
+}
+
+impl MotuWhollyUpdatableParamsOperation<F828OutputParameters> for F828Protocol {
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &F828OutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, CONF_828_OFFSET, timeout_ms)?;
+
+        quad &= !CONF_828_OUTPUT_ENABLE_MASK;
+        if params.0 {
+            quad |= CONF_828_OUTPUT_ENABLE_MASK;
+        }
+
+        write_quad(req, node, CONF_828_OFFSET, quad, timeout_ms)
     }
 }
 
