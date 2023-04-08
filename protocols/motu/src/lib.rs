@@ -490,8 +490,11 @@ impl Default for LevelMetersHoldTimeMode {
 /// Mode of programmable meter display.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LevelMetersProgrammableMode {
+    /// For analog outputs.
     AnalogOutput,
+    /// For ADAT inputs.
     AdatInput,
+    /// For ADAT outputs.
     AdatOutput,
 }
 
@@ -504,7 +507,9 @@ impl Default for LevelMetersProgrammableMode {
 /// Mode of AES/EBU meter display.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LevelMetersAesebuMode {
+    /// For AES/EBU inputs.
     Input,
+    /// For AES/EBU outputs.
     Output,
 }
 
@@ -514,6 +519,7 @@ impl Default for LevelMetersAesebuMode {
     }
 }
 
+/// The parameters of level meters.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LevelMetersParameters {
     /// The duration to hold peak.
@@ -682,173 +688,6 @@ where
         )?;
 
         write_quad(req, node, LEVEL_METERS_OFFSET, quad, timeout_ms)
-    }
-}
-
-/// The trait for protocol of level meter.
-pub trait LevelMetersOperation {
-    const LEVEL_METERS_HOLD_TIME_MODES: [LevelMetersHoldTimeMode; 8] = [
-        LevelMetersHoldTimeMode::Off,
-        LevelMetersHoldTimeMode::Sec2,
-        LevelMetersHoldTimeMode::Sec4,
-        LevelMetersHoldTimeMode::Sec10,
-        LevelMetersHoldTimeMode::Sec60,
-        LevelMetersHoldTimeMode::Sec300,
-        LevelMetersHoldTimeMode::Sec480,
-        LevelMetersHoldTimeMode::Infinite,
-    ];
-
-    const LEVEL_METERS_AESEBU_MODES: [LevelMetersAesebuMode; 2] =
-        [LevelMetersAesebuMode::Output, LevelMetersAesebuMode::Input];
-
-    const LEVEL_METERS_PROGRAMMABLE_MODES: [LevelMetersProgrammableMode; 3] = [
-        LevelMetersProgrammableMode::AnalogOutput,
-        LevelMetersProgrammableMode::AdatInput,
-        LevelMetersProgrammableMode::AdatOutput,
-    ];
-
-    fn get_level_meters_peak_hold_time_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
-            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
-            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_HOLD_TIME_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_level_meters_peak_hold_time_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
-            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
-            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_HOLD_TIME_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_level_meters_clip_hold_time_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
-            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
-            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_HOLD_TIME_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_level_meters_clip_hold_time_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
-            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
-            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_HOLD_TIME_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_level_meters_aesebu_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_AESEBU_MASK,
-            LEVEL_METERS_AESEBU_SHIFT,
-            LEVEL_METERS_AESEBU_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_AESEBU_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_level_meters_aesebu_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_AESEBU_MASK,
-            LEVEL_METERS_AESEBU_SHIFT,
-            LEVEL_METERS_AESEBU_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_AESEBU_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_level_meters_programmable_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_PROGRAMMABLE_MASK,
-            LEVEL_METERS_PROGRAMMABLE_SHIFT,
-            LEVEL_METERS_PROGRAMMABLE_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_PROGRAMMABLE_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_level_meters_programmable_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            LEVEL_METERS_OFFSET,
-            LEVEL_METERS_PROGRAMMABLE_MASK,
-            LEVEL_METERS_PROGRAMMABLE_SHIFT,
-            LEVEL_METERS_PROGRAMMABLE_LABEL,
-            req,
-            node,
-            &LEVEL_METERS_PROGRAMMABLE_VALS,
-            idx,
-            timeout_ms,
-        )
     }
 }
 

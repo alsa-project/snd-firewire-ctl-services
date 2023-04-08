@@ -877,7 +877,6 @@ impl MotuAesebuRateConvertSpecification for F896hdProtocol {
 }
 
 impl MotuLevelMetersSpecification for F896hdProtocol {}
-impl LevelMetersOperation for F896hdProtocol {}
 
 impl V2ClkOperation for F896hdProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[

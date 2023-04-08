@@ -252,12 +252,14 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct LevelMetersCtl<T: LevelMetersOperation> {
+pub(crate) struct LevelMetersCtl<T>
+where
+    T: MotuLevelMetersSpecification
+        + MotuWhollyCacheableParamsOperation<LevelMetersParameters>
+        + MotuWhollyUpdatableParamsOperation<LevelMetersParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    peak_hold_time: usize,
-    clip_hold_time: usize,
-    aesebu_mode: usize,
-    programmable_mode: usize,
+    params: LevelMetersParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -294,28 +296,19 @@ const CLIP_HOLD_TIME_MODE_NAME: &str = "meter-clip-hold-time";
 const AESEBU_MODE_NAME: &str = "AES/EBU-meter";
 const PROGRAMMABLE_MODE_NAME: &str = "programmable-meter";
 
-impl<T: LevelMetersOperation> LevelMetersCtl<T> {
+impl<T> LevelMetersCtl<T>
+where
+    T: MotuLevelMetersSpecification
+        + MotuWhollyCacheableParamsOperation<LevelMetersParameters>
+        + MotuWhollyUpdatableParamsOperation<LevelMetersParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_level_meters_peak_hold_time_mode(req, node, timeout_ms)
-            .map(|val| self.peak_hold_time = val)?;
-
-        T::get_level_meters_clip_hold_time_mode(req, node, timeout_ms)
-            .map(|val| self.clip_hold_time = val)?;
-
-        T::get_level_meters_aesebu_mode(req, node, timeout_ms).map(|idx| {
-            self.aesebu_mode = idx;
-        })?;
-
-        T::get_level_meters_programmable_mode(req, node, timeout_ms).map(|idx| {
-            self.programmable_mode = idx;
-        })?;
-
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -361,19 +354,35 @@ impl<T: LevelMetersOperation> LevelMetersCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => {
-                elem_value.set_enum(&[self.peak_hold_time as u32]);
+                let pos = T::LEVEL_METERS_HOLD_TIME_MODES
+                    .iter()
+                    .position(|m| self.params.peak_hold_time.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             CLIP_HOLD_TIME_MODE_NAME => {
-                elem_value.set_enum(&[self.clip_hold_time as u32]);
+                let pos = T::LEVEL_METERS_HOLD_TIME_MODES
+                    .iter()
+                    .position(|m| self.params.clip_hold_time.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             AESEBU_MODE_NAME => {
-                elem_value.set_enum(&[self.aesebu_mode as u32]);
+                let pos = T::LEVEL_METERS_AESEBU_MODES
+                    .iter()
+                    .position(|m| self.params.aesebu_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             PROGRAMMABLE_MODE_NAME => {
-                elem_value.set_enum(&[self.programmable_mode as u32]);
+                let pos = T::LEVEL_METERS_PROGRAMMABLE_MODES
+                    .iter()
+                    .position(|m| self.params.programmable_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -390,27 +399,69 @@ impl<T: LevelMetersOperation> LevelMetersCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_level_meters_peak_hold_time_mode(req, node, val, timeout_ms)
-                    .map(|_| self.peak_hold_time = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::LEVEL_METERS_HOLD_TIME_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Invalid argument for peak hold time of level meter: {}",
+                            pos
+                        );
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.peak_hold_time = mode)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             CLIP_HOLD_TIME_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_level_meters_clip_hold_time_mode(req, node, val, timeout_ms)
-                    .map(|_| self.clip_hold_time = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::LEVEL_METERS_HOLD_TIME_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Invalid argument for clip hold time of level meter: {}",
+                            pos
+                        );
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.clip_hold_time = mode)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             AESEBU_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_level_meters_aesebu_mode(req, node, val, timeout_ms)
-                    .map(|_| self.aesebu_mode = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::LEVEL_METERS_AESEBU_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid argument for AES/EBU mode of level meter: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.aesebu_mode = mode)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             PROGRAMMABLE_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_level_meters_programmable_mode(req, node, val, timeout_ms)
-                    .map(|_| self.programmable_mode = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::LEVEL_METERS_PROGRAMMABLE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!(
+                            "Invalid argument for programmable mode of level meter: {}",
+                            pos
+                        );
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.programmable_mode = mode)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
