@@ -19,6 +19,40 @@ use {
     std::{thread, time},
 };
 
+/// The trait to operate cacheable parameters at once.
+pub trait MotuWhollyCacheableParamsOperation<T> {
+    /// Cache whole parameters.
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// The trait to operate updatable parameters at once.
+pub trait MotuWhollyUpdatableParamsOperation<T> {
+    /// Update whole parameters.
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+/// The trait to operate updatable parameters partially.
+pub trait MotuPartiallyUpdatableParamsOperation<T> {
+    /// Update the part of parameters.
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        updates: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
 const BASE_OFFSET: u64 = 0xfffff0000000;
 const OFFSET_CLK: u32 = 0x0b14;
 const OFFSET_PORT: u32 = 0x0c04;
