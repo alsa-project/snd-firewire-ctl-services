@@ -785,6 +785,10 @@ impl RegisterDspMeterOperation for UltraliteProtocol {
     ];
 }
 
+/// The parameter of assignment to main output pair in Ultralite.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct UltraliteMainAssign(pub TargetPort);
+
 const ULTRALITE_MAIN_ASSIGN_MASK: u32 = 0x000f0000;
 const ULTRALITE_MAIN_ASSIGN_SHIFT: usize = 16;
 const ULTRALITE_MAIN_ASSIGN_LABEL: &str = "ultralite-main-assign";
@@ -794,6 +798,7 @@ impl UltraliteProtocol {
     /// is also notified in message delivered by the sequence of isochronous packets.
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 
+    /// The target of knob control.
     pub const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
         (TargetPort::MainPair, 0x00),
         (TargetPort::Analog6Pairs, 0x01),
@@ -801,12 +806,70 @@ impl UltraliteProtocol {
         (TargetPort::SpdifPair, 0x03),
     ];
 
+    /// The target of knob control.
+    pub const KNOB_TARGET_PORTS: &'static [TargetPort] = &[
+        TargetPort::MainPair,
+        TargetPort::Analog6Pairs,
+        TargetPort::Analog8Pairs,
+        TargetPort::SpdifPair,
+    ];
+
+    /// The number of inputs.
     pub const INPUT_COUNT: usize = 10;
 
+    /// The minimum value of input.
     pub const INPUT_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of input.
     pub const INPUT_GAIN_MAX: u8 = 0x18;
+    /// The step value of input.
     pub const INPUT_GAIN_STEP: u8 = 0x01;
+}
 
+const KNOB_TARGET_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03];
+
+impl MotuWhollyCacheableParamsOperation<UltraliteMainAssign> for UltraliteProtocol {
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut UltraliteMainAssign,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+        deserialize_flag(
+            &mut params.0,
+            &quad,
+            ULTRALITE_MAIN_ASSIGN_MASK,
+            ULTRALITE_MAIN_ASSIGN_SHIFT,
+            Self::KNOB_TARGET_PORTS,
+            KNOB_TARGET_VALS,
+            ULTRALITE_MAIN_ASSIGN_LABEL,
+        )
+    }
+}
+
+impl MotuWhollyUpdatableParamsOperation<UltraliteMainAssign> for UltraliteProtocol {
+    /// Update whole parameters.
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &UltraliteMainAssign,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+        serialize_flag(
+            &params.0,
+            &mut quad,
+            ULTRALITE_MAIN_ASSIGN_MASK,
+            ULTRALITE_MAIN_ASSIGN_SHIFT,
+            Self::KNOB_TARGET_PORTS,
+            KNOB_TARGET_VALS,
+            ULTRALITE_MAIN_ASSIGN_LABEL,
+        )?;
+        write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
+    }
+}
+
+impl UltraliteProtocol {
     pub fn get_main_assign(
         req: &mut FwReq,
         node: &mut FwNode,
