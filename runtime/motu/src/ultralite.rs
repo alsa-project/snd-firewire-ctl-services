@@ -308,20 +308,20 @@ impl MeasureModel<(SndMotu, FwNode)> for UltraLite {
 #[derive(Default, Debug)]
 struct MainAssignCtl {
     elem_id_list: Vec<ElemId>,
-    state: usize,
+    params: UltraliteMainAssign,
 }
 
 const MAIN_ASSIGNMENT_NAME: &str = "main-assign";
 
 impl MainAssignCtl {
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        UltraliteProtocol::get_main_assign(req, node, timeout_ms).map(|idx| self.state = idx)
+        UltraliteProtocol::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = UltraliteProtocol::KNOB_TARGETS
             .iter()
-            .map(|e| target_port_to_string(&e.0))
+            .map(|p| target_port_to_string(p))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_ASSIGNMENT_NAME, 0);
         card_cntr
@@ -332,7 +332,11 @@ impl MainAssignCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGNMENT_NAME => {
-                elem_value.set_enum(&[self.state as u32]);
+                let pos = UltraliteProtocol::KNOB_TARGETS
+                    .iter()
+                    .position(|p| self.params.0.eq(p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -349,10 +353,19 @@ impl MainAssignCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGNMENT_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                UltraliteProtocol::set_main_assign(req, node, val, timeout_ms)
-                    .map(|_| self.state = val)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                UltraliteProtocol::KNOB_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for main assignment: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&p| params.0 = p)?;
+                let res = UltraliteProtocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
