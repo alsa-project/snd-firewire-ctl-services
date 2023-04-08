@@ -359,6 +359,23 @@ where
 #[derive(Default)]
 pub struct AudioExpressProtocol;
 
+impl MotuPortAssignSpecification for AudioExpressProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // = Stream-1/2
+        TargetPort::MainPair,      // = Stream-5/6
+        TargetPort::AnalogPair(0), // = Stream-3/4
+        TargetPort::SpdifPair,     // = Stream-7/8
+                                   // Blank for Stream-9/10
+    ];
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // = Stream-1/2
+        0x02, // = Stream-5/6
+        0x06, // = Stream-3/4
+        0x07, // = Stream-7/8
+              // Blank for Stream-9/10
+    ];
+}
+
 impl AssignOperation for AudioExpressProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
         (TargetPort::PhonePair, 0x01),     // = Stream-1/2
@@ -426,6 +443,42 @@ impl AudioExpressProtocol {
 /// The protocol implementation for 828mk3 (FireWire only).
 #[derive(Default)]
 pub struct F828mk3Protocol;
+
+const F828MK3_ASSIGN_PORT_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair,        // = Stream-10/13
+    TargetPort::AnalogPair(0),   // = Stream-2/3
+    TargetPort::AnalogPair(1),   // = Stream-4/5
+    TargetPort::AnalogPair(2),   // = Stream-6/7
+    TargetPort::AnalogPair(3),   // = Stream-8/9
+    TargetPort::SpdifPair,       // = Stream-12/13
+    TargetPort::PhonePair,       // = Stream-0/1
+    TargetPort::OpticalAPair(0), // = Stream-14/15
+    TargetPort::OpticalAPair(1), // = Stream-16/17
+    TargetPort::OpticalAPair(2), // = Stream-18/19
+    TargetPort::OpticalAPair(3), // = Stream-20/21
+    TargetPort::OpticalBPair(0), // = Stream-22/23
+    TargetPort::OpticalBPair(1), // = Stream-24/25
+    TargetPort::OpticalBPair(2), // = Stream-26/27
+    TargetPort::OpticalBPair(3), // = Stream-28/29
+];
+
+const F828MK3_ASSIGN_PORT_VALS: &[u8] = &[
+    0x00, // = Stream-10/13
+    0x01, // = Stream-2/3
+    0x02, // = Stream-4/5
+    0x03, // = Stream-6/7
+    0x04, // = Stream-8/9
+    0x05, // = Stream-12/13
+    0x06, // = Stream-0/1
+    0x07, // = Stream-14/15
+    0x08, // = Stream-16/17
+    0x09, // = Stream-18/19
+    0x0a, // = Stream-20/21
+    0x0b, // = Stream-22/23
+    0x0c, // = Stream-24/25
+    0x0d, // = Stream-26/27
+    0x0e, // = Stream-28/29
+];
 
 const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
     (TargetPort::MainPair, 0x00),        // = Stream-10/13
@@ -675,6 +728,11 @@ const F828MK3_METER_OUTPUT_PORTS: &[(TargetPort, usize)] = &[
     (TargetPort::OpticalB(7), 103),
 ];
 
+impl MotuPortAssignSpecification for F828mk3Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = F828MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = F828MK3_ASSIGN_PORT_VALS;
+}
+
 impl AssignOperation for F828mk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
 }
@@ -737,6 +795,11 @@ impl F828mk3Protocol {
 /// The protocol implementation for 828mk3 Hybrid.
 #[derive(Default)]
 pub struct F828mk3HybridProtocol;
+
+impl MotuPortAssignSpecification for F828mk3HybridProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = F828MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = F828MK3_ASSIGN_PORT_VALS;
+}
 
 impl AssignOperation for F828mk3HybridProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
@@ -802,6 +865,24 @@ impl F828mk3HybridProtocol {
 #[derive(Default)]
 pub struct H4preProtocol;
 
+impl MotuPortAssignSpecification for H4preProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // = Stream-1/2
+        TargetPort::MainPair,      // = Stream-5/6
+        TargetPort::AnalogPair(0), // = Stream-3/4
+        TargetPort::SpdifPair,     // = Stream-7/8
+                                   // Blank for Stream-9/10
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // = Stream-1/2
+        0x02, // = Stream-5/6
+        0x06, // = Stream-3/4
+        0x07, // = Stream-7/8
+              // Blank for Stream-9/10
+    ];
+}
+
 impl AssignOperation for H4preProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
         (TargetPort::PhonePair, 0x01),     // = Stream-1/2
@@ -864,6 +945,26 @@ impl RegisterDspMeterOperation for H4preProtocol {
 /// The protocol implementation for Ultralite mk3 (FireWire only).
 #[derive(Default)]
 pub struct UltraliteMk3Protocol;
+
+const ULTRALITE_MK3_ASSIGN_PORT_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair,      // = Stream-0/1
+    TargetPort::AnalogPair(0), // = Stream-2/3
+    TargetPort::AnalogPair(1), // = Stream-4/5
+    TargetPort::AnalogPair(2), // = Stream-6/7
+    TargetPort::AnalogPair(3), // = Stream-8/9
+    TargetPort::SpdifPair,     // = Stream-12/13
+    TargetPort::PhonePair,     // = Stream-10/11
+];
+
+const ULTRALITE_MK3_ASSIGN_PORT_VALS: &[u8] = &[
+    0x00, // = Stream-0/1
+    0x01, // = Stream-2/3
+    0x02, // = Stream-4/5
+    0x03, // = Stream-6/7
+    0x04, // = Stream-8/9
+    0x05, // = Stream-12/13
+    0x06, // = Stream-10/11
+];
 
 const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
     (TargetPort::MainPair, 0x00),      // = Stream-0/1
@@ -981,6 +1082,11 @@ const ULTRALITEMK3_METER_OUTPUT_PORTS: &[(TargetPort, usize)] = &[
     (TargetPort::Phone(1), 51),
 ];
 
+impl MotuPortAssignSpecification for UltraliteMk3Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = ULTRALITE_MK3_ASSIGN_PORT_VALS;
+}
+
 impl AssignOperation for UltraliteMk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
@@ -1036,6 +1142,11 @@ impl CommandDspMeterOperation for UltraliteMk3Protocol {
 #[derive(Default)]
 pub struct UltraliteMk3HybridProtocol;
 
+impl MotuPortAssignSpecification for UltraliteMk3HybridProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = ULTRALITE_MK3_ASSIGN_PORT_VALS;
+}
+
 impl AssignOperation for UltraliteMk3HybridProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
@@ -1089,6 +1200,43 @@ impl UltraliteMk3HybridProtocol {
 /// The protocol implementation for Traveler mk3.
 #[derive(Default)]
 pub struct TravelerMk3Protocol;
+
+impl MotuPortAssignSpecification for TravelerMk3Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),   // = Stream-2/3
+        TargetPort::AnalogPair(1),   // = Stream-4/5
+        TargetPort::AnalogPair(2),   // = Stream-6/7
+        TargetPort::AnalogPair(3),   // = Stream-8/9
+        TargetPort::AesEbuPair,      // = Stream-10/11
+        TargetPort::SpdifPair,       // = Stream-12/13
+        TargetPort::PhonePair,       // = Stream-0/1
+        TargetPort::OpticalAPair(0), // = Stream-14/15
+        TargetPort::OpticalAPair(1), // = Stream-16/17
+        TargetPort::OpticalAPair(2), // = Stream-18/19
+        TargetPort::OpticalAPair(3), // = Stream-20/21
+        TargetPort::OpticalBPair(0), // = Stream-22/23
+        TargetPort::OpticalBPair(1), // = Stream-24/25
+        TargetPort::OpticalBPair(2), // = Stream-26/27
+        TargetPort::OpticalBPair(3), // = Stream-28/29
+    ];
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x00, // = Stream-2/3
+        0x01, // = Stream-4/5
+        0x02, // = Stream-6/7
+        0x03, // = Stream-8/9
+        0x04, // = Stream-10/11
+        0x05, // = Stream-12/13
+        0x06, // = Stream-0/1
+        0x07, // = Stream-14/15
+        0x08, // = Stream-16/17
+        0x09, // = Stream-18/19
+        0x0a, // = Stream-20/21
+        0x0b, // = Stream-22/23
+        0x0c, // = Stream-24/25
+        0x0d, // = Stream-26/27
+        0x0e, // = Stream-28/29
+    ];
+}
 
 impl AssignOperation for TravelerMk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
@@ -1374,6 +1522,28 @@ impl TravelerMk3Protocol {
 /// The protocol implementation for Track 16.
 #[derive(Default)]
 pub struct Track16Protocol;
+
+impl MotuPortAssignSpecification for Track16Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),   // = Stream-2/3
+        TargetPort::AnalogPair(1),   // = Stream-4/5
+        TargetPort::PhonePair,       // = Stream-0/1
+        TargetPort::OpticalAPair(0), // = Stream-14/15
+        TargetPort::OpticalAPair(1), // = Stream-16/17
+        TargetPort::OpticalAPair(2), // = Stream-18/19
+        TargetPort::OpticalAPair(3), // = Stream-20/21
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x00, // = Stream-2/3
+        0x01, // = Stream-4/5
+        0x02, // = Stream-0/1
+        0x07, // = Stream-14/15
+        0x08, // = Stream-16/17
+        0x09, // = Stream-18/19
+        0x0a, // = Stream-20/21
+    ];
+}
 
 impl AssignOperation for Track16Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[

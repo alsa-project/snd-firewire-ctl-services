@@ -241,6 +241,36 @@ where
 #[derive(Default)]
 pub struct F828mk2Protocol;
 
+impl MotuPortAssignSpecification for F828mk2Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // = Stream-0/1
+        TargetPort::AnalogPair(0), // = Stream-2/3
+        TargetPort::AnalogPair(1), // = Stream-4/5
+        TargetPort::AnalogPair(2), // = Stream-6/7
+        TargetPort::AnalogPair(3), // = Stream-8/9
+        TargetPort::MainPair,      // = Stream-10/11
+        TargetPort::SpdifPair,     // = Stream-12/13
+        TargetPort::AdatPair(0),   // = Stream-14/15
+        TargetPort::AdatPair(1),   // = Stream-16/17
+        TargetPort::AdatPair(2),   // = Stream-18/19
+        TargetPort::AdatPair(3),   // = Stream-20/21
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // = Stream-0/1
+        0x02, // = Stream-2/3
+        0x03, // = Stream-4/5
+        0x04, // = Stream-6/7
+        0x05, // = Stream-8/9
+        0x06, // = Stream-10/11
+        0x07, // = Stream-12/13
+        0x08, // = Stream-14/15
+        0x09, // = Stream-16/17
+        0x0a, // = Stream-18/19
+        0x0b, // = Stream-20/21
+    ];
+}
+
 impl AssignOperation for F828mk2Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
         (TargetPort::PhonePair, 0x01),     // = Stream-0/1
@@ -390,6 +420,12 @@ impl RegisterDspMeterOperation for F828mk2Protocol {
 #[derive(Default)]
 pub struct F8preProtocol;
 
+impl MotuPortAssignSpecification for F8preProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] =
+        &[TargetPort::PhonePair, TargetPort::MainPair];
+    const ASSIGN_PORT_VALS: &'static [u8] = &[0x01, 0x02];
+}
+
 impl AssignOperation for F8preProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] =
         &[(TargetPort::PhonePair, 0x01), (TargetPort::MainPair, 0x02)];
@@ -483,6 +519,36 @@ impl RegisterDspMeterOperation for F8preProtocol {
 /// The protocol implementation for Traveler.
 #[derive(Default)]
 pub struct TravelerProtocol;
+
+impl MotuPortAssignSpecification for TravelerProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // = Stream-0/1
+        TargetPort::AnalogPair(0), // = Stream-2/3
+        TargetPort::AnalogPair(1), // = Stream-4/5
+        TargetPort::AnalogPair(2), // = Stream-6/7
+        TargetPort::AnalogPair(3), // = Stream-8/9
+        TargetPort::AesEbuPair,    // = Stream-10/11
+        TargetPort::SpdifPair,     // = Stream-12/13
+        TargetPort::AdatPair(0),   // = Stream-14/15
+        TargetPort::AdatPair(1),   // = Stream-16/17
+        TargetPort::AdatPair(2),   // = Stream-18/19
+        TargetPort::AdatPair(3),   // = Stream-20/21
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // = Stream-0/1
+        0x02, // = Stream-2/3
+        0x03, // = Stream-4/5
+        0x04, // = Stream-6/7
+        0x05, // = Stream-8/9
+        0x06, // = Stream-10/11
+        0x07, // = Stream-12/13
+        0x08, // = Stream-14/15
+        0x09, // = Stream-16/17
+        0x0a, // = Stream-18/19
+        0x0b, // = Stream-20/21
+    ];
+}
 
 impl AssignOperation for TravelerProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
@@ -699,6 +765,28 @@ impl MotuWhollyUpdatableParamsOperation<TravelerMicInputState> for TravelerProto
 #[derive(Default)]
 pub struct UltraliteProtocol;
 
+impl MotuPortAssignSpecification for UltraliteProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // Stream-0/1
+        TargetPort::AnalogPair(0), // Stream-2/3
+        TargetPort::AnalogPair(1), // Stream-4/5
+        TargetPort::AnalogPair(2), // Stream-6/7
+        TargetPort::AnalogPair(3), // Stream-8/9
+        TargetPort::MainPair,      // Stream-10/11
+        TargetPort::SpdifPair,     // Stream-12/13
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // Stream-0/1
+        0x02, // Stream-2/3
+        0x03, // Stream-4/5
+        0x04, // Stream-6/7
+        0x05, // Stream-8/9
+        0x06, // Stream-10/11
+        0x07, // Stream-12/13
+    ];
+}
+
 impl AssignOperation for UltraliteProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
         (TargetPort::PhonePair, 0x01),     // Stream-0/1
@@ -871,6 +959,36 @@ impl F896hdProtocol {
 
     /// Notification mask for footswitch.
     pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
+impl MotuPortAssignSpecification for F896hdProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,     // Stream-0/1
+        TargetPort::AnalogPair(0), // Stream-2/3
+        TargetPort::AnalogPair(1), // Stream-4/5
+        TargetPort::AnalogPair(2), // Stream-6/7
+        TargetPort::AnalogPair(3), // Stream-8/9
+        TargetPort::MainPair,      // Stream-10/11
+        TargetPort::AesEbuPair,    // Stream-12/13
+        TargetPort::AdatPair(0),   // Stream-14/15
+        TargetPort::AdatPair(1),   // Stream-16/17
+        TargetPort::AdatPair(2),   // Stream-18/19
+        TargetPort::AdatPair(3),   // Stream-20/21
+    ];
+
+    const ASSIGN_PORT_VALS: &'static [u8] = &[
+        0x01, // Stream-0/1
+        0x02, // Stream-2/3
+        0x03, // Stream-4/5
+        0x04, // Stream-6/7
+        0x05, // Stream-8/9
+        0x06, // Stream-10/11
+        0x07, // Stream-12/13
+        0x08, // Stream-14/15
+        0x09, // Stream-16/17
+        0x0a, // Stream-18/19
+        0x0b, // Stream-20/21
+    ];
 }
 
 impl AssignOperation for F896hdProtocol {

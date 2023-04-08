@@ -262,6 +262,12 @@ where
     }
 }
 
+/// The trait for specification of port assignment.
+pub trait MotuPortAssignSpecification {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort];
+    const ASSIGN_PORT_VALS: &'static [u8];
+}
+
 const PORT_PHONE_LABEL: &str = "phone-assign";
 const PORT_PHONE_MASK: u32 = 0x0000000f;
 const PORT_PHONE_SHIFT: usize = 0;
