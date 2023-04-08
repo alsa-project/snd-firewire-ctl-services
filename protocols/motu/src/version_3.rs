@@ -230,7 +230,7 @@ impl Default for V3OptIfaceTarget {
 }
 
 /// Mode of optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V3OptIfaceMode {
     Disabled,
     Adat,
@@ -241,6 +241,15 @@ impl Default for V3OptIfaceMode {
     fn default() -> Self {
         Self::Disabled
     }
+}
+
+/// The parameters of optical input and output interfaces.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V3OpticalIfaceParameters {
+    /// The mode of input interfaces.
+    pub input_modes: Vec<V3OptIfaceMode>,
+    /// The mode of output interfaces.
+    pub output_modes: Vec<V3OptIfaceMode>,
 }
 
 fn get_opt_iface_masks(target: V3OptIfaceTarget, is_out: bool) -> (u32, u32) {
@@ -308,6 +317,110 @@ fn get_opt_iface_mode(
             (true, true) => V3OptIfaceMode::Spdif,
         }
     })
+}
+
+/// The trait for specification of optical input and output interfaces.
+pub trait MotuVersion3OpticalIfaceSpecification {
+    const OPT_IFACE_COUNT: usize;
+
+    const OPT_IFACE_MODES: &'static [V3OptIfaceMode; 3] = &[
+        V3OptIfaceMode::Disabled,
+        V3OptIfaceMode::Adat,
+        V3OptIfaceMode::Spdif,
+    ];
+
+    /// Instantiate parameters of optical input and output interfaces.
+    fn create_optical_iface_parameters() -> V3OpticalIfaceParameters {
+        V3OpticalIfaceParameters {
+            input_modes: vec![Default::default(); Self::OPT_IFACE_COUNT],
+            output_modes: vec![Default::default(); Self::OPT_IFACE_COUNT],
+        }
+    }
+}
+
+fn serialize_opt_iface_mode(mode: &V3OptIfaceMode, quad: &mut u32, is_b: bool, is_out: bool) {
+    let target = if is_b {
+        V3OptIfaceTarget::B
+    } else {
+        V3OptIfaceTarget::A
+    };
+    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+    *quad &= !(enabled_mask | no_adat_mask);
+    match *mode {
+        V3OptIfaceMode::Disabled => {}
+        V3OptIfaceMode::Adat => *quad |= enabled_mask,
+        V3OptIfaceMode::Spdif => *quad |= enabled_mask | no_adat_mask,
+    }
+}
+
+fn deserialize_opt_iface_mode(mode: &mut V3OptIfaceMode, quad: &u32, is_b: bool, is_out: bool) {
+    let target = if is_b {
+        V3OptIfaceTarget::B
+    } else {
+        V3OptIfaceTarget::A
+    };
+    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+    *mode = match (*quad & enabled_mask > 0, *quad & no_adat_mask > 0) {
+        (false, false) | (false, true) => V3OptIfaceMode::Disabled,
+        (true, false) => V3OptIfaceMode::Adat,
+        (true, true) => V3OptIfaceMode::Spdif,
+    };
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<V3OpticalIfaceParameters> for O
+where
+    O: MotuVersion3OpticalIfaceSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut V3OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(params.input_modes.len(), Self::OPT_IFACE_COUNT);
+        assert_eq!(params.output_modes.len(), Self::OPT_IFACE_COUNT);
+
+        let quad = read_quad(req, node, OFFSET_OPT, timeout_ms)?;
+        params
+            .input_modes
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, mode)| deserialize_opt_iface_mode(mode, &quad, i > 0, false));
+        params
+            .output_modes
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, mode)| deserialize_opt_iface_mode(mode, &quad, i > 0, true));
+        Ok(())
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<V3OpticalIfaceParameters> for O
+where
+    O: MotuVersion3OpticalIfaceSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &V3OpticalIfaceParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_OPT, timeout_ms)?;
+
+        params
+            .input_modes
+            .iter()
+            .enumerate()
+            .for_each(|(i, mode)| serialize_opt_iface_mode(mode, &mut quad, i > 0, false));
+
+        params
+            .output_modes
+            .iter()
+            .enumerate()
+            .for_each(|(i, mode)| serialize_opt_iface_mode(mode, &mut quad, i > 0, false));
+
+        write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
+    }
 }
 
 /// The trait for optical interface protocol in version 3.
@@ -697,6 +810,10 @@ impl MotuVersion3ClockSpecification for F828mk3Protocol {
 
 impl V3PortAssignOperation for F828mk3Protocol {}
 
+impl MotuVersion3OpticalIfaceSpecification for F828mk3Protocol {
+    const OPT_IFACE_COUNT: usize = 2;
+}
+
 impl V3OptIfaceOperation for F828mk3Protocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
 }
@@ -759,6 +876,10 @@ impl MotuVersion3ClockSpecification for F828mk3HybridProtocol {
 }
 
 impl V3PortAssignOperation for F828mk3HybridProtocol {}
+
+impl MotuVersion3OpticalIfaceSpecification for F828mk3HybridProtocol {
+    const OPT_IFACE_COUNT: usize = 2;
+}
 
 impl V3OptIfaceOperation for F828mk3HybridProtocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
@@ -1140,6 +1261,10 @@ impl MotuVersion3ClockSpecification for TravelerMk3Protocol {
 
 impl V3PortAssignOperation for TravelerMk3Protocol {}
 
+impl MotuVersion3OpticalIfaceSpecification for TravelerMk3Protocol {
+    const OPT_IFACE_COUNT: usize = 2;
+}
+
 impl V3OptIfaceOperation for TravelerMk3Protocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
 }
@@ -1408,6 +1533,10 @@ impl MotuVersion3ClockSpecification for Track16Protocol {
 
 impl V3PortAssignOperation for Track16Protocol {}
 
+impl MotuVersion3OpticalIfaceSpecification for Track16Protocol {
+    const OPT_IFACE_COUNT: usize = 1;
+}
+
 impl V3OptIfaceOperation for Track16Protocol {
     const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A];
 }
@@ -1536,4 +1665,41 @@ impl Track16Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn opt_iface_mode_serdes() {
+        [
+            // For input A.
+            (V3OptIfaceMode::Disabled, false, false, 0x00000000),
+            (V3OptIfaceMode::Adat, false, false, 0x00000001),
+            (V3OptIfaceMode::Spdif, false, false, 0x00010001),
+            // For input B.
+            (V3OptIfaceMode::Disabled, true, false, 0x00000000),
+            (V3OptIfaceMode::Adat, true, false, 0x00000002),
+            (V3OptIfaceMode::Spdif, true, false, 0x00100002),
+            // For output A.
+            (V3OptIfaceMode::Disabled, false, true, 0x00000000),
+            (V3OptIfaceMode::Adat, false, true, 0x00000100),
+            (V3OptIfaceMode::Spdif, false, true, 0x00040100),
+            // For output B.
+            (V3OptIfaceMode::Disabled, true, true, 0x00000000),
+            (V3OptIfaceMode::Adat, true, true, 0x00000200),
+            (V3OptIfaceMode::Spdif, true, true, 0x00400200),
+        ]
+        .iter()
+        .for_each(|&(mode, is_b, is_out, val)| {
+            let mut target = V3OptIfaceMode::default();
+            deserialize_opt_iface_mode(&mut target, &val, is_b, is_out);
+            assert_eq!(target, mode, "{:?},0x{:08x},{},{}", mode, val, is_b, is_out);
+
+            let mut quad = 0;
+            serialize_opt_iface_mode(&mode, &mut quad, is_b, is_out);
+            assert_eq!(quad, val, "{:?},0x{:08x},{},{}", mode, val, is_b, is_out);
+        });
+    }
 }
