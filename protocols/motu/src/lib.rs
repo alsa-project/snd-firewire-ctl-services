@@ -461,7 +461,7 @@ where
 }
 
 /// Mode of hold time for clip and peak LEDs.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LevelMetersHoldTimeMode {
     /// off.
     Off,
@@ -488,7 +488,7 @@ impl Default for LevelMetersHoldTimeMode {
 }
 
 /// Mode of programmable meter display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LevelMetersProgrammableMode {
     AnalogOutput,
     AdatInput,
@@ -502,7 +502,7 @@ impl Default for LevelMetersProgrammableMode {
 }
 
 /// Mode of AES/EBU meter display.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LevelMetersAesebuMode {
     Input,
     Output,
@@ -514,6 +514,18 @@ impl Default for LevelMetersAesebuMode {
     }
 }
 
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct LevelMetersParameters {
+    /// The duration to hold peak.
+    pub peak_hold_time: LevelMetersHoldTimeMode,
+    /// The duration to hold clip.
+    pub clip_hold_time: LevelMetersHoldTimeMode,
+    /// The mode to display AES/EBU signal.
+    pub aesebu_mode: LevelMetersAesebuMode,
+    /// The mode of programmable meter.
+    pub programmable_mode: LevelMetersProgrammableMode,
+}
+
 const LEVEL_METERS_OFFSET: u32 = 0x0b24;
 
 const LEVEL_METERS_PEAK_HOLD_TIME_MASK: u32 = 0x00003800;
@@ -522,21 +534,156 @@ const LEVEL_METERS_PEAK_HOLD_TIME_SHIFT: usize = 11;
 const LEVEL_METERS_CLIP_HOLD_TIME_MASK: u32 = 0x00000700;
 const LEVEL_METERS_CLIP_HOLD_TIME_SHIFT: usize = 8;
 
-const LEVEL_METERS_HOLD_TIME_VALS: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+const LEVEL_METERS_HOLD_TIME_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
 
 const LEVEL_METERS_AESEBU_MASK: u32 = 0x00000004;
 const LEVEL_METERS_AESEBU_SHIFT: usize = 2;
 
-const LEVEL_METERS_AESEBU_VALS: [u8; 2] = [0x00, 0x01];
+const LEVEL_METERS_AESEBU_VALS: &[u8] = &[0x00, 0x01];
 
 const LEVEL_METERS_PROGRAMMABLE_MASK: u32 = 0x00000003;
 const LEVEL_METERS_PROGRAMMABLE_SHIFT: usize = 0;
-const LEVEL_METERS_PROGRAMMABLE_VALS: [u8; 3] = [0x00, 0x01, 0x02];
+const LEVEL_METERS_PROGRAMMABLE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 
 const LEVEL_METERS_PEAK_HOLD_TIME_LABEL: &str = "level-meters-peak-hold-time";
 const LEVEL_METERS_CLIP_HOLD_TIME_LABEL: &str = "level-meters-clip-hold-time";
 const LEVEL_METERS_PROGRAMMABLE_LABEL: &str = "level-meters-programmable";
 const LEVEL_METERS_AESEBU_LABEL: &str = "level-meters-aesebu";
+
+/// The trait for specification of level meter.
+pub trait MotuLevelMetersSpecification {
+    const LEVEL_METERS_HOLD_TIME_MODES: &'static [LevelMetersHoldTimeMode] = &[
+        LevelMetersHoldTimeMode::Off,
+        LevelMetersHoldTimeMode::Sec2,
+        LevelMetersHoldTimeMode::Sec4,
+        LevelMetersHoldTimeMode::Sec10,
+        LevelMetersHoldTimeMode::Sec60,
+        LevelMetersHoldTimeMode::Sec300,
+        LevelMetersHoldTimeMode::Sec480,
+        LevelMetersHoldTimeMode::Infinite,
+    ];
+
+    const LEVEL_METERS_AESEBU_MODES: &'static [LevelMetersAesebuMode] =
+        &[LevelMetersAesebuMode::Output, LevelMetersAesebuMode::Input];
+
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] = &[
+        LevelMetersProgrammableMode::AnalogOutput,
+        LevelMetersProgrammableMode::AdatInput,
+        LevelMetersProgrammableMode::AdatOutput,
+    ];
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<LevelMetersParameters> for O
+where
+    O: MotuLevelMetersSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut LevelMetersParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, LEVEL_METERS_OFFSET, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.peak_hold_time,
+            &quad,
+            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
+            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
+            Self::LEVEL_METERS_HOLD_TIME_MODES,
+            LEVEL_METERS_HOLD_TIME_VALS,
+            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.clip_hold_time,
+            &quad,
+            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
+            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
+            Self::LEVEL_METERS_HOLD_TIME_MODES,
+            LEVEL_METERS_HOLD_TIME_VALS,
+            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.aesebu_mode,
+            &quad,
+            LEVEL_METERS_AESEBU_MASK,
+            LEVEL_METERS_AESEBU_SHIFT,
+            Self::LEVEL_METERS_AESEBU_MODES,
+            LEVEL_METERS_AESEBU_VALS,
+            LEVEL_METERS_AESEBU_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.programmable_mode,
+            &quad,
+            LEVEL_METERS_PROGRAMMABLE_MASK,
+            LEVEL_METERS_PROGRAMMABLE_SHIFT,
+            Self::LEVEL_METERS_PROGRAMMABLE_MODES,
+            LEVEL_METERS_PROGRAMMABLE_VALS,
+            LEVEL_METERS_PROGRAMMABLE_LABEL,
+        )?;
+
+        Ok(())
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<LevelMetersParameters> for O
+where
+    O: MotuLevelMetersSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &LevelMetersParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, LEVEL_METERS_OFFSET, timeout_ms)?;
+
+        serialize_flag(
+            &params.peak_hold_time,
+            &mut quad,
+            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
+            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
+            Self::LEVEL_METERS_HOLD_TIME_MODES,
+            LEVEL_METERS_HOLD_TIME_VALS,
+            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.clip_hold_time,
+            &mut quad,
+            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
+            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
+            Self::LEVEL_METERS_HOLD_TIME_MODES,
+            LEVEL_METERS_HOLD_TIME_VALS,
+            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.aesebu_mode,
+            &mut quad,
+            LEVEL_METERS_AESEBU_MASK,
+            LEVEL_METERS_AESEBU_SHIFT,
+            Self::LEVEL_METERS_AESEBU_MODES,
+            LEVEL_METERS_AESEBU_VALS,
+            LEVEL_METERS_AESEBU_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.programmable_mode,
+            &mut quad,
+            LEVEL_METERS_PROGRAMMABLE_MASK,
+            LEVEL_METERS_PROGRAMMABLE_SHIFT,
+            Self::LEVEL_METERS_PROGRAMMABLE_MODES,
+            LEVEL_METERS_PROGRAMMABLE_VALS,
+            LEVEL_METERS_PROGRAMMABLE_LABEL,
+        )?;
+
+        write_quad(req, node, LEVEL_METERS_OFFSET, quad, timeout_ms)
+    }
+}
 
 /// The trait for protocol of level meter.
 pub trait LevelMetersOperation {
