@@ -163,45 +163,6 @@ fn deserialize_flag<T: Copy + Eq>(
         .map(|(&f, _)| *flag = f)
 }
 
-fn get_idx_from_val(
-    offset: u32,
-    mask: u32,
-    shift: usize,
-    label: &str,
-    req: &FwReq,
-    node: &mut FwNode,
-    vals: &[u8],
-    timeout_ms: u32,
-) -> Result<usize, Error> {
-    let quad = read_quad(req, node, offset, timeout_ms)?;
-    let val = ((quad & mask) >> shift) as u8;
-    vals.iter().position(|&v| v == val).ok_or_else(|| {
-        let label = format!("Detect invalid value for {}: {:02x}", label, val);
-        Error::new(FileError::Io, &label)
-    })
-}
-
-fn set_idx_to_val(
-    offset: u32,
-    mask: u32,
-    shift: usize,
-    label: &str,
-    req: &FwReq,
-    node: &mut FwNode,
-    vals: &[u8],
-    idx: usize,
-    timeout_ms: u32,
-) -> Result<(), Error> {
-    if idx >= vals.len() {
-        let label = format!("Invalid argument for {}: {} {}", label, vals.len(), idx);
-        return Err(Error::new(FileError::Inval, &label));
-    }
-    let mut quad = read_quad(req, node, offset, timeout_ms)?;
-    quad &= !mask;
-    quad |= (vals[idx] as u32) << shift;
-    write_quad(req, node, offset, quad, timeout_ms)
-}
-
 /// Nominal rate of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkRate {
@@ -323,49 +284,6 @@ where
         )?;
 
         write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
-    }
-}
-
-/// The trait for headphone assignment protocol.
-pub trait AssignOperation {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)];
-
-    fn get_phone_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_PORT,
-            PORT_PHONE_MASK,
-            PORT_PHONE_SHIFT,
-            PORT_PHONE_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_phone_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_PORT,
-            PORT_PHONE_MASK,
-            PORT_PHONE_SHIFT,
-            PORT_PHONE_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
     }
 }
 

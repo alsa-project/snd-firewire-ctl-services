@@ -157,6 +157,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
         deserialize_flag(
             &mut params.main,
             &quad,
@@ -166,6 +167,7 @@ where
             Self::ASSIGN_PORT_VALS,
             PORT_MAIN_LABEL,
         )?;
+
         deserialize_flag(
             &mut params.mixer_return,
             &quad,
@@ -211,85 +213,6 @@ where
         )?;
 
         write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
-    }
-}
-
-/// The trait for main/return assignment protocol in version 3.
-pub trait V3PortAssignOperation: AssignOperation {
-    fn get_main_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_PORT,
-            PORT_MAIN_MASK,
-            PORT_MAIN_SHIFT,
-            PORT_MAIN_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_main_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_PORT,
-            PORT_MAIN_MASK,
-            PORT_MAIN_SHIFT,
-            PORT_MAIN_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_return_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_PORT,
-            PORT_RETURN_MASK,
-            PORT_RETURN_SHIFT,
-            PORT_RETURN_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_return_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_PORT,
-            PORT_RETURN_MASK,
-            PORT_RETURN_SHIFT,
-            PORT_RETURN_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
     }
 }
 
@@ -453,16 +376,6 @@ impl MotuPortAssignSpecification for AudioExpressProtocol {
     ];
 }
 
-impl AssignOperation for AudioExpressProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // = Stream-1/2
-        (TargetPort::MainPair, 0x02),      // = Stream-5/6
-        (TargetPort::AnalogPair(0), 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair, 0x07),     // = Stream-7/8
-                                           // Blank for Stream-9/10
-    ];
-}
-
 impl MotuVersion3ClockSpecification for AudioExpressProtocol {
     const CLOCK_RATES: &'static [ClkRate] = &[
         ClkRate::R44100,
@@ -555,24 +468,6 @@ const F828MK3_ASSIGN_PORT_VALS: &[u8] = &[
     0x0c, // = Stream-24/25
     0x0d, // = Stream-26/27
     0x0e, // = Stream-28/29
-];
-
-const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair, 0x00),        // = Stream-10/13
-    (TargetPort::AnalogPair(0), 0x01),   // = Stream-2/3
-    (TargetPort::AnalogPair(1), 0x02),   // = Stream-4/5
-    (TargetPort::AnalogPair(2), 0x03),   // = Stream-6/7
-    (TargetPort::AnalogPair(3), 0x04),   // = Stream-8/9
-    (TargetPort::SpdifPair, 0x05),       // = Stream-12/13
-    (TargetPort::PhonePair, 0x06),       // = Stream-0/1
-    (TargetPort::OpticalAPair(0), 0x07), // = Stream-14/15
-    (TargetPort::OpticalAPair(1), 0x08), // = Stream-16/17
-    (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
-    (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
-    (TargetPort::OpticalBPair(0), 0x0b), // = Stream-22/23
-    (TargetPort::OpticalBPair(1), 0x0c), // = Stream-24/25
-    (TargetPort::OpticalBPair(2), 0x0d), // = Stream-26/27
-    (TargetPort::OpticalBPair(3), 0x0e), // = Stream-28/29
 ];
 
 const F828MK3_CLOCK_RATES: &[ClkRate] = &[
@@ -810,10 +705,6 @@ impl MotuPortAssignSpecification for F828mk3Protocol {
     const ASSIGN_PORT_VALS: &'static [u8] = F828MK3_ASSIGN_PORT_VALS;
 }
 
-impl AssignOperation for F828mk3Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
-}
-
 impl MotuWordClockOutputSpecification for F828mk3Protocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk3Protocol {}
@@ -825,8 +716,6 @@ impl MotuVersion3ClockSpecification for F828mk3Protocol {
     const CLOCK_SRCS: &'static [V3ClkSrc] = F828MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
 }
-
-impl V3PortAssignOperation for F828mk3Protocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for F828mk3Protocol {
     const OPT_IFACE_COUNT: usize = 2;
@@ -878,10 +767,6 @@ impl MotuPortAssignSpecification for F828mk3HybridProtocol {
     const ASSIGN_PORT_VALS: &'static [u8] = F828MK3_ASSIGN_PORT_VALS;
 }
 
-impl AssignOperation for F828mk3HybridProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
-}
-
 impl MotuWordClockOutputSpecification for F828mk3HybridProtocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk3HybridProtocol {}
@@ -893,8 +778,6 @@ impl MotuVersion3ClockSpecification for F828mk3HybridProtocol {
     const CLOCK_SRCS: &'static [V3ClkSrc] = F828MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
 }
-
-impl V3PortAssignOperation for F828mk3HybridProtocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for F828mk3HybridProtocol {
     const OPT_IFACE_COUNT: usize = 2;
@@ -957,16 +840,6 @@ impl MotuPortAssignSpecification for H4preProtocol {
         0x06, // = Stream-3/4
         0x07, // = Stream-7/8
               // Blank for Stream-9/10
-    ];
-}
-
-impl AssignOperation for H4preProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // = Stream-1/2
-        (TargetPort::MainPair, 0x02),      // = Stream-5/6
-        (TargetPort::AnalogPair(0), 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair, 0x07),     // = Stream-7/8
-                                           // Blank for Stream-9/10
     ];
 }
 
@@ -1041,16 +914,6 @@ const ULTRALITE_MK3_ASSIGN_PORT_VALS: &[u8] = &[
     0x04, // = Stream-8/9
     0x05, // = Stream-12/13
     0x06, // = Stream-10/11
-];
-
-const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair, 0x00),      // = Stream-0/1
-    (TargetPort::AnalogPair(0), 0x01), // = Stream-2/3
-    (TargetPort::AnalogPair(1), 0x02), // = Stream-4/5
-    (TargetPort::AnalogPair(2), 0x03), // = Stream-6/7
-    (TargetPort::AnalogPair(3), 0x04), // = Stream-8/9
-    (TargetPort::SpdifPair, 0x05),     // = Stream-12/13
-    (TargetPort::PhonePair, 0x06),     // = Stream-10/11
 ];
 
 const ULTRALITE_MK3_CLOCK_RATES: &[ClkRate] = &[
@@ -1164,10 +1027,6 @@ impl MotuPortAssignSpecification for UltraliteMk3Protocol {
     const ASSIGN_PORT_VALS: &'static [u8] = ULTRALITE_MK3_ASSIGN_PORT_VALS;
 }
 
-impl AssignOperation for UltraliteMk3Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
-}
-
 impl MotuClockNameDisplaySpecification for UltraliteMk3Protocol {}
 
 impl MotuVersion3ClockSpecification for UltraliteMk3Protocol {
@@ -1177,8 +1036,6 @@ impl MotuVersion3ClockSpecification for UltraliteMk3Protocol {
     const CLOCK_SRCS: &'static [V3ClkSrc] = ULTRALITE_MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
 }
-
-impl V3PortAssignOperation for UltraliteMk3Protocol {}
 
 impl CommandDspOperation for UltraliteMk3Protocol {}
 
@@ -1224,10 +1081,6 @@ impl MotuPortAssignSpecification for UltraliteMk3HybridProtocol {
     const ASSIGN_PORT_VALS: &'static [u8] = ULTRALITE_MK3_ASSIGN_PORT_VALS;
 }
 
-impl AssignOperation for UltraliteMk3HybridProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
-}
-
 impl MotuClockNameDisplaySpecification for UltraliteMk3HybridProtocol {}
 
 impl MotuVersion3ClockSpecification for UltraliteMk3HybridProtocol {
@@ -1237,8 +1090,6 @@ impl MotuVersion3ClockSpecification for UltraliteMk3HybridProtocol {
     const CLOCK_SRCS: &'static [V3ClkSrc] = ULTRALITE_MK3_CLOCK_SRCS;
     const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
 }
-
-impl V3PortAssignOperation for UltraliteMk3HybridProtocol {}
 
 impl CommandDspOperation for UltraliteMk3HybridProtocol {}
 
@@ -1315,26 +1166,6 @@ impl MotuPortAssignSpecification for TravelerMk3Protocol {
     ];
 }
 
-impl AssignOperation for TravelerMk3Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::AnalogPair(0), 0x00),   // = Stream-2/3
-        (TargetPort::AnalogPair(1), 0x01),   // = Stream-4/5
-        (TargetPort::AnalogPair(2), 0x02),   // = Stream-6/7
-        (TargetPort::AnalogPair(3), 0x03),   // = Stream-8/9
-        (TargetPort::AesEbuPair, 0x04),      // = Stream-10/11
-        (TargetPort::SpdifPair, 0x05),       // = Stream-12/13
-        (TargetPort::PhonePair, 0x06),       // = Stream-0/1
-        (TargetPort::OpticalAPair(0), 0x07), // = Stream-14/15
-        (TargetPort::OpticalAPair(1), 0x08), // = Stream-16/17
-        (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
-        (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
-        (TargetPort::OpticalBPair(0), 0x0b), // = Stream-22/23
-        (TargetPort::OpticalBPair(1), 0x0c), // = Stream-24/25
-        (TargetPort::OpticalBPair(2), 0x0d), // = Stream-26/27
-        (TargetPort::OpticalBPair(3), 0x0e), // = Stream-28/29
-    ];
-}
-
 impl MotuClockNameDisplaySpecification for TravelerMk3Protocol {}
 
 impl MotuVersion3ClockSpecification for TravelerMk3Protocol {
@@ -1358,8 +1189,6 @@ impl MotuVersion3ClockSpecification for TravelerMk3Protocol {
     ];
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x08, 0x10, 0x18, 0x19];
 }
-
-impl V3PortAssignOperation for TravelerMk3Protocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for TravelerMk3Protocol {
     const OPT_IFACE_COUNT: usize = 2;
@@ -1622,18 +1451,6 @@ impl MotuPortAssignSpecification for Track16Protocol {
     ];
 }
 
-impl AssignOperation for Track16Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::AnalogPair(0), 0x00),   // = Stream-2/3
-        (TargetPort::AnalogPair(1), 0x01),   // = Stream-4/5
-        (TargetPort::PhonePair, 0x02),       // = Stream-0/1
-        (TargetPort::OpticalAPair(0), 0x07), // = Stream-14/15
-        (TargetPort::OpticalAPair(1), 0x08), // = Stream-16/17
-        (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
-        (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
-    ];
-}
-
 impl MotuVersion3ClockSpecification for Track16Protocol {
     const CLOCK_RATES: &'static [ClkRate] = &[
         ClkRate::R44100,
@@ -1648,8 +1465,6 @@ impl MotuVersion3ClockSpecification for Track16Protocol {
     const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SignalOptA];
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x18];
 }
-
-impl V3PortAssignOperation for Track16Protocol {}
 
 impl MotuVersion3OpticalIfaceSpecification for Track16Protocol {
     const OPT_IFACE_COUNT: usize = 1;

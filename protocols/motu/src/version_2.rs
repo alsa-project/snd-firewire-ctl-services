@@ -271,22 +271,6 @@ impl MotuPortAssignSpecification for F828mk2Protocol {
     ];
 }
 
-impl AssignOperation for F828mk2Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // = Stream-0/1
-        (TargetPort::AnalogPair(0), 0x02), // = Stream-2/3
-        (TargetPort::AnalogPair(1), 0x03), // = Stream-4/5
-        (TargetPort::AnalogPair(2), 0x04), // = Stream-6/7
-        (TargetPort::AnalogPair(3), 0x05), // = Stream-8/9
-        (TargetPort::MainPair, 0x06),      // = Stream-10/11
-        (TargetPort::SpdifPair, 0x07),     // = Stream-12/13
-        (TargetPort::AdatPair(0), 0x08),   // = Stream-14/15
-        (TargetPort::AdatPair(1), 0x09),   // = Stream-16/17
-        (TargetPort::AdatPair(2), 0x0a),   // = Stream-18/19
-        (TargetPort::AdatPair(3), 0x0b),   // = Stream-20/21
-    ];
-}
-
 impl MotuWordClockOutputSpecification for F828mk2Protocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk2Protocol {}
@@ -426,11 +410,6 @@ impl MotuPortAssignSpecification for F8preProtocol {
     const ASSIGN_PORT_VALS: &'static [u8] = &[0x01, 0x02];
 }
 
-impl AssignOperation for F8preProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] =
-        &[(TargetPort::PhonePair, 0x01), (TargetPort::MainPair, 0x02)];
-}
-
 impl MotuVersion2ClockSpecification for F8preProtocol {
     const CLK_RATES: &'static [ClkRate] = &[
         ClkRate::R44100,
@@ -547,22 +526,6 @@ impl MotuPortAssignSpecification for TravelerProtocol {
         0x09, // = Stream-16/17
         0x0a, // = Stream-18/19
         0x0b, // = Stream-20/21
-    ];
-}
-
-impl AssignOperation for TravelerProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // = Stream-0/1
-        (TargetPort::AnalogPair(0), 0x02), // = Stream-2/3
-        (TargetPort::AnalogPair(1), 0x03), // = Stream-4/5
-        (TargetPort::AnalogPair(2), 0x04), // = Stream-6/7
-        (TargetPort::AnalogPair(3), 0x05), // = Stream-8/9
-        (TargetPort::AesEbuPair, 0x06),    // = Stream-10/11
-        (TargetPort::SpdifPair, 0x07),     // = Stream-12/13
-        (TargetPort::AdatPair(0), 0x08),   // = Stream-14/15
-        (TargetPort::AdatPair(1), 0x09),   // = Stream-16/17
-        (TargetPort::AdatPair(2), 0x0a),   // = Stream-18/19
-        (TargetPort::AdatPair(3), 0x0b),   // = Stream-20/21
     ];
 }
 
@@ -787,18 +750,6 @@ impl MotuPortAssignSpecification for UltraliteProtocol {
     ];
 }
 
-impl AssignOperation for UltraliteProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // Stream-0/1
-        (TargetPort::AnalogPair(0), 0x02), // Stream-2/3
-        (TargetPort::AnalogPair(1), 0x03), // Stream-4/5
-        (TargetPort::AnalogPair(2), 0x04), // Stream-6/7
-        (TargetPort::AnalogPair(3), 0x05), // Stream-8/9
-        (TargetPort::MainPair, 0x06),      // Stream-10/11
-        (TargetPort::SpdifPair, 0x07),     // Stream-12/13
-    ];
-}
-
 impl MotuClockNameDisplaySpecification for UltraliteProtocol {}
 
 impl MotuVersion2ClockSpecification for UltraliteProtocol {
@@ -988,22 +939,6 @@ impl MotuPortAssignSpecification for F896hdProtocol {
         0x09, // Stream-16/17
         0x0a, // Stream-18/19
         0x0b, // Stream-20/21
-    ];
-}
-
-impl AssignOperation for F896hdProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair, 0x01),     // Stream-0/1
-        (TargetPort::AnalogPair(0), 0x02), // Stream-2/3
-        (TargetPort::AnalogPair(1), 0x03), // Stream-4/5
-        (TargetPort::AnalogPair(2), 0x04), // Stream-6/7
-        (TargetPort::AnalogPair(3), 0x05), // Stream-8/9
-        (TargetPort::MainPair, 0x06),      // Stream-10/11
-        (TargetPort::AesEbuPair, 0x07),    // Stream-12/13
-        (TargetPort::AdatPair(0), 0x08),   // Stream-14/15
-        (TargetPort::AdatPair(1), 0x09),   // Stream-16/17
-        (TargetPort::AdatPair(2), 0x0a),   // Stream-18/19
-        (TargetPort::AdatPair(3), 0x0b),   // Stream-20/21
     ];
 }
 
