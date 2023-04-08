@@ -741,4 +741,5 @@ impl MotuAesebuRateConvertSpecification for F896Protocol {
     const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
 }
 
+impl MotuLevelMetersSpecification for F896Protocol {}
 impl LevelMetersOperation for F896Protocol {}
