@@ -4,10 +4,14 @@
 pub(crate) use super::{protocols::version_1::*, v1_runtime::*};
 
 #[derive(Default, Debug)]
-pub(crate) struct V1ClkCtl<T: V1ClkOperation> {
+pub(crate) struct V1ClkCtl<T>
+where
+    T: MotuVersion1ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version1ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version1ClockParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    rate: usize,
-    source: usize,
+    params: Version1ClockParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -25,32 +29,29 @@ fn clk_src_to_str(src: &V1ClkSrc) -> &'static str {
 const RATE_NAME: &str = "sampling- rate";
 const SRC_NAME: &str = "clock-source";
 
-impl<T: V1ClkOperation> V1ClkCtl<T> {
+impl<T> V1ClkCtl<T>
+where
+    T: MotuVersion1ClockSpecification
+        + MotuWhollyCacheableParamsOperation<Version1ClockParameters>
+        + MotuWhollyUpdatableParamsOperation<Version1ClockParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_clk_rate(req, node, timeout_ms).map(|idx| self.rate = idx)?;
-        T::get_clk_src(req, node, timeout_ms).map(|idx| self.source = idx)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::CLK_RATE_LABELS
-            .iter()
-            .map(|l| clk_rate_to_str(l))
-            .collect();
+        let labels: Vec<&str> = T::CLK_RATES.iter().map(|l| clk_rate_to_str(l)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = T::CLK_SRC_LABELS
-            .iter()
-            .map(|l| clk_src_to_str(l))
-            .collect();
+        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|l| clk_src_to_str(l)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -66,11 +67,19 @@ impl<T: V1ClkOperation> V1ClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                elem_value.set_enum(&[self.rate as u32]);
+                let pos = T::CLK_RATES
+                    .iter()
+                    .position(|r| self.params.rate.eq(r))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             SRC_NAME => {
-                elem_value.set_enum(&[self.source as u32]);
+                let pos = T::CLK_SRCS
+                    .iter()
+                    .position(|s| self.params.source.eq(s))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -88,16 +97,36 @@ impl<T: V1ClkOperation> V1ClkCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RATE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_RATES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for rate of media clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&r| params.rate = r)?;
                 unit.lock()?;
-                let res = T::set_clk_rate(req, node, val, timeout_ms).map(|_| self.rate = val);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 unit.unlock()?;
                 res.map(|_| true)
             }
             SRC_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::CLK_SRCS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for source of sampling clock: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&s| params.source = s)?;
                 unit.lock()?;
-                let res = T::set_clk_src(req, node, val, timeout_ms).map(|_| self.source = val);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 unit.unlock()?;
                 res.map(|_| true)
             }

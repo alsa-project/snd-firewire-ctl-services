@@ -350,85 +350,6 @@ where
     }
 }
 
-/// The trait for configuration of sampling clock in version 1 protocol.
-pub trait V1ClkOperation {
-    const CLK_OFFSET: u32;
-
-    const CLK_RATE_MASK: u32;
-    const CLK_RATE_SHIFT: usize;
-    const CLK_RATE_VALS: &'static [u8];
-    const CLK_RATE_LABELS: &'static [ClkRate];
-
-    const CLK_SRC_MASK: u32;
-    const CLK_SRC_SHIFT: usize;
-    const CLK_SRC_VALS: &'static [u8];
-    const CLK_SRC_LABELS: &'static [V1ClkSrc];
-
-    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        get_idx_from_val(
-            Self::CLK_OFFSET,
-            Self::CLK_RATE_MASK,
-            Self::CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            Self::CLK_RATE_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            Self::CLK_OFFSET,
-            Self::CLK_RATE_MASK,
-            Self::CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            Self::CLK_RATE_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        get_idx_from_val(
-            Self::CLK_OFFSET,
-            Self::CLK_SRC_MASK,
-            Self::CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            Self::CLK_SRC_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            Self::CLK_OFFSET,
-            Self::CLK_SRC_MASK,
-            Self::CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            Self::CLK_SRC_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-}
-
 const MONITOR_INPUT_CH_LABEL: &str = "monitor-input-ch-v1";
 const MONITOR_INPUT_DISABLE_LABEL: &str = "monitor-input-enable-v1";
 const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
@@ -466,25 +387,6 @@ impl MotuVersion1ClockSpecification for F828Protocol {
     const CLK_SRC_SHIFT: usize = CONF_828_CLK_SRC_SHIFT;
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x21];
     const CLK_SRCS: &'static [V1ClkSrc] = &[
-        V1ClkSrc::Internal,
-        V1ClkSrc::AdatDsub,
-        V1ClkSrc::Spdif,
-        V1ClkSrc::AdatOpt,
-    ];
-}
-
-impl V1ClkOperation for F828Protocol {
-    const CLK_OFFSET: u32 = CONF_828_OFFSET;
-
-    const CLK_RATE_MASK: u32 = CONF_828_CLK_RATE_MASK;
-    const CLK_RATE_SHIFT: usize = CONF_828_CLK_RATE_SHIFT;
-    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01];
-    const CLK_RATE_LABELS: &'static [ClkRate] = &[ClkRate::R44100, ClkRate::R48000];
-
-    const CLK_SRC_MASK: u32 = CONF_828_CLK_SRC_MASK;
-    const CLK_SRC_SHIFT: usize = CONF_828_CLK_SRC_SHIFT;
-    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x21];
-    const CLK_SRC_LABELS: &'static [V1ClkSrc] = &[
         V1ClkSrc::Internal,
         V1ClkSrc::AdatDsub,
         V1ClkSrc::Spdif,
@@ -799,31 +701,6 @@ impl MotuVersion1ClockSpecification for F896Protocol {
     const CLK_SRC_SHIFT: usize = CONF_896_CLK_SRC_SHIFT;
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
     const CLK_SRCS: &'static [V1ClkSrc] = &[
-        V1ClkSrc::Internal,
-        V1ClkSrc::AdatOpt,
-        V1ClkSrc::AesebuXlr,
-        V1ClkSrc::WordClk,
-        V1ClkSrc::AdatDsub,
-    ];
-}
-
-impl V1ClkOperation for F896Protocol {
-    const CLK_OFFSET: u32 = OFFSET_CLK;
-
-    const CLK_RATE_MASK: u32 = CONF_896_CLK_RATE_MASK;
-    const CLK_RATE_SHIFT: usize = CONF_896_CLK_RATE_SHIFT;
-    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
-    const CLK_RATE_LABELS: &'static [ClkRate] = &[
-        ClkRate::R44100,
-        ClkRate::R48000,
-        ClkRate::R88200,
-        ClkRate::R96000,
-    ];
-
-    const CLK_SRC_MASK: u32 = CONF_896_CLK_SRC_MASK;
-    const CLK_SRC_SHIFT: usize = CONF_896_CLK_SRC_SHIFT;
-    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
-    const CLK_SRC_LABELS: &'static [V1ClkSrc] = &[
         V1ClkSrc::Internal,
         V1ClkSrc::AdatOpt,
         V1ClkSrc::AesebuXlr,
