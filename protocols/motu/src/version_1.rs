@@ -488,48 +488,6 @@ const CONF_828_OUTPUT_ENABLE_LABEL: &str = "output-enable-v1";
 impl F828Protocol {
     /// The available modes of optical interface.
     pub const OPT_IFACE_MODES: &[V1OptIfaceMode] = &[V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
-
-    fn get_opt_iface_mode(
-        mask: u32,
-        shift: usize,
-        label: &str,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            CONF_828_OFFSET,
-            mask,
-            shift,
-            label,
-            req,
-            node,
-            &CONF_828_OPT_IFACE_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_opt_iface_mode(
-        mask: u32,
-        shift: usize,
-        label: &str,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            CONF_828_OFFSET,
-            mask,
-            shift,
-            label,
-            req,
-            node,
-            &CONF_828_OPT_IFACE_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
 }
 
 impl MotuWhollyCacheableParamsOperation<F828OpticalIfaceParameters> for F828Protocol {
@@ -597,70 +555,6 @@ impl MotuWhollyUpdatableParamsOperation<F828OpticalIfaceParameters> for F828Prot
 }
 
 impl F828Protocol {
-    pub fn get_optical_output_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        Self::get_opt_iface_mode(
-            CONF_828_OPT_OUT_IFACE_MASK,
-            CONF_828_OPT_OUT_IFACE_SHIFT,
-            CONF_828_OPT_OUT_IFACE_LABEL,
-            req,
-            node,
-            timeout_ms,
-        )
-    }
-
-    pub fn set_optical_output_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::set_opt_iface_mode(
-            CONF_828_OPT_OUT_IFACE_MASK,
-            CONF_828_OPT_OUT_IFACE_SHIFT,
-            CONF_828_OPT_OUT_IFACE_LABEL,
-            req,
-            node,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    pub fn get_optical_input_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        Self::get_opt_iface_mode(
-            CONF_828_OPT_IN_IFACE_MASK,
-            CONF_828_OPT_IN_IFACE_SHIFT,
-            CONF_828_OPT_IN_IFACE_LABEL,
-            req,
-            node,
-            timeout_ms,
-        )
-    }
-
-    pub fn set_optical_input_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::set_opt_iface_mode(
-            CONF_828_OPT_IN_IFACE_MASK,
-            CONF_828_OPT_IN_IFACE_SHIFT,
-            CONF_828_OPT_IN_IFACE_LABEL,
-            req,
-            node,
-            idx,
-            timeout_ms,
-        )
-    }
-
     pub fn get_stream_input_enable(
         req: &mut FwReq,
         node: &mut FwNode,

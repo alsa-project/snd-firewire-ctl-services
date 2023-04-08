@@ -110,8 +110,7 @@ fn opt_iface_mode_to_str(mode: &V1OptIfaceMode) -> &'static str {
 #[derive(Default, Debug)]
 struct SpecificCtl {
     elem_id_list: Vec<ElemId>,
-    optical_input_iface_mode: usize,
-    optical_output_iface_mode: usize,
+    params: F828OpticalIfaceParameters,
 }
 
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
@@ -119,11 +118,7 @@ const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 impl SpecificCtl {
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        F828Protocol::get_optical_input_iface_mode(req, node, timeout_ms)
-            .map(|val| self.optical_input_iface_mode = val)?;
-        F828Protocol::get_optical_output_iface_mode(req, node, timeout_ms)
-            .map(|val| self.optical_output_iface_mode = val)?;
-        Ok(())
+        F828Protocol::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -148,11 +143,19 @@ impl SpecificCtl {
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                elem_value.set_enum(&[self.optical_input_iface_mode as u32]);
+                let pos = F828Protocol::OPT_IFACE_MODES
+                    .iter()
+                    .position(|m| self.params.input_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                elem_value.set_enum(&[self.optical_output_iface_mode as u32]);
+                let pos = F828Protocol::OPT_IFACE_MODES
+                    .iter()
+                    .position(|m| self.params.output_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -170,18 +173,36 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                F828Protocol::OPT_IFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for optical input interface: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.input_mode = mode)?;
                 unit.lock()?;
-                let res = F828Protocol::set_optical_input_iface_mode(req, node, val, timeout_ms)
-                    .map(|_| self.optical_input_iface_mode = val);
+                let res = F828Protocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
                 unit.unlock()?;
                 res.map(|_| true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                F828Protocol::OPT_IFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for optical input interface: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.output_mode = mode)?;
                 unit.lock()?;
-                let res = F828Protocol::set_optical_output_iface_mode(req, node, val, timeout_ms)
-                    .map(|_| self.optical_output_iface_mode = val);
+                let res = F828Protocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
                 unit.unlock()?;
                 res.map(|_| true)
             }
