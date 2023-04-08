@@ -669,7 +669,6 @@ impl AssignOperation for F828mk3Protocol {
 }
 
 impl MotuWordClockOutputSpecification for F828mk3Protocol {}
-impl WordClkOperation for F828mk3Protocol {}
 
 impl V3ClkOperation for F828mk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
@@ -729,7 +728,6 @@ impl AssignOperation for F828mk3HybridProtocol {
 }
 
 impl MotuWordClockOutputSpecification for F828mk3HybridProtocol {}
-impl WordClkOperation for F828mk3HybridProtocol {}
 
 impl V3ClkOperation for F828mk3HybridProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
@@ -1110,7 +1108,6 @@ impl V3OptIfaceOperation for TravelerMk3Protocol {
 }
 
 impl MotuWordClockOutputSpecification for TravelerMk3Protocol {}
-impl WordClkOperation for TravelerMk3Protocol {}
 
 impl CommandDspOperation for TravelerMk3Protocol {}
 
@@ -1378,7 +1375,6 @@ impl V3OptIfaceOperation for Track16Protocol {
 }
 
 impl MotuWordClockOutputSpecification for Track16Protocol {}
-impl WordClkOperation for Track16Protocol {}
 
 impl CommandDspOperation for Track16Protocol {}
 

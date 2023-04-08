@@ -67,9 +67,14 @@ impl<T: AssignOperation> PhoneAssignCtl<T> {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct WordClockCtl<T: WordClkOperation> {
+pub(crate) struct WordClockCtl<T>
+where
+    T: MotuWordClockOutputSpecification
+        + MotuWhollyCacheableParamsOperation<WordClkSpeedMode>
+        + MotuWhollyUpdatableParamsOperation<WordClkSpeedMode>,
+{
     pub elem_id_list: Vec<ElemId>,
-    speed_mode: WordClkSpeedMode,
+    params: WordClkSpeedMode,
     _phantom: PhantomData<T>,
 }
 
@@ -82,23 +87,23 @@ fn word_clk_speed_mode_to_str(mode: &WordClkSpeedMode) -> &'static str {
 
 const WORD_OUT_MODE_NAME: &str = "word-out-mode";
 
-const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
-    WordClkSpeedMode::ForceLowRate,
-    WordClkSpeedMode::FollowSystemClk,
-];
-
-impl<T: WordClkOperation> WordClockCtl<T> {
+impl<T> WordClockCtl<T>
+where
+    T: MotuWordClockOutputSpecification
+        + MotuWhollyCacheableParamsOperation<WordClkSpeedMode>
+        + MotuWhollyUpdatableParamsOperation<WordClkSpeedMode>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_word_out(req, node, timeout_ms).map(|mode| self.speed_mode = mode)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = WORD_OUT_MODES
+        let labels: Vec<&str> = T::WORD_CLOCK_OUTPUT_SPEED_MODES
             .iter()
             .map(|m| word_clk_speed_mode_to_str(m))
             .collect();
@@ -115,9 +120,9 @@ impl<T: WordClkOperation> WordClockCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             WORD_OUT_MODE_NAME => {
-                let pos = WORD_OUT_MODES
+                let pos = T::WORD_CLOCK_OUTPUT_SPEED_MODES
                     .iter()
-                    .position(|m| self.speed_mode.eq(m))
+                    .position(|m| self.params.eq(m))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -137,11 +142,16 @@ impl<T: WordClkOperation> WordClockCtl<T> {
         match elem_id.name().as_str() {
             WORD_OUT_MODE_NAME => {
                 let pos = elem_value.enumerated()[0] as usize;
-                let &mode = WORD_OUT_MODES.iter().nth(pos).ok_or_else(|| {
-                    let msg = format!("Invalid argument for index of word clock speed: {}", pos);
-                    Error::new(FileError::Inval, &msg)
-                })?;
-                T::set_word_out(req, node, mode, timeout_ms).map(|_| self.speed_mode = mode)?;
+                let params = T::WORD_CLOCK_OUTPUT_SPEED_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid argument for index of word clock speed: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),

@@ -632,7 +632,6 @@ impl F896Protocol {
 }
 
 impl MotuWordClockOutputSpecification for F896Protocol {}
-impl WordClkOperation for F896Protocol {}
 
 impl MotuVersion1ClockSpecification for F896Protocol {
     const CLK_OFFSET: u32 = OFFSET_CLK;
