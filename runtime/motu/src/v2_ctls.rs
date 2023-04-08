@@ -266,10 +266,14 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct V2OptIfaceCtl<T: V2OptIfaceOperation> {
+pub(crate) struct V2OptIfaceCtl<T>
+where
+    T: MotuVersion2OpticalIfaceSpecification
+        + MotuWhollyCacheableParamsOperation<Version2OpticalIfaceParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2OpticalIfaceParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    input_mode: usize,
-    output_mode: usize,
+    params: Version2OpticalIfaceParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -284,22 +288,25 @@ fn opt_iface_mode_to_str(mode: &V2OptIfaceMode) -> &'static str {
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
-impl<T: V2OptIfaceOperation> V2OptIfaceCtl<T> {
+impl<T> V2OptIfaceCtl<T>
+where
+    T: MotuVersion2OpticalIfaceSpecification
+        + MotuWhollyCacheableParamsOperation<Version2OpticalIfaceParameters>
+        + MotuWhollyUpdatableParamsOperation<Version2OpticalIfaceParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_opt_in_iface_mode(req, node, timeout_ms).map(|val| self.input_mode = val)?;
-        T::get_opt_out_iface_mode(req, node, timeout_ms).map(|val| self.output_mode = val)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = T::OPT_IFACE_MODES
             .iter()
-            .map(|e| opt_iface_mode_to_str(&e.0))
+            .map(|m| opt_iface_mode_to_str(m))
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IN_IFACE_MODE_NAME, 0);
@@ -322,11 +329,19 @@ impl<T: V2OptIfaceOperation> V2OptIfaceCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                elem_value.set_enum(&[self.input_mode as u32]);
+                let pos = T::OPT_IFACE_MODES
+                    .iter()
+                    .position(|m| self.params.input_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                elem_value.set_enum(&[self.output_mode as u32]);
+                let pos = T::OPT_IFACE_MODES
+                    .iter()
+                    .position(|m| self.params.output_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -344,18 +359,38 @@ impl<T: V2OptIfaceOperation> V2OptIfaceCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::OPT_IFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid argument for optical input interface mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.input_mode = mode)?;
                 unit.lock()?;
-                let res = T::set_opt_in_iface_mode(req, node, val, timeout_ms)
-                    .map(|_| self.input_mode = val);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::OPT_IFACE_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid argument for optical input interface mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&mode| params.input_mode = mode)?;
                 unit.lock()?;
-                let res = T::set_opt_out_iface_mode(req, node, val, timeout_ms)
-                    .map(|_| self.output_mode = val);
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
