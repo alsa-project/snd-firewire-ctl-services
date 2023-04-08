@@ -9,6 +9,7 @@
 use super::{command_dsp::*, register_dsp::*, *};
 
 /// Signal source of sampling clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum V3ClkSrc {
     /// Internal.
     Internal,
@@ -24,6 +25,21 @@ pub enum V3ClkSrc {
     SignalOptB,
 }
 
+impl Default for V3ClkSrc {
+    fn default() -> Self {
+        Self::Internal
+    }
+}
+
+/// The parameters of media and sampling clock.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Version3ClockParameters {
+    /// The rate of media clock.
+    pub rate: ClkRate,
+    /// The source of sampling clock.
+    pub source: V3ClkSrc,
+}
+
 const CLK_RATE_LABEL: &str = "clock-rate-v3";
 const CLK_RATE_MASK: u32 = 0x0000ff00;
 const CLK_RATE_SHIFT: usize = 8;
@@ -31,6 +47,87 @@ const CLK_RATE_SHIFT: usize = 8;
 const CLK_SRC_LABEL: &str = "clock-source-v3";
 const CLK_SRC_MASK: u32 = 0x000000ff;
 const CLK_SRC_SHIFT: usize = 0;
+
+/// The trait for specification of sampling and media clocks.
+pub trait MotuVersion3ClockSpecification {
+    const CLOCK_RATES: &'static [ClkRate];
+    const CLOCK_RATE_VALS: &'static [u8];
+
+    const CLOCK_SRCS: &'static [V3ClkSrc];
+    const CLOCK_SRC_VALS: &'static [u8];
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<Version3ClockParameters> for O
+where
+    O: MotuVersion3ClockSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut Version3ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        deserialize_flag(
+            &mut params.rate,
+            &quad,
+            CLK_RATE_MASK,
+            CLK_RATE_SHIFT,
+            Self::CLOCK_RATES,
+            Self::CLOCK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        deserialize_flag(
+            &mut params.source,
+            &quad,
+            CLK_SRC_MASK,
+            CLK_SRC_SHIFT,
+            Self::CLOCK_SRCS,
+            Self::CLOCK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )?;
+
+        Ok(())
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<Version3ClockParameters> for O
+where
+    O: MotuVersion3ClockSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &Version3ClockParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        serialize_flag(
+            &params.rate,
+            &mut quad,
+            CLK_RATE_MASK,
+            CLK_RATE_SHIFT,
+            Self::CLOCK_RATES,
+            Self::CLOCK_RATE_VALS,
+            CLK_RATE_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.source,
+            &mut quad,
+            CLK_SRC_MASK,
+            CLK_SRC_SHIFT,
+            Self::CLOCK_SRCS,
+            Self::CLOCK_SRC_VALS,
+            CLK_SRC_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
+    }
+}
 
 /// The trait for sampling clock protocol in version 3.
 pub trait V3ClkOperation {
@@ -361,6 +458,19 @@ impl AssignOperation for AudioExpressProtocol {
     ];
 }
 
+impl MotuVersion3ClockSpecification for AudioExpressProtocol {
+    const CLOCK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+    const CLOCK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SpdifCoax];
+    const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
+}
+
 impl V3ClkOperation for AudioExpressProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -437,6 +547,27 @@ const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
     (TargetPort::OpticalBPair(2), 0x0d), // = Stream-26/27
     (TargetPort::OpticalBPair(3), 0x0e), // = Stream-28/29
 ];
+
+const F828MK3_CLOCK_RATES: &[ClkRate] = &[
+    ClkRate::R44100,
+    ClkRate::R48000,
+    ClkRate::R88200,
+    ClkRate::R96000,
+    ClkRate::R176400,
+    ClkRate::R192000,
+];
+
+const F828MK3_CLOCK_RATE_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+const F828MK3_CLOCK_SRCS: &[V3ClkSrc] = &[
+    V3ClkSrc::Internal,
+    V3ClkSrc::WordClk,
+    V3ClkSrc::SpdifCoax,
+    V3ClkSrc::SignalOptA,
+    V3ClkSrc::SignalOptB,
+];
+
+const F828MK3_CLOCK_SRC_VALS: &[u8] = &[0x00, 0x01, 0x10, 0x18, 0x19];
 
 const F828MK3_CLK_RATES: &[(ClkRate, u8)] = &[
     (ClkRate::R44100, 0x00),
@@ -672,6 +803,14 @@ impl MotuWordClockOutputSpecification for F828mk3Protocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk3Protocol {}
 
+impl MotuVersion3ClockSpecification for F828mk3Protocol {
+    const CLOCK_RATES: &'static [ClkRate] = F828MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = F828MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = F828MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
+}
+
 impl V3ClkOperation for F828mk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
     const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
@@ -732,6 +871,14 @@ impl AssignOperation for F828mk3HybridProtocol {
 impl MotuWordClockOutputSpecification for F828mk3HybridProtocol {}
 
 impl MotuClockNameDisplaySpecification for F828mk3HybridProtocol {}
+
+impl MotuVersion3ClockSpecification for F828mk3HybridProtocol {
+    const CLOCK_RATES: &'static [ClkRate] = F828MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = F828MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = F828MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = F828MK3_CLOCK_SRC_VALS;
+}
 
 impl V3ClkOperation for F828mk3HybridProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
@@ -797,6 +944,19 @@ impl AssignOperation for H4preProtocol {
     ];
 }
 
+impl MotuVersion3ClockSpecification for H4preProtocol {
+    const CLOCK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+    const CLOCK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SpdifCoax];
+    const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
+}
+
 impl V3ClkOperation for H4preProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -860,6 +1020,19 @@ const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
     (TargetPort::SpdifPair, 0x05),     // = Stream-12/13
     (TargetPort::PhonePair, 0x06),     // = Stream-10/11
 ];
+
+const ULTRALITE_MK3_CLOCK_RATES: &[ClkRate] = &[
+    ClkRate::R44100,
+    ClkRate::R48000,
+    ClkRate::R88200,
+    ClkRate::R96000,
+];
+
+const ULTRALITE_MK3_CLOCK_RATE_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03];
+
+const ULTRALITE_MK3_CLOCK_SRCS: &[V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SpdifCoax];
+
+const ULTRALITE_MK3_CLOCK_SRC_VALS: &[u8] = &[0x00, 0x01];
 
 const ULTRALITE_MK3_CLK_RATES: &[(ClkRate, u8)] = &[
     (ClkRate::R44100, 0x00),
@@ -970,6 +1143,14 @@ impl AssignOperation for UltraliteMk3Protocol {
 
 impl MotuClockNameDisplaySpecification for UltraliteMk3Protocol {}
 
+impl MotuVersion3ClockSpecification for UltraliteMk3Protocol {
+    const CLOCK_RATES: &'static [ClkRate] = ULTRALITE_MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = ULTRALITE_MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
+}
+
 impl V3ClkOperation for UltraliteMk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
     const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
@@ -1022,6 +1203,14 @@ impl AssignOperation for UltraliteMk3HybridProtocol {
 }
 
 impl MotuClockNameDisplaySpecification for UltraliteMk3HybridProtocol {}
+
+impl MotuVersion3ClockSpecification for UltraliteMk3HybridProtocol {
+    const CLOCK_RATES: &'static [ClkRate] = ULTRALITE_MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = ULTRALITE_MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = ULTRALITE_MK3_CLOCK_SRC_VALS;
+}
 
 impl V3ClkOperation for UltraliteMk3HybridProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
@@ -1090,6 +1279,28 @@ impl AssignOperation for TravelerMk3Protocol {
 }
 
 impl MotuClockNameDisplaySpecification for TravelerMk3Protocol {}
+
+impl MotuVersion3ClockSpecification for TravelerMk3Protocol {
+    const CLOCK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+        ClkRate::R176400,
+        ClkRate::R192000,
+    ];
+    const CLOCK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = &[
+        V3ClkSrc::Internal,
+        V3ClkSrc::WordClk,
+        V3ClkSrc::AesEbuXlr,
+        V3ClkSrc::SpdifCoax,
+        V3ClkSrc::SignalOptA,
+        V3ClkSrc::SignalOptB,
+    ];
+    const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x08, 0x10, 0x18, 0x19];
+}
 
 impl V3ClkOperation for TravelerMk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
@@ -1362,6 +1573,21 @@ impl AssignOperation for Track16Protocol {
         (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
         (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
     ];
+}
+
+impl MotuVersion3ClockSpecification for Track16Protocol {
+    const CLOCK_RATES: &'static [ClkRate] = &[
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+        ClkRate::R176400,
+        ClkRate::R192000,
+    ];
+    const CLOCK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SignalOptA];
+    const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x18];
 }
 
 impl V3ClkOperation for Track16Protocol {
