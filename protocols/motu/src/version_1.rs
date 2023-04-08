@@ -107,7 +107,6 @@ const CONF_828_STREAM_INPUT_ENABLE_MASK: u32 = 0x00000080;
 const CONF_828_STREAM_INPUT_ENABLE_SHIFT: usize = 7;
 
 const CONF_828_MONITOR_INPUT_DISABLE_MASK: u32 = 0x00000040;
-const CONF_828_MONITOR_INPUT_DISABLE_SHIFT: usize = 6;
 
 const CONF_828_OUTPUT_ENABLE_MASK: u32 = 0x00000008;
 const CONF_828_OUTPUT_ENABLE_SHIFT: usize = 3;
@@ -360,25 +359,6 @@ pub trait MotuVersion1MonitorInputSpecification {
 }
 
 const MONITOR_INPUT_CH_LABEL: &str = "monitor-input-ch-v1";
-const MONITOR_INPUT_DISABLE_LABEL: &str = "monitor-input-enable-v1";
-const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
-
-/// The trait for configuration of input to monitor in version 1 protocol.
-pub trait V1MonitorInputOperation {
-    const MONITOR_INPUT_MODES: &'static [TargetPort];
-
-    fn set_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
-    fn get_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error>;
-}
 
 /// The protocol implementation for 828.
 #[derive(Default)]
@@ -439,7 +419,7 @@ impl MotuWhollyCacheableParamsOperation<Version1MonitorInputParameters> for F828
                 &quad,
                 CONF_828_MONITOR_INPUT_CH_MASK,
                 CONF_828_MONITOR_INPUT_CH_SHIFT,
-                &<F828Protocol as MotuVersion1MonitorInputSpecification>::MONITOR_INPUT_MODES[1..],
+                &Self::MONITOR_INPUT_MODES[1..],
                 CONF_828_MONITOR_INPUT_CH_VALS,
                 MONITOR_INPUT_CH_LABEL,
             )
@@ -454,7 +434,7 @@ impl MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters> for F828
         params: &Version1MonitorInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if <F828Protocol as MotuVersion1MonitorInputSpecification>::MONITOR_INPUT_MODES
+        if Self::MONITOR_INPUT_MODES
             .iter()
             .find(|m| params.0.eq(m))
             .is_none()
@@ -481,88 +461,6 @@ impl MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters> for F828
         }
 
         write_quad(req, node, CONF_828_OFFSET, quad, timeout_ms)
-    }
-}
-
-impl V1MonitorInputOperation for F828Protocol {
-    const MONITOR_INPUT_MODES: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-    ];
-
-    fn set_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let (disable_idx, ch_idx) = if idx == 0 { (1, 0) } else { (0, idx - 1) };
-
-        set_idx_to_val(
-            CONF_828_OFFSET,
-            CONF_828_MONITOR_INPUT_DISABLE_MASK,
-            CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
-            MONITOR_INPUT_DISABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            disable_idx,
-            timeout_ms,
-        )?;
-
-        set_idx_to_val(
-            CONF_828_OFFSET,
-            CONF_828_MONITOR_INPUT_CH_MASK,
-            CONF_828_MONITOR_INPUT_CH_SHIFT,
-            MONITOR_INPUT_CH_LABEL,
-            req,
-            node,
-            &CONF_828_MONITOR_INPUT_CH_VALS,
-            ch_idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let mut idx = get_idx_from_val(
-            CONF_828_OFFSET,
-            CONF_828_MONITOR_INPUT_DISABLE_MASK,
-            CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
-            MONITOR_INPUT_DISABLE_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            timeout_ms,
-        )
-        .map(|idx| if idx > 0 { 0 } else { 1 })?;
-        if idx > 0 {
-            idx += get_idx_from_val(
-                CONF_828_OFFSET,
-                CONF_828_MONITOR_INPUT_CH_MASK,
-                CONF_828_MONITOR_INPUT_CH_SHIFT,
-                MONITOR_INPUT_CH_LABEL,
-                req,
-                node,
-                &CONF_828_MONITOR_INPUT_CH_VALS,
-                timeout_ms,
-            )?;
-        }
-        Ok(idx)
     }
 }
 
@@ -834,7 +732,7 @@ impl MotuWhollyCacheableParamsOperation<Version1MonitorInputParameters> for F896
         let ch_idx =
             ((quad & CONF_896_MONITOR_INPUT_CH_MASK) >> CONF_896_MONITOR_INPUT_CH_SHIFT) as usize;
 
-        <F896Protocol as MotuVersion1MonitorInputSpecification>::MONITOR_INPUT_MODES
+        Self::MONITOR_INPUT_MODES
             .iter()
             .zip(CONF_896_MONITOR_INPUT_VALS)
             .find(|(_, entry)| (ch_idx, aesebu_idx).eq(entry))
@@ -853,116 +751,27 @@ impl MotuWhollyUpdatableParamsOperation<Version1MonitorInputParameters> for F896
         params: &Version1MonitorInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let (ch_idx, aesebu_idx) =
-            <F896Protocol as MotuVersion1MonitorInputSpecification>::MONITOR_INPUT_MODES
-                .iter()
-                .zip(CONF_896_MONITOR_INPUT_VALS)
-                .find(|(m, _)| params.0.eq(m))
-                .ok_or_else(|| {
-                    let msg = format!("{:?} is not supported for monitor input", params.0);
-                    Error::new(FileError::Io, &msg)
-                })
-                .map(|(_, &entry)| entry)?;
+        let (ch_idx, aesebu_idx) = Self::MONITOR_INPUT_MODES
+            .iter()
+            .zip(CONF_896_MONITOR_INPUT_VALS)
+            .find(|(m, _)| params.0.eq(m))
+            .ok_or_else(|| {
+                let msg = format!("{:?} is not supported for monitor input", params.0);
+                Error::new(FileError::Io, &msg)
+            })
+            .map(|(_, &entry)| entry)?;
 
         let mut quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
 
         quad &= !CONF_896_MONITOR_INPUT_AESEBU_MASK;
-        quad |= (aesebu_idx as u32) << CONF_896_MONITOR_INPUT_AESEBU_SHIFT;
+        if aesebu_idx > 0 {
+            quad |= (aesebu_idx as u32) << CONF_896_MONITOR_INPUT_AESEBU_SHIFT;
+        }
 
         quad &= !CONF_896_MONITOR_INPUT_CH_MASK;
-        quad |= (ch_idx as u32) << CONF_896_MONITOR_INPUT_CH_SHIFT;
+        quad |= (CONF_896_MONITOR_INPUT_CH_VALS[ch_idx] as u32) << CONF_896_MONITOR_INPUT_CH_SHIFT;
 
         write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
-    }
-}
-
-impl V1MonitorInputOperation for F896Protocol {
-    const MONITOR_INPUT_MODES: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::AesEbuPair,
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::AesEbu(0),
-        TargetPort::AesEbu(1),
-    ];
-
-    fn set_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let &(ch_idx, aesebu_idx) =
-            CONF_896_MONITOR_INPUT_VALS.iter().nth(idx).ok_or_else(|| {
-                let label = "Invalid argument for index of monitor input}";
-                Error::new(FileError::Inval, &label)
-            })?;
-        set_idx_to_val(
-            OFFSET_CLK,
-            CONF_896_MONITOR_INPUT_CH_MASK,
-            CONF_896_MONITOR_INPUT_CH_SHIFT,
-            MONITOR_INPUT_CH_LABEL,
-            req,
-            node,
-            &CONF_896_MONITOR_INPUT_CH_VALS,
-            ch_idx,
-            timeout_ms,
-        )?;
-        set_idx_to_val(
-            OFFSET_CLK,
-            CONF_896_MONITOR_INPUT_AESEBU_MASK,
-            CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
-            MONITOR_INPUT_AESEBU_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            aesebu_idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_monitor_input(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let ch_idx = get_idx_from_val(
-            OFFSET_CLK,
-            CONF_896_MONITOR_INPUT_CH_MASK,
-            CONF_896_MONITOR_INPUT_CH_SHIFT,
-            MONITOR_INPUT_CH_LABEL,
-            req,
-            node,
-            &CONF_896_MONITOR_INPUT_CH_VALS,
-            timeout_ms,
-        )?;
-        let aesebu_idx = get_idx_from_val(
-            OFFSET_CLK,
-            CONF_896_MONITOR_INPUT_AESEBU_MASK,
-            CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
-            MONITOR_INPUT_AESEBU_LABEL,
-            req,
-            node,
-            &CONF_BOOL_VALS,
-            timeout_ms,
-        )?;
-        CONF_896_MONITOR_INPUT_VALS
-            .iter()
-            .position(|&e| e == (ch_idx, aesebu_idx))
-            .ok_or_else(|| {
-                let label = "Detect invalid value for monitor input";
-                Error::new(FileError::Io, &label)
-            })
     }
 }
 
