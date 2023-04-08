@@ -4,28 +4,38 @@
 pub(crate) use {super::*, alsactl::*, core::card_cntr::*, hinawa::FwReq};
 
 #[derive(Default, Debug)]
-pub(crate) struct PhoneAssignCtl<T: AssignOperation> {
+pub(crate) struct PhoneAssignCtl<T>
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    pub assign: usize,
+    pub params: PhoneAssignParameters,
     _phantom: PhantomData<T>,
 }
 
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
 
-impl<T: AssignOperation> PhoneAssignCtl<T> {
+impl<T> PhoneAssignCtl<T>
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_phone_assign(req, node, timeout_ms).map(|val| self.assign = val)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::ASSIGN_PORTS
+        let labels: Vec<String> = T::ASSIGN_PORT_TARGETS
             .iter()
-            .map(|e| target_port_to_string(&e.0))
+            .map(|p| target_port_to_string(p))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
         card_cntr
@@ -40,7 +50,11 @@ impl<T: AssignOperation> PhoneAssignCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PHONE_ASSIGN_NAME => {
-                elem_value.set_enum(&[self.assign as u32]);
+                let pos = T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .position(|p| self.params.0.eq(p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -57,9 +71,19 @@ impl<T: AssignOperation> PhoneAssignCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PHONE_ASSIGN_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_phone_assign(req, node, val, timeout_ms).map(|_| self.assign = val)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for phone assignment: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&p| params.0 = p)?;
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
