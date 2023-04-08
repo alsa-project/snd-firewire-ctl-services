@@ -265,32 +265,39 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct V3PortAssignCtl<T: V3PortAssignOperation> {
+pub(crate) struct V3PortAssignCtl<T>
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<V3PortAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<V3PortAssignParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    main: usize,
-    mixer_return: usize,
+    params: V3PortAssignParameters,
     _phantom: PhantomData<T>,
 }
 
 const MAIN_ASSIGN_NAME: &str = "main-assign";
 const RETURN_ASSIGN_NAME: &str = "return-assign";
 
-impl<T: V3PortAssignOperation> V3PortAssignCtl<T> {
+impl<T> V3PortAssignCtl<T>
+where
+    T: MotuPortAssignSpecification
+        + MotuWhollyCacheableParamsOperation<V3PortAssignParameters>
+        + MotuWhollyUpdatableParamsOperation<V3PortAssignParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_main_assign(req, node, timeout_ms).map(|idx| self.main = idx)?;
-        T::get_return_assign(req, node, timeout_ms).map(|idx| self.mixer_return = idx)?;
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::ASSIGN_PORTS
+        let labels: Vec<String> = T::ASSIGN_PORT_TARGETS
             .iter()
-            .map(|p| target_port_to_string(&p.0))
+            .map(|p| target_port_to_string(p))
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_ASSIGN_NAME, 0);
@@ -313,11 +320,19 @@ impl<T: V3PortAssignOperation> V3PortAssignCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGN_NAME => {
-                elem_value.set_enum(&[self.main as u32]);
+                let pos = T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .position(|p| self.params.main.eq(p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             RETURN_ASSIGN_NAME => {
-                elem_value.set_enum(&[self.mixer_return as u32]);
+                let pos = T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .position(|p| self.params.mixer_return.eq(p))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -334,14 +349,31 @@ impl<T: V3PortAssignOperation> V3PortAssignCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_ASSIGN_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_main_assign(req, node, val, timeout_ms).map(|_| self.main = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for main assignment: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&p| params.main = p)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             RETURN_ASSIGN_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_return_assign(req, node, val, timeout_ms)
-                    .map(|_| self.mixer_return = val)?;
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                T::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid argument for main assignment: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&p| params.mixer_return = p)?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),
