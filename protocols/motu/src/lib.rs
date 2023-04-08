@@ -287,6 +287,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
         deserialize_flag(
             &mut params.0,
             &quad,
@@ -310,6 +311,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
         serialize_flag(
             &params.0,
             &mut quad,
@@ -319,6 +321,7 @@ where
             Self::ASSIGN_PORT_VALS,
             PORT_PHONE_LABEL,
         )?;
+
         write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
     }
 }
