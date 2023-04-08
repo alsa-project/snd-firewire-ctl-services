@@ -375,6 +375,7 @@ impl<O: MotuWordClockOutputSpecification> MotuWhollyUpdatableParamsOperation<Wor
 }
 
 /// Mode of rate convert for AES/EBU input/output signals.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AesebuRateConvertMode {
     /// Not available.
     None,
@@ -386,7 +387,78 @@ pub enum AesebuRateConvertMode {
     OutputDoubleSystem,
 }
 
+impl Default for AesebuRateConvertMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 const AESEBU_RATE_CONVERT_LABEL: &str = "aesebu-rate-convert";
+
+/// The trait for specification of rate convert specific to AES/EBU input/output signals.
+pub trait MotuAesebuRateConvertSpecification {
+    const AESEBU_RATE_CONVERT_MASK: u32;
+    const AESEBU_RATE_CONVERT_SHIFT: usize;
+
+    const AESEBU_RATE_CONVERT_MODES: &'static [AesebuRateConvertMode] = &[
+        AesebuRateConvertMode::None,
+        AesebuRateConvertMode::InputToSystem,
+        AesebuRateConvertMode::OutputDependsInput,
+        AesebuRateConvertMode::OutputDoubleSystem,
+    ];
+}
+
+const AESEBU_RATE_CONVERT_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03];
+
+impl<O> MotuWhollyCacheableParamsOperation<AesebuRateConvertMode> for O
+where
+    O: MotuAesebuRateConvertSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut AesebuRateConvertMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        deserialize_flag(
+            params,
+            &quad,
+            Self::AESEBU_RATE_CONVERT_MASK,
+            Self::AESEBU_RATE_CONVERT_SHIFT,
+            Self::AESEBU_RATE_CONVERT_MODES,
+            AESEBU_RATE_CONVERT_VALS,
+            AESEBU_RATE_CONVERT_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<AesebuRateConvertMode> for O
+where
+    O: MotuAesebuRateConvertSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &AesebuRateConvertMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_CLK, timeout_ms)?;
+
+        serialize_flag(
+            params,
+            &mut quad,
+            Self::AESEBU_RATE_CONVERT_MASK,
+            Self::AESEBU_RATE_CONVERT_SHIFT,
+            Self::AESEBU_RATE_CONVERT_MODES,
+            AESEBU_RATE_CONVERT_VALS,
+            AESEBU_RATE_CONVERT_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
+    }
+}
 
 /// The trait for protocol of rate convert specific to AES/EBU input/output signals.
 pub trait AesebuRateConvertOperation {

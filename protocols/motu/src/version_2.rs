@@ -871,6 +871,11 @@ impl AssignOperation for F896hdProtocol {
 
 impl MotuWordClockOutputSpecification for F896hdProtocol {}
 
+impl MotuAesebuRateConvertSpecification for F896hdProtocol {
+    const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000300;
+    const AESEBU_RATE_CONVERT_SHIFT: usize = 8;
+}
+
 impl AesebuRateConvertOperation for F896hdProtocol {
     const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000300;
     const AESEBU_RATE_CONVERT_SHIFT: usize = 8;
