@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct TravelerMk3 {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: V3ClkCtl<TravelerMk3Protocol>,
+    clk_ctls: V3LcdClkCtl<TravelerMk3Protocol>,
     port_assign_ctl: V3PortAssignCtl<TravelerMk3Protocol>,
     opt_iface_ctl: V3OptIfaceCtl<TravelerMk3Protocol>,
     phone_assign_ctl: PhoneAssignCtl<TravelerMk3Protocol>,

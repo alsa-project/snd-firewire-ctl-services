@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct UltraliteMk3Hybrid {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: V3ClkCtl<UltraliteMk3HybridProtocol>,
+    clk_ctls: V3LcdClkCtl<UltraliteMk3HybridProtocol>,
     port_assign_ctl: V3PortAssignCtl<UltraliteMk3HybridProtocol>,
     phone_assign_ctl: PhoneAssignCtl<UltraliteMk3HybridProtocol>,
     sequence_number: u8,

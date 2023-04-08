@@ -9,7 +9,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828mk3Hybrid {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: V3ClkCtl<F828mk3HybridProtocol>,
+    clk_ctls: V3LcdClkCtl<F828mk3HybridProtocol>,
     port_assign_ctl: V3PortAssignCtl<F828mk3HybridProtocol>,
     opt_iface_ctl: V3OptIfaceCtl<F828mk3HybridProtocol>,
     phone_assign_ctl: PhoneAssignCtl<F828mk3HybridProtocol>,
