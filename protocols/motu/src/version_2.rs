@@ -129,91 +129,6 @@ where
     }
 }
 
-/// The trait for version 2 protocol.
-pub trait V2ClkOperation {
-    const CLK_RATES: &'static [(ClkRate, u8)];
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)];
-
-    const HAS_LCD: bool;
-
-    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_CLK,
-            CLK_RATE_MASK,
-            CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_CLK,
-            CLK_RATE_MASK,
-            CLK_RATE_SHIFT,
-            CLK_RATE_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_CLK,
-            CLK_SRC_MASK,
-            CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_CLK,
-            CLK_SRC_MASK,
-            CLK_SRC_SHIFT,
-            CLK_SRC_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn update_clk_display(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        label: &str,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        update_clk_display(req, node, label, timeout_ms)
-    }
-}
-
 /// Mode of optical interface.
 pub enum V2OptIfaceMode {
     None,
@@ -351,25 +266,6 @@ impl MotuVersion2ClockSpecification for F828mk2Protocol {
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
 }
 
-impl V2ClkOperation for F828mk2Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
-        (V2ClkSrc::Internal, 0x00),
-        (V2ClkSrc::SignalOpt, 0x01),
-        (V2ClkSrc::SpdifCoax, 0x02),
-        (V2ClkSrc::WordClk, 0x04),
-        (V2ClkSrc::AdatDsub, 0x05),
-    ];
-
-    const HAS_LCD: bool = true;
-}
-
 impl V2OptIfaceOperation for F828mk2Protocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
         (V2OptIfaceMode::None, 0x00),
@@ -498,20 +394,6 @@ impl MotuVersion2ClockSpecification for F8preProtocol {
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
 }
 
-impl V2ClkOperation for F8preProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] =
-        &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::AdatOpt, 0x01)];
-
-    const HAS_LCD: bool = false;
-}
-
 impl V2OptIfaceOperation for F8preProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
@@ -628,28 +510,6 @@ impl MotuVersion2ClockSpecification for TravelerProtocol {
         V2ClkSrc::AesebuXlr,
     ];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05, 0x07];
-}
-
-impl V2ClkOperation for TravelerProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-        (ClkRate::R176400, 0x04),
-        (ClkRate::R192000, 0x05),
-    ];
-
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
-        (V2ClkSrc::Internal, 0x00),
-        (V2ClkSrc::SignalOpt, 0x01),
-        (V2ClkSrc::SpdifCoax, 0x02),
-        (V2ClkSrc::WordClk, 0x04),
-        (V2ClkSrc::AdatDsub, 0x05),
-        (V2ClkSrc::AesebuXlr, 0x07),
-    ];
-
-    const HAS_LCD: bool = true;
 }
 
 impl V2OptIfaceOperation for TravelerProtocol {
@@ -875,20 +735,6 @@ impl MotuVersion2ClockSpecification for UltraliteProtocol {
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x02];
 }
 
-impl V2ClkOperation for UltraliteProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] =
-        &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::SpdifCoax, 0x02)];
-
-    const HAS_LCD: bool = true;
-}
-
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
@@ -1065,27 +911,6 @@ impl MotuVersion2ClockSpecification for F896hdProtocol {
         V2ClkSrc::AdatDsub,
     ];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
-}
-
-impl V2ClkOperation for F896hdProtocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-        (ClkRate::R176400, 0x04),
-        (ClkRate::R192000, 0x05),
-    ];
-
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
-        (V2ClkSrc::Internal, 0x00),
-        (V2ClkSrc::AdatOpt, 0x01),
-        (V2ClkSrc::AesebuXlr, 0x02),
-        (V2ClkSrc::WordClk, 0x04),
-        (V2ClkSrc::AdatDsub, 0x05),
-    ];
-
-    const HAS_LCD: bool = false;
 }
 
 impl V2OptIfaceOperation for F896hdProtocol {
