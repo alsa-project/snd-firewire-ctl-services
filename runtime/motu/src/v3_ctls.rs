@@ -350,10 +350,14 @@ impl<T: V3PortAssignOperation> V3PortAssignCtl<T> {
 }
 
 #[derive(Debug)]
-pub(crate) struct V3OptIfaceCtl<T: V3OptIfaceOperation> {
+pub(crate) struct V3OptIfaceCtl<T>
+where
+    T: MotuVersion3OpticalIfaceSpecification
+        + MotuWhollyCacheableParamsOperation<V3OpticalIfaceParameters>
+        + MotuWhollyUpdatableParamsOperation<V3OpticalIfaceParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    inputs: Vec<V3OptIfaceMode>,
-    outputs: Vec<V3OptIfaceMode>,
+    params: V3OpticalIfaceParameters,
     _phantom: PhantomData<T>,
 }
 
@@ -368,56 +372,56 @@ fn opt_iface_mode_to_str(mode: &V3OptIfaceMode) -> &'static str {
 const OPT_IFACE_IN_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_IFACE_OUT_MODE_NAME: &str = "optical-iface-out-mode";
 
-impl<T: V3OptIfaceOperation> Default for V3OptIfaceCtl<T> {
+const OPT_IFACE_MODES: &[V3OptIfaceMode; 3] = &[
+    V3OptIfaceMode::Disabled,
+    V3OptIfaceMode::Adat,
+    V3OptIfaceMode::Spdif,
+];
+
+impl<T> Default for V3OptIfaceCtl<T>
+where
+    T: MotuVersion3OpticalIfaceSpecification
+        + MotuWhollyCacheableParamsOperation<V3OpticalIfaceParameters>
+        + MotuWhollyUpdatableParamsOperation<V3OpticalIfaceParameters>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            inputs: vec![Default::default(); T::TARGETS.len()],
-            outputs: vec![Default::default(); T::TARGETS.len()],
+            params: T::create_optical_iface_parameters(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: V3OptIfaceOperation> V3OptIfaceCtl<T> {
+impl<T> V3OptIfaceCtl<T>
+where
+    T: MotuVersion3OpticalIfaceSpecification
+        + MotuWhollyCacheableParamsOperation<V3OpticalIfaceParameters>
+        + MotuWhollyUpdatableParamsOperation<V3OpticalIfaceParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.inputs
-            .iter_mut()
-            .zip(T::TARGETS)
-            .try_for_each(|(input, &target)| {
-                T::get_opt_input_iface_mode(req, node, target, timeout_ms).map(|mode| {
-                    *input = mode;
-                })
-            })?;
-
-        self.outputs
-            .iter_mut()
-            .zip(T::TARGETS)
-            .try_for_each(|(output, &target)| {
-                T::get_opt_output_iface_mode(req, node, target, timeout_ms).map(|mode| {
-                    *output = mode;
-                })
-            })?;
-
-        Ok(())
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::MODES.iter().map(|m| opt_iface_mode_to_str(m)).collect();
+        let labels: Vec<&str> = OPT_IFACE_MODES
+            .iter()
+            .map(|m| opt_iface_mode_to_str(m))
+            .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_IN_MODE_NAME, 0);
         card_cntr
-            .add_enum_elems(&elem_id, 1, T::TARGETS.len(), &labels, None, true)
+            .add_enum_elems(&elem_id, 1, T::OPT_IFACE_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_OUT_MODE_NAME, 0);
         card_cntr
-            .add_enum_elems(&elem_id, 1, T::TARGETS.len(), &labels, None, true)
+            .add_enum_elems(&elem_id, 1, T::OPT_IFACE_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
@@ -427,20 +431,26 @@ impl<T: V3OptIfaceOperation> V3OptIfaceCtl<T> {
         match elem_id.name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
                 let vals: Vec<u32> = self
-                    .inputs
+                    .params
+                    .input_modes
                     .iter()
-                    .zip(T::TARGETS)
-                    .map(|(input, _)| T::MODES.iter().position(|t| input.eq(t)).unwrap() as u32)
+                    .map(|mode| {
+                        let pos = OPT_IFACE_MODES.iter().position(|m| mode.eq(m)).unwrap();
+                        pos as u32
+                    })
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
             OPT_IFACE_OUT_MODE_NAME => {
                 let vals: Vec<u32> = self
-                    .outputs
+                    .params
+                    .output_modes
                     .iter()
-                    .zip(T::TARGETS)
-                    .map(|(output, _)| T::MODES.iter().position(|t| output.eq(t)).unwrap() as u32)
+                    .map(|mode| {
+                        let pos = OPT_IFACE_MODES.iter().position(|m| mode.eq(m)).unwrap();
+                        pos as u32
+                    })
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
@@ -460,40 +470,50 @@ impl<T: V3OptIfaceOperation> V3OptIfaceCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
-                unit.lock()?;
-                let res = self
-                    .inputs
+                let mut params = self.params.clone();
+                params
+                    .input_modes
                     .iter_mut()
-                    .zip(T::TARGETS)
                     .zip(elem_value.enumerated())
-                    .try_for_each(|((input, &target), &val)| {
+                    .try_for_each(|(mode, &val)| {
                         let pos = val as usize;
-                        let &mode = T::MODES.iter().nth(pos).ok_or_else(|| {
-                            let msg = format!("Invalid index for mode of opt interface: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                        T::set_opt_input_iface_mode(req, node, target, mode, timeout_ms)
-                            .map(|_| *input = mode)
-                    });
+                        OPT_IFACE_MODES
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Invalid index for mode of opt interface: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&m| *mode = m)
+                    })?;
+                unit.lock()?;
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
             OPT_IFACE_OUT_MODE_NAME => {
-                unit.lock()?;
-                let res = self
-                    .outputs
+                let mut params = self.params.clone();
+                params
+                    .output_modes
                     .iter_mut()
-                    .zip(T::TARGETS)
                     .zip(elem_value.enumerated())
-                    .try_for_each(|((output, &target), &val)| {
+                    .try_for_each(|(mode, &val)| {
                         let pos = val as usize;
-                        let &mode = T::MODES.iter().nth(pos).ok_or_else(|| {
-                            let msg = format!("Invalid index for mode of opt interface: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                        T::set_opt_output_iface_mode(req, node, target, mode, timeout_ms)
-                            .map(|_| *output = mode)
-                    });
+                        OPT_IFACE_MODES
+                            .iter()
+                            .nth(pos)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Invalid index for mode of opt interface: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&m| *mode = m)
+                    })?;
+                unit.lock()?;
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
                 res.map(|_| true)
             }
