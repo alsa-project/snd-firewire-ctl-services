@@ -129,6 +129,15 @@ where
     }
 }
 
+/// The parameters of port assignment.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct V3PortAssignParameters {
+    /// The main assignment.
+    pub main: TargetPort,
+    /// The mixer return assignment.
+    pub mixer_return: TargetPort,
+}
+
 const PORT_MAIN_LABEL: &str = "main-out-assign-v3";
 const PORT_MAIN_MASK: u32 = 0x000000f0;
 const PORT_MAIN_SHIFT: usize = 4;
@@ -136,6 +145,74 @@ const PORT_MAIN_SHIFT: usize = 4;
 const PORT_RETURN_LABEL: &str = "return-assign-v3";
 const PORT_RETURN_MASK: u32 = 0x00000f00;
 const PORT_RETURN_SHIFT: usize = 8;
+
+impl<O> MotuWhollyCacheableParamsOperation<V3PortAssignParameters> for O
+where
+    O: MotuPortAssignSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut V3PortAssignParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+        deserialize_flag(
+            &mut params.main,
+            &quad,
+            PORT_MAIN_MASK,
+            PORT_MAIN_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_MAIN_LABEL,
+        )?;
+        deserialize_flag(
+            &mut params.mixer_return,
+            &quad,
+            PORT_RETURN_MASK,
+            PORT_RETURN_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_RETURN_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<V3PortAssignParameters> for O
+where
+    O: MotuPortAssignSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &V3PortAssignParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+
+        serialize_flag(
+            &params.main,
+            &mut quad,
+            PORT_MAIN_MASK,
+            PORT_MAIN_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_MAIN_LABEL,
+        )?;
+
+        serialize_flag(
+            &params.mixer_return,
+            &mut quad,
+            PORT_RETURN_MASK,
+            PORT_RETURN_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_RETURN_LABEL,
+        )?;
+
+        write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
+    }
+}
 
 /// The trait for main/return assignment protocol in version 3.
 pub trait V3PortAssignOperation: AssignOperation {
