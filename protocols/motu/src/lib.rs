@@ -272,6 +272,57 @@ const PORT_PHONE_LABEL: &str = "phone-assign";
 const PORT_PHONE_MASK: u32 = 0x0000000f;
 const PORT_PHONE_SHIFT: usize = 0;
 
+/// The parameters of phone assignments.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct PhoneAssignParameters(pub TargetPort);
+
+impl<O> MotuWhollyCacheableParamsOperation<PhoneAssignParameters> for O
+where
+    O: MotuPortAssignSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut PhoneAssignParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+        deserialize_flag(
+            &mut params.0,
+            &quad,
+            PORT_PHONE_MASK,
+            PORT_PHONE_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_PHONE_LABEL,
+        )
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<PhoneAssignParameters> for O
+where
+    O: MotuPortAssignSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &PhoneAssignParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(req, node, OFFSET_PORT, timeout_ms)?;
+        serialize_flag(
+            &params.0,
+            &mut quad,
+            PORT_PHONE_MASK,
+            PORT_PHONE_SHIFT,
+            Self::ASSIGN_PORT_TARGETS,
+            Self::ASSIGN_PORT_VALS,
+            PORT_PHONE_LABEL,
+        )?;
+        write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
+    }
+}
+
 /// The trait for headphone assignment protocol.
 pub trait AssignOperation {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)];
