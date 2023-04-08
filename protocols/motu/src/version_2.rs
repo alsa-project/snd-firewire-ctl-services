@@ -799,15 +799,7 @@ impl UltraliteProtocol {
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 
     /// The target of knob control.
-    pub const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::MainPair, 0x00),
-        (TargetPort::Analog6Pairs, 0x01),
-        (TargetPort::Analog8Pairs, 0x02),
-        (TargetPort::SpdifPair, 0x03),
-    ];
-
-    /// The target of knob control.
-    pub const KNOB_TARGET_PORTS: &'static [TargetPort] = &[
+    pub const KNOB_TARGETS: &'static [TargetPort] = &[
         TargetPort::MainPair,
         TargetPort::Analog6Pairs,
         TargetPort::Analog8Pairs,
@@ -840,7 +832,7 @@ impl MotuWhollyCacheableParamsOperation<UltraliteMainAssign> for UltraliteProtoc
             &quad,
             ULTRALITE_MAIN_ASSIGN_MASK,
             ULTRALITE_MAIN_ASSIGN_SHIFT,
-            Self::KNOB_TARGET_PORTS,
+            Self::KNOB_TARGETS,
             KNOB_TARGET_VALS,
             ULTRALITE_MAIN_ASSIGN_LABEL,
         )
@@ -861,51 +853,11 @@ impl MotuWhollyUpdatableParamsOperation<UltraliteMainAssign> for UltraliteProtoc
             &mut quad,
             ULTRALITE_MAIN_ASSIGN_MASK,
             ULTRALITE_MAIN_ASSIGN_SHIFT,
-            Self::KNOB_TARGET_PORTS,
+            Self::KNOB_TARGETS,
             KNOB_TARGET_VALS,
             ULTRALITE_MAIN_ASSIGN_LABEL,
         )?;
         write_quad(req, node, OFFSET_PORT, quad, timeout_ms)
-    }
-}
-
-impl UltraliteProtocol {
-    pub fn get_main_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_PORT,
-            ULTRALITE_MAIN_ASSIGN_MASK,
-            ULTRALITE_MAIN_ASSIGN_SHIFT,
-            ULTRALITE_MAIN_ASSIGN_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    pub fn set_main_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_PORT,
-            ULTRALITE_MAIN_ASSIGN_MASK,
-            ULTRALITE_MAIN_ASSIGN_SHIFT,
-            ULTRALITE_MAIN_ASSIGN_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
     }
 }
 
