@@ -160,9 +160,14 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct AesebuRateConvertCtl<T: AesebuRateConvertOperation> {
+pub(crate) struct AesebuRateConvertCtl<T>
+where
+    T: MotuAesebuRateConvertSpecification
+        + MotuWhollyCacheableParamsOperation<AesebuRateConvertMode>
+        + MotuWhollyUpdatableParamsOperation<AesebuRateConvertMode>,
+{
     pub elem_id_list: Vec<ElemId>,
-    mode: usize,
+    params: AesebuRateConvertMode,
     _phantom: PhantomData<T>,
 }
 
@@ -177,14 +182,19 @@ fn aesebu_rate_convert_mode_to_str(mode: &AesebuRateConvertMode) -> &'static str
 
 const AESEBU_RATE_CONVERT_MODE_NAME: &str = "AES/EBU-rate-convert";
 
-impl<T: AesebuRateConvertOperation> AesebuRateConvertCtl<T> {
+impl<T> AesebuRateConvertCtl<T>
+where
+    T: MotuAesebuRateConvertSpecification
+        + MotuWhollyCacheableParamsOperation<AesebuRateConvertMode>
+        + MotuWhollyUpdatableParamsOperation<AesebuRateConvertMode>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::get_aesebu_rate_convert_mode(req, node, timeout_ms).map(|mode| self.mode = mode)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -202,7 +212,11 @@ impl<T: AesebuRateConvertOperation> AesebuRateConvertCtl<T> {
     pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => {
-                elem_value.set_enum(&[self.mode as u32]);
+                let pos = T::AESEBU_RATE_CONVERT_MODES
+                    .iter()
+                    .position(|m| self.params.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -219,9 +233,17 @@ impl<T: AesebuRateConvertOperation> AesebuRateConvertCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => {
-                let val = elem_value.enumerated()[0] as usize;
-                T::set_aesebu_rate_convert_mode(req, node, val as usize, timeout_ms)
-                    .map(|_| self.mode = val)?;
+                let pos = elem_value.enumerated()[0] as usize;
+                let params = T::AESEBU_RATE_CONVERT_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg =
+                            format!("Invalid argument for mode of AES/EBU rate convert: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .copied()?;
+                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
                 Ok(true)
             }
             _ => Ok(false),

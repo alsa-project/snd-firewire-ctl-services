@@ -460,57 +460,6 @@ where
     }
 }
 
-/// The trait for protocol of rate convert specific to AES/EBU input/output signals.
-pub trait AesebuRateConvertOperation {
-    const AESEBU_RATE_CONVERT_MASK: u32;
-    const AESEBU_RATE_CONVERT_SHIFT: usize;
-
-    const AESEBU_RATE_CONVERT_VALS: [u8; 4] = [0x00, 0x01, 0x02, 0x03];
-
-    const AESEBU_RATE_CONVERT_MODES: [AesebuRateConvertMode; 4] = [
-        AesebuRateConvertMode::None,
-        AesebuRateConvertMode::InputToSystem,
-        AesebuRateConvertMode::OutputDependsInput,
-        AesebuRateConvertMode::OutputDoubleSystem,
-    ];
-
-    fn get_aesebu_rate_convert_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            OFFSET_CLK,
-            Self::AESEBU_RATE_CONVERT_MASK,
-            Self::AESEBU_RATE_CONVERT_SHIFT,
-            AESEBU_RATE_CONVERT_LABEL,
-            req,
-            node,
-            &Self::AESEBU_RATE_CONVERT_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_aesebu_rate_convert_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            OFFSET_CLK,
-            Self::AESEBU_RATE_CONVERT_MASK,
-            Self::AESEBU_RATE_CONVERT_SHIFT,
-            AESEBU_RATE_CONVERT_LABEL,
-            req,
-            node,
-            &Self::AESEBU_RATE_CONVERT_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-}
-
 /// Mode of hold time for clip and peak LEDs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersHoldTimeMode {
