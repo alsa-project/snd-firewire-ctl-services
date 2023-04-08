@@ -316,8 +316,6 @@ const WORD_OUT_LABEL: &str = "word-out";
 const WORD_OUT_MASK: u32 = 0x08000000;
 const WORD_OUT_SHIFT: usize = 27;
 
-const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
-
 /// The trait for specification of speed of word clock signal in XLR output interface.
 pub trait MotuWordClockOutputSpecification {
     const WORD_CLOCK_OUTPUT_SPEED_MODES: &'static [WordClkSpeedMode] = &[
@@ -373,56 +371,6 @@ impl<O: MotuWordClockOutputSpecification> MotuWhollyUpdatableParamsOperation<Wor
         )?;
 
         write_quad(req, node, OFFSET_CLK, quad, timeout_ms)
-    }
-}
-
-/// The trait for word-clock protocol.
-pub trait WordClkOperation {
-    fn get_word_out(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<WordClkSpeedMode, Error> {
-        get_idx_from_val(
-            OFFSET_CLK,
-            WORD_OUT_MASK,
-            WORD_OUT_SHIFT,
-            WORD_OUT_LABEL,
-            req,
-            node,
-            &WORD_OUT_VALS,
-            timeout_ms,
-        )
-        .map(|val| {
-            if val == 0 {
-                WordClkSpeedMode::ForceLowRate
-            } else {
-                WordClkSpeedMode::FollowSystemClk
-            }
-        })
-    }
-
-    fn set_word_out(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        mode: WordClkSpeedMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let idx = match mode {
-            WordClkSpeedMode::ForceLowRate => 0,
-            WordClkSpeedMode::FollowSystemClk => 1,
-        };
-        set_idx_to_val(
-            OFFSET_CLK,
-            WORD_OUT_MASK,
-            WORD_OUT_SHIFT,
-            WORD_OUT_LABEL,
-            req,
-            node,
-            &WORD_OUT_VALS,
-            idx,
-            timeout_ms,
-        )
     }
 }
 
