@@ -237,83 +237,6 @@ where
     }
 }
 
-/// The trait for optical interface mode in version 2.
-pub trait V2OptIfaceOperation {
-    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
-
-    fn get_opt_in_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            OFFSET_PORT,
-            OPT_IN_IFACE_MASK,
-            OPT_IN_IFACE_SHIFT,
-            OPT_IN_IFACE_LABEL,
-            req,
-            node,
-            OPT_IFACE_MODE_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_opt_in_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            OFFSET_PORT,
-            OPT_IN_IFACE_MASK,
-            OPT_IN_IFACE_SHIFT,
-            OPT_IN_IFACE_LABEL,
-            req,
-            node,
-            OPT_IFACE_MODE_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-
-    fn get_opt_out_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        get_idx_from_val(
-            OFFSET_PORT,
-            OPT_OUT_IFACE_MASK,
-            OPT_OUT_IFACE_SHIFT,
-            OPT_OUT_IFACE_LABEL,
-            req,
-            node,
-            OPT_IFACE_MODE_VALS,
-            timeout_ms,
-        )
-    }
-
-    fn set_opt_out_iface_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        set_idx_to_val(
-            OFFSET_PORT,
-            OPT_OUT_IFACE_MASK,
-            OPT_OUT_IFACE_SHIFT,
-            OPT_OUT_IFACE_LABEL,
-            req,
-            node,
-            OPT_IFACE_MODE_VALS,
-            idx,
-            timeout_ms,
-        )
-    }
-}
-
 /// The protocol implementation for 828mkII.
 #[derive(Default)]
 pub struct F828mk2Protocol;
@@ -362,14 +285,6 @@ impl MotuVersion2OpticalIfaceSpecification for F828mk2Protocol {
         V2OptIfaceMode::None,
         V2OptIfaceMode::Adat,
         V2OptIfaceMode::Spdif,
-    ];
-}
-
-impl V2OptIfaceOperation for F828mk2Protocol {
-    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
-        (V2OptIfaceMode::None, 0x00),
-        (V2OptIfaceMode::Adat, 0x01),
-        (V2OptIfaceMode::Spdif, 0x02),
     ];
 }
 
@@ -498,11 +413,6 @@ impl MotuVersion2OpticalIfaceSpecification for F8preProtocol {
         &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
 }
 
-impl V2OptIfaceOperation for F8preProtocol {
-    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
-        &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
-}
-
 impl RegisterDspMixerOutputOperation for F8preProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
@@ -621,14 +531,6 @@ impl MotuVersion2OpticalIfaceSpecification for TravelerProtocol {
         V2OptIfaceMode::None,
         V2OptIfaceMode::Adat,
         V2OptIfaceMode::Spdif,
-    ];
-}
-
-impl V2OptIfaceOperation for TravelerProtocol {
-    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
-        (V2OptIfaceMode::None, 0x00),
-        (V2OptIfaceMode::Adat, 0x01),
-        (V2OptIfaceMode::Spdif, 0x02),
     ];
 }
 
@@ -1028,11 +930,6 @@ impl MotuVersion2ClockSpecification for F896hdProtocol {
 impl MotuVersion2OpticalIfaceSpecification for F896hdProtocol {
     const OPT_IFACE_MODES: &'static [V2OptIfaceMode] =
         &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
-}
-
-impl V2OptIfaceOperation for F896hdProtocol {
-    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
-        &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
 }
 
 impl RegisterDspMixerOutputOperation for F896hdProtocol {
