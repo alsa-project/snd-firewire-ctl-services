@@ -8,7 +8,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F828mk2 {
     req: FwReq,
-    clk_ctls: V2ClkCtl<F828mk2Protocol>,
+    clk_ctls: V2LcdClkCtl<F828mk2Protocol>,
     opt_iface_ctl: V2OptIfaceCtl<F828mk2Protocol>,
     phone_assign_ctl: RegisterDspPhoneAssignCtl<F828mk2Protocol>,
     word_clk_ctl: WordClockCtl<F828mk2Protocol>,

@@ -235,6 +235,8 @@ impl AssignOperation for F828mk2Protocol {
 
 impl MotuWordClockOutputSpecification for F828mk2Protocol {}
 
+impl MotuClockNameDisplaySpecification for F828mk2Protocol {}
+
 impl V2ClkOperation for F828mk2Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -253,8 +255,6 @@ impl V2ClkOperation for F828mk2Protocol {
 
     const HAS_LCD: bool = true;
 }
-
-impl MotuClockNameDisplaySpecification for F828mk2Protocol {}
 
 impl V2OptIfaceOperation for F828mk2Protocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
@@ -479,6 +479,8 @@ impl AssignOperation for TravelerProtocol {
 
 impl MotuWordClockOutputSpecification for TravelerProtocol {}
 
+impl MotuClockNameDisplaySpecification for TravelerProtocol {}
+
 impl V2ClkOperation for TravelerProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -500,8 +502,6 @@ impl V2ClkOperation for TravelerProtocol {
 
     const HAS_LCD: bool = true;
 }
-
-impl MotuClockNameDisplaySpecification for TravelerProtocol {}
 
 impl V2OptIfaceOperation for TravelerProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
@@ -711,6 +711,8 @@ impl AssignOperation for UltraliteProtocol {
     ];
 }
 
+impl MotuClockNameDisplaySpecification for UltraliteProtocol {}
+
 impl V2ClkOperation for UltraliteProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
@@ -724,8 +726,6 @@ impl V2ClkOperation for UltraliteProtocol {
 
     const HAS_LCD: bool = true;
 }
-
-impl MotuClockNameDisplaySpecification for UltraliteProtocol {}
 
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
