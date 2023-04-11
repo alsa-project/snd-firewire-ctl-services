@@ -631,9 +631,14 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct CommandDspMonitorCtl<T: CommandDspMonitorOperation> {
+pub(crate) struct CommandDspMonitorCtl<T>
+where
+    T: MotuCommandDspMonitorSpecification
+        + MotuCommandDspParametersOperation<CommandDspMonitorState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspMonitorState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: CommandDspMonitorState,
+    params: CommandDspMonitorState,
     _phantom: PhantomData<T>,
 }
 
@@ -643,9 +648,16 @@ const LISTENBACK_ENABLE_NAME: &str = "listenback-enable";
 const TALKBACK_VOLUME_NAME: &str = "talkback-volume";
 const LISTENBACK_VOLUME_NAME: &str = "listenback-volume";
 
-impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
+impl<T> CommandDspMonitorCtl<T>
+where
+    T: MotuCommandDspMonitorSpecification
+        + MotuCommandDspParametersOperation<CommandDspMonitorState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspMonitorState>,
+{
     pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_monitor_commands(&mut self.state, cmds);
+        for cmd in cmds {
+            let _ = T::parse_command(&mut self.params, cmd);
+        }
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -690,23 +702,23 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_VOLUME_NAME => {
-                read_f32_to_i32_value(elem_value, &self.state.main_volume)?;
+                read_f32_to_i32_value(elem_value, &self.params.main_volume)?;
                 Ok(true)
             }
             TALKBACK_ENABLE_NAME => {
-                read_bool_value(elem_value, &self.state.talkback_enable);
+                read_bool_value(elem_value, &self.params.talkback_enable);
                 Ok(true)
             }
             LISTENBACK_ENABLE_NAME => {
-                read_bool_value(elem_value, &self.state.listenback_enable);
+                read_bool_value(elem_value, &self.params.listenback_enable);
                 Ok(true)
             }
             TALKBACK_VOLUME_NAME => {
-                read_f32_to_i32_value(elem_value, &self.state.talkback_volume)?;
+                read_f32_to_i32_value(elem_value, &self.params.talkback_volume)?;
                 Ok(true)
             }
             LISTENBACK_VOLUME_NAME => {
-                read_f32_to_i32_value(elem_value, &self.state.listenback_volume)?;
+                read_f32_to_i32_value(elem_value, &self.params.listenback_volume)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -724,69 +736,69 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_VOLUME_NAME => {
-                let mut state = self.state.clone();
-                write_f32_from_i32_value(&mut state.main_volume, elem_value)?;
-                T::write_monitor_state(
+                let mut params = self.params.clone();
+                write_f32_from_i32_value(&mut params.main_volume, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             TALKBACK_ENABLE_NAME => {
-                let mut state = self.state.clone();
-                write_bool_value(&mut state.talkback_enable, elem_value);
-                T::write_monitor_state(
+                let mut params = self.params.clone();
+                write_bool_value(&mut params.talkback_enable, elem_value);
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             LISTENBACK_ENABLE_NAME => {
-                let mut state = self.state.clone();
-                write_bool_value(&mut state.listenback_enable, elem_value);
-                T::write_monitor_state(
+                let mut params = self.params.clone();
+                write_bool_value(&mut params.listenback_enable, elem_value);
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             TALKBACK_VOLUME_NAME => {
-                let mut state = self.state.clone();
-                write_f32_from_i32_value(&mut state.talkback_volume, elem_value)?;
-                T::write_monitor_state(
+                let mut params = self.params.clone();
+                write_f32_from_i32_value(&mut params.talkback_volume, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             LISTENBACK_VOLUME_NAME => {
-                let mut state = self.state.clone();
-                write_f32_from_i32_value(&mut state.listenback_volume, elem_value)?;
-                T::write_monitor_state(
+                let mut params = self.params.clone();
+                write_f32_from_i32_value(&mut params.listenback_volume, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             _ => Ok(false),
         }

@@ -729,10 +729,6 @@ impl MotuCommandDspMonitorSpecification for F828mk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
 }
 
-impl CommandDspMonitorOperation for F828mk3Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
-}
-
 impl CommandDspMixerOperation for F828mk3Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
@@ -792,10 +788,6 @@ impl CommandDspOperation for F828mk3HybridProtocol {}
 impl MotuCommandDspReverbSpecification for F828mk3HybridProtocol {}
 
 impl MotuCommandDspMonitorSpecification for F828mk3HybridProtocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
-}
-
-impl CommandDspMonitorOperation for F828mk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
 }
 
@@ -1053,10 +1045,6 @@ impl MotuCommandDspMonitorSpecification for UltraliteMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
 
-impl CommandDspMonitorOperation for UltraliteMk3Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
-}
-
 impl CommandDspMixerOperation for UltraliteMk3Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
@@ -1108,10 +1096,6 @@ impl CommandDspOperation for UltraliteMk3HybridProtocol {}
 impl MotuCommandDspReverbSpecification for UltraliteMk3HybridProtocol {}
 
 impl MotuCommandDspMonitorSpecification for UltraliteMk3HybridProtocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
-}
-
-impl CommandDspMonitorOperation for UltraliteMk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
 
@@ -1217,26 +1201,6 @@ impl CommandDspOperation for TravelerMk3Protocol {}
 impl MotuCommandDspReverbSpecification for TravelerMk3Protocol {}
 
 impl MotuCommandDspMonitorSpecification for TravelerMk3Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::AesEbuPair,
-        TargetPort::SpdifPair,
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-        TargetPort::OpticalBPair(0),
-        TargetPort::OpticalBPair(1),
-        TargetPort::OpticalBPair(2),
-        TargetPort::OpticalBPair(3),
-    ];
-}
-
-impl CommandDspMonitorOperation for TravelerMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
         TargetPort::AnalogPair(0),
         TargetPort::AnalogPair(1),
@@ -1513,18 +1477,6 @@ impl CommandDspOperation for Track16Protocol {}
 impl MotuCommandDspReverbSpecification for Track16Protocol {}
 
 impl MotuCommandDspMonitorSpecification for Track16Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-    ];
-}
-
-impl CommandDspMonitorOperation for Track16Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
         TargetPort::AnalogPair(0),
         TargetPort::AnalogPair(1),
