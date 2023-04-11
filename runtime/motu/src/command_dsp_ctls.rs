@@ -94,6 +94,23 @@ fn write_u32_from_i32_values(dst: &mut [u32], src: &ElemValue) -> Result<(), Err
         .try_for_each(|(d, &val)| u32_from_i32(val).map(|v| *d = v))
 }
 
+fn read_bool_value(dst: &mut ElemValue, src: &bool) {
+    dst.set_bool(&[*src]);
+}
+
+fn write_bool_value(dst: &mut bool, src: &ElemValue) {
+    *dst = src.boolean()[0];
+}
+
+fn read_bool_values(dst: &mut ElemValue, src: &[bool]) {
+    dst.set_bool(src);
+}
+
+fn write_bool_values(dst: &mut [bool], src: &ElemValue) {
+    let vals = &src.boolean()[..dst.len()];
+    dst.copy_from_slice(vals);
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
     pub elem_id_list: Vec<ElemId>,
@@ -314,7 +331,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_ENABLE => {
-                elem_value.set_bool(&[self.state.enable]);
+                read_bool_value(elem_value, &self.state.enable);
                 Ok(true)
             }
             REVERB_SPLIT_POINT_NAME => {
@@ -385,7 +402,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
         match elem_id.name().as_str() {
             REVERB_ENABLE => {
                 let mut state = self.state.clone();
-                state.enable = elem_value.boolean()[0];
+                write_bool_value(&mut state.enable, elem_value);
                 T::write_reverb_state(
                     req,
                     node,
@@ -624,11 +641,11 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
                 Ok(true)
             }
             TALKBACK_ENABLE_NAME => {
-                elem_value.set_bool(&[self.state.talkback_enable]);
+                read_bool_value(elem_value, &self.state.talkback_enable);
                 Ok(true)
             }
             LISTENBACK_ENABLE_NAME => {
-                elem_value.set_bool(&[self.state.listenback_enable]);
+                read_bool_value(elem_value, &self.state.listenback_enable);
                 Ok(true)
             }
             TALKBACK_VOLUME_NAME => {
@@ -668,7 +685,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
             }
             TALKBACK_ENABLE_NAME => {
                 let mut state = self.state.clone();
-                state.talkback_enable = elem_value.boolean()[0];
+                write_bool_value(&mut state.talkback_enable, elem_value);
                 T::write_monitor_state(
                     req,
                     node,
@@ -681,7 +698,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
             }
             LISTENBACK_ENABLE_NAME => {
                 let mut state = self.state.clone();
-                state.listenback_enable = elem_value.boolean()[0];
+                write_bool_value(&mut state.listenback_enable, elem_value);
                 T::write_monitor_state(
                     req,
                     node,
@@ -951,7 +968,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                 Ok(true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&self.state.output_mute);
+                read_bool_values(elem_value, &self.state.output_mute);
                 Ok(true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
@@ -972,7 +989,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                elem_value.set_bool(&src.mute);
+                read_bool_values(elem_value, &src.mute);
                 Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
@@ -981,7 +998,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                elem_value.set_bool(&src.solo);
+                read_bool_values(elem_value, &src.solo);
                 Ok(true)
             }
             MIXER_SOURCE_PAN_NAME => {
@@ -1083,8 +1100,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             }
             MIXER_OUTPUT_MUTE_NAME => {
                 let mut state = self.state.clone();
-                let vals = &elem_value.boolean()[..T::MIXER_COUNT];
-                state.output_mute.copy_from_slice(&vals);
+                write_bool_values(&mut state.output_mute, elem_value);
                 T::write_mixer_state(
                     req,
                     node,
@@ -1141,8 +1157,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
-                src.mute.copy_from_slice(&vals);
+                write_bool_values(&mut src.mute, elem_value);
                 T::write_mixer_state(
                     req,
                     node,
@@ -1160,8 +1175,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                let vals = &elem_value.boolean()[..T::SOURCE_PORTS.len()];
-                src.solo.copy_from_slice(&vals);
+                write_bool_values(&mut src.solo, elem_value);
                 T::write_mixer_state(
                     req,
                     node,
@@ -1531,13 +1545,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_bool_values(elem_value: &mut ElemValue, vals: &[bool]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        elem_value.set_bool(vals);
-        Ok(true)
-    }
-
     fn read_int_values(elem_value: &mut ElemValue, vals: &[i32]) -> Result<bool, Error> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
@@ -1613,23 +1620,27 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().enable)
+            read_bool_values(elem_value, &self.state().enable);
+            Ok(true)
         } else if name == Self::HPF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().hpf_enable)
+            read_bool_values(elem_value, &self.state().hpf_enable);
+            Ok(true)
         } else if name == Self::HPF_SLOPE_NAME {
             Self::read_roll_off_level(elem_value, &self.state().hpf_slope)
         } else if name == Self::HPF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().hpf_freq)?;
             Ok(true)
         } else if name == Self::LPF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().lpf_enable)
+            read_bool_values(elem_value, &self.state().lpf_enable);
+            Ok(true)
         } else if name == Self::LPF_SLOPE_NAME {
             Self::read_roll_off_level(elem_value, &self.state().lpf_slope)
         } else if name == Self::LPF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().lpf_freq)?;
             Ok(true)
         } else if name == Self::LF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().lf_enable)
+            read_bool_values(elem_value, &self.state().lf_enable);
+            Ok(true)
         } else if name == Self::LF_TYPE_NAME {
             Self::read_filter_type_5(elem_value, &self.state().lf_type)
         } else if name == Self::LF_FREQ_NAME {
@@ -1642,7 +1653,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().lf_width)?;
             Ok(true)
         } else if name == Self::LMF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().lmf_enable)
+            read_bool_values(elem_value, &self.state().lmf_enable);
+            Ok(true)
         } else if name == Self::LMF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().lmf_type)
         } else if name == Self::LMF_FREQ_NAME {
@@ -1655,7 +1667,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().lmf_width)?;
             Ok(true)
         } else if name == Self::MF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().mf_enable)
+            read_bool_values(elem_value, &self.state().mf_enable);
+            Ok(true)
         } else if name == Self::MF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().mf_type)
         } else if name == Self::MF_FREQ_NAME {
@@ -1668,7 +1681,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().mf_width)?;
             Ok(true)
         } else if name == Self::HMF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().hmf_enable)
+            read_bool_values(elem_value, &self.state().hmf_enable);
+            Ok(true)
         } else if name == Self::HMF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().hmf_type)
         } else if name == Self::HMF_FREQ_NAME {
@@ -1681,7 +1695,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().hmf_width)?;
             Ok(true)
         } else if name == Self::HF_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().hf_enable)
+            read_bool_values(elem_value, &self.state().hf_enable);
+            Ok(true)
         } else if name == Self::HF_TYPE_NAME {
             Self::read_filter_type_5(elem_value, &self.state().hf_type)
         } else if name == Self::HF_FREQ_NAME {
@@ -1696,25 +1711,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_bool_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[bool]),
-    {
-        let vals = &elem_value.boolean()[..Self::CH_COUNT];
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
     }
 
     fn write_int_values<F>(
@@ -1838,27 +1834,15 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::HPF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hpf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.hpf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::HPF_SLOPE_NAME {
             self.write_roll_off_level(
                 sequence_number,
@@ -1873,16 +1857,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_u32_from_i32_values(&mut state.hpf_freq, elem_value)
             })
         } else if name == Self::LPF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lpf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.lpf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::LPF_SLOPE_NAME {
             self.write_roll_off_level(
                 sequence_number,
@@ -1897,16 +1875,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_u32_from_i32_values(&mut state.lpf_freq, elem_value)
             })
         } else if name == Self::LF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.lpf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::LF_TYPE_NAME {
             self.write_filter_type_5(
                 sequence_number,
@@ -1929,16 +1901,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.lf_width, elem_value)
             })
         } else if name == Self::LMF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lmf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.lmf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::LMF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
@@ -1961,16 +1927,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.lmf_width, elem_value)
             })
         } else if name == Self::MF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.mf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.mf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::MF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
@@ -1993,16 +1953,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.mf_width, elem_value)
             })
         } else if name == Self::HMF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hmf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.hmf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::HMF_TYPE_NAME {
             self.write_filter_type_4(
                 sequence_number,
@@ -2025,16 +1979,10 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.hmf_width, elem_value)
             })
         } else if name == Self::HF_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hf_enable.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.hf_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::HF_TYPE_NAME {
             self.write_filter_type_5(
                 sequence_number,
@@ -2251,13 +2199,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_bool_values(elem_value: &mut ElemValue, vals: &[bool]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        elem_value.set_bool(vals);
-        Ok(true)
-    }
-
     fn read_int_values(elem_value: &mut ElemValue, vals: &[i32]) -> Result<bool, Error> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
@@ -2307,9 +2248,11 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().enable)
+            read_bool_values(elem_value, &self.state().enable);
+            Ok(true)
         } else if name == Self::COMP_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().comp_enable)
+            read_bool_values(elem_value, &self.state().comp_enable);
+            Ok(true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
             Self::read_level_detect_mode(elem_value, &self.state().comp_detect_mode)
         } else if name == Self::COMP_THRESHOLD_NAME {
@@ -2327,7 +2270,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().comp_gain)?;
             Ok(true)
         } else if name == Self::LEVELER_ENABLE_NAME {
-            Self::read_bool_values(elem_value, &self.state().leveler_enable)
+            read_bool_values(elem_value, &self.state().leveler_enable);
+            Ok(true)
         } else if name == Self::LEVELER_MODE_NAME {
             Self::read_leveler_mode(elem_value, &self.state().leveler_mode)
         } else if name == Self::LEVELER_MAKEUP_NAME {
@@ -2339,25 +2283,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_bool_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[bool]),
-    {
-        let vals = &elem_value.boolean()[..Self::CH_COUNT];
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
     }
 
     fn write_int_values<F>(
@@ -2451,23 +2376,15 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.enable.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::COMP_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_enable.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.comp_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::COMP_DETECT_MODE_NAME {
             self.write_level_detect_mode(
                 sequence_number,
@@ -2503,14 +2420,10 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.comp_gain, elem_value)
             })
         } else if name == Self::LEVELER_ENABLE_NAME {
-            self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.leveler_enable.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.leveler_enable, elem_value);
+                Ok(())
+            })
         } else if name == Self::LEVELER_MODE_NAME {
             self.write_leveler_mode(
                 sequence_number,
@@ -2710,11 +2623,11 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_PHASE_NAME => {
-                elem_value.set_bool(&self.state.phase);
+                read_bool_values(elem_value, &self.state.phase);
                 Ok(true)
             }
             INPUT_PAIR_NAME => {
-                elem_value.set_bool(&self.state.pair);
+                read_bool_values(elem_value, &self.state.pair);
                 Ok(true)
             }
             INPUT_GAIN_NAME => {
@@ -2722,7 +2635,7 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(true)
             }
             INPUT_SWAP_NAME => {
-                elem_value.set_bool(&self.state.swap);
+                read_bool_values(elem_value, &self.state.swap);
                 Ok(true)
             }
             INPUT_STEREO_MODE_NAME => {
@@ -2754,23 +2667,23 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.state.pad);
+                read_bool_values(elem_value, &self.state.pad);
                 Ok(true)
             }
             MIC_PHANTOM_NAME => {
-                elem_value.set_bool(&self.state.phantom);
+                read_bool_values(elem_value, &self.state.phantom);
                 Ok(true)
             }
             MIC_LIMITTER_NAME => {
-                elem_value.set_bool(&self.state.limitter);
+                read_bool_values(elem_value, &self.state.limitter);
                 Ok(true)
             }
             MIC_LOOKAHEAD_NAME => {
-                elem_value.set_bool(&self.state.lookahead);
+                read_bool_values(elem_value, &self.state.lookahead);
                 Ok(true)
             }
             MIC_SOFT_CLIP_NAME => {
-                elem_value.set_bool(&self.state.soft_clip);
+                read_bool_values(elem_value, &self.state.soft_clip);
                 Ok(true)
             }
             _ => Ok(false),
@@ -2787,20 +2700,14 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            INPUT_PHASE_NAME => {
-                let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.phase.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
-            INPUT_PAIR_NAME => {
-                let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.pair.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
+            INPUT_PHASE_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.phase, elem_value);
+                Ok(())
+            }),
+            INPUT_PAIR_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.pair, elem_value);
+                Ok(())
+            }),
             INPUT_GAIN_NAME => {
                 let vals = &elem_value.int()[..T::INPUT_PORTS.len()];
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
@@ -2808,13 +2715,10 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                     Ok(())
                 })
             }
-            INPUT_SWAP_NAME => {
-                let vals = &elem_value.boolean()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.swap.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
+            INPUT_SWAP_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.swap, elem_value);
+                Ok(())
+            }),
             INPUT_STEREO_MODE_NAME => {
                 let vals = &elem_value.enumerated()[..T::INPUT_PORTS.len()];
                 let mut modes = Vec::new();
@@ -2846,38 +2750,29 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                     write_f32_from_i32_values(&mut state.reverb_balance, elem_value)
                 })
             }
-            MIC_PAD_NAME => {
-                let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.pad.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
-            MIC_PHANTOM_NAME => {
-                let vals = &elem_value.boolean()[..T::MIC_COUNT];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.phantom.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
+            MIC_PAD_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.pad, elem_value);
+                Ok(())
+            }),
+            MIC_PHANTOM_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_bool_values(&mut state.phantom, elem_value);
+                Ok(())
+            }),
             MIC_LIMITTER_NAME => {
-                let vals = &elem_value.boolean()[..T::MIC_COUNT];
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.limitter.copy_from_slice(&vals);
+                    write_bool_values(&mut state.limitter, elem_value);
                     Ok(())
                 })
             }
             MIC_LOOKAHEAD_NAME => {
-                let vals = &elem_value.boolean()[..T::MIC_COUNT];
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.lookahead.copy_from_slice(&vals);
+                    write_bool_values(&mut state.lookahead, elem_value);
                     Ok(())
                 })
             }
             MIC_SOFT_CLIP_NAME => {
-                let vals = &elem_value.boolean()[..T::MIC_COUNT];
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.soft_clip.copy_from_slice(&vals);
+                    write_bool_values(&mut state.soft_clip, elem_value);
                     Ok(())
                 })
             }
@@ -3101,11 +2996,6 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
         Ok(())
     }
 
-    fn read_bool_values(elem_value: &mut ElemValue, vals: &[bool]) -> Result<bool, Error> {
-        elem_value.set_bool(&vals);
-        Ok(true)
-    }
-
     pub(crate) fn read(
         &mut self,
         elem_id: &ElemId,
@@ -3121,35 +3011,19 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
                 Ok(true)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
-                Self::read_bool_values(elem_value, &self.state.master_monitor)
+                read_bool_values(elem_value, &self.state.master_monitor);
+                Ok(true)
             }
             OUTPUT_MASTER_TALKBACK_NAME => {
-                Self::read_bool_values(elem_value, &self.state.master_talkback)
+                read_bool_values(elem_value, &self.state.master_talkback);
+                Ok(true)
             }
             OUTPUT_MASTER_LISTENBACK_NAME => {
-                Self::read_bool_values(elem_value, &self.state.master_listenback)
+                read_bool_values(elem_value, &self.state.master_listenback);
+                Ok(true)
             }
             _ => Ok(false),
         }
-    }
-
-    fn write_bool_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspOutputState, &[bool]),
-    {
-        let vals = &elem_value.boolean()[..T::OUTPUT_PORTS.len()];
-        self.write_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
     }
 
     pub(crate) fn write(
@@ -3172,36 +3046,24 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
                     write_f32_from_i32_values(&mut state.reverb_return, elem_value)
                 })
             }
-            OUTPUT_MASTER_MONITOR_NAME => self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.master_monitor.copy_from_slice(&vals);
-                },
-            ),
-            OUTPUT_MASTER_TALKBACK_NAME => self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.master_talkback.copy_from_slice(&vals);
-                },
-            ),
-            OUTPUT_MASTER_LISTENBACK_NAME => self.write_bool_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.master_listenback.copy_from_slice(&vals);
-                },
-            ),
+            OUTPUT_MASTER_MONITOR_NAME => {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    write_bool_values(&mut state.master_monitor, elem_value);
+                    Ok(())
+                })
+            }
+            OUTPUT_MASTER_TALKBACK_NAME => {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    write_bool_values(&mut state.master_talkback, elem_value);
+                    Ok(())
+                })
+            }
+            OUTPUT_MASTER_LISTENBACK_NAME => {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    write_bool_values(&mut state.master_listenback, elem_value);
+                    Ok(())
+                })
+            }
             _ => Ok(false),
         }
     }
