@@ -1287,7 +1287,6 @@ impl MotuCommandDspMixerSpecification for TravelerMk3Protocol {
     ];
 }
 
-
 impl MotuCommandDspEqualizerSpecification for TravelerMk3Protocol {}
 
 impl MotuCommandDspDynamicsSpecification for TravelerMk3Protocol {}

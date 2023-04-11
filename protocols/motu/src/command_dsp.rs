@@ -331,30 +331,6 @@ pub enum DynamicsParameter {
     LevelerReduce(u32),
 }
 
-impl DynamicsParameter {
-    pub const THRESHOLD_MIN: i32 = -48;
-    pub const THRESHOLD_MAX: i32 = 0;
-    pub const THRESHOLD_STEP: i32 = 1;
-
-    pub const RATIO_MIN: f32 = 1.0;
-    pub const RATIO_MAX: f32 = 10.0;
-
-    pub const ATTACK_MIN: i32 = 10;
-    pub const ATTACK_MAX: i32 = 100;
-    pub const ATTACK_STEP: i32 = 1;
-
-    pub const RELEASE_MIN: i32 = 10;
-    pub const RELEASE_MAX: i32 = 100;
-    pub const RELEASE_STEP: i32 = 1;
-
-    pub const GAIN_MIN: f32 = -6.0;
-    pub const GAIN_MAX: f32 = 0.0;
-
-    pub const PERCENTAGE_MIN: u32 = 0;
-    pub const PERCENTAGE_MAX: u32 = 100;
-    pub const PERCENTAGE_STEP: u32 = 1;
-}
-
 fn to_bool(raw: &[u8]) -> bool {
     assert_eq!(raw.len(), 1);
 
