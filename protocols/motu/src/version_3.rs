@@ -736,6 +736,8 @@ impl MotuCommandDspMixerSpecification for F828mk3Protocol {
 
 impl MotuCommandDspEqualizerSpecification for F828mk3Protocol {}
 
+impl MotuCommandDspDynamicsSpecification for F828mk3Protocol {}
+
 impl CommandDspInputOperation for F828mk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 0;
@@ -794,6 +796,8 @@ impl MotuCommandDspMonitorSpecification for F828mk3HybridProtocol {
 }
 
 impl MotuCommandDspEqualizerSpecification for F828mk3HybridProtocol {}
+
+impl MotuCommandDspDynamicsSpecification for F828mk3HybridProtocol {}
 
 impl MotuCommandDspMixerSpecification for F828mk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
@@ -1051,6 +1055,8 @@ impl MotuCommandDspMonitorSpecification for UltraliteMk3Protocol {
 
 impl MotuCommandDspEqualizerSpecification for UltraliteMk3Protocol {}
 
+impl MotuCommandDspDynamicsSpecification for UltraliteMk3Protocol {}
+
 impl MotuCommandDspMixerSpecification for UltraliteMk3Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
@@ -1106,6 +1112,8 @@ impl MotuCommandDspMonitorSpecification for UltraliteMk3HybridProtocol {
 }
 
 impl MotuCommandDspEqualizerSpecification for UltraliteMk3HybridProtocol {}
+
+impl MotuCommandDspDynamicsSpecification for UltraliteMk3HybridProtocol {}
 
 impl MotuCommandDspMixerSpecification for UltraliteMk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
@@ -1279,7 +1287,10 @@ impl MotuCommandDspMixerSpecification for TravelerMk3Protocol {
     ];
 }
 
+
 impl MotuCommandDspEqualizerSpecification for TravelerMk3Protocol {}
+
+impl MotuCommandDspDynamicsSpecification for TravelerMk3Protocol {}
 
 impl CommandDspInputOperation for TravelerMk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
@@ -1532,6 +1543,8 @@ impl MotuCommandDspMixerSpecification for Track16Protocol {
 }
 
 impl MotuCommandDspEqualizerSpecification for Track16Protocol {}
+
+impl MotuCommandDspDynamicsSpecification for Track16Protocol {}
 
 impl CommandDspInputOperation for Track16Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
