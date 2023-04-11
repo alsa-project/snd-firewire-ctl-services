@@ -744,6 +744,10 @@ impl MotuCommandDspInputSpecification for F828mk3Protocol {
     const LINE_INPUT_COUNT: usize = 0;
 }
 
+impl MotuCommandDspOutputSpecification for F828mk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
+}
+
 impl CommandDspOutputOperation for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
@@ -809,6 +813,10 @@ impl MotuCommandDspInputSpecification for F828mk3HybridProtocol {
     // The mic functions are not configureble by command. They are just hard-wired.
     const MIC_COUNT: usize = 0;
     const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl MotuCommandDspOutputSpecification for F828mk3HybridProtocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
 
 impl CommandDspOutputOperation for F828mk3HybridProtocol {
@@ -1069,6 +1077,10 @@ impl MotuCommandDspInputSpecification for UltraliteMk3Protocol {
     const LINE_INPUT_COUNT: usize = 0;
 }
 
+impl MotuCommandDspOutputSpecification for UltraliteMk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
+}
+
 impl CommandDspOutputOperation for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
@@ -1124,6 +1136,10 @@ impl MotuCommandDspInputSpecification for UltraliteMk3HybridProtocol {
     const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 2;
     const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl MotuCommandDspOutputSpecification for UltraliteMk3HybridProtocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
 
 impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
@@ -1324,6 +1340,26 @@ impl MotuCommandDspInputSpecification for TravelerMk3Protocol {
     ];
     const MIC_COUNT: usize = 4;
     const LINE_INPUT_COUNT: usize = 4;
+}
+
+impl MotuCommandDspOutputSpecification for TravelerMk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+        TargetPort::OpticalBPair(0),
+        TargetPort::OpticalBPair(1),
+        TargetPort::OpticalBPair(2),
+        TargetPort::OpticalBPair(3),
+    ];
 }
 
 impl CommandDspOutputOperation for TravelerMk3Protocol {
@@ -1566,6 +1602,18 @@ impl MotuCommandDspInputSpecification for Track16Protocol {
     ];
     const MIC_COUNT: usize = 2;
     const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl MotuCommandDspOutputSpecification for Track16Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+    ];
 }
 
 impl CommandDspOutputOperation for Track16Protocol {
