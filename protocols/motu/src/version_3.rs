@@ -753,11 +753,6 @@ impl MotuCommandDspMeterSpecification for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
 }
 
-impl CommandDspMeterOperation for F828mk3Protocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
-}
-
 impl F828mk3Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
@@ -821,11 +816,6 @@ impl MotuCommandDspOutputSpecification for F828mk3HybridProtocol {
 }
 
 impl MotuCommandDspMeterSpecification for F828mk3HybridProtocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
-}
-
-impl CommandDspMeterOperation for F828mk3HybridProtocol {
     const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
     const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
 }
@@ -1094,11 +1084,6 @@ impl MotuCommandDspMeterSpecification for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
 }
 
-impl CommandDspMeterOperation for UltraliteMk3Protocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_INPUT_PORTS;
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
-}
-
 /// The protocol implementation for Ultralite mk3 Hybrid.
 #[derive(Default)]
 pub struct UltraliteMk3HybridProtocol;
@@ -1146,11 +1131,6 @@ impl MotuCommandDspOutputSpecification for UltraliteMk3HybridProtocol {
 }
 
 impl MotuCommandDspMeterSpecification for UltraliteMk3HybridProtocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_INPUT_PORTS;
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
-}
-
-impl CommandDspMeterOperation for UltraliteMk3HybridProtocol {
     const INPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_INPUT_PORTS;
     const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
 }
@@ -1459,99 +1439,6 @@ impl MotuCommandDspMeterSpecification for TravelerMk3Protocol {
     ];
 }
 
-impl CommandDspMeterOperation for TravelerMk3Protocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = &[
-        (TargetPort::Analog(0), 4),
-        (TargetPort::Analog(1), 5),
-        (TargetPort::Analog(2), 6),
-        (TargetPort::Analog(3), 7),
-        (TargetPort::Analog(4), 8),
-        (TargetPort::Analog(5), 9),
-        (TargetPort::Analog(6), 10),
-        (TargetPort::Analog(7), 11),
-        (TargetPort::AesEbu(0), 14),
-        (TargetPort::AesEbu(1), 15),
-        (TargetPort::Spdif(0), 12),
-        (TargetPort::Spdif(1), 13),
-        (TargetPort::OpticalA(0), 16),
-        (TargetPort::OpticalA(1), 17),
-        (TargetPort::OpticalA(2), 18),
-        (TargetPort::OpticalA(3), 19),
-        (TargetPort::OpticalA(4), 20),
-        (TargetPort::OpticalA(5), 21),
-        (TargetPort::OpticalA(6), 22),
-        (TargetPort::OpticalA(7), 23),
-        (TargetPort::OpticalB(0), 24),
-        (TargetPort::OpticalB(1), 25),
-        (TargetPort::OpticalB(2), 26),
-        (TargetPort::OpticalB(3), 27),
-        (TargetPort::OpticalB(4), 28),
-        (TargetPort::OpticalB(5), 29),
-        (TargetPort::OpticalB(6), 30),
-        (TargetPort::OpticalB(7), 31),
-        (TargetPort::Analog(0), 48),
-        (TargetPort::Analog(1), 49),
-        (TargetPort::Analog(2), 50),
-        (TargetPort::Analog(3), 51),
-        (TargetPort::Analog(4), 52),
-        (TargetPort::Analog(5), 53),
-        (TargetPort::Analog(6), 54),
-        (TargetPort::Analog(7), 55),
-        (TargetPort::AesEbu(0), 58),
-        (TargetPort::AesEbu(1), 59),
-        (TargetPort::Spdif(0), 56),
-        (TargetPort::Spdif(1), 57),
-        (TargetPort::OpticalA(0), 60),
-        (TargetPort::OpticalA(1), 61),
-        (TargetPort::OpticalA(2), 62),
-        (TargetPort::OpticalA(3), 63),
-        (TargetPort::OpticalA(4), 64),
-        (TargetPort::OpticalA(5), 65),
-        (TargetPort::OpticalA(6), 66),
-        (TargetPort::OpticalA(7), 67),
-        (TargetPort::OpticalB(0), 68),
-        (TargetPort::OpticalB(1), 69),
-        (TargetPort::OpticalB(2), 70),
-        (TargetPort::OpticalB(3), 71),
-        (TargetPort::OpticalB(4), 72),
-        (TargetPort::OpticalB(5), 73),
-        (TargetPort::OpticalB(6), 74),
-        (TargetPort::OpticalB(7), 75),
-    ];
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = &[
-        (TargetPort::Phone(0), 88),
-        (TargetPort::Phone(1), 89),
-        (TargetPort::Analog(0), 78),
-        (TargetPort::Analog(1), 79),
-        (TargetPort::Analog(2), 80),
-        (TargetPort::Analog(3), 81),
-        (TargetPort::Analog(4), 82),
-        (TargetPort::Analog(5), 83),
-        (TargetPort::Analog(6), 84),
-        (TargetPort::Analog(7), 85),
-        (TargetPort::AesEbu(0), 86),
-        (TargetPort::AesEbu(1), 87),
-        (TargetPort::Spdif(0), 76),
-        (TargetPort::Spdif(1), 77),
-        (TargetPort::OpticalA(0), 90),
-        (TargetPort::OpticalA(1), 91),
-        (TargetPort::OpticalA(2), 92),
-        (TargetPort::OpticalA(3), 93),
-        (TargetPort::OpticalA(4), 94),
-        (TargetPort::OpticalA(5), 95),
-        (TargetPort::OpticalA(6), 96),
-        (TargetPort::OpticalA(7), 97),
-        (TargetPort::OpticalB(0), 98),
-        (TargetPort::OpticalB(1), 99),
-        (TargetPort::OpticalB(2), 100),
-        (TargetPort::OpticalB(3), 101),
-        (TargetPort::OpticalB(4), 102),
-        (TargetPort::OpticalB(5), 103),
-        (TargetPort::OpticalB(6), 104),
-        (TargetPort::OpticalB(7), 105),
-    ];
-}
-
 impl TravelerMk3Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
@@ -1694,40 +1581,6 @@ impl MotuCommandDspOutputSpecification for Track16Protocol {
 }
 
 impl MotuCommandDspMeterSpecification for Track16Protocol {
-    const INPUT_PORTS: &'static [(TargetPort, usize)] = &[
-        (TargetPort::Analog(0), 2),
-        (TargetPort::Analog(1), 3),
-        (TargetPort::Analog(2), 4),
-        (TargetPort::Analog(3), 5),
-        (TargetPort::Analog(4), 6),
-        (TargetPort::Analog(5), 7),
-        (TargetPort::Adat(0), 10),
-        (TargetPort::Adat(1), 11),
-        (TargetPort::Adat(2), 12),
-        (TargetPort::Adat(3), 13),
-        (TargetPort::Adat(4), 14),
-        (TargetPort::Adat(5), 15),
-        (TargetPort::Adat(6), 16),
-        (TargetPort::Adat(7), 17),
-    ];
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = &[
-        (TargetPort::Main(0), 50),
-        (TargetPort::Main(1), 51),
-        (TargetPort::Analog(0), 52),
-        (TargetPort::Analog(1), 53),
-        (TargetPort::Phone(0), 54),
-        (TargetPort::Adat(0), 55),
-        (TargetPort::Adat(1), 56),
-        (TargetPort::Adat(2), 57),
-        (TargetPort::Adat(3), 58),
-        (TargetPort::Adat(4), 59),
-        (TargetPort::Adat(5), 60),
-        (TargetPort::Adat(6), 61),
-        (TargetPort::Adat(7), 62),
-    ];
-}
-
-impl CommandDspMeterOperation for Track16Protocol {
     const INPUT_PORTS: &'static [(TargetPort, usize)] = &[
         (TargetPort::Analog(0), 2),
         (TargetPort::Analog(1), 3),

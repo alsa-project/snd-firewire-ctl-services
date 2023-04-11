@@ -3237,35 +3237,6 @@ where
     }
 }
 
-/// The trait for meter operation.
-pub trait CommandDspMeterOperation {
-    const INPUT_PORTS: &'static [(TargetPort, usize)];
-    const OUTPUT_PORTS: &'static [(TargetPort, usize)];
-
-    const LEVEL_MIN: f32 = 0.0;
-    const LEVEL_MAX: f32 = 1.0;
-
-    fn create_meter_state() -> CommandDspMeterState {
-        CommandDspMeterState {
-            inputs: vec![0.0; Self::INPUT_PORTS.len()],
-            outputs: vec![0.0; Self::OUTPUT_PORTS.len()],
-        }
-    }
-
-    fn parse_dsp_meter(state: &mut CommandDspMeterState, meter: &[f32]) {
-        state
-            .inputs
-            .iter_mut()
-            .zip(Self::INPUT_PORTS)
-            .for_each(|(m, &(_, pos))| *m = meter[pos]);
-        state
-            .outputs
-            .iter_mut()
-            .zip(Self::OUTPUT_PORTS)
-            .for_each(|(m, &(_, pos))| *m = meter[pos]);
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
