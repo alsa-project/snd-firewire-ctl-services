@@ -2006,6 +2006,53 @@ impl CommandDspMessageHandler {
     }
 }
 
+/// The trait for parameter operations.
+pub trait MotuCommandDspParametersOperation<T> {
+    /// Build DSP commands for parameters.
+    fn build_commands(params: &T) -> Vec<DspCmd>;
+    /// Parse DSP command for parameters.
+    fn parse_command(params: &mut T, command: &DspCmd) -> bool;
+}
+
+/// The trait for DSP image operations.
+pub trait MotuCommandDspImageOperation<T, U> {
+    /// Parse image transferred in the series of isochronous packets.
+    fn parse_image(params: &mut T, image: &U);
+}
+
+/// The trait for operation to update parameters.
+pub trait MotuCommandDspUpdatableParamsOperation<T> {
+    /// Update the part of parameters.
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut T,
+        updates: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+impl<O, T> MotuCommandDspUpdatableParamsOperation<T> for O
+where
+    O: CommandDspOperation + MotuCommandDspParametersOperation<T>,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut T,
+        updates: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new_cmds = O::build_commands(&updates);
+        let old_cmds = O::build_commands(params);
+        new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
+        Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms)
+            .map(|_| *params = updates)
+    }
+}
+
 /// State of reverb function.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspReverbState {
