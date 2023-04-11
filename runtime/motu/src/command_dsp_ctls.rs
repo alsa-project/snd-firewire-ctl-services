@@ -1371,10 +1371,15 @@ fn filter_type_4_to_str(filter_type: &FilterType4) -> &'static str {
 }
 
 // TODO: better trait parameters to distinguish input and output.
-pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
+pub trait CommandDspEqualizerCtlOperation<T, U>
+where
+    T: MotuCommandDspEqualizerSpecification,
+    U: Clone + AsRef<CommandDspEqualizerState> + AsMut<CommandDspEqualizerState>,
+{
     const CH_COUNT: usize;
 
-    fn state(&self) -> &CommandDspEqualizerState;
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
 
     const ENABLE_NAME: &'static str;
 
@@ -1521,9 +1526,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    u32_to_i32(EqualizerParameter::FREQ_MIN)?,
-                    u32_to_i32(EqualizerParameter::FREQ_MAX)?,
-                    u32_to_i32(EqualizerParameter::FREQ_STEP)?,
+                    u32_to_i32(T::EQUALIZER_FREQ_MIN)?,
+                    u32_to_i32(T::EQUALIZER_FREQ_MAX)?,
+                    u32_to_i32(T::EQUALIZER_FREQ_STEP)?,
                     Self::CH_COUNT,
                     None,
                     true,
@@ -1546,8 +1551,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    f32_to_i32(EqualizerParameter::GAIN_MIN)?,
-                    f32_to_i32(EqualizerParameter::GAIN_MAX)?,
+                    f32_to_i32(T::EQUALIZER_GAIN_MIN)?,
+                    f32_to_i32(T::EQUALIZER_GAIN_MAX)?,
                     1,
                     Self::CH_COUNT,
                     None,
@@ -1571,8 +1576,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    f32_to_i32(EqualizerParameter::WIDTH_MIN)?,
-                    f32_to_i32(EqualizerParameter::WIDTH_MAX)?,
+                    f32_to_i32(T::EQUALIZER_WIDTH_MIN)?,
+                    f32_to_i32(T::EQUALIZER_WIDTH_MAX)?,
                     1,
                     Self::CH_COUNT,
                     None,
@@ -1592,100 +1597,132 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.enable);
             Ok(true)
         } else if name == Self::HPF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().hpf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.hpf_enable);
             Ok(true)
         } else if name == Self::HPF_SLOPE_NAME {
-            read_enum_values(elem_value, &self.state().hpf_slope, &Self::ROLL_OFF_LEVELS);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.hpf_slope, &Self::ROLL_OFF_LEVELS);
             Ok(true)
         } else if name == Self::HPF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().hpf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.hpf_freq)?;
             Ok(true)
         } else if name == Self::LPF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().lpf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.lpf_enable);
             Ok(true)
         } else if name == Self::LPF_SLOPE_NAME {
-            read_enum_values(elem_value, &self.state().lpf_slope, &Self::ROLL_OFF_LEVELS);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.lpf_slope, &Self::ROLL_OFF_LEVELS);
             Ok(true)
         } else if name == Self::LPF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().lpf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.lpf_freq)?;
             Ok(true)
         } else if name == Self::LF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().lf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.lf_enable);
             Ok(true)
         } else if name == Self::LF_TYPE_NAME {
-            read_enum_values(elem_value, &self.state().lf_type, &Self::FILTER_TYPE_5);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.lf_type, &Self::FILTER_TYPE_5);
             Ok(true)
         } else if name == Self::LF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().lf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.lf_freq)?;
             Ok(true)
         } else if name == Self::LF_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().lf_gain)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.lf_gain)?;
             Ok(true)
         } else if name == Self::LF_WIDTH_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().lf_width)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.lf_width)?;
             Ok(true)
         } else if name == Self::LMF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().lmf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.lmf_enable);
             Ok(true)
         } else if name == Self::LMF_TYPE_NAME {
-            read_enum_values(elem_value, &self.state().lmf_type, &Self::FILTER_TYPE_4);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.lmf_type, &Self::FILTER_TYPE_4);
             Ok(true)
         } else if name == Self::LMF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().lmf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.lmf_freq)?;
             Ok(true)
         } else if name == Self::LMF_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().lmf_gain)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.lmf_gain)?;
             Ok(true)
         } else if name == Self::LMF_WIDTH_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().lmf_width)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.lmf_width)?;
             Ok(true)
         } else if name == Self::MF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().mf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.mf_enable);
             Ok(true)
         } else if name == Self::MF_TYPE_NAME {
-            read_enum_values(elem_value, &self.state().mf_type, &Self::FILTER_TYPE_4);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.mf_type, &Self::FILTER_TYPE_4);
             Ok(true)
         } else if name == Self::MF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().mf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.mf_freq)?;
             Ok(true)
         } else if name == Self::MF_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().mf_gain)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.mf_gain)?;
             Ok(true)
         } else if name == Self::MF_WIDTH_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().mf_width)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.mf_width)?;
             Ok(true)
         } else if name == Self::HMF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().hmf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.hmf_enable);
             Ok(true)
         } else if name == Self::HMF_TYPE_NAME {
-            read_enum_values(elem_value, &self.state().hmf_type, &Self::FILTER_TYPE_4);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.hmf_type, &Self::FILTER_TYPE_4);
             Ok(true)
         } else if name == Self::HMF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().hmf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.hmf_freq)?;
             Ok(true)
         } else if name == Self::HMF_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().hmf_gain)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.hmf_gain)?;
             Ok(true)
         } else if name == Self::HMF_WIDTH_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().hmf_width)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.hmf_width)?;
             Ok(true)
         } else if name == Self::HF_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().hf_enable);
+            let equalizer = self.params().as_ref();
+            read_bool_values(elem_value, &equalizer.hf_enable);
             Ok(true)
         } else if name == Self::HF_TYPE_NAME {
-            read_enum_values(elem_value, &self.state().hf_type, &Self::FILTER_TYPE_5);
+            let equalizer = self.params().as_ref();
+            read_enum_values(elem_value, &equalizer.hf_type, &Self::FILTER_TYPE_5);
             Ok(true)
         } else if name == Self::HF_FREQ_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().hf_freq)?;
+            let equalizer = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &equalizer.hf_freq)?;
             Ok(true)
         } else if name == Self::HF_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().hf_gain)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.hf_gain)?;
             Ok(true)
         } else if name == Self::HF_WIDTH_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().hf_width)?;
+            let equalizer = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &equalizer.hf_width)?;
             Ok(true)
         } else {
             Ok(false)
@@ -1704,156 +1741,434 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HPF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.hpf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.hpf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HPF_SLOPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.hpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.hpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HPF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.hpf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.hpf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LPF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.lpf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.lpf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LPF_SLOPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.lpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.lpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LPF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.lpf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.lpf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.lpf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.lpf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LF_TYPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.lf_type, elem_value, &Self::FILTER_TYPE_5)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.lf_type, elem_value, &Self::FILTER_TYPE_5)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.lf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.lf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LF_GAIN_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.lf_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.lf_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LF_WIDTH_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.lf_width, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.lf_width, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LMF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.lmf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.lmf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LMF_TYPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.lmf_type, elem_value, &Self::FILTER_TYPE_4)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.lmf_type, elem_value, &Self::FILTER_TYPE_4)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LMF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.lmf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.lmf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LMF_GAIN_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.lmf_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.lmf_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LMF_WIDTH_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.lmf_width, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.lmf_width, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::MF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.mf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.mf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::MF_TYPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.mf_type, elem_value, &Self::FILTER_TYPE_4)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.mf_type, elem_value, &Self::FILTER_TYPE_4)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::MF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.mf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.mf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::MF_GAIN_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.mf_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.mf_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::MF_WIDTH_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.mf_width, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.mf_width, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HMF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.hmf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.hmf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HMF_TYPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.hmf_type, elem_value, &Self::FILTER_TYPE_4)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.hmf_type, elem_value, &Self::FILTER_TYPE_4)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HMF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.hmf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.hmf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HMF_GAIN_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.hmf_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.hmf_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HMF_WIDTH_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.hmf_width, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.hmf_width, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HF_ENABLE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.hf_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_bool_values(&mut equalizer.hf_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HF_TYPE_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.hf_type, elem_value, &Self::FILTER_TYPE_5)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_enum_values(&mut equalizer.hf_type, elem_value, &Self::FILTER_TYPE_5)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HF_FREQ_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.hf_freq, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_u32_from_i32_values(&mut equalizer.hf_freq, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HF_GAIN_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.hf_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.hf_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::HF_WIDTH_NAME {
-            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.hf_width, elem_value)
-            })
+            let mut params = self.params().clone();
+            let equalizer = &mut params.as_mut();
+            write_f32_from_i32_values(&mut equalizer.hf_width, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else {
             Ok(false)
         }
     }
 
-    fn write_equalizer_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut U,
+        updates: U,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState) -> Result<(), Error>;
+    ) -> Result<(), Error>;
 }
 
 fn level_detect_mode_to_str(mode: &LevelDetectMode) -> &'static str {
@@ -2499,7 +2814,7 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
 
 impl<T> CommandDspEqualizerCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
 where
-    T: CommandDspInputOperation,
+    T: MotuCommandDspEqualizerSpecification + CommandDspInputOperation,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
 
@@ -2543,32 +2858,23 @@ where
     const HF_GAIN_NAME: &'static str = "input-equalizer-hf-gain";
     const HF_WIDTH_NAME: &'static str = "input-equalizer-hf-width";
 
-    fn state(&self) -> &CommandDspEqualizerState {
-        &self.state.equalizer
+    fn params(&self) -> &CommandDspInputState {
+        &self.state
     }
 
-    fn write_equalizer_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn params_mut(&mut self) -> &mut CommandDspInputState {
+        &mut self.state
+    }
+
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut CommandDspInputState,
+        updates: CommandDspInputState,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState) -> Result<(), Error>,
-    {
-        let mut state = self.state.clone();
-        func(&mut state.equalizer)?;
-        T::write_input_state(
-            req,
-            node,
-            sequence_number,
-            state,
-            &mut self.state,
-            timeout_ms,
-        )
-        .map(|_| true)
+    ) -> Result<(), Error> {
+        T::write_input_state(req, node, sequence_number, updates, params, timeout_ms)
     }
 }
 
@@ -2787,7 +3093,7 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
 
 impl<T> CommandDspEqualizerCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    T: CommandDspOutputOperation,
+    T: MotuCommandDspEqualizerSpecification + CommandDspOutputOperation,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -2831,32 +3137,23 @@ where
     const HF_GAIN_NAME: &'static str = "output-equalizer-hf-gain";
     const HF_WIDTH_NAME: &'static str = "output-equalizer-hf-width";
 
-    fn state(&self) -> &CommandDspEqualizerState {
-        &self.state.equalizer
+    fn params(&self) -> &CommandDspOutputState {
+        &self.state
     }
 
-    fn write_equalizer_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn params_mut(&mut self) -> &mut CommandDspOutputState {
+        &mut self.state
+    }
+
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut CommandDspOutputState,
+        updates: CommandDspOutputState,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState) -> Result<(), Error>,
-    {
-        let mut state = self.state.clone();
-        func(&mut state.equalizer)?;
-        T::write_output_state(
-            req,
-            node,
-            sequence_number,
-            state,
-            &mut self.state,
-            timeout_ms,
-        )
-        .map(|_| true)
+    ) -> Result<(), Error> {
+        T::write_output_state(req, node, sequence_number, updates, params, timeout_ms)
     }
 }
 
