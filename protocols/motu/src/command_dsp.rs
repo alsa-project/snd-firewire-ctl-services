@@ -3191,12 +3191,50 @@ where
     }
 }
 
-/// Information of Meter.
-#[derive(Default, Debug)]
+/// State of hardware meter.
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMeterState {
     pub inputs: Vec<f32>,
     pub outputs: Vec<f32>,
     // TODO: other fields.
+}
+
+const METER_IMAGE_SIZE: usize = 400;
+
+/// The trait for specification of meter.
+pub trait MotuCommandDspMeterSpecification {
+    const INPUT_PORTS: &'static [(TargetPort, usize)];
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)];
+
+    const LEVEL_MIN: f32 = 0.0;
+    const LEVEL_MAX: f32 = 1.0;
+
+    const METER_IMAGE_SIZE: usize = 400;
+
+    fn create_meter_state() -> CommandDspMeterState {
+        CommandDspMeterState {
+            inputs: vec![0.0; Self::INPUT_PORTS.len()],
+            outputs: vec![0.0; Self::OUTPUT_PORTS.len()],
+        }
+    }
+}
+
+impl<O> MotuCommandDspImageOperation<CommandDspMeterState, [f32; METER_IMAGE_SIZE]> for O
+where
+    O: MotuCommandDspMeterSpecification,
+{
+    fn parse_image(params: &mut CommandDspMeterState, image: &[f32; METER_IMAGE_SIZE]) {
+        params
+            .inputs
+            .iter_mut()
+            .zip(Self::INPUT_PORTS)
+            .for_each(|(m, &(_, pos))| *m = image[pos]);
+        params
+            .outputs
+            .iter_mut()
+            .zip(Self::OUTPUT_PORTS)
+            .for_each(|(m, &(_, pos))| *m = image[pos]);
+    }
 }
 
 /// The trait for meter operation.
