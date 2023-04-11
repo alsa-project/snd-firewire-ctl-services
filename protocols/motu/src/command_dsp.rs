@@ -2280,12 +2280,19 @@ where
 /// State of entry of mixer function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerSourceState {
+    /// Whether to mute the source of mixer.
     pub mute: Vec<bool>,
+    /// Whether to mute the other sources of mixer.
     pub solo: Vec<bool>,
+    /// The gain for source of mixer.
     pub gain: Vec<f32>,
+    /// The left and right balance for source of mixer.
     pub pan: Vec<f32>,
+    /// The mode of stereo pair.
     pub stereo_mode: Vec<SourceStereoPairMode>,
+    /// The left and right balance for source of mixer when paired.
     pub stereo_balance: Vec<f32>,
+    /// The left and right width for source of mixer when paired.
     pub stereo_width: Vec<f32>,
 }
 
@@ -2294,12 +2301,159 @@ const MIXER_COUNT: usize = 8;
 /// State of mixer function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerState {
+    /// The destination of mixer outputs.
     pub output_assign: [TargetPort; MIXER_COUNT],
+    /// Whether to mute mixer outputs.
     pub output_mute: [bool; MIXER_COUNT],
+    /// The volume of mixer outputs.
     pub output_volume: [f32; MIXER_COUNT],
+    /// The volume to send to reverb effect.
     pub reverb_send: [f32; MIXER_COUNT],
+    /// The gain to return from reverb effect.
     pub reverb_return: [f32; MIXER_COUNT],
+    /// The parameters of mixer sources.
     pub source: [CommandDspMixerSourceState; MIXER_COUNT],
+}
+
+/// The trait for specification of mixer.
+pub trait MotuCommandDspMixerSpecification {
+    /// The sources of mixer inputs.
+    const SOURCE_PORTS: &'static [TargetPort];
+    /// The destination of mixer outputs.
+    const OUTPUT_PORTS: &'static [TargetPort];
+
+    /// The number of mixers.
+    const MIXER_COUNT: usize = MIXER_COUNT;
+
+    /// The minimum value of volume for mixer output.
+    const OUTPUT_VOLUME_MIN: f32 = 0.0;
+    /// The maximum value of volume for mixer output.
+    const OUTPUT_VOLUME_MAX: f32 = 1.0;
+
+    /// The minimum value of gain for mixer source.
+    const SOURCE_GAIN_MIN: f32 = 0.0;
+    /// The maximum value of gain for mixer source.
+    const SOURCE_GAIN_MAX: f32 = 1.0;
+
+    /// The minimum value of left and right balance for mixer source.
+    const SOURCE_PAN_MIN: f32 = -1.0;
+    /// The maximum value of left and right balance for mixer source.
+    const SOURCE_PAN_MAX: f32 = 1.0;
+
+    fn create_mixer_state() -> CommandDspMixerState {
+        let mut state = CommandDspMixerState::default();
+
+        state.source.iter_mut().for_each(|src| {
+            src.mute = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.solo = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.gain = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.pan = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_mode = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_balance = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_width = vec![Default::default(); Self::SOURCE_PORTS.len()];
+        });
+
+        state
+    }
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspMixerState> for O
+where
+    O: MotuCommandDspMixerSpecification,
+{
+    fn build_commands(params: &CommandDspMixerState) -> Vec<DspCmd> {
+        let mut cmds = Vec::new();
+
+        (0..MIXER_COUNT).for_each(|mixer| {
+            let pos = Self::OUTPUT_PORTS
+                .iter()
+                .position(|p| params.output_assign[mixer].eq(p))
+                .unwrap_or_default();
+            cmds.push(DspCmd::Mixer(MixerCmd::OutputAssign(mixer, pos)));
+            cmds.push(DspCmd::Mixer(MixerCmd::OutputMute(
+                mixer,
+                params.output_mute[mixer],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::OutputVolume(
+                mixer,
+                params.output_volume[mixer],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::ReverbSend(
+                mixer,
+                params.reverb_send[mixer],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::ReverbReturn(
+                mixer,
+                params.reverb_return[mixer],
+            )));
+
+            let src = &params.source[mixer];
+            (0..Self::SOURCE_PORTS.len()).for_each(|ch| {
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceMute(mixer, ch, src.mute[ch])));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceSolo(mixer, ch, src.solo[ch])));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceGain(mixer, ch, src.gain[ch])));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceMonauralLrBalance(
+                    mixer,
+                    ch,
+                    src.pan[ch],
+                )));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoMode(
+                    mixer,
+                    ch,
+                    src.stereo_mode[ch],
+                )));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(
+                    mixer,
+                    ch,
+                    src.stereo_balance[ch],
+                )));
+                cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoWidth(
+                    mixer,
+                    ch,
+                    src.stereo_width[ch],
+                )));
+            });
+        });
+
+        cmds
+    }
+
+    fn parse_command(params: &mut CommandDspMixerState, command: &DspCmd) -> bool {
+        if let DspCmd::Mixer(cmd) = command {
+            match cmd {
+                MixerCmd::OutputAssign(mixer, val) => {
+                    params.output_assign[*mixer] = Self::OUTPUT_PORTS
+                        .iter()
+                        .nth(*val)
+                        .map(|&p| p)
+                        .unwrap_or_else(|| Self::OUTPUT_PORTS[0]);
+                }
+                MixerCmd::OutputMute(mixer, val) => params.output_mute[*mixer] = *val,
+                MixerCmd::OutputVolume(mixer, val) => params.output_volume[*mixer] = *val,
+                MixerCmd::ReverbSend(mixer, val) => params.reverb_send[*mixer] = *val,
+                MixerCmd::ReverbReturn(mixer, val) => params.reverb_return[*mixer] = *val,
+                MixerCmd::SourceMute(mixer, src, val) => params.source[*mixer].mute[*src] = *val,
+                MixerCmd::SourceSolo(mixer, src, val) => params.source[*mixer].solo[*src] = *val,
+                MixerCmd::SourceGain(mixer, src, val) => params.source[*mixer].gain[*src] = *val,
+                MixerCmd::SourceMonauralLrBalance(mixer, src, val) => {
+                    params.source[*mixer].pan[*src] = *val
+                }
+                MixerCmd::SourceStereoMode(mixer, src, val) => {
+                    params.source[*mixer].stereo_mode[*src] = *val
+                }
+                MixerCmd::SourceStereoLrBalance(mixer, src, val) => {
+                    params.source[*mixer].stereo_balance[*src] = *val
+                }
+                MixerCmd::SourceStereoWidth(mixer, src, val) => {
+                    params.source[*mixer].stereo_width[*src] = *val
+                }
+                _ => (),
+            };
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn create_mixer_commands(
