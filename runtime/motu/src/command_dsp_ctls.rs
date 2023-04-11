@@ -5,23 +5,54 @@ pub(crate) use super::command_dsp_runtime::*;
 
 const F32_CONVERT_SCALE: f32 = 1000000.0;
 
-fn to_i32(val: f32) -> i32 {
-    (val * F32_CONVERT_SCALE) as i32
+fn f32_to_i32(val: f32) -> Result<i32, Error> {
+    if val == f32::INFINITY
+        || val == f32::NEG_INFINITY
+        || val >= (i32::MAX / F32_CONVERT_SCALE as i32) as f32
+        || val <= (i32::MIN / F32_CONVERT_SCALE as i32) as f32
+    {
+        let msg = format!(
+            "{}f32 multiplied by {}f32 can not be casted to i32",
+            val, F32_CONVERT_SCALE
+        );
+        Err(Error::new(FileError::Inval, &msg))
+    } else {
+        Ok((val * F32_CONVERT_SCALE) as i32)
+    }
 }
 
-fn to_i32_elem_value(src: &[f32], elem_value: &mut ElemValue) {
-    let vals: Vec<i32> = src.iter().map(|&val| to_i32(val)).collect();
-    elem_value.set_int(&vals);
+fn f32_from_i32(val: i32) -> Result<f32, Error> {
+    if val >= (f32::MAX * F32_CONVERT_SCALE) as i32 || val <= (f32::MIN * F32_CONVERT_SCALE) as i32
+    {
+        let msg = format!(
+            "{}i32 divided by {}i32 can not be casted to f32",
+            val, F32_CONVERT_SCALE as i32,
+        );
+        Err(Error::new(FileError::Inval, &msg))
+    } else {
+        Ok((val as f32) / F32_CONVERT_SCALE)
+    }
 }
 
-fn from_i32(val: i32) -> f32 {
-    (val as f32) / F32_CONVERT_SCALE
+fn read_f32_to_i32_value(dst: &mut ElemValue, src: &f32) -> Result<(), Error> {
+    f32_to_i32(*src).map(|val| dst.set_int(&[val]))
 }
 
-fn from_i32_elem_value(dst: &mut [f32], elem_value: &ElemValue) {
+fn write_f32_from_i32_value(dst: &mut f32, src: &ElemValue) -> Result<(), Error> {
+    f32_from_i32(src.int()[0]).map(|val| *dst = val)
+}
+
+fn read_f32_to_i32_values(dst: &mut ElemValue, src: &[f32]) -> Result<(), Error> {
+    let mut vals = Vec::new();
+    src.iter()
+        .try_for_each(|&val| f32_to_i32(val).map(|val| vals.push(val)))
+        .map(|_| dst.set_int(&vals))
+}
+
+fn write_f32_from_i32_values(dst: &mut [f32], src: &ElemValue) -> Result<(), Error> {
     dst.iter_mut()
-        .zip(elem_value.int())
-        .for_each(|(dst, &val)| *dst = from_i32(val));
+        .zip(src.int())
+        .try_for_each(|(d, &val)| f32_from_i32(val).map(|v| *d = v))
 }
 
 #[derive(Default, Debug)]
@@ -185,8 +216,8 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                to_i32(T::WIDTH_MIN),
-                to_i32(T::WIDTH_MAX),
+                f32_to_i32(T::WIDTH_MIN)?,
+                f32_to_i32(T::WIDTH_MAX)?,
                 1,
                 1,
                 None,
@@ -225,8 +256,8 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                to_i32(T::REFLECTION_LEVEL_MIN),
-                to_i32(T::REFLECTION_LEVEL_MAX),
+                f32_to_i32(T::REFLECTION_LEVEL_MIN)?,
+                f32_to_i32(T::REFLECTION_LEVEL_MAX)?,
                 1,
                 1,
                 None,
@@ -287,8 +318,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
-                let val = to_i32(self.state.width);
-                elem_value.set_int(&[val]);
+                read_f32_to_i32_value(elem_value, &self.state.width)?;
                 Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
@@ -304,8 +334,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                let val = to_i32(self.state.reflection_level);
-                elem_value.set_int(&[val]);
+                read_f32_to_i32_value(elem_value, &self.state.reflection_level)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -444,7 +473,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_WIDTH_NAME => {
                 let mut state = self.state.clone();
-                state.width = from_i32(elem_value.int()[0]);
+                write_f32_from_i32_value(&mut state.width, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -491,7 +520,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_REFLECTION_LEVEL_NAME => {
                 let mut state = self.state.clone();
-                state.reflection_level = from_i32(elem_value.int()[0]);
+                write_f32_from_i32_value(&mut state.reflection_level, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -538,8 +567,8 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    to_i32(T::VOLUME_MIN),
-                    to_i32(T::VOLUME_MAX),
+                    f32_to_i32(T::VOLUME_MIN)?,
+                    f32_to_i32(T::VOLUME_MAX)?,
                     1,
                     1,
                     None,
@@ -567,8 +596,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MAIN_VOLUME_NAME => {
-                let val = to_i32(self.state.main_volume);
-                elem_value.set_int(&[val]);
+                read_f32_to_i32_value(elem_value, &self.state.main_volume)?;
                 Ok(true)
             }
             TALKBACK_ENABLE_NAME => {
@@ -580,13 +608,11 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
                 Ok(true)
             }
             TALKBACK_VOLUME_NAME => {
-                let val = to_i32(self.state.talkback_volume);
-                elem_value.set_int(&[val]);
+                read_f32_to_i32_value(elem_value, &self.state.talkback_volume)?;
                 Ok(true)
             }
             LISTENBACK_VOLUME_NAME => {
-                let val = to_i32(self.state.listenback_volume);
-                elem_value.set_int(&[val]);
+                read_f32_to_i32_value(elem_value, &self.state.listenback_volume)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -605,7 +631,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
         match elem_id.name().as_str() {
             MAIN_VOLUME_NAME => {
                 let mut state = self.state.clone();
-                state.main_volume = from_i32(elem_value.int()[0]);
+                write_f32_from_i32_value(&mut state.main_volume, elem_value)?;
                 T::write_monitor_state(
                     req,
                     node,
@@ -644,7 +670,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
             }
             TALKBACK_VOLUME_NAME => {
                 let mut state = self.state.clone();
-                state.talkback_volume = from_i32(elem_value.int()[0]);
+                write_f32_from_i32_value(&mut state.talkback_volume, elem_value)?;
                 T::write_monitor_state(
                     req,
                     node,
@@ -657,7 +683,7 @@ impl<T: CommandDspMonitorOperation> CommandDspMonitorCtl<T> {
             }
             LISTENBACK_VOLUME_NAME => {
                 let mut state = self.state.clone();
-                state.listenback_volume = from_i32(elem_value.int()[0]);
+                write_f32_from_i32_value(&mut state.listenback_volume, elem_value)?;
                 T::write_monitor_state(
                     req,
                     node,
@@ -741,8 +767,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                to_i32(T::OUTPUT_VOLUME_MIN),
-                to_i32(T::OUTPUT_VOLUME_MAX),
+                f32_to_i32(T::OUTPUT_VOLUME_MIN)?,
+                f32_to_i32(T::OUTPUT_VOLUME_MAX)?,
                 1,
                 T::MIXER_COUNT,
                 None,
@@ -755,8 +781,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                to_i32(T::OUTPUT_VOLUME_MIN),
-                to_i32(T::OUTPUT_VOLUME_MAX),
+                f32_to_i32(T::OUTPUT_VOLUME_MIN)?,
+                f32_to_i32(T::OUTPUT_VOLUME_MAX)?,
                 1,
                 T::MIXER_COUNT,
                 None,
@@ -769,8 +795,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                to_i32(T::OUTPUT_VOLUME_MIN),
-                to_i32(T::OUTPUT_VOLUME_MAX),
+                f32_to_i32(T::OUTPUT_VOLUME_MIN)?,
+                f32_to_i32(T::OUTPUT_VOLUME_MAX)?,
                 1,
                 T::MIXER_COUNT,
                 None,
@@ -793,8 +819,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                to_i32(T::SOURCE_GAIN_MIN),
-                to_i32(T::SOURCE_GAIN_MAX),
+                f32_to_i32(T::SOURCE_GAIN_MIN)?,
+                f32_to_i32(T::SOURCE_GAIN_MAX)?,
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
@@ -807,8 +833,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                to_i32(T::SOURCE_PAN_MIN),
-                to_i32(T::SOURCE_PAN_MAX),
+                f32_to_i32(T::SOURCE_PAN_MIN)?,
+                f32_to_i32(T::SOURCE_PAN_MAX)?,
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
@@ -849,8 +875,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                to_i32(T::SOURCE_PAN_MIN),
-                to_i32(T::SOURCE_PAN_MAX),
+                f32_to_i32(T::SOURCE_PAN_MIN)?,
+                f32_to_i32(T::SOURCE_PAN_MAX)?,
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
@@ -869,8 +895,8 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             .add_int_elems(
                 &elem_id,
                 T::MIXER_COUNT,
-                to_i32(T::SOURCE_PAN_MIN),
-                to_i32(T::SOURCE_PAN_MAX),
+                f32_to_i32(T::SOURCE_PAN_MIN)?,
+                f32_to_i32(T::SOURCE_PAN_MAX)?,
                 1,
                 T::SOURCE_PORTS.len(),
                 None,
@@ -905,15 +931,15 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                 Ok(true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
-                to_i32_elem_value(&self.state.output_volume, elem_value);
+                read_f32_to_i32_values(elem_value, &self.state.output_volume)?;
                 Ok(true)
             }
             MIXER_REVERB_SEND_NAME => {
-                to_i32_elem_value(&self.state.reverb_send, elem_value);
+                read_f32_to_i32_values(elem_value, &self.state.reverb_send)?;
                 Ok(true)
             }
             MIXER_REVERB_RETURN_NAME => {
-                to_i32_elem_value(&self.state.reverb_return, elem_value);
+                read_f32_to_i32_values(elem_value, &self.state.reverb_return)?;
                 Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
@@ -940,7 +966,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                to_i32_elem_value(&src.pan, elem_value);
+                read_f32_to_i32_values(elem_value, &src.pan)?;
                 Ok(true)
             }
             MIXER_SOURCE_GAIN_NAME => {
@@ -949,7 +975,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                to_i32_elem_value(&src.gain, elem_value);
+                read_f32_to_i32_values(elem_value, &src.gain)?;
                 Ok(true)
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
@@ -978,7 +1004,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                to_i32_elem_value(&src.stereo_balance, elem_value);
+                read_f32_to_i32_values(elem_value, &src.stereo_balance)?;
                 Ok(true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
@@ -987,7 +1013,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                to_i32_elem_value(&src.stereo_width, elem_value);
+                read_f32_to_i32_values(elem_value, &src.stereo_width)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1047,7 +1073,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             }
             MIXER_OUTPUT_VOLUME_NAME => {
                 let mut state = self.state.clone();
-                from_i32_elem_value(&mut state.output_volume, elem_value);
+                write_f32_from_i32_values(&mut state.output_volume, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1060,7 +1086,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             }
             MIXER_REVERB_SEND_NAME => {
                 let mut state = self.state.clone();
-                from_i32_elem_value(&mut state.reverb_send, elem_value);
+                write_f32_from_i32_values(&mut state.reverb_send, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1073,7 +1099,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
             }
             MIXER_REVERB_RETURN_NAME => {
                 let mut state = self.state.clone();
-                from_i32_elem_value(&mut state.reverb_return, elem_value);
+                write_f32_from_i32_values(&mut state.reverb_return, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1129,7 +1155,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                from_i32_elem_value(&mut src.pan, elem_value);
+                write_f32_from_i32_values(&mut src.pan, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1147,7 +1173,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                from_i32_elem_value(&mut src.gain, elem_value);
+                write_f32_from_i32_values(&mut src.gain, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1196,7 +1222,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                from_i32_elem_value(&mut src.stereo_balance, elem_value);
+                write_f32_from_i32_values(&mut src.stereo_balance, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1214,7 +1240,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                from_i32_elem_value(&mut src.stereo_width, elem_value);
+                write_f32_from_i32_values(&mut src.stereo_width, elem_value)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1337,8 +1363,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
 
     const LEVELER_MODES: [LevelerMode; 2] = [LevelerMode::Compress, LevelerMode::Limit];
 
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     fn load_equalizer(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
@@ -1445,8 +1469,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    (EqualizerParameter::GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                    (EqualizerParameter::GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                    f32_to_i32(EqualizerParameter::GAIN_MIN)?,
+                    f32_to_i32(EqualizerParameter::GAIN_MAX)?,
                     1,
                     Self::CH_COUNT,
                     None,
@@ -1470,8 +1494,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    (EqualizerParameter::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
-                    (EqualizerParameter::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+                    f32_to_i32(EqualizerParameter::WIDTH_MIN)?,
+                    f32_to_i32(EqualizerParameter::WIDTH_MAX)?,
                     1,
                     Self::CH_COUNT,
                     None,
@@ -1494,17 +1518,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
         elem_value.set_int(vals);
-        Ok(true)
-    }
-
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        let raw: Vec<i32> = vals
-            .iter()
-            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
-            .collect();
-        elem_value.set_int(&raw);
         Ok(true)
     }
 
@@ -1604,9 +1617,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_FREQ_NAME {
             Self::read_u32_values(elem_value, &self.state().lf_freq)
         } else if name == Self::LF_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().lf_gain)
+            read_f32_to_i32_values(elem_value, &self.state().lf_gain)?;
+            Ok(true)
         } else if name == Self::LF_WIDTH_NAME {
-            Self::read_f32_values(elem_value, &self.state().lf_width)
+            read_f32_to_i32_values(elem_value, &self.state().lf_width)?;
+            Ok(true)
         } else if name == Self::LMF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().lmf_enable)
         } else if name == Self::LMF_TYPE_NAME {
@@ -1614,9 +1629,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_FREQ_NAME {
             Self::read_u32_values(elem_value, &self.state().lmf_freq)
         } else if name == Self::LMF_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().lmf_gain)
+            read_f32_to_i32_values(elem_value, &self.state().lmf_gain)?;
+            Ok(true)
         } else if name == Self::LMF_WIDTH_NAME {
-            Self::read_f32_values(elem_value, &self.state().lmf_width)
+            read_f32_to_i32_values(elem_value, &self.state().lmf_width)?;
+            Ok(true)
         } else if name == Self::MF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().mf_enable)
         } else if name == Self::MF_TYPE_NAME {
@@ -1624,9 +1641,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_FREQ_NAME {
             Self::read_u32_values(elem_value, &self.state().mf_freq)
         } else if name == Self::MF_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().mf_gain)
+            read_f32_to_i32_values(elem_value, &self.state().mf_gain)?;
+            Ok(true)
         } else if name == Self::MF_WIDTH_NAME {
-            Self::read_f32_values(elem_value, &self.state().mf_width)
+            read_f32_to_i32_values(elem_value, &self.state().mf_width)?;
+            Ok(true)
         } else if name == Self::HMF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().hmf_enable)
         } else if name == Self::HMF_TYPE_NAME {
@@ -1634,9 +1653,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_FREQ_NAME {
             Self::read_u32_values(elem_value, &self.state().hmf_freq)
         } else if name == Self::HMF_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().hmf_gain)
+            read_f32_to_i32_values(elem_value, &self.state().hmf_gain)?;
+            Ok(true)
         } else if name == Self::HMF_WIDTH_NAME {
-            Self::read_f32_values(elem_value, &self.state().hmf_width)
+            read_f32_to_i32_values(elem_value, &self.state().hmf_width)?;
+            Ok(true)
         } else if name == Self::HF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().hf_enable)
         } else if name == Self::HF_TYPE_NAME {
@@ -1644,9 +1665,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_FREQ_NAME {
             Self::read_u32_values(elem_value, &self.state().hf_freq)
         } else if name == Self::HF_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().hf_gain)
+            read_f32_to_i32_values(elem_value, &self.state().hf_gain)?;
+            Ok(true)
         } else if name == Self::HF_WIDTH_NAME {
-            Self::read_f32_values(elem_value, &self.state().hf_width)
+            read_f32_to_i32_values(elem_value, &self.state().hf_width)?;
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -1704,29 +1727,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &raw);
-            Ok(())
-        })
-    }
-
-    fn write_f32_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[f32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        let raw: Vec<f32> = vals
-            .iter()
-            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
-            .collect();
         self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
@@ -1939,27 +1939,13 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 },
             )
         } else if name == Self::LF_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lf_gain.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.lf_gain, elem_value)
+            })
         } else if name == Self::LF_WIDTH_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lf_width.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.lf_width, elem_value)
+            })
         } else if name == Self::LMF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -1992,27 +1978,13 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 },
             )
         } else if name == Self::LMF_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lmf_gain.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.lmf_gain, elem_value)
+            })
         } else if name == Self::LMF_WIDTH_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lmf_width.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.lmf_width, elem_value)
+            })
         } else if name == Self::MF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -2045,27 +2017,13 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 },
             )
         } else if name == Self::MF_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.mf_gain.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.mf_gain, elem_value)
+            })
         } else if name == Self::MF_WIDTH_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.mf_width.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.mf_width, elem_value)
+            })
         } else if name == Self::HMF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -2098,27 +2056,13 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 },
             )
         } else if name == Self::HMF_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hmf_gain.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.hmf_gain, elem_value)
+            })
         } else if name == Self::HMF_WIDTH_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hmf_width.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.hmf_width, elem_value)
+            })
         } else if name == Self::HF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -2151,27 +2095,13 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 },
             )
         } else if name == Self::HF_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hf_gain.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.hf_gain, elem_value)
+            })
         } else if name == Self::HF_WIDTH_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hf_width.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.hf_width, elem_value)
+            })
         } else {
             Ok(false)
         }
@@ -2230,8 +2160,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
 
     const LEVELER_MODES: [LevelerMode; 2] = [LevelerMode::Compress, LevelerMode::Limit];
 
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     fn load_dynamics(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
@@ -2278,8 +2206,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (DynamicsParameter::RATIO_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (DynamicsParameter::RATIO_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(DynamicsParameter::RATIO_MIN)?,
+                f32_to_i32(DynamicsParameter::RATIO_MAX)?,
                 1,
                 Self::CH_COUNT,
                 None,
@@ -2320,8 +2248,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (DynamicsParameter::GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (DynamicsParameter::GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(DynamicsParameter::GAIN_MIN)?,
+                f32_to_i32(DynamicsParameter::GAIN_MAX)?,
                 1,
                 Self::CH_COUNT,
                 None,
@@ -2391,17 +2319,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(true)
     }
 
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        let raw: Vec<i32> = vals
-            .iter()
-            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
-            .collect();
-        elem_value.set_int(&raw);
-        Ok(true)
-    }
-
     fn read_level_detect_mode(
         elem_value: &mut ElemValue,
         modes: &[LevelDetectMode],
@@ -2452,13 +2369,15 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_THRESHOLD_NAME {
             Self::read_int_values(elem_value, &self.state().comp_threshold)
         } else if name == Self::COMP_RATIO_NAME {
-            Self::read_f32_values(elem_value, &self.state().comp_ratio)
+            read_f32_to_i32_values(elem_value, &self.state().comp_ratio)?;
+            Ok(true)
         } else if name == Self::COMP_ATTACK_NAME {
             Self::read_u32_values(elem_value, &self.state().comp_attack)
         } else if name == Self::COMP_RELEASE_NAME {
             Self::read_u32_values(elem_value, &self.state().comp_release)
         } else if name == Self::COMP_GAIN_NAME {
-            Self::read_f32_values(elem_value, &self.state().comp_gain)
+            read_f32_to_i32_values(elem_value, &self.state().comp_gain)?;
+            Ok(true)
         } else if name == Self::LEVELER_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().leveler_enable)
         } else if name == Self::LEVELER_MODE_NAME {
@@ -2524,29 +2443,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &raw);
-            Ok(())
-        })
-    }
-
-    fn write_f32_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[f32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        let raw: Vec<f32> = vals
-            .iter()
-            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
-            .collect();
         self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &raw);
             Ok(())
@@ -2661,14 +2557,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.comp_threshold.copy_from_slice(vals),
             )
         } else if name == Self::COMP_RATIO_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_ratio.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.comp_ratio, elem_value)
+            })
         } else if name == Self::COMP_ATTACK_NAME {
             self.write_u32_values(
                 sequence_number,
@@ -2688,14 +2579,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.comp_release.copy_from_slice(vals),
             )
         } else if name == Self::COMP_GAIN_NAME {
-            self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_gain.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_f32_from_i32_values(&mut state.comp_gain, elem_value)
+            })
         } else if name == Self::LEVELER_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -2796,8 +2682,6 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
         InputStereoPairMode::MonauralStereo,
     ];
 
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PHASE_NAME, 0);
         card_cntr
@@ -2842,8 +2726,8 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(T::WIDTH_MIN)?,
+                f32_to_i32(T::WIDTH_MAX)?,
                 1,
                 T::INPUT_PORTS.len(),
                 None,
@@ -2856,8 +2740,8 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::REVERB_GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::REVERB_GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(T::REVERB_GAIN_MIN)?,
+                f32_to_i32(T::REVERB_GAIN_MAX)?,
                 1,
                 T::INPUT_PORTS.len(),
                 None,
@@ -2870,8 +2754,8 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::REVERB_BALANCE_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::REVERB_BALANCE_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(T::REVERB_BALANCE_MIN)?,
+                f32_to_i32(T::REVERB_BALANCE_MAX)?,
                 1,
                 T::INPUT_PORTS.len(),
                 None,
@@ -2907,14 +2791,6 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
         }
 
         Ok(())
-    }
-
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) {
-        let vals: Vec<i32> = vals
-            .iter()
-            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
-            .collect();
-        elem_value.set_int(&vals);
     }
 
     pub(crate) fn read(
@@ -2956,15 +2832,15 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(true)
             }
             INPUT_WIDTH_NAME => {
-                Self::read_f32_values(elem_value, &self.state.width);
+                read_f32_to_i32_values(elem_value, &self.state.width)?;
                 Ok(true)
             }
             INPUT_REVERB_SEND_NAME => {
-                Self::read_f32_values(elem_value, &self.state.reverb_send);
+                read_f32_to_i32_values(elem_value, &self.state.reverb_send)?;
                 Ok(true)
             }
             INPUT_REVERB_BALANCE_NAME => {
-                Self::read_f32_values(elem_value, &self.state.reverb_balance);
+                read_f32_to_i32_values(elem_value, &self.state.reverb_balance)?;
                 Ok(true)
             }
             MIC_PAD_NAME => {
@@ -2989,12 +2865,6 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
             }
             _ => Ok(false),
         }
-    }
-
-    fn f32_array_from_i32_values(elem_value: &ElemValue, vals: &mut [f32]) {
-        vals.iter_mut().zip(elem_value.int()).for_each(|(val, &v)| {
-            *val = (v as f32) / Self::F32_CONVERT_SCALE;
-        });
     }
 
     pub(crate) fn write(
@@ -3054,19 +2924,16 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 })
             }
             INPUT_WIDTH_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                Self::f32_array_from_i32_values(elem_value, &mut state.width);
-                Ok(())
+                write_f32_from_i32_values(&mut state.width, elem_value)
             }),
             INPUT_REVERB_SEND_NAME => {
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    Self::f32_array_from_i32_values(elem_value, &mut state.reverb_send);
-                    Ok(())
+                    write_f32_from_i32_values(&mut state.reverb_send, elem_value)
                 })
             }
             INPUT_REVERB_BALANCE_NAME => {
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    Self::f32_array_from_i32_values(elem_value, &mut state.reverb_balance);
-                    Ok(())
+                    write_f32_from_i32_values(&mut state.reverb_balance, elem_value)
                 })
             }
             MIC_PAD_NAME => {
@@ -3286,8 +3153,6 @@ impl<T: CommandDspOutputOperation> Default for CommandDspOutputCtl<T> {
 }
 
 impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (OUTPUT_REVERB_SEND_NAME, T::GAIN_MIN, T::GAIN_MAX),
@@ -3300,8 +3165,8 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    (min * Self::F32_CONVERT_SCALE) as i32,
-                    (max * Self::F32_CONVERT_SCALE) as i32,
+                    f32_to_i32(min)?,
+                    f32_to_i32(max)?,
                     1,
                     T::OUTPUT_PORTS.len(),
                     None,
@@ -3331,25 +3196,19 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
         Ok(true)
     }
 
-    fn read_f32_values(elem_value: &mut ElemValue, vals: &[f32]) -> Result<bool, Error> {
-        let vals: Vec<i32> = vals
-            .iter()
-            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
-            .collect();
-
-        elem_value.set_int(&vals);
-        Ok(true)
-    }
-
     pub(crate) fn read(
         &mut self,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OUTPUT_REVERB_SEND_NAME => Self::read_f32_values(elem_value, &self.state.reverb_send),
+            OUTPUT_REVERB_SEND_NAME => {
+                read_f32_to_i32_values(elem_value, &self.state.reverb_send)?;
+                Ok(true)
+            }
             OUTPUT_REVERB_RETURN_NAME => {
-                Self::read_f32_values(elem_value, &self.state.reverb_return)
+                read_f32_to_i32_values(elem_value, &self.state.reverb_return)?;
+                Ok(true)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
                 Self::read_bool_values(elem_value, &self.state.master_monitor)
@@ -3383,29 +3242,6 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
         })
     }
 
-    fn write_f32_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspOutputState, &[f32]),
-    {
-        let vals = &elem_value.int()[..T::OUTPUT_PORTS.len()];
-        let raw: Vec<f32> = vals
-            .iter()
-            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
-            .collect();
-        self.write_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &raw);
-            Ok(())
-        })
-    }
-
     pub(crate) fn write(
         &mut self,
         sequence_number: &mut u8,
@@ -3416,26 +3252,16 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            OUTPUT_REVERB_SEND_NAME => self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.reverb_send.copy_from_slice(&vals);
-                },
-            ),
-            OUTPUT_REVERB_RETURN_NAME => self.write_f32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.reverb_return.copy_from_slice(&vals);
-                },
-            ),
+            OUTPUT_REVERB_SEND_NAME => {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    write_f32_from_i32_values(&mut state.reverb_send, elem_value)
+                })
+            }
+            OUTPUT_REVERB_RETURN_NAME => {
+                self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                    write_f32_from_i32_values(&mut state.reverb_return, elem_value)
+                })
+            }
             OUTPUT_MASTER_MONITOR_NAME => self.write_bool_values(
                 sequence_number,
                 req,
@@ -3633,16 +3459,14 @@ pub(crate) struct CommandDspResourceCtl {
 const RESOURCE_USAGE_NAME: &str = "resource-usage";
 
 impl CommandDspResourceCtl {
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RESOURCE_USAGE_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (ResourceCmd::USAGE_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (ResourceCmd::USAGE_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(ResourceCmd::USAGE_MIN)?,
+                f32_to_i32(ResourceCmd::USAGE_MAX)?,
                 1,
                 1,
                 None,
@@ -3671,7 +3495,8 @@ impl CommandDspResourceCtl {
                 match c {
                     // TODO: flag?
                     ResourceCmd::Usage(usage, _) => {
-                        self.state = (*usage * Self::F32_CONVERT_SCALE) as u32;
+                        let val = f32_to_i32(*usage).unwrap();
+                        self.state = val as u32;
                     }
                     _ => (),
                 }
@@ -3703,16 +3528,14 @@ impl<T: CommandDspMeterOperation> Default for CommandDspMeterCtl<T> {
 }
 
 impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
-    const F32_CONVERT_SCALE: f32 = 1000000.0;
-
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(T::LEVEL_MIN)?,
+                f32_to_i32(T::LEVEL_MAX)?,
                 1,
                 T::INPUT_PORTS.len(),
                 None,
@@ -3725,8 +3548,8 @@ impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                (T::LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
-                (T::LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+                f32_to_i32(T::LEVEL_MIN)?,
+                f32_to_i32(T::LEVEL_MAX)?,
                 1,
                 T::OUTPUT_PORTS.len(),
                 None,
@@ -3740,23 +3563,11 @@ impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
     pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
-                let levels: Vec<i32> = self
-                    .state
-                    .inputs
-                    .iter()
-                    .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
-                    .collect();
-                elem_value.set_int(&levels);
+                read_f32_to_i32_values(elem_value, &self.state.inputs)?;
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                let levels: Vec<i32> = self
-                    .state
-                    .outputs
-                    .iter()
-                    .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
-                    .collect();
-                elem_value.set_int(&levels);
+                read_f32_to_i32_values(elem_value, &self.state.outputs)?;
                 Ok(true)
             }
             _ => Ok(false),
