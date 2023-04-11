@@ -2737,20 +2737,122 @@ fn parse_equalizer_parameter(
 /// State of dynamics.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspDynamicsState {
+    /// whether to enable dynamics effects.
     pub enable: Vec<bool>,
 
+    /// Whether to enable compressors.
     pub comp_enable: Vec<bool>,
+    /// The mode to detect level in compressors.
     pub comp_detect_mode: Vec<LevelDetectMode>,
+    /// The threshold of compressors.
     pub comp_threshold: Vec<i32>,
+    /// The ratio of compressors.
     pub comp_ratio: Vec<f32>,
+    /// The attack of compressors.
     pub comp_attack: Vec<u32>,
+    /// The release of compressors.
     pub comp_release: Vec<u32>,
+    /// The gain of compressors.
     pub comp_gain: Vec<f32>,
 
+    /// Whether to enable levelers.
     pub leveler_enable: Vec<bool>,
+    /// The mode of levelers.
     pub leveler_mode: Vec<LevelerMode>,
+    /// The markup of levelers.
     pub leveler_makeup: Vec<u32>,
+    /// The reduce of levelers.
     pub leveler_reduce: Vec<u32>,
+}
+
+/// The trait for specification of dynamics effect.
+pub trait MotuCommandDspDynamicsSpecification {
+    /// The minimum value of threshold in compressor.
+    const COMP_THRESHOLD_MIN: i32 = -48;
+    /// The maximum value of threshold in compressor.
+    const COMP_THRESHOLD_MAX: i32 = 0;
+    /// The step value of threshold in compressor.
+    const COMP_THRESHOLD_STEP: i32 = 1;
+
+    /// The minimum value of ration in compressor.
+    const COMP_RATIO_MIN: f32 = 1.0;
+    /// The maximum value of ration in compressor.
+    const COMP_RATIO_MAX: f32 = 10.0;
+
+    /// The minimum value of attack in compressor.
+    const COMP_ATTACK_MIN: i32 = 10;
+    /// The maximum value of attack in compressor.
+    const COMP_ATTACK_MAX: i32 = 100;
+    /// The step value of attack in compressor.
+    const COMP_ATTACK_STEP: i32 = 1;
+
+    /// The minimum value of release in compressor.
+    const COMP_RELEASE_MIN: i32 = 10;
+    /// The maximum value of release in compressor.
+    const COMP_RELEASE_MAX: i32 = 100;
+    /// The step value of release in compressor.
+    const COMP_RELEASE_STEP: i32 = 1;
+
+    /// The minimum value of gain in compressor.
+    const COMP_GAIN_MIN: f32 = -6.0;
+    /// The maximum value of gain in compressor.
+    const COMP_GAIN_MAX: f32 = 0.0;
+
+    /// The minimum value of percentge in leveler.
+    const LEVELER_PERCENTAGE_MIN: u32 = 0;
+    /// The maximum value of percentge in leveler.
+    const LEVELER_PERCENTAGE_MAX: u32 = 100;
+    /// The step value of percentge in leveler.
+    const LEVELER_PERCENTAGE_STEP: u32 = 1;
+
+    fn create_dynamics_parameters(
+        state: &CommandDspDynamicsState,
+        ch: usize,
+    ) -> Vec<DynamicsParameter> {
+        let mut params = Vec::new();
+
+        params.push(DynamicsParameter::Enable(state.enable[ch]));
+
+        params.push(DynamicsParameter::CompEnable(state.comp_enable[ch]));
+        params.push(DynamicsParameter::CompDetectMode(
+            state.comp_detect_mode[ch],
+        ));
+        params.push(DynamicsParameter::CompThreshold(state.comp_threshold[ch]));
+        params.push(DynamicsParameter::CompRatio(state.comp_ratio[ch]));
+        params.push(DynamicsParameter::CompAttack(state.comp_attack[ch]));
+        params.push(DynamicsParameter::CompRelease(state.comp_release[ch]));
+        params.push(DynamicsParameter::CompGain(state.comp_gain[ch]));
+
+        params.push(DynamicsParameter::LevelerEnable(state.leveler_enable[ch]));
+        params.push(DynamicsParameter::LevelerMode(state.leveler_mode[ch]));
+        params.push(DynamicsParameter::LevelerMakeup(state.leveler_makeup[ch]));
+        params.push(DynamicsParameter::LevelerReduce(state.leveler_reduce[ch]));
+
+        params
+    }
+
+    fn parse_dynamics_parameter(
+        state: &mut CommandDspDynamicsState,
+        param: &DynamicsParameter,
+        ch: usize,
+    ) {
+        match param {
+            DynamicsParameter::Enable(val) => state.enable[ch] = *val,
+
+            DynamicsParameter::CompEnable(val) => state.comp_enable[ch] = *val,
+            DynamicsParameter::CompDetectMode(val) => state.comp_detect_mode[ch] = *val,
+            DynamicsParameter::CompThreshold(val) => state.comp_threshold[ch] = *val,
+            DynamicsParameter::CompRatio(val) => state.comp_ratio[ch] = *val,
+            DynamicsParameter::CompAttack(val) => state.comp_attack[ch] = *val,
+            DynamicsParameter::CompRelease(val) => state.comp_release[ch] = *val,
+            DynamicsParameter::CompGain(val) => state.comp_gain[ch] = *val,
+
+            DynamicsParameter::LevelerEnable(val) => state.leveler_enable[ch] = *val,
+            DynamicsParameter::LevelerMode(val) => state.leveler_mode[ch] = *val,
+            DynamicsParameter::LevelerMakeup(val) => state.leveler_makeup[ch] = *val,
+            DynamicsParameter::LevelerReduce(val) => state.leveler_reduce[ch] = *val,
+        }
+    }
 }
 
 fn create_dynamics_parameters(
@@ -2835,6 +2937,18 @@ impl AsRef<CommandDspEqualizerState> for CommandDspInputState {
 impl AsMut<CommandDspEqualizerState> for CommandDspInputState {
     fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
         &mut self.equalizer
+    }
+}
+
+impl AsRef<CommandDspDynamicsState> for CommandDspInputState {
+    fn as_ref(&self) -> &CommandDspDynamicsState {
+        &self.dynamics
+    }
+}
+
+impl AsMut<CommandDspDynamicsState> for CommandDspInputState {
+    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
+        &mut self.dynamics
     }
 }
 
@@ -3067,6 +3181,18 @@ impl AsRef<CommandDspEqualizerState> for CommandDspOutputState {
 impl AsMut<CommandDspEqualizerState> for CommandDspOutputState {
     fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
         &mut self.equalizer
+    }
+}
+
+impl AsRef<CommandDspDynamicsState> for CommandDspOutputState {
+    fn as_ref(&self) -> &CommandDspDynamicsState {
+        &self.dynamics
+    }
+}
+
+impl AsMut<CommandDspDynamicsState> for CommandDspOutputState {
+    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
+        &mut self.dynamics
     }
 }
 
