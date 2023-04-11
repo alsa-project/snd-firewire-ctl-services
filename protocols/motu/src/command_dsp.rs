@@ -2056,18 +2056,149 @@ where
 /// State of reverb function.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspReverbState {
+    /// Whether to enable reverb effect.
     pub enable: bool,
+    /// The split point to prevent feedback loop.
     pub split_point: SplitPoint,
+    /// The time before first reflection.
     pub pre_delay: u32,
+    /// The frequency of low pass in shelf filter.
     pub shelf_filter_freq: u32,
+    /// The attenuation of low pass in shelf filter.
     pub shelf_filter_attenuation: i32,
+    /// The time length of decay.
     pub decay_time: u32,
+    /// The percentages against decay at low/middle/high frequencies.
     pub freq_time: [u32; 3],
+    /// The point to cross over between low and middle, between middle and high,
     pub freq_crossover: [u32; 2],
+    /// The width of stereo channels.
     pub width: f32,
+    /// The mode of reflection.
     pub reflection_mode: RoomShape,
+    /// The size of reflection.
     pub reflection_size: u32,
+    /// The level of reflection.
     pub reflection_level: f32,
+}
+
+/// The specification of reverb.
+pub trait MotuCommandDspReverbSpecification {
+    /// The minimum value of decay time.
+    const DECAY_TIME_MIN: u32 = 100;
+    /// The maximum value of decay time.
+    const DECAY_TIME_MAX: u32 = 60000;
+    /// The step value of decay time.
+    const DECAY_TIME_STEP: u32 = 1;
+
+    /// The minimum value of pre decay time.
+    const PRE_DELAY_MIN: u32 = 0;
+    /// The maximum value of pre decay time.
+    const PRE_DELAY_MAX: u32 = 100;
+    /// The step value of pre decay time.
+    const PRE_DELAY_STEP: u32 = 1;
+
+    /// The minimum value of shelf filter.
+    const SHELF_FILTER_FREQ_MIN: u32 = 1000;
+    /// The maximum value of shelf filter.
+    const SHELF_FILTER_FREQ_MAX: u32 = 20000;
+    /// The step value of shelf filter.
+    const SHELF_FILTER_FREQ_STEP: u32 = 1;
+
+    /// The minimum value of shelf filter attenuation.
+    const SHELF_FILTER_ATTR_MIN: i32 = -40;
+    /// The maximum value of shelf filter attenuation.
+    const SHELF_FILTER_ATTR_MAX: i32 = 0;
+    /// The step value of shelf filter attenuation.
+    const SHELF_FILTER_ATTR_STEP: i32 = 0;
+
+    /// The number of frequency times.
+    const FREQ_TIME_COUNT: usize = 3;
+    /// The minimum value of frequency time.
+    const FREQ_TIME_MIN: u32 = 0;
+    /// The maximum value of frequency time.
+    const FREQ_TIME_MAX: u32 = 100;
+    /// The step value of frequency time.
+    const FREQ_TIME_STEP: u32 = 1;
+
+    /// The number of frequency crossovers.
+    const FREQ_CROSSOVER_COUNT: usize = 2;
+    /// The minimum value of frequency crossover.
+    const FREQ_CROSSOVER_MIN: u32 = 100;
+    /// The maximum value of frequency crossover.
+    const FREQ_CROSSOVER_MAX: u32 = 20000;
+    /// The step value of frequency crossover.
+    const FREQ_CROSSOVER_STEP: u32 = 1;
+
+    /// The minimum value of width.
+    const WIDTH_MIN: f32 = -1.0;
+    /// The maximum value of width.
+    const WIDTH_MAX: f32 = 1.0;
+
+    /// The minimum value of reflection size.
+    const REFLECTION_SIZE_MIN: u32 = 50;
+    /// The maximum value of reflection size.
+    const REFLECTION_SIZE_MAX: u32 = 400;
+    /// The step value of reflection size.
+    const REFLECTION_SIZE_STEP: u32 = 1;
+
+    /// The minimum value of reflection level.
+    const REFLECTION_LEVEL_MIN: f32 = 0.0;
+    /// The maximum value of reflection level.
+    const REFLECTION_LEVEL_MAX: f32 = 1.0;
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspReverbState> for O
+where
+    O: MotuCommandDspReverbSpecification,
+{
+    fn build_commands(params: &CommandDspReverbState) -> Vec<DspCmd> {
+        vec![
+            DspCmd::Reverb(ReverbCmd::Enable(params.enable)),
+            DspCmd::Reverb(ReverbCmd::Split(params.split_point)),
+            DspCmd::Reverb(ReverbCmd::PreDelay(params.pre_delay)),
+            DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(params.shelf_filter_freq)),
+            DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(
+                params.shelf_filter_attenuation,
+            )),
+            DspCmd::Reverb(ReverbCmd::DecayTime(params.decay_time)),
+            DspCmd::Reverb(ReverbCmd::LowFreqTime(params.freq_time[0])),
+            DspCmd::Reverb(ReverbCmd::MiddleFreqTime(params.freq_time[1])),
+            DspCmd::Reverb(ReverbCmd::HighFreqTime(params.freq_time[2])),
+            DspCmd::Reverb(ReverbCmd::LowFreqCrossover(params.freq_crossover[0])),
+            DspCmd::Reverb(ReverbCmd::HighFreqCrossover(params.freq_crossover[1])),
+            DspCmd::Reverb(ReverbCmd::Width(params.width)),
+            DspCmd::Reverb(ReverbCmd::ReflectionMode(params.reflection_mode)),
+            DspCmd::Reverb(ReverbCmd::ReflectionSize(params.reflection_size)),
+            DspCmd::Reverb(ReverbCmd::ReflectionLevel(params.reflection_level)),
+        ]
+    }
+
+    fn parse_command(params: &mut CommandDspReverbState, command: &DspCmd) -> bool {
+        if let DspCmd::Reverb(cmd) = command {
+            match cmd {
+                ReverbCmd::Enable(val) => params.enable = *val,
+                ReverbCmd::Split(val) => params.split_point = *val,
+                ReverbCmd::PreDelay(val) => params.pre_delay = *val,
+                ReverbCmd::ShelfFilterFreq(val) => params.shelf_filter_freq = *val,
+                ReverbCmd::ShelfFilterAttenuation(val) => params.shelf_filter_attenuation = *val,
+                ReverbCmd::DecayTime(val) => params.decay_time = *val,
+                ReverbCmd::LowFreqTime(val) => params.freq_time[0] = *val,
+                ReverbCmd::MiddleFreqTime(val) => params.freq_time[1] = *val,
+                ReverbCmd::HighFreqTime(val) => params.freq_time[2] = *val,
+                ReverbCmd::LowFreqCrossover(val) => params.freq_crossover[0] = *val,
+                ReverbCmd::HighFreqCrossover(val) => params.freq_crossover[1] = *val,
+                ReverbCmd::Width(val) => params.width = *val,
+                ReverbCmd::ReflectionMode(val) => params.reflection_mode = *val,
+                ReverbCmd::ReflectionSize(val) => params.reflection_size = *val,
+                ReverbCmd::ReflectionLevel(val) => params.reflection_level = *val,
+                _ => (),
+            };
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn create_reverb_command(state: &CommandDspReverbState) -> Vec<DspCmd> {
