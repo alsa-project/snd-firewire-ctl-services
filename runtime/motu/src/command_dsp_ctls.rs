@@ -3474,9 +3474,13 @@ impl CommandDspResourceCtl {
 }
 
 #[derive(Debug)]
-pub(crate) struct CommandDspMeterCtl<T: CommandDspMeterOperation> {
+pub(crate) struct CommandDspMeterCtl<T>
+where
+    T: MotuCommandDspMeterSpecification
+        + MotuCommandDspImageOperation<CommandDspMeterState, [f32; 400]>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: CommandDspMeterState,
+    params: CommandDspMeterState,
     image: [f32; 400],
     _phantom: PhantomData<T>,
 }
@@ -3484,18 +3488,26 @@ pub(crate) struct CommandDspMeterCtl<T: CommandDspMeterOperation> {
 const INPUT_METER_NAME: &str = "input-meter";
 const OUTPUT_METER_NAME: &str = "output-meter";
 
-impl<T: CommandDspMeterOperation> Default for CommandDspMeterCtl<T> {
+impl<T> Default for CommandDspMeterCtl<T>
+where
+    T: MotuCommandDspMeterSpecification
+        + MotuCommandDspImageOperation<CommandDspMeterState, [f32; 400]>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            state: T::create_meter_state(),
+            params: T::create_meter_state(),
             image: [0.0; 400],
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
+impl<T> CommandDspMeterCtl<T>
+where
+    T: MotuCommandDspMeterSpecification
+        + MotuCommandDspImageOperation<CommandDspMeterState, [f32; 400]>,
+{
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
         card_cntr
@@ -3531,11 +3543,11 @@ impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
     pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
-                read_f32_to_i32_values(elem_value, &self.state.inputs)?;
+                read_f32_to_i32_values(elem_value, &self.params.inputs)?;
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                read_f32_to_i32_values(elem_value, &self.state.outputs)?;
+                read_f32_to_i32_values(elem_value, &self.params.outputs)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -3544,7 +3556,7 @@ impl<T: CommandDspMeterOperation> CommandDspMeterCtl<T> {
 
     pub(crate) fn read_dsp_meter(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
         unit.read_float_meter(&mut self.image)?;
-        T::parse_dsp_meter(&mut self.state, &self.image);
+        T::parse_image(&mut self.params, &self.image);
         Ok(())
     }
 }
