@@ -431,7 +431,7 @@ impl AudioExpressProtocol {
 }
 
 /// The protocol implementation for 828mk3 (FireWire only).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct F828mk3Protocol;
 
 const F828MK3_ASSIGN_PORT_TARGETS: &[TargetPort] = &[
@@ -763,7 +763,7 @@ impl F828mk3Protocol {
 }
 
 /// The protocol implementation for 828mk3 Hybrid.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct F828mk3HybridProtocol;
 
 impl MotuPortAssignSpecification for F828mk3HybridProtocol {
@@ -901,7 +901,7 @@ impl RegisterDspMeterOperation for H4preProtocol {
 }
 
 /// The protocol implementation for Ultralite mk3 (FireWire only).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct UltraliteMk3Protocol;
 
 const ULTRALITE_MK3_ASSIGN_PORT_TARGETS: &[TargetPort] = &[
@@ -1085,7 +1085,7 @@ impl MotuCommandDspMeterSpecification for UltraliteMk3Protocol {
 }
 
 /// The protocol implementation for Ultralite mk3 Hybrid.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct UltraliteMk3HybridProtocol;
 
 impl MotuPortAssignSpecification for UltraliteMk3HybridProtocol {
@@ -1142,7 +1142,7 @@ impl UltraliteMk3HybridProtocol {
 }
 
 /// The protocol implementation for Traveler mk3.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TravelerMk3Protocol;
 
 impl MotuPortAssignSpecification for TravelerMk3Protocol {
@@ -1446,7 +1446,7 @@ impl TravelerMk3Protocol {
 }
 
 /// The protocol implementation for Track 16.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Track16Protocol;
 
 impl MotuPortAssignSpecification for Track16Protocol {
