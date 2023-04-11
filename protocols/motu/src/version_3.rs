@@ -734,6 +734,8 @@ impl MotuCommandDspMixerSpecification for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
 }
 
+impl MotuCommandDspEqualizerSpecification for F828mk3Protocol {}
+
 impl CommandDspInputOperation for F828mk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 0;
@@ -790,6 +792,8 @@ impl MotuCommandDspReverbSpecification for F828mk3HybridProtocol {}
 impl MotuCommandDspMonitorSpecification for F828mk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
 }
+
+impl MotuCommandDspEqualizerSpecification for F828mk3HybridProtocol {}
 
 impl MotuCommandDspMixerSpecification for F828mk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
@@ -1045,6 +1049,8 @@ impl MotuCommandDspMonitorSpecification for UltraliteMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
 
+impl MotuCommandDspEqualizerSpecification for UltraliteMk3Protocol {}
+
 impl MotuCommandDspMixerSpecification for UltraliteMk3Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
@@ -1098,6 +1104,8 @@ impl MotuCommandDspReverbSpecification for UltraliteMk3HybridProtocol {}
 impl MotuCommandDspMonitorSpecification for UltraliteMk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
+
+impl MotuCommandDspEqualizerSpecification for UltraliteMk3HybridProtocol {}
 
 impl MotuCommandDspMixerSpecification for UltraliteMk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
@@ -1270,6 +1278,8 @@ impl MotuCommandDspMixerSpecification for TravelerMk3Protocol {
         TargetPort::OpticalBPair(3),
     ];
 }
+
+impl MotuCommandDspEqualizerSpecification for TravelerMk3Protocol {}
 
 impl CommandDspInputOperation for TravelerMk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
@@ -1520,6 +1530,8 @@ impl MotuCommandDspMixerSpecification for Track16Protocol {
         TargetPort::OpticalAPair(3),
     ];
 }
+
+impl MotuCommandDspEqualizerSpecification for Track16Protocol {}
 
 impl CommandDspInputOperation for Track16Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
