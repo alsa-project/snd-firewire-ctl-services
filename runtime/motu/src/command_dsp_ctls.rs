@@ -111,6 +111,23 @@ fn write_bool_values(dst: &mut [bool], src: &ElemValue) {
     dst.copy_from_slice(vals);
 }
 
+fn read_i32_value(dst: &mut ElemValue, src: &i32) {
+    dst.set_int(&[*src]);
+}
+
+fn write_i32_value(dst: &mut i32, src: &ElemValue) {
+    *dst = src.int()[0];
+}
+
+fn read_i32_values(dst: &mut ElemValue, src: &[i32]) {
+    dst.set_int(src);
+}
+
+fn write_i32_values(dst: &mut [i32], src: &ElemValue) {
+    let vals = &src.int()[..dst.len()];
+    dst.copy_from_slice(vals);
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
     pub elem_id_list: Vec<ElemId>,
@@ -351,7 +368,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                elem_value.set_int(&[self.state.shelf_filter_attenuation]);
+                read_i32_value(elem_value, &self.state.shelf_filter_attenuation);
                 Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
@@ -462,7 +479,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
                 let mut state = self.state.clone();
-                state.shelf_filter_attenuation = elem_value.int()[0];
+                write_i32_value(&mut state.shelf_filter_attenuation, elem_value);
                 T::write_reverb_state(
                     req,
                     node,
@@ -1545,13 +1562,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_int_values(elem_value: &mut ElemValue, vals: &[i32]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        elem_value.set_int(vals);
-        Ok(true)
-    }
-
     fn read_roll_off_level(
         elem_value: &mut ElemValue,
         levels: &[RollOffLevel],
@@ -1711,25 +1721,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_int_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[i32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
     }
 
     fn write_roll_off_level<F>(
@@ -2199,13 +2190,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_int_values(elem_value: &mut ElemValue, vals: &[i32]) -> Result<bool, Error> {
-        assert_eq!(vals.len(), Self::CH_COUNT);
-
-        elem_value.set_int(vals);
-        Ok(true)
-    }
-
     fn read_level_detect_mode(
         elem_value: &mut ElemValue,
         modes: &[LevelDetectMode],
@@ -2256,7 +2240,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_DETECT_MODE_NAME {
             Self::read_level_detect_mode(elem_value, &self.state().comp_detect_mode)
         } else if name == Self::COMP_THRESHOLD_NAME {
-            Self::read_int_values(elem_value, &self.state().comp_threshold)
+            read_i32_values(elem_value, &self.state().comp_threshold);
+            Ok(true)
         } else if name == Self::COMP_RATIO_NAME {
             read_f32_to_i32_values(elem_value, &self.state().comp_ratio)?;
             Ok(true)
@@ -2283,25 +2268,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_int_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[i32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &vals);
-            Ok(())
-        })
     }
 
     fn write_level_detect_mode<F>(
@@ -2395,14 +2361,10 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.comp_detect_mode.copy_from_slice(vals),
             )
         } else if name == Self::COMP_THRESHOLD_NAME {
-            self.write_int_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_threshold.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_i32_values(&mut state.comp_threshold, elem_value);
+                Ok(())
+            })
         } else if name == Self::COMP_RATIO_NAME {
             self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.comp_ratio, elem_value)
@@ -2631,7 +2593,7 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(true)
             }
             INPUT_GAIN_NAME => {
-                elem_value.set_int(&self.state.gain);
+                read_i32_values(elem_value, &self.state.gain);
                 Ok(true)
             }
             INPUT_SWAP_NAME => {
@@ -2708,13 +2670,10 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 write_bool_values(&mut state.pair, elem_value);
                 Ok(())
             }),
-            INPUT_GAIN_NAME => {
-                let vals = &elem_value.int()[..T::INPUT_PORTS.len()];
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.gain.copy_from_slice(&vals);
-                    Ok(())
-                })
-            }
+            INPUT_GAIN_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
+                write_i32_values(&mut state.gain, elem_value);
+                Ok(())
+            }),
             INPUT_SWAP_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
                 write_bool_values(&mut state.swap, elem_value);
                 Ok(())
