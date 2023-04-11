@@ -128,6 +128,54 @@ fn write_i32_values(dst: &mut [i32], src: &ElemValue) {
     dst.copy_from_slice(vals);
 }
 
+fn read_enum_value<T: Eq>(dst: &mut ElemValue, src: &T, table: &[T]) {
+    let pos = table.iter().position(|e| src.eq(e)).unwrap();
+    dst.set_enum(&[pos as u32]);
+}
+
+fn write_enum_value<T: Copy + Eq>(dst: &mut T, src: &ElemValue, table: &[T]) -> Result<(), Error> {
+    let pos = src.enumerated()[0] as usize;
+    table
+        .iter()
+        .nth(pos)
+        .ok_or_else(|| {
+            let msg = format!("Invalid index of enumeration: {}", pos);
+            Error::new(FileError::Inval, &msg)
+        })
+        .map(|&e| *dst = e)
+}
+
+fn read_enum_values<T: Eq>(dst: &mut ElemValue, src: &[T], table: &[T]) {
+    let vals: Vec<u32> = src
+        .iter()
+        .map(|enumeration| {
+            let pos = table.iter().position(|e| enumeration.eq(e)).unwrap();
+            pos as u32
+        })
+        .collect();
+    dst.set_enum(&vals);
+}
+
+fn write_enum_values<T: Copy + Eq>(
+    dst: &mut [T],
+    src: &ElemValue,
+    table: &[T],
+) -> Result<(), Error> {
+    dst.iter_mut()
+        .zip(src.enumerated())
+        .try_for_each(|(enumeration, &val)| {
+            let pos = val as usize;
+            table
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index of enumeration: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&e| *enumeration = e)
+        })
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
     pub elem_id_list: Vec<ElemId>,
@@ -352,11 +400,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_SPLIT_POINT_NAME => {
-                let pos = Self::SPLIT_POINTS
-                    .iter()
-                    .position(|p| self.state.split_point.eq(p))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                read_enum_value(elem_value, &self.state.split_point, &Self::SPLIT_POINTS);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
@@ -388,11 +432,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
-                let pos = Self::ROOM_SHAPES
-                    .iter()
-                    .position(|m| self.state.reflection_mode.eq(m))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
+                read_enum_value(elem_value, &self.state.reflection_mode, &Self::ROOM_SHAPES);
                 Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
@@ -432,15 +472,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_SPLIT_POINT_NAME => {
                 let mut state = self.state.clone();
-                let val = elem_value.enumerated()[0] as usize;
-                state.split_point = Self::SPLIT_POINTS
-                    .iter()
-                    .nth(val)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for split points: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&p| p)?;
+                write_enum_value(&mut state.split_point, elem_value, &Self::SPLIT_POINTS)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -544,15 +576,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_REFLECTION_MODE_NAME => {
                 let mut state = self.state.clone();
-                let pos = elem_value.enumerated()[0] as usize;
-                state.reflection_mode = Self::ROOM_SHAPES
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for reflection modes: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .copied()?;
+                write_enum_value(&mut state.reflection_mode, elem_value, &Self::ROOM_SHAPES)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -972,16 +996,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_DESTINATION_NAME => {
-                let vals: Vec<u32> = self
-                    .state
-                    .output_assign
-                    .iter()
-                    .map(|assign| {
-                        let pos = T::OUTPUT_PORTS.iter().position(|p| assign.eq(p)).unwrap();
-                        pos as u32
-                    })
-                    .collect();
-                elem_value.set_enum(&vals);
+                read_enum_values(elem_value, &self.state.output_assign, T::OUTPUT_PORTS);
                 Ok(true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
@@ -1042,18 +1057,11 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                let vals: Vec<u32> = src
-                    .stereo_mode
-                    .iter()
-                    .map(|mode| {
-                        let pos = Self::SOURCE_STEREO_PAIR_MODES
-                            .iter()
-                            .position(|m| mode.eq(m))
-                            .unwrap();
-                        pos as u32
-                    })
-                    .collect();
-                elem_value.set_enum(&vals);
+                read_enum_values(
+                    elem_value,
+                    &src.stereo_mode,
+                    &Self::SOURCE_STEREO_PAIR_MODES,
+                );
                 Ok(true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
@@ -1090,21 +1098,7 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_DESTINATION_NAME => {
                 let mut state = self.state.clone();
-                state
-                    .output_assign
-                    .iter_mut()
-                    .zip(elem_value.enumerated())
-                    .try_for_each(|(assign, &val)| {
-                        let pos = val as usize;
-                        T::OUTPUT_PORTS
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg = format!("Invalid index of output destinations: {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&p| *assign = p)
-                    })?;
+                write_enum_values(&mut state.output_assign, elem_value, T::OUTPUT_PORTS)?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1246,20 +1240,11 @@ impl<T: CommandDspMixerOperation> CommandDspMixerCtl<T> {
                     let msg = format!("Invalid index for mixer source: {}", mixer);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                src.stereo_mode
-                    .iter_mut()
-                    .zip(elem_value.enumerated())
-                    .try_for_each(|(mode, &val)| {
-                        let pos = val as usize;
-                        Self::SOURCE_STEREO_PAIR_MODES
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg = format!("Invalid index of stereo pair modes: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&m| *mode = m)
-                    })?;
+                write_enum_values(
+                    &mut src.stereo_mode,
+                    elem_value,
+                    &Self::SOURCE_STEREO_PAIR_MODES,
+                )?;
                 T::write_mixer_state(
                     req,
                     node,
@@ -1414,10 +1399,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         FilterType4::T4,
     ];
 
-    const LEVEL_DETECT_MODES: [LevelDetectMode; 2] = [LevelDetectMode::Peak, LevelDetectMode::Rms];
-
-    const LEVELER_MODES: [LevelerMode; 2] = [LevelerMode::Compress, LevelerMode::Limit];
-
     fn load_equalizer(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
@@ -1562,66 +1543,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_roll_off_level(
-        elem_value: &mut ElemValue,
-        levels: &[RollOffLevel],
-    ) -> Result<bool, Error> {
-        assert_eq!(levels.len(), Self::CH_COUNT);
-
-        let vals: Vec<u32> = levels
-            .iter()
-            .map(|level| {
-                let pos = Self::ROLL_OFF_LEVELS
-                    .iter()
-                    .position(|l| level.eq(l))
-                    .unwrap();
-                pos as u32
-            })
-            .collect();
-        elem_value.set_enum(&vals);
-        Ok(true)
-    }
-
-    fn read_filter_type_5(
-        elem_value: &mut ElemValue,
-        filter_types: &[FilterType5],
-    ) -> Result<bool, Error> {
-        assert_eq!(filter_types.len(), Self::CH_COUNT);
-
-        let vals: Vec<u32> = filter_types
-            .iter()
-            .map(|filter_type| {
-                let pos = Self::FILTER_TYPE_5
-                    .iter()
-                    .position(|f| filter_type.eq(f))
-                    .unwrap();
-                pos as u32
-            })
-            .collect();
-        elem_value.set_enum(&vals);
-        Ok(true)
-    }
-
-    fn read_filter_type_4(
-        elem_value: &mut ElemValue,
-        filter_types: &[FilterType4],
-    ) -> Result<bool, Error> {
-        assert_eq!(filter_types.len(), Self::CH_COUNT);
-
-        let vals: Vec<u32> = filter_types
-            .iter()
-            .map(|filter_type| {
-                let pos = Self::FILTER_TYPE_4
-                    .iter()
-                    .position(|f| filter_type.eq(f))
-                    .unwrap();
-                pos as u32
-            })
-            .collect();
-        elem_value.set_enum(&vals);
-        Ok(true)
-    }
-
     fn read_equalizer(
         &mut self,
         elem_id: &ElemId,
@@ -1636,7 +1557,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().hpf_enable);
             Ok(true)
         } else if name == Self::HPF_SLOPE_NAME {
-            Self::read_roll_off_level(elem_value, &self.state().hpf_slope)
+            read_enum_values(elem_value, &self.state().hpf_slope, &Self::ROLL_OFF_LEVELS);
+            Ok(true)
         } else if name == Self::HPF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().hpf_freq)?;
             Ok(true)
@@ -1644,7 +1566,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().lpf_enable);
             Ok(true)
         } else if name == Self::LPF_SLOPE_NAME {
-            Self::read_roll_off_level(elem_value, &self.state().lpf_slope)
+            read_enum_values(elem_value, &self.state().lpf_slope, &Self::ROLL_OFF_LEVELS);
+            Ok(true)
         } else if name == Self::LPF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().lpf_freq)?;
             Ok(true)
@@ -1652,7 +1575,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().lf_enable);
             Ok(true)
         } else if name == Self::LF_TYPE_NAME {
-            Self::read_filter_type_5(elem_value, &self.state().lf_type)
+            read_enum_values(elem_value, &self.state().lf_type, &Self::FILTER_TYPE_5);
+            Ok(true)
         } else if name == Self::LF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().lf_freq)?;
             Ok(true)
@@ -1666,7 +1590,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().lmf_enable);
             Ok(true)
         } else if name == Self::LMF_TYPE_NAME {
-            Self::read_filter_type_4(elem_value, &self.state().lmf_type)
+            read_enum_values(elem_value, &self.state().lmf_type, &Self::FILTER_TYPE_4);
+            Ok(true)
         } else if name == Self::LMF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().lmf_freq)?;
             Ok(true)
@@ -1680,7 +1605,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().mf_enable);
             Ok(true)
         } else if name == Self::MF_TYPE_NAME {
-            Self::read_filter_type_4(elem_value, &self.state().mf_type)
+            read_enum_values(elem_value, &self.state().mf_type, &Self::FILTER_TYPE_4);
+            Ok(true)
         } else if name == Self::MF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().mf_freq)?;
             Ok(true)
@@ -1694,7 +1620,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().hmf_enable);
             Ok(true)
         } else if name == Self::HMF_TYPE_NAME {
-            Self::read_filter_type_4(elem_value, &self.state().hmf_type)
+            read_enum_values(elem_value, &self.state().hmf_type, &Self::FILTER_TYPE_4);
+            Ok(true)
         } else if name == Self::HMF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().hmf_freq)?;
             Ok(true)
@@ -1708,7 +1635,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().hf_enable);
             Ok(true)
         } else if name == Self::HF_TYPE_NAME {
-            Self::read_filter_type_5(elem_value, &self.state().hf_type)
+            read_enum_values(elem_value, &self.state().hf_type, &Self::FILTER_TYPE_5);
+            Ok(true)
         } else if name == Self::HF_FREQ_NAME {
             read_u32_to_i32_values(elem_value, &self.state().hf_freq)?;
             Ok(true)
@@ -1721,96 +1649,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_roll_off_level<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[RollOffLevel]),
-    {
-        let vals = &elem_value.enumerated()[..Self::CH_COUNT];
-        let mut levels = Vec::new();
-        vals.iter().try_for_each(|&val| {
-            Self::ROLL_OFF_LEVELS
-                .iter()
-                .nth(val as usize)
-                .ok_or_else(|| {
-                    let msg = format!("Invalid index of roll off levels: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })
-                .map(|&l| levels.push(l))
-        })?;
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &levels);
-            Ok(())
-        })
-    }
-
-    fn write_filter_type_5<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[FilterType5]),
-    {
-        let vals = &elem_value.enumerated()[..Self::CH_COUNT];
-        let mut filter_types = Vec::new();
-        vals.iter().try_for_each(|&val| {
-            Self::FILTER_TYPE_5
-                .iter()
-                .nth(val as usize)
-                .ok_or_else(|| {
-                    let msg = format!("Invalid index of filter type 5: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })
-                .map(|&filter_type| filter_types.push(filter_type))
-        })?;
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &filter_types);
-            Ok(())
-        })
-    }
-
-    fn write_filter_type_4<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[FilterType4]),
-    {
-        let vals = &elem_value.enumerated()[..Self::CH_COUNT];
-        let mut filter_types = Vec::new();
-        vals.iter().try_for_each(|&val| {
-            Self::FILTER_TYPE_4
-                .iter()
-                .nth(val as usize)
-                .ok_or_else(|| {
-                    let msg = format!("Invalid index of filter type 4: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })
-                .map(|&filter_type| filter_types.push(filter_type))
-        })?;
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &filter_types);
-            Ok(())
-        })
     }
 
     fn write_equalizer(
@@ -1835,14 +1673,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::HPF_SLOPE_NAME {
-            self.write_roll_off_level(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.hpf_slope.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.hpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)
+            })
         } else if name == Self::HPF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.hpf_freq, elem_value)
@@ -1853,14 +1686,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::LPF_SLOPE_NAME {
-            self.write_roll_off_level(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.lpf_slope.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.lpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)
+            })
         } else if name == Self::LPF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.lpf_freq, elem_value)
@@ -1871,14 +1699,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::LF_TYPE_NAME {
-            self.write_filter_type_5(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.lf_type.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.lf_type, elem_value, &Self::FILTER_TYPE_5)
+            })
         } else if name == Self::LF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.lf_freq, elem_value)
@@ -1897,14 +1720,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::LMF_TYPE_NAME {
-            self.write_filter_type_4(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.lmf_type.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.lmf_type, elem_value, &Self::FILTER_TYPE_4)
+            })
         } else if name == Self::LMF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.lmf_freq, elem_value)
@@ -1923,14 +1741,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::MF_TYPE_NAME {
-            self.write_filter_type_4(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.mf_type.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.mf_type, elem_value, &Self::FILTER_TYPE_4)
+            })
         } else if name == Self::MF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.mf_freq, elem_value)
@@ -1949,14 +1762,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::HMF_TYPE_NAME {
-            self.write_filter_type_4(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.hmf_type.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.hmf_type, elem_value, &Self::FILTER_TYPE_4)
+            })
         } else if name == Self::HMF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.hmf_freq, elem_value)
@@ -1975,14 +1783,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::HF_TYPE_NAME {
-            self.write_filter_type_5(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.hf_type.copy_from_slice(vals),
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.hf_type, elem_value, &Self::FILTER_TYPE_5)
+            })
         } else if name == Self::HF_FREQ_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.hf_freq, elem_value)
@@ -2190,40 +1993,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(notified_elem_id_list)
     }
 
-    fn read_level_detect_mode(
-        elem_value: &mut ElemValue,
-        modes: &[LevelDetectMode],
-    ) -> Result<bool, Error> {
-        assert_eq!(modes.len(), Self::CH_COUNT);
-
-        let vals: Vec<u32> = modes
-            .iter()
-            .map(|mode| {
-                let pos = Self::LEVEL_DETECT_MODES
-                    .iter()
-                    .position(|m| mode.eq(m))
-                    .unwrap();
-                pos as u32
-            })
-            .collect();
-        elem_value.set_enum(&vals);
-        Ok(true)
-    }
-
-    fn read_leveler_mode(elem_value: &mut ElemValue, modes: &[LevelerMode]) -> Result<bool, Error> {
-        assert_eq!(modes.len(), Self::CH_COUNT);
-
-        let vals: Vec<u32> = modes
-            .iter()
-            .map(|mode| {
-                let pos = Self::LEVELER_MODES.iter().position(|m| mode.eq(m)).unwrap();
-                pos as u32
-            })
-            .collect();
-        elem_value.set_enum(&vals);
-        Ok(true)
-    }
-
     fn read_dynamics(
         &mut self,
         elem_id: &ElemId,
@@ -2238,7 +2007,12 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().comp_enable);
             Ok(true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
-            Self::read_level_detect_mode(elem_value, &self.state().comp_detect_mode)
+            read_enum_values(
+                elem_value,
+                &self.state().comp_detect_mode,
+                &Self::LEVEL_DETECT_MODES,
+            );
+            Ok(true)
         } else if name == Self::COMP_THRESHOLD_NAME {
             read_i32_values(elem_value, &self.state().comp_threshold);
             Ok(true)
@@ -2258,7 +2032,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             read_bool_values(elem_value, &self.state().leveler_enable);
             Ok(true)
         } else if name == Self::LEVELER_MODE_NAME {
-            Self::read_leveler_mode(elem_value, &self.state().leveler_mode)
+            read_enum_values(elem_value, &self.state().leveler_mode, &Self::LEVELER_MODES);
+            Ok(true)
         } else if name == Self::LEVELER_MAKEUP_NAME {
             read_u32_to_i32_values(elem_value, &self.state().leveler_makeup)?;
             Ok(true)
@@ -2268,66 +2043,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else {
             Ok(false)
         }
-    }
-
-    fn write_level_detect_mode<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[LevelDetectMode]),
-    {
-        let vals = &elem_value.enumerated()[..Self::CH_COUNT];
-        let mut modes = Vec::new();
-        vals.iter().try_for_each(|&val| {
-            Self::LEVEL_DETECT_MODES
-                .iter()
-                .nth(val as usize)
-                .ok_or_else(|| {
-                    let msg = format!("Invalid index of level detect modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })
-                .map(|&mode| modes.push(mode))
-        })?;
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &modes);
-            Ok(())
-        })
-    }
-
-    fn write_leveler_mode<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[LevelerMode]),
-    {
-        let vals = &elem_value.enumerated()[..Self::CH_COUNT];
-        let mut modes = Vec::new();
-        vals.iter().try_for_each(|&val| {
-            Self::LEVELER_MODES
-                .iter()
-                .nth(val as usize)
-                .ok_or_else(|| {
-                    let msg = format!("Invalid index of leveler  modes: {}", val);
-                    Error::new(FileError::Inval, &msg)
-                })
-                .map(|&mode| modes.push(mode))
-        })?;
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &modes);
-            Ok(())
-        })
     }
 
     fn write_dynamics(
@@ -2352,14 +2067,13 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::COMP_DETECT_MODE_NAME {
-            self.write_level_detect_mode(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_detect_mode.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(
+                    &mut state.comp_detect_mode,
+                    elem_value,
+                    &Self::LEVEL_DETECT_MODES,
+                )
+            })
         } else if name == Self::COMP_THRESHOLD_NAME {
             self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
                 write_i32_values(&mut state.comp_threshold, elem_value);
@@ -2387,14 +2101,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 Ok(())
             })
         } else if name == Self::LEVELER_MODE_NAME {
-            self.write_leveler_mode(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.leveler_mode.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_enum_values(&mut state.leveler_mode, elem_value, &Self::LEVELER_MODES)
+            })
         } else if name == Self::LEVELER_MAKEUP_NAME {
             self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
                 write_u32_from_i32_values(&mut state.leveler_makeup, elem_value)
@@ -2601,19 +2310,11 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(true)
             }
             INPUT_STEREO_MODE_NAME => {
-                let vals: Vec<u32> = self
-                    .state
-                    .stereo_mode
-                    .iter()
-                    .map(|mode| {
-                        let pos = Self::STEREO_PAIR_MODES
-                            .iter()
-                            .position(|m| mode.eq(m))
-                            .unwrap();
-                        pos as u32
-                    })
-                    .collect();
-                elem_value.set_enum(&vals);
+                read_enum_values(
+                    elem_value,
+                    &self.state.stereo_mode,
+                    &Self::STEREO_PAIR_MODES,
+                );
                 Ok(true)
             }
             INPUT_WIDTH_NAME => {
@@ -2679,21 +2380,8 @@ impl<T: CommandDspInputOperation> CommandDspInputCtl<T> {
                 Ok(())
             }),
             INPUT_STEREO_MODE_NAME => {
-                let vals = &elem_value.enumerated()[..T::INPUT_PORTS.len()];
-                let mut modes = Vec::new();
-                vals.iter().try_for_each(|&val| {
-                    Self::STEREO_PAIR_MODES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of stereo pair modes: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&m| modes.push(m))
-                })?;
                 self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    state.stereo_mode.copy_from_slice(&modes);
-                    Ok(())
+                    write_enum_values(&mut state.stereo_mode, elem_value, &Self::STEREO_PAIR_MODES)
                 })
             }
             INPUT_WIDTH_NAME => self.write_state(sequence_number, req, node, timeout_ms, |state| {
