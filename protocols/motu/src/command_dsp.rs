@@ -2883,24 +2883,40 @@ fn parse_dynamics_parameter(
 /// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspInputState {
+    /// Whether to invert phase of input signals.
     pub phase: Vec<bool>,
+    /// Whether to enable stereo pair.
     pub pair: Vec<bool>,
+    /// The gain of inputs.
     pub gain: Vec<i32>,
+    /// Whether to swap a pair of channels.
     pub swap: Vec<bool>,
+    /// The mode of stereo pair.
     pub stereo_mode: Vec<InputStereoPairMode>,
+    /// The left and right width of stereo pair.
     pub width: Vec<f32>,
 
+    /// The volume to send to reverb effect.
     pub reverb_send: Vec<f32>,
+    /// The left and right balance to send to reverb effect.
     pub reverb_balance: Vec<f32>,
 
+    /// The parameters of qeualizers for each input.
     pub equalizer: CommandDspEqualizerState,
+    /// The parameters of dynamics for each input.
     pub dynamics: CommandDspDynamicsState,
 
+    /// Whether to attenuate inputs.
     pub pad: Vec<bool>,
+    /// The nominal level of inputs.
     pub nominal_level: Vec<NominalSignalLevel>,
+    /// Whether to enable phantom powering for inputs.
     pub phantom: Vec<bool>,
+    /// Whether to enable limitter.
     pub limitter: Vec<bool>,
+    /// Whether to increase head room.
     pub lookahead: Vec<bool>,
+    /// Whether to enable soft clipping.
     pub soft_clip: Vec<bool>,
 }
 
@@ -2925,6 +2941,204 @@ impl AsRef<CommandDspDynamicsState> for CommandDspInputState {
 impl AsMut<CommandDspDynamicsState> for CommandDspInputState {
     fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
         &mut self.dynamics
+    }
+}
+
+/// The trait for specification of inputs.
+pub trait MotuCommandDspInputSpecification {
+    /// The input ports.
+    const INPUT_PORTS: &'static [TargetPort];
+    /// The number of microphone inputs.
+    const MIC_COUNT: usize;
+    /// The number of line inputs.
+    const LINE_INPUT_COUNT: usize;
+
+    /// The minimum value of gain.
+    const INPUT_GAIN_MIN: i32 = -96;
+    /// The maximum value of gain.
+    const INPUT_GAIN_MAX: i32 = 22;
+    /// The step value of gain.
+    const INPUT_GAIN_STEP: i32 = 1;
+
+    /// The minimum value of width.
+    const INPUT_WIDTH_MIN: f32 = 0.0;
+    /// The maximum value of width.
+    const INPUT_WIDTH_MAX: f32 = 1.0;
+
+    /// The minimum value of gain to send to reverb.
+    const INPUT_REVERB_GAIN_MIN: f32 = 0.0;
+    /// The maximum value of gain to send to reverb.
+    const INPUT_REVERB_GAIN_MAX: f32 = 1.0;
+
+    /// The minimum value of left and right balance to send to reverb.
+    const INPUT_REVERB_BALANCE_MIN: f32 = -1.0;
+    /// The maximum value of left and right balance to send to reverb.
+    const INPUT_REVERB_BALANCE_MAX: f32 = 1.0;
+
+    /// Instantiate input parameters.
+    fn create_input_state() -> CommandDspInputState {
+        CommandDspInputState {
+            phase: vec![Default::default(); Self::INPUT_PORTS.len()],
+            pair: vec![Default::default(); Self::INPUT_PORTS.len()],
+            gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+            swap: vec![Default::default(); Self::INPUT_PORTS.len()],
+            stereo_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+            width: vec![Default::default(); Self::INPUT_PORTS.len()],
+            reverb_send: vec![Default::default(); Self::INPUT_PORTS.len()],
+            reverb_balance: vec![Default::default(); Self::INPUT_PORTS.len()],
+            equalizer: CommandDspEqualizerState {
+                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                mf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+            },
+            dynamics: CommandDspDynamicsState {
+                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                comp_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_detect_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_threshold: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_ratio: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_attack: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_release: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                leveler_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_makeup: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_reduce: vec![Default::default(); Self::INPUT_PORTS.len()],
+            },
+            pad: vec![Default::default(); Self::MIC_COUNT],
+            phantom: vec![Default::default(); Self::MIC_COUNT],
+            limitter: vec![Default::default(); Self::MIC_COUNT],
+            lookahead: vec![Default::default(); Self::MIC_COUNT],
+            soft_clip: vec![Default::default(); Self::MIC_COUNT],
+            nominal_level: vec![Default::default(); Self::LINE_INPUT_COUNT],
+        }
+    }
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspInputState> for O
+where
+    O: MotuCommandDspInputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification,
+{
+    fn build_commands(params: &CommandDspInputState) -> Vec<DspCmd> {
+        let mut cmds = Vec::new();
+
+        (0..Self::INPUT_PORTS.len()).for_each(|ch| {
+            cmds.push(DspCmd::Input(InputCmd::Phase(ch, params.phase[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Pair(ch, params.pair[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Gain(ch, params.gain[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Swap(ch, params.swap[ch])));
+            cmds.push(DspCmd::Input(InputCmd::StereoMode(
+                ch,
+                params.stereo_mode[ch],
+            )));
+            cmds.push(DspCmd::Input(InputCmd::Width(ch, params.width[ch])));
+
+            O::create_equalizer_parameters(&params.equalizer, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Equalizer(ch, param))));
+
+            O::create_dynamics_parameters(&params.dynamics, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Dynamics(ch, param))));
+
+            cmds.push(DspCmd::Input(InputCmd::ReverbSend(
+                ch,
+                params.reverb_send[ch],
+            )));
+            cmds.push(DspCmd::Input(InputCmd::ReverbLrBalance(
+                ch,
+                params.reverb_balance[ch],
+            )));
+        });
+
+        (0..Self::MIC_COUNT).for_each(|ch| {
+            cmds.push(DspCmd::Input(InputCmd::Pad(ch, params.pad[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Phantom(ch, params.phantom[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Limitter(ch, params.limitter[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Lookahead(ch, params.lookahead[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Softclip(ch, params.soft_clip[ch])));
+        });
+
+        (0..Self::LINE_INPUT_COUNT).for_each(|ch| {
+            cmds.push(DspCmd::Input(InputCmd::NominalLevel(
+                Self::MIC_COUNT + ch,
+                params.nominal_level[ch],
+            )));
+        });
+
+        cmds
+    }
+
+    fn parse_command(params: &mut CommandDspInputState, command: &DspCmd) -> bool {
+        if let DspCmd::Input(cmd) = command {
+            match cmd {
+                InputCmd::Phase(ch, val) => params.phase[*ch] = *val,
+                InputCmd::Pair(ch, val) => params.pair[*ch] = *val,
+                InputCmd::Gain(ch, val) => params.gain[*ch] = *val,
+                InputCmd::Swap(ch, val) => params.swap[*ch] = *val,
+                InputCmd::StereoMode(ch, val) => params.stereo_mode[*ch] = *val,
+                InputCmd::Width(ch, val) => params.width[*ch] = *val,
+                InputCmd::Equalizer(ch, param) => {
+                    O::parse_equalizer_parameter(&mut params.equalizer, param, *ch)
+                }
+                InputCmd::Dynamics(ch, param) => {
+                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch)
+                }
+                InputCmd::ReverbSend(ch, val) => params.reverb_send[*ch] = *val,
+                InputCmd::ReverbLrBalance(ch, val) => params.reverb_balance[*ch] = *val,
+                InputCmd::NominalLevel(ch, val) => {
+                    if *ch >= params.pad.len()
+                        && *ch < params.pad.len() + params.nominal_level.len()
+                    {
+                        params.nominal_level[*ch - params.pad.len()] = *val;
+                    }
+                }
+                _ => (),
+            };
+            true
+        } else {
+            false
+        }
     }
 }
 
