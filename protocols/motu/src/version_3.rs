@@ -734,11 +734,6 @@ impl MotuCommandDspMixerSpecification for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
 }
 
-impl CommandDspMixerOperation for F828mk3Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
-    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
-}
-
 impl CommandDspInputOperation for F828mk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 0;
@@ -797,11 +792,6 @@ impl MotuCommandDspMonitorSpecification for F828mk3HybridProtocol {
 }
 
 impl MotuCommandDspMixerSpecification for F828mk3HybridProtocol {
-    const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
-    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
-}
-
-impl CommandDspMixerOperation for F828mk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
 }
@@ -1060,11 +1050,6 @@ impl MotuCommandDspMixerSpecification for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
 }
 
-impl CommandDspMixerOperation for UltraliteMk3Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
-    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
-}
-
 impl CommandDspInputOperation for UltraliteMk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     // The mic functions are not configureble by command. They are just hard-wired.
@@ -1115,11 +1100,6 @@ impl MotuCommandDspMonitorSpecification for UltraliteMk3HybridProtocol {
 }
 
 impl MotuCommandDspMixerSpecification for UltraliteMk3HybridProtocol {
-    const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
-    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
-}
-
-impl CommandDspMixerOperation for UltraliteMk3HybridProtocol {
     const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
 }
@@ -1241,57 +1221,6 @@ impl MotuCommandDspMonitorSpecification for TravelerMk3Protocol {
 }
 
 impl MotuCommandDspMixerSpecification for TravelerMk3Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog(0), // Mic-0
-        TargetPort::Analog(1), // Mic-1
-        TargetPort::Analog(2), // Mic-2
-        TargetPort::Analog(3), // Mic-3
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::AesEbu(0),
-        TargetPort::AesEbu(1),
-        TargetPort::Spdif(0),
-        TargetPort::Spdif(1),
-        TargetPort::OpticalA(0),
-        TargetPort::OpticalA(1),
-        TargetPort::OpticalA(2),
-        TargetPort::OpticalA(3),
-        TargetPort::OpticalA(4),
-        TargetPort::OpticalA(5),
-        TargetPort::OpticalA(6),
-        TargetPort::OpticalA(7),
-        TargetPort::OpticalB(0),
-        TargetPort::OpticalB(1),
-        TargetPort::OpticalB(2),
-        TargetPort::OpticalB(3),
-        TargetPort::OpticalB(4),
-        TargetPort::OpticalB(5),
-        TargetPort::OpticalB(6),
-        TargetPort::OpticalB(7),
-    ];
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::AesEbuPair,
-        TargetPort::SpdifPair,
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-        TargetPort::OpticalBPair(0),
-        TargetPort::OpticalBPair(1),
-        TargetPort::OpticalBPair(2),
-        TargetPort::OpticalBPair(3),
-    ];
-}
-
-impl CommandDspMixerOperation for TravelerMk3Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0), // Mic-0
         TargetPort::Analog(1), // Mic-1
@@ -1560,39 +1489,6 @@ impl MotuCommandDspMonitorSpecification for Track16Protocol {
 }
 
 impl MotuCommandDspMixerSpecification for Track16Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog(0), // Mic-0
-        TargetPort::Analog(1), // Mic-1
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::OpticalA(0),
-        TargetPort::OpticalA(1),
-        TargetPort::OpticalA(2),
-        TargetPort::OpticalA(3),
-        TargetPort::OpticalA(4),
-        TargetPort::OpticalA(5),
-        TargetPort::OpticalA(6),
-        TargetPort::OpticalA(7),
-    ];
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-    ];
-}
-
-impl CommandDspMixerOperation for Track16Protocol {
     const SOURCE_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0), // Mic-0
         TargetPort::Analog(1), // Mic-1
