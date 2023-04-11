@@ -748,10 +748,6 @@ impl MotuCommandDspOutputSpecification for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
 
-impl CommandDspOutputOperation for F828mk3Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
-}
-
 impl CommandDspMeterOperation for F828mk3Protocol {
     const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
     const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
@@ -816,10 +812,6 @@ impl MotuCommandDspInputSpecification for F828mk3HybridProtocol {
 }
 
 impl MotuCommandDspOutputSpecification for F828mk3HybridProtocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
-}
-
-impl CommandDspOutputOperation for F828mk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
 
@@ -1081,10 +1073,6 @@ impl MotuCommandDspOutputSpecification for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
 
-impl CommandDspOutputOperation for UltraliteMk3Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
-}
-
 impl UltraliteMk3Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
@@ -1139,10 +1127,6 @@ impl MotuCommandDspInputSpecification for UltraliteMk3HybridProtocol {
 }
 
 impl MotuCommandDspOutputSpecification for UltraliteMk3HybridProtocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
-}
-
-impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
 
@@ -1343,26 +1327,6 @@ impl MotuCommandDspInputSpecification for TravelerMk3Protocol {
 }
 
 impl MotuCommandDspOutputSpecification for TravelerMk3Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::AesEbuPair,
-        TargetPort::SpdifPair,
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-        TargetPort::OpticalBPair(0),
-        TargetPort::OpticalBPair(1),
-        TargetPort::OpticalBPair(2),
-        TargetPort::OpticalBPair(3),
-    ];
-}
-
-impl CommandDspOutputOperation for TravelerMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::AnalogPair(0),
         TargetPort::AnalogPair(1),
@@ -1605,18 +1569,6 @@ impl MotuCommandDspInputSpecification for Track16Protocol {
 }
 
 impl MotuCommandDspOutputSpecification for Track16Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::PhonePair,
-        TargetPort::OpticalAPair(0),
-        TargetPort::OpticalAPair(1),
-        TargetPort::OpticalAPair(2),
-        TargetPort::OpticalAPair(3),
-    ];
-}
-
-impl CommandDspOutputOperation for Track16Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::AnalogPair(0),
         TargetPort::AnalogPair(1),

@@ -1373,7 +1373,7 @@ fn filter_type_4_to_str(filter_type: &FilterType4) -> &'static str {
 // TODO: better trait parameters to distinguish input and output.
 pub trait CommandDspEqualizerCtlOperation<T, U>
 where
-    T: MotuCommandDspEqualizerSpecification,
+    T: MotuCommandDspEqualizerSpecification + MotuCommandDspUpdatableParamsOperation<U>,
     U: Clone + AsRef<CommandDspEqualizerState> + AsMut<CommandDspEqualizerState>,
 {
     const CH_COUNT: usize;
@@ -1744,7 +1744,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1757,7 +1757,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.hpf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1770,7 +1770,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.hpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1783,7 +1783,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.hpf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1796,7 +1796,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.lpf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1809,7 +1809,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.lpf_slope, elem_value, &Self::ROLL_OFF_LEVELS)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1822,7 +1822,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.lpf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1835,7 +1835,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.lpf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1848,7 +1848,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.lf_type, elem_value, &Self::FILTER_TYPE_5)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1861,7 +1861,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.lf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1874,7 +1874,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.lf_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1887,7 +1887,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.lf_width, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1900,7 +1900,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.lmf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1913,7 +1913,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.lmf_type, elem_value, &Self::FILTER_TYPE_4)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1926,7 +1926,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.lmf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1939,7 +1939,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.lmf_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1952,7 +1952,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.lmf_width, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1965,7 +1965,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.mf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1978,7 +1978,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.mf_type, elem_value, &Self::FILTER_TYPE_4)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -1991,7 +1991,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.mf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2004,7 +2004,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.mf_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2017,7 +2017,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.mf_width, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2030,7 +2030,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.hmf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2043,7 +2043,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.hmf_type, elem_value, &Self::FILTER_TYPE_4)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2056,7 +2056,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.hmf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2069,7 +2069,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.hmf_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2082,7 +2082,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.hmf_width, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2095,7 +2095,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_bool_values(&mut equalizer.hf_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2108,7 +2108,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_enum_values(&mut equalizer.hf_type, elem_value, &Self::FILTER_TYPE_5)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2121,7 +2121,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_u32_from_i32_values(&mut equalizer.hf_freq, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2134,7 +2134,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.hf_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2147,7 +2147,7 @@ where
             let mut params = self.params().clone();
             let equalizer = &mut params.as_mut();
             write_f32_from_i32_values(&mut equalizer.hf_width, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2160,15 +2160,6 @@ where
             Ok(false)
         }
     }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut U,
-        updates: U,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
 }
 
 fn level_detect_mode_to_str(mode: &LevelDetectMode) -> &'static str {
@@ -2190,7 +2181,7 @@ fn leveler_mode_to_str(mode: &LevelerMode) -> &'static str {
 // TODO: better trait parameters to distinguish input and output.
 pub trait CommandDspDynamicsCtlOperation<T, U>
 where
-    T: MotuCommandDspDynamicsSpecification,
+    T: MotuCommandDspDynamicsSpecification + MotuCommandDspUpdatableParamsOperation<U>,
     U: Clone + AsRef<CommandDspDynamicsState> + AsMut<CommandDspDynamicsState>,
 {
     const CH_COUNT: usize;
@@ -2433,7 +2424,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_bool_values(&mut dynamics.enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2446,7 +2437,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_bool_values(&mut dynamics.comp_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2463,7 +2454,7 @@ where
                 elem_value,
                 &Self::LEVEL_DETECT_MODES,
             )?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2476,7 +2467,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_i32_values(&mut dynamics.comp_threshold, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2489,7 +2480,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_f32_from_i32_values(&mut dynamics.comp_ratio, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2502,7 +2493,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_u32_from_i32_values(&mut dynamics.comp_attack, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2515,7 +2506,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_u32_from_i32_values(&mut dynamics.comp_release, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2528,7 +2519,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_f32_from_i32_values(&mut dynamics.comp_gain, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2541,7 +2532,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_bool_values(&mut dynamics.leveler_enable, elem_value);
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2554,7 +2545,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_enum_values(&mut dynamics.leveler_mode, elem_value, &Self::LEVELER_MODES)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2567,7 +2558,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_u32_from_i32_values(&mut dynamics.leveler_makeup, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2580,7 +2571,7 @@ where
             let mut params = self.params().clone();
             let dynamics = params.as_mut();
             write_u32_from_i32_values(&mut dynamics.leveler_reduce, elem_value)?;
-            let res = Self::update_partially(
+            let res = T::update_partially(
                 req,
                 node,
                 sequence_number,
@@ -2593,15 +2584,6 @@ where
             Ok(false)
         }
     }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut U,
-        updates: U,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
 }
 
 fn input_stereo_pair_mode_to_string(mode: &InputStereoPairMode) -> &'static str {
@@ -3100,17 +3082,6 @@ where
     fn params_mut(&mut self) -> &mut CommandDspInputState {
         &mut self.params
     }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut CommandDspInputState,
-        updates: CommandDspInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::update_partially(req, node, sequence_number, params, updates, timeout_ms)
-    }
 }
 
 impl<T> CommandDspDynamicsCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
@@ -3145,23 +3116,19 @@ where
     fn params_mut(&mut self) -> &mut CommandDspInputState {
         &mut self.params
     }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut CommandDspInputState,
-        updates: CommandDspInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::update_partially(req, node, sequence_number, params, updates, timeout_ms)
-    }
 }
 
 #[derive(Debug)]
-pub(crate) struct CommandDspOutputCtl<T: CommandDspOutputOperation> {
+pub(crate) struct CommandDspOutputCtl<T>
+where
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: CommandDspOutputState,
+    params: CommandDspOutputState,
     _phantom: PhantomData<T>,
 }
 
@@ -3171,21 +3138,43 @@ const OUTPUT_MASTER_MONITOR_NAME: &str = "output-master-monitor";
 const OUTPUT_MASTER_TALKBACK_NAME: &str = "output-master-talkback";
 const OUTPUT_MASTER_LISTENBACK_NAME: &str = "output-master-listenback";
 
-impl<T: CommandDspOutputOperation> Default for CommandDspOutputCtl<T> {
+impl<T> Default for CommandDspOutputCtl<T>
+where
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            state: T::create_output_state(),
+            params: T::create_output_state(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
+impl<T> CommandDspOutputCtl<T>
+where
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
+{
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
-            (OUTPUT_REVERB_SEND_NAME, T::GAIN_MIN, T::GAIN_MAX),
-            (OUTPUT_REVERB_RETURN_NAME, T::VOLUME_MIN, T::VOLUME_MAX),
+            (
+                OUTPUT_REVERB_SEND_NAME,
+                T::OUTPUT_GAIN_MIN,
+                T::OUTPUT_GAIN_MAX,
+            ),
+            (
+                OUTPUT_REVERB_RETURN_NAME,
+                T::OUTPUT_VOLUME_MIN,
+                T::OUTPUT_VOLUME_MAX,
+            ),
         ]
         .iter()
         .try_for_each(|&(name, min, max)| {
@@ -3227,23 +3216,23 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUTPUT_REVERB_SEND_NAME => {
-                read_f32_to_i32_values(elem_value, &self.state.reverb_send)?;
+                read_f32_to_i32_values(elem_value, &self.params.reverb_send)?;
                 Ok(true)
             }
             OUTPUT_REVERB_RETURN_NAME => {
-                read_f32_to_i32_values(elem_value, &self.state.reverb_return)?;
+                read_f32_to_i32_values(elem_value, &self.params.reverb_return)?;
                 Ok(true)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
-                read_bool_values(elem_value, &self.state.master_monitor);
+                read_bool_values(elem_value, &self.params.master_monitor);
                 Ok(true)
             }
             OUTPUT_MASTER_TALKBACK_NAME => {
-                read_bool_values(elem_value, &self.state.master_talkback);
+                read_bool_values(elem_value, &self.params.master_talkback);
                 Ok(true)
             }
             OUTPUT_MASTER_LISTENBACK_NAME => {
-                read_bool_values(elem_value, &self.state.master_listenback);
+                read_bool_values(elem_value, &self.params.master_listenback);
                 Ok(true)
             }
             _ => Ok(false),
@@ -3261,69 +3250,88 @@ impl<T: CommandDspOutputOperation> CommandDspOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUTPUT_REVERB_SEND_NAME => {
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    write_f32_from_i32_values(&mut state.reverb_send, elem_value)
-                })
+                let mut params = self.params.clone();
+                write_f32_from_i32_values(&mut params.reverb_send, elem_value)?;
+                let res = T::update_partially(
+                    req,
+                    node,
+                    sequence_number,
+                    &mut self.params,
+                    params,
+                    timeout_ms,
+                );
+                res.map(|_| true)
             }
             OUTPUT_REVERB_RETURN_NAME => {
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    write_f32_from_i32_values(&mut state.reverb_return, elem_value)
-                })
+                let mut params = self.params.clone();
+                write_f32_from_i32_values(&mut params.reverb_return, elem_value)?;
+                let res = T::update_partially(
+                    req,
+                    node,
+                    sequence_number,
+                    &mut self.params,
+                    params,
+                    timeout_ms,
+                );
+                res.map(|_| true)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    write_bool_values(&mut state.master_monitor, elem_value);
-                    Ok(())
-                })
+                let mut params = self.params.clone();
+                write_bool_values(&mut params.master_monitor, elem_value);
+                let res = T::update_partially(
+                    req,
+                    node,
+                    sequence_number,
+                    &mut self.params,
+                    params,
+                    timeout_ms,
+                );
+                res.map(|_| true)
             }
             OUTPUT_MASTER_TALKBACK_NAME => {
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    write_bool_values(&mut state.master_talkback, elem_value);
-                    Ok(())
-                })
+                let mut params = self.params.clone();
+                write_bool_values(&mut params.master_talkback, elem_value);
+                let res = T::update_partially(
+                    req,
+                    node,
+                    sequence_number,
+                    &mut self.params,
+                    params,
+                    timeout_ms,
+                );
+                res.map(|_| true)
             }
             OUTPUT_MASTER_LISTENBACK_NAME => {
-                self.write_state(sequence_number, req, node, timeout_ms, |state| {
-                    write_bool_values(&mut state.master_listenback, elem_value);
-                    Ok(())
-                })
+                let mut params = self.params.clone();
+                write_bool_values(&mut params.master_listenback, elem_value);
+                let res = T::update_partially(
+                    req,
+                    node,
+                    sequence_number,
+                    &mut self.params,
+                    params,
+                    timeout_ms,
+                );
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
     pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_output_commands(&mut self.state, cmds);
-    }
-
-    fn write_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspOutputState) -> Result<(), Error>,
-    {
-        let mut state = self.state.clone();
-        func(&mut state)?;
-        T::write_output_state(
-            req,
-            node,
-            sequence_number,
-            state,
-            &mut self.state,
-            timeout_ms,
-        )
-        .map(|_| true)
+        for cmd in cmds {
+            let _ = T::parse_command(&mut self.params, cmd);
+        }
     }
 }
 
 impl<T> CommandDspEqualizerCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    T: MotuCommandDspEqualizerSpecification + CommandDspOutputOperation,
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -3368,28 +3376,21 @@ where
     const HF_WIDTH_NAME: &'static str = "output-equalizer-hf-width";
 
     fn params(&self) -> &CommandDspOutputState {
-        &self.state
+        &self.params
     }
 
     fn params_mut(&mut self) -> &mut CommandDspOutputState {
-        &mut self.state
-    }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut CommandDspOutputState,
-        updates: CommandDspOutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::write_output_state(req, node, sequence_number, updates, params, timeout_ms)
+        &mut self.params
     }
 }
 
 impl<T> CommandDspDynamicsCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    T: MotuCommandDspDynamicsSpecification + CommandDspOutputOperation,
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -3409,22 +3410,11 @@ where
     const LEVELER_REDUCE_NAME: &'static str = "output-dynamics-leveler-reduce";
 
     fn params(&self) -> &CommandDspOutputState {
-        &self.state
+        &self.params
     }
 
     fn params_mut(&mut self) -> &mut CommandDspOutputState {
-        &mut self.state
-    }
-
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sequence_number: &mut u8,
-        params: &mut CommandDspOutputState,
-        updates: CommandDspOutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        T::write_output_state(req, node, sequence_number, updates, params, timeout_ms)
+        &mut self.params
     }
 }
 
