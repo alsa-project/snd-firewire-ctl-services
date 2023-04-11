@@ -2459,45 +2459,194 @@ where
 /// State of equalizer.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspEqualizerState {
+    /// Whether to enable whole equalizer.
     pub enable: Vec<bool>,
 
+    /// Whether to enable high pass filter.
     pub hpf_enable: Vec<bool>,
+    /// The type of slope for high pass filter.
     pub hpf_slope: Vec<RollOffLevel>,
+    /// The frequency of high pass filter.
     pub hpf_freq: Vec<u32>,
 
+    /// Whether to enable low pass filter.
     pub lpf_enable: Vec<bool>,
+    /// The type of slope for loa pass filter.
     pub lpf_slope: Vec<RollOffLevel>,
+    /// The frequency of low pass filter.
     pub lpf_freq: Vec<u32>,
 
+    /// Whether to enable equalizer at low frequency.
     pub lf_enable: Vec<bool>,
+    /// The type of equalizer at low frequency.
     pub lf_type: Vec<FilterType5>,
+    /// The center frequency of equalizer at low frequency.
     pub lf_freq: Vec<u32>,
+    /// The gain of equalizer at low frequency.
     pub lf_gain: Vec<f32>,
+    /// The width of equalizer at low frequency.
     pub lf_width: Vec<f32>,
 
+    /// Whether to enable equalizer at low-middle frequency
     pub lmf_enable: Vec<bool>,
+    /// The type of equalizer at low-middle frequency
     pub lmf_type: Vec<FilterType4>,
+    /// The center frequency of equalizer at low-middle frequency
     pub lmf_freq: Vec<u32>,
+    /// The gain of equalizer at low-middle frequency
     pub lmf_gain: Vec<f32>,
+    /// The width of equalizer at low-middle frequency
     pub lmf_width: Vec<f32>,
 
+    /// Whether to enable equalizer at middle frequency.
     pub mf_enable: Vec<bool>,
+    /// The type of equalizer at middle frequency.
     pub mf_type: Vec<FilterType4>,
+    /// The center frequency of equalizer at middle frequency.
     pub mf_freq: Vec<u32>,
+    /// The gain of equalizer at middle frequency.
     pub mf_gain: Vec<f32>,
+    /// The width of equalizer at middle frequency.
     pub mf_width: Vec<f32>,
 
+    /// Whether to enable equalizer at high-middle frequency.
     pub hmf_enable: Vec<bool>,
+    /// The type of equalizer at high-middle frequency.
     pub hmf_type: Vec<FilterType4>,
+    /// The center frequency of equalizer at high-middle frequency.
     pub hmf_freq: Vec<u32>,
+    /// The gain of equalizer at high-middle frequency.
     pub hmf_gain: Vec<f32>,
+    /// The width of equalizer at high-middle frequency.
     pub hmf_width: Vec<f32>,
 
+    /// Whether to enable equalizer at high frequency.
     pub hf_enable: Vec<bool>,
+    /// The type of equalizer at high frequency.
     pub hf_type: Vec<FilterType5>,
+    /// The center frequency of equalizer at high frequency.
     pub hf_freq: Vec<u32>,
+    /// The gain of equalizer at high frequency.
     pub hf_gain: Vec<f32>,
+    /// The width of equalizer at high frequency.
     pub hf_width: Vec<f32>,
+}
+
+/// The trait for specification of equalizer effect.
+pub trait MotuCommandDspEqualizerSpecification {
+    /// The minimum value of frequency.
+    const EQUALIZER_FREQ_MIN: u32 = 20;
+    /// The maximum value of frequency.
+    const EQUALIZER_FREQ_MAX: u32 = 20000;
+    /// The step value of frequency.
+    const EQUALIZER_FREQ_STEP: u32 = 1;
+
+    /// The minimum value of gain.
+    const EQUALIZER_GAIN_MIN: f32 = -20.0;
+    /// The maximum value of gain.
+    const EQUALIZER_GAIN_MAX: f32 = 20.0;
+
+    /// The minimum value of width.
+    const EQUALIZER_WIDTH_MIN: f32 = 0.01;
+    /// The maximum value of width.
+    const EQUALIZER_WIDTH_MAX: f32 = 3.0;
+
+    fn create_equalizer_parameters(
+        state: &CommandDspEqualizerState,
+        ch: usize,
+    ) -> Vec<EqualizerParameter> {
+        let mut params = Vec::new();
+
+        params.push(EqualizerParameter::Enable(state.enable[ch]));
+
+        params.push(EqualizerParameter::HpfEnable(state.hpf_enable[ch]));
+        params.push(EqualizerParameter::HpfSlope(state.hpf_slope[ch]));
+        params.push(EqualizerParameter::HpfFreq(state.hpf_freq[ch]));
+
+        params.push(EqualizerParameter::LpfEnable(state.lpf_enable[ch]));
+        params.push(EqualizerParameter::LpfSlope(state.lpf_slope[ch]));
+        params.push(EqualizerParameter::LpfFreq(state.lpf_freq[ch]));
+
+        params.push(EqualizerParameter::LfEnable(state.lf_enable[ch]));
+        params.push(EqualizerParameter::LfType(state.lf_type[ch]));
+        params.push(EqualizerParameter::LfFreq(state.lf_freq[ch]));
+        params.push(EqualizerParameter::LfGain(state.lf_gain[ch]));
+        params.push(EqualizerParameter::LfWidth(state.lf_width[ch]));
+
+        params.push(EqualizerParameter::LmfEnable(state.lmf_enable[ch]));
+        params.push(EqualizerParameter::LmfType(state.lmf_type[ch]));
+        params.push(EqualizerParameter::LmfFreq(state.lmf_freq[ch]));
+        params.push(EqualizerParameter::LmfGain(state.lmf_gain[ch]));
+        params.push(EqualizerParameter::LmfWidth(state.lmf_width[ch]));
+
+        params.push(EqualizerParameter::MfEnable(state.mf_enable[ch]));
+        params.push(EqualizerParameter::MfType(state.mf_type[ch]));
+        params.push(EqualizerParameter::MfFreq(state.mf_freq[ch]));
+        params.push(EqualizerParameter::MfGain(state.mf_gain[ch]));
+        params.push(EqualizerParameter::MfWidth(state.mf_width[ch]));
+
+        params.push(EqualizerParameter::HmfEnable(state.hmf_enable[ch]));
+        params.push(EqualizerParameter::HmfType(state.hmf_type[ch]));
+        params.push(EqualizerParameter::HmfFreq(state.hmf_freq[ch]));
+        params.push(EqualizerParameter::HmfGain(state.hmf_gain[ch]));
+        params.push(EqualizerParameter::HmfWidth(state.hmf_width[ch]));
+
+        params.push(EqualizerParameter::HfEnable(state.hf_enable[ch]));
+        params.push(EqualizerParameter::HfType(state.hf_type[ch]));
+        params.push(EqualizerParameter::HfFreq(state.hf_freq[ch]));
+        params.push(EqualizerParameter::HfGain(state.hf_gain[ch]));
+        params.push(EqualizerParameter::HfWidth(state.hf_width[ch]));
+
+        params
+    }
+
+    fn parse_equalizer_parameter(
+        state: &mut CommandDspEqualizerState,
+        param: &EqualizerParameter,
+        ch: usize,
+    ) {
+        match param {
+            EqualizerParameter::Enable(val) => state.enable[ch] = *val,
+
+            EqualizerParameter::HpfEnable(val) => state.hpf_enable[ch] = *val,
+            EqualizerParameter::HpfSlope(val) => state.hpf_slope[ch] = *val,
+            EqualizerParameter::HpfFreq(val) => state.hpf_freq[ch] = *val,
+
+            EqualizerParameter::LpfEnable(val) => state.lpf_enable[ch] = *val,
+            EqualizerParameter::LpfSlope(val) => state.lpf_slope[ch] = *val,
+            EqualizerParameter::LpfFreq(val) => state.lpf_freq[ch] = *val,
+
+            EqualizerParameter::LfEnable(val) => state.lf_enable[ch] = *val,
+            EqualizerParameter::LfType(val) => state.lf_type[ch] = *val,
+            EqualizerParameter::LfFreq(val) => state.lf_freq[ch] = *val,
+            EqualizerParameter::LfGain(val) => state.lf_gain[ch] = *val,
+            EqualizerParameter::LfWidth(val) => state.lf_width[ch] = *val,
+
+            EqualizerParameter::LmfEnable(val) => state.lmf_enable[ch] = *val,
+            EqualizerParameter::LmfType(val) => state.lmf_type[ch] = *val,
+            EqualizerParameter::LmfFreq(val) => state.lmf_freq[ch] = *val,
+            EqualizerParameter::LmfGain(val) => state.lmf_gain[ch] = *val,
+            EqualizerParameter::LmfWidth(val) => state.lmf_width[ch] = *val,
+
+            EqualizerParameter::MfEnable(val) => state.mf_enable[ch] = *val,
+            EqualizerParameter::MfType(val) => state.mf_type[ch] = *val,
+            EqualizerParameter::MfFreq(val) => state.mf_freq[ch] = *val,
+            EqualizerParameter::MfGain(val) => state.mf_gain[ch] = *val,
+            EqualizerParameter::MfWidth(val) => state.mf_width[ch] = *val,
+
+            EqualizerParameter::HmfEnable(val) => state.hmf_enable[ch] = *val,
+            EqualizerParameter::HmfType(val) => state.hmf_type[ch] = *val,
+            EqualizerParameter::HmfFreq(val) => state.hmf_freq[ch] = *val,
+            EqualizerParameter::HmfGain(val) => state.hmf_gain[ch] = *val,
+            EqualizerParameter::HmfWidth(val) => state.hmf_width[ch] = *val,
+
+            EqualizerParameter::HfEnable(val) => state.hf_enable[ch] = *val,
+            EqualizerParameter::HfType(val) => state.hf_type[ch] = *val,
+            EqualizerParameter::HfFreq(val) => state.hf_freq[ch] = *val,
+            EqualizerParameter::HfGain(val) => state.hf_gain[ch] = *val,
+            EqualizerParameter::HfWidth(val) => state.hf_width[ch] = *val,
+        }
+    }
 }
 
 fn create_equalizer_parameters(
@@ -2687,6 +2836,18 @@ pub struct CommandDspInputState {
     pub limitter: Vec<bool>,
     pub lookahead: Vec<bool>,
     pub soft_clip: Vec<bool>,
+}
+
+impl AsRef<CommandDspEqualizerState> for CommandDspInputState {
+    fn as_ref(&self) -> &CommandDspEqualizerState {
+        &self.equalizer
+    }
+}
+
+impl AsMut<CommandDspEqualizerState> for CommandDspInputState {
+    fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
+        &mut self.equalizer
+    }
 }
 
 fn create_input_commands(
@@ -2907,6 +3068,18 @@ pub struct CommandDspOutputState {
     pub master_monitor: Vec<bool>,
     pub master_talkback: Vec<bool>,
     pub master_listenback: Vec<bool>,
+}
+
+impl AsRef<CommandDspEqualizerState> for CommandDspOutputState {
+    fn as_ref(&self) -> &CommandDspEqualizerState {
+        &self.equalizer
+    }
+}
+
+impl AsMut<CommandDspEqualizerState> for CommandDspOutputState {
+    fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
+        &mut self.equalizer
+    }
 }
 
 fn create_output_commands(state: &CommandDspOutputState, output_count: usize) -> Vec<DspCmd> {
