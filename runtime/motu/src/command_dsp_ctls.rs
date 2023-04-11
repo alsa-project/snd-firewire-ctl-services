@@ -177,9 +177,14 @@ fn write_enum_values<T: Copy + Eq>(
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
+pub(crate) struct CommandDspReverbCtl<T>
+where
+    T: MotuCommandDspReverbSpecification
+        + MotuCommandDspParametersOperation<CommandDspReverbState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspReverbState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: CommandDspReverbState,
+    params: CommandDspReverbState,
     _phantom: PhantomData<T>,
 }
 
@@ -215,7 +220,12 @@ fn reverb_room_shape_to_str(shape: &RoomShape) -> &'static str {
     }
 }
 
-impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
+impl<T> CommandDspReverbCtl<T>
+where
+    T: MotuCommandDspReverbSpecification
+        + MotuCommandDspParametersOperation<CommandDspReverbState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspReverbState>,
+{
     const SPLIT_POINTS: [SplitPoint; 2] = [SplitPoint::Output, SplitPoint::Mixer];
 
     const ROOM_SHAPES: [RoomShape; 5] = [
@@ -227,7 +237,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
     ];
 
     pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        T::parse_reverb_commands(&mut self.state, cmds);
+        for cmd in cmds {
+            let _ = T::parse_command(&mut self.params, cmd);
+        }
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -396,51 +408,51 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_ENABLE => {
-                read_bool_value(elem_value, &self.state.enable);
+                read_bool_value(elem_value, &self.params.enable);
                 Ok(true)
             }
             REVERB_SPLIT_POINT_NAME => {
-                read_enum_value(elem_value, &self.state.split_point, &Self::SPLIT_POINTS);
+                read_enum_value(elem_value, &self.params.split_point, &Self::SPLIT_POINTS);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                read_u32_to_i32_value(elem_value, &self.state.pre_delay)?;
+                read_u32_to_i32_value(elem_value, &self.params.pre_delay)?;
                 Ok(true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                read_u32_to_i32_value(elem_value, &self.state.shelf_filter_freq)?;
+                read_u32_to_i32_value(elem_value, &self.params.shelf_filter_freq)?;
                 Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                read_i32_value(elem_value, &self.state.shelf_filter_attenuation);
+                read_i32_value(elem_value, &self.params.shelf_filter_attenuation);
                 Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
-                read_u32_to_i32_value(elem_value, &self.state.decay_time)?;
+                read_u32_to_i32_value(elem_value, &self.params.decay_time)?;
                 Ok(true)
             }
             REVERB_FREQ_TIME_NAME => {
-                read_u32_to_i32_values(elem_value, &self.state.freq_time)?;
+                read_u32_to_i32_values(elem_value, &self.params.freq_time)?;
                 Ok(true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                read_u32_to_i32_values(elem_value, &self.state.freq_crossover)?;
+                read_u32_to_i32_values(elem_value, &self.params.freq_crossover)?;
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
-                read_f32_to_i32_value(elem_value, &self.state.width)?;
+                read_f32_to_i32_value(elem_value, &self.params.width)?;
                 Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
-                read_enum_value(elem_value, &self.state.reflection_mode, &Self::ROOM_SHAPES);
+                read_enum_value(elem_value, &self.params.reflection_mode, &Self::ROOM_SHAPES);
                 Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                read_u32_to_i32_value(elem_value, &self.state.reflection_size)?;
+                read_u32_to_i32_value(elem_value, &self.params.reflection_size)?;
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                read_f32_to_i32_value(elem_value, &self.state.reflection_level)?;
+                read_f32_to_i32_value(elem_value, &self.params.reflection_level)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -458,160 +470,160 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_ENABLE => {
-                let mut state = self.state.clone();
-                write_bool_value(&mut state.enable, elem_value);
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_bool_value(&mut params.enable, elem_value);
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_SPLIT_POINT_NAME => {
-                let mut state = self.state.clone();
-                write_enum_value(&mut state.split_point, elem_value, &Self::SPLIT_POINTS)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_enum_value(&mut params.split_point, elem_value, &Self::SPLIT_POINTS)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_PRE_DELAY_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_value(&mut state.pre_delay, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_value(&mut params.pre_delay, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_value(&mut state.shelf_filter_freq, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_value(&mut params.shelf_filter_freq, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                let mut state = self.state.clone();
-                write_i32_value(&mut state.shelf_filter_attenuation, elem_value);
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_i32_value(&mut params.shelf_filter_attenuation, elem_value);
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_DECAY_TIME_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_value(&mut state.decay_time, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_value(&mut params.decay_time, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_FREQ_TIME_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_values(&mut state.freq_time, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_values(&mut params.freq_time, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_values(&mut state.freq_crossover, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_values(&mut params.freq_crossover, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_WIDTH_NAME => {
-                let mut state = self.state.clone();
-                write_f32_from_i32_value(&mut state.width, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_f32_from_i32_value(&mut params.width, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_REFLECTION_MODE_NAME => {
-                let mut state = self.state.clone();
-                write_enum_value(&mut state.reflection_mode, elem_value, &Self::ROOM_SHAPES)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_enum_value(&mut params.reflection_mode, elem_value, &Self::ROOM_SHAPES)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                let mut state = self.state.clone();
-                write_u32_from_i32_value(&mut state.reflection_size, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_u32_from_i32_value(&mut params.reflection_size, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                let mut state = self.state.clone();
-                write_f32_from_i32_value(&mut state.reflection_level, elem_value)?;
-                T::write_reverb_state(
+                let mut params = self.params.clone();
+                write_f32_from_i32_value(&mut params.reflection_level, elem_value)?;
+                let res = T::update_partially(
                     req,
                     node,
                     sequence_number,
-                    state,
-                    &mut self.state,
+                    &mut self.params,
+                    params,
                     timeout_ms,
-                )?;
-                Ok(true)
+                );
+                res.map(|_| true)
             }
             _ => Ok(false),
         }

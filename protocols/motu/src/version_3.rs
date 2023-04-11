@@ -725,8 +725,6 @@ impl CommandDspOperation for F828mk3Protocol {}
 
 impl MotuCommandDspReverbSpecification for F828mk3Protocol {}
 
-impl CommandDspReverbOperation for F828mk3Protocol {}
-
 impl CommandDspMonitorOperation for F828mk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
 }
@@ -788,8 +786,6 @@ impl MotuVersion3OpticalIfaceSpecification for F828mk3HybridProtocol {
 impl CommandDspOperation for F828mk3HybridProtocol {}
 
 impl MotuCommandDspReverbSpecification for F828mk3HybridProtocol {}
-
-impl CommandDspReverbOperation for F828mk3HybridProtocol {}
 
 impl CommandDspMonitorOperation for F828mk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
@@ -1045,8 +1041,6 @@ impl CommandDspOperation for UltraliteMk3Protocol {}
 
 impl MotuCommandDspReverbSpecification for UltraliteMk3Protocol {}
 
-impl CommandDspReverbOperation for UltraliteMk3Protocol {}
-
 impl CommandDspMonitorOperation for UltraliteMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
@@ -1100,8 +1094,6 @@ impl MotuVersion3ClockSpecification for UltraliteMk3HybridProtocol {
 impl CommandDspOperation for UltraliteMk3HybridProtocol {}
 
 impl MotuCommandDspReverbSpecification for UltraliteMk3HybridProtocol {}
-
-impl CommandDspReverbOperation for UltraliteMk3HybridProtocol {}
 
 impl CommandDspMonitorOperation for UltraliteMk3HybridProtocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
@@ -1207,8 +1199,6 @@ impl MotuWordClockOutputSpecification for TravelerMk3Protocol {}
 impl CommandDspOperation for TravelerMk3Protocol {}
 
 impl MotuCommandDspReverbSpecification for TravelerMk3Protocol {}
-
-impl CommandDspReverbOperation for TravelerMk3Protocol {}
 
 impl CommandDspMonitorOperation for TravelerMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
@@ -1485,8 +1475,6 @@ impl MotuWordClockOutputSpecification for Track16Protocol {}
 impl CommandDspOperation for Track16Protocol {}
 
 impl MotuCommandDspReverbSpecification for Track16Protocol {}
-
-impl CommandDspReverbOperation for Track16Protocol {}
 
 impl CommandDspMonitorOperation for Track16Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
