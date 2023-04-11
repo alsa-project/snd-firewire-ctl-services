@@ -744,12 +744,6 @@ impl MotuCommandDspInputSpecification for F828mk3Protocol {
     const LINE_INPUT_COUNT: usize = 0;
 }
 
-impl CommandDspInputOperation for F828mk3Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
-    const MIC_COUNT: usize = 0;
-    const LINE_INPUT_COUNT: usize = 0;
-}
-
 impl CommandDspOutputOperation for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
@@ -811,13 +805,6 @@ impl MotuCommandDspMixerSpecification for F828mk3HybridProtocol {
 }
 
 impl MotuCommandDspInputSpecification for F828mk3HybridProtocol {
-    const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
-    // The mic functions are not configureble by command. They are just hard-wired.
-    const MIC_COUNT: usize = 0;
-    const LINE_INPUT_COUNT: usize = 0;
-}
-
-impl CommandDspInputOperation for F828mk3HybridProtocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     // The mic functions are not configureble by command. They are just hard-wired.
     const MIC_COUNT: usize = 0;
@@ -1082,13 +1069,6 @@ impl MotuCommandDspInputSpecification for UltraliteMk3Protocol {
     const LINE_INPUT_COUNT: usize = 0;
 }
 
-impl CommandDspInputOperation for UltraliteMk3Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
-    // The mic functions are not configureble by command. They are just hard-wired.
-    const MIC_COUNT: usize = 0;
-    const LINE_INPUT_COUNT: usize = 0;
-}
-
 impl CommandDspOutputOperation for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
@@ -1141,12 +1121,6 @@ impl MotuCommandDspMixerSpecification for UltraliteMk3HybridProtocol {
 }
 
 impl MotuCommandDspInputSpecification for UltraliteMk3HybridProtocol {
-    const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
-    const MIC_COUNT: usize = 2;
-    const LINE_INPUT_COUNT: usize = 0;
-}
-
-impl CommandDspInputOperation for UltraliteMk3HybridProtocol {
     const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 2;
     const LINE_INPUT_COUNT: usize = 0;
@@ -1318,41 +1292,6 @@ impl MotuCommandDspEqualizerSpecification for TravelerMk3Protocol {}
 impl MotuCommandDspDynamicsSpecification for TravelerMk3Protocol {}
 
 impl MotuCommandDspInputSpecification for TravelerMk3Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog(0), // Mic-0
-        TargetPort::Analog(1), // Mic-1
-        TargetPort::Analog(2), // Mic-2
-        TargetPort::Analog(3), // Mic-3
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::AesEbu(0),
-        TargetPort::AesEbu(1),
-        TargetPort::Spdif(0),
-        TargetPort::Spdif(1),
-        TargetPort::OpticalA(0),
-        TargetPort::OpticalA(1),
-        TargetPort::OpticalA(2),
-        TargetPort::OpticalA(3),
-        TargetPort::OpticalA(4),
-        TargetPort::OpticalA(5),
-        TargetPort::OpticalA(6),
-        TargetPort::OpticalA(7),
-        TargetPort::OpticalB(0),
-        TargetPort::OpticalB(1),
-        TargetPort::OpticalB(2),
-        TargetPort::OpticalB(3),
-        TargetPort::OpticalB(4),
-        TargetPort::OpticalB(5),
-        TargetPort::OpticalB(6),
-        TargetPort::OpticalB(7),
-    ];
-    const MIC_COUNT: usize = 4;
-    const LINE_INPUT_COUNT: usize = 4;
-}
-
-impl CommandDspInputOperation for TravelerMk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0), // Mic-0
         TargetPort::Analog(1), // Mic-1
@@ -1607,29 +1546,6 @@ impl MotuCommandDspEqualizerSpecification for Track16Protocol {}
 impl MotuCommandDspDynamicsSpecification for Track16Protocol {}
 
 impl MotuCommandDspInputSpecification for Track16Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog(0), // Mic-0
-        TargetPort::Analog(1), // Mic-1
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::OpticalA(0),
-        TargetPort::OpticalA(1),
-        TargetPort::OpticalA(2),
-        TargetPort::OpticalA(3),
-        TargetPort::OpticalA(4),
-        TargetPort::OpticalA(5),
-        TargetPort::OpticalA(6),
-        TargetPort::OpticalA(7),
-    ];
-    const MIC_COUNT: usize = 2;
-    const LINE_INPUT_COUNT: usize = 0;
-}
-
-impl CommandDspInputOperation for Track16Protocol {
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0), // Mic-0
         TargetPort::Analog(1), // Mic-1
