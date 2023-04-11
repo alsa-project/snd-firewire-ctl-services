@@ -314,18 +314,6 @@ pub enum EqualizerParameter {
     HfWidth(f32),
 }
 
-impl EqualizerParameter {
-    pub const FREQ_MIN: u32 = 20;
-    pub const FREQ_MAX: u32 = 20000;
-    pub const FREQ_STEP: u32 = 1;
-
-    pub const GAIN_MIN: f32 = -20.0;
-    pub const GAIN_MAX: f32 = 20.0;
-
-    pub const WIDTH_MIN: f32 = 0.01;
-    pub const WIDTH_MAX: f32 = 3.0;
-}
-
 /// The DSP command specific to dynamics effects.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DynamicsParameter {
