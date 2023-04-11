@@ -236,10 +236,8 @@ where
         RoomShape::E,
     ];
 
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        for cmd in cmds {
-            let _ = T::parse_command(&mut self.params, cmd);
-        }
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        T::parse_command(&mut self.params, cmd)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -654,10 +652,8 @@ where
         + MotuCommandDspParametersOperation<CommandDspMonitorState>
         + MotuCommandDspUpdatableParamsOperation<CommandDspMonitorState>,
 {
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        for cmd in cmds {
-            let _ = T::parse_command(&mut self.params, cmd);
-        }
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        T::parse_command(&mut self.params, cmd)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -863,10 +859,8 @@ where
     const SOURCE_STEREO_PAIR_MODES: [SourceStereoPairMode; 2] =
         [SourceStereoPairMode::Width, SourceStereoPairMode::LrBalance];
 
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        for cmd in cmds {
-            let _ = T::parse_command(&mut self.params, cmd);
-        }
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        T::parse_command(&mut self.params, cmd)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -3018,10 +3012,8 @@ where
         }
     }
 
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        for cmd in cmds {
-            let _ = T::parse_command(&mut self.params, cmd);
-        }
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        T::parse_command(&mut self.params, cmd)
     }
 }
 
@@ -3318,10 +3310,8 @@ where
         }
     }
 
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        for cmd in cmds {
-            let _ = T::parse_command(&mut self.params, cmd);
-        }
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        T::parse_command(&mut self.params, cmd)
     }
 }
 
@@ -3457,19 +3447,20 @@ impl CommandDspResourceCtl {
         }
     }
 
-    pub(crate) fn parse_commands(&mut self, cmds: &[DspCmd]) {
-        cmds.iter().for_each(|cmd| {
-            if let DspCmd::Resource(c) = cmd {
-                match c {
-                    // TODO: flag?
-                    ResourceCmd::Usage(usage, _) => {
-                        let val = f32_to_i32(*usage).unwrap();
-                        self.state = val as u32;
-                    }
-                    _ => (),
+    pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        if let DspCmd::Resource(c) = cmd {
+            match c {
+                // TODO: flag?
+                ResourceCmd::Usage(usage, _) => {
+                    let val = f32_to_i32(*usage).unwrap();
+                    self.state = val as u32;
                 }
+                _ => (),
             }
-        });
+            true
+        } else {
+            false
+        }
     }
 }
 

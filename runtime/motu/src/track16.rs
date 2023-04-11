@@ -282,12 +282,14 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for Track16 {
         _: &mut (SndMotu, FwNode),
         cmds: &Vec<DspCmd>,
     ) -> Result<(), Error> {
-        self.reverb_ctl.parse_commands(&cmds[..]);
-        self.monitor_ctl.parse_commands(&cmds[..]);
-        self.mixer_ctl.parse_commands(&cmds[..]);
-        self.input_ctl.parse_commands(&cmds[..]);
-        self.output_ctl.parse_commands(&cmds[..]);
-        self.resource_ctl.parse_commands(&cmds[..]);
+        for cmd in cmds {
+            let _ = self.reverb_ctl.parse_command(cmd)
+                || self.monitor_ctl.parse_command(cmd)
+                || self.mixer_ctl.parse_command(cmd)
+                || self.input_ctl.parse_command(cmd)
+                || self.output_ctl.parse_command(cmd)
+                || self.resource_ctl.parse_command(cmd);
+        }
         Ok(())
     }
 
