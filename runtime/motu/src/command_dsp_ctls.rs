@@ -2188,10 +2188,15 @@ fn leveler_mode_to_str(mode: &LevelerMode) -> &'static str {
 }
 
 // TODO: better trait parameters to distinguish input and output.
-pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
+pub trait CommandDspDynamicsCtlOperation<T, U>
+where
+    T: MotuCommandDspDynamicsSpecification,
+    U: Clone + AsRef<CommandDspDynamicsState> + AsMut<CommandDspDynamicsState>,
+{
     const CH_COUNT: usize;
 
-    fn state(&self) -> &CommandDspDynamicsState;
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
 
     const ENABLE_NAME: &'static str = "input-dynamics-enable";
 
@@ -2244,9 +2249,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                DynamicsParameter::THRESHOLD_MIN,
-                DynamicsParameter::THRESHOLD_MAX,
-                DynamicsParameter::THRESHOLD_STEP,
+                T::COMP_THRESHOLD_MIN,
+                T::COMP_THRESHOLD_MAX,
+                T::COMP_THRESHOLD_STEP,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2258,8 +2263,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                f32_to_i32(DynamicsParameter::RATIO_MIN)?,
-                f32_to_i32(DynamicsParameter::RATIO_MAX)?,
+                f32_to_i32(T::COMP_RATIO_MIN)?,
+                f32_to_i32(T::COMP_RATIO_MAX)?,
                 1,
                 Self::CH_COUNT,
                 None,
@@ -2272,9 +2277,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                DynamicsParameter::ATTACK_MIN as i32,
-                DynamicsParameter::ATTACK_MAX as i32,
-                DynamicsParameter::ATTACK_STEP as i32,
+                T::COMP_ATTACK_MIN as i32,
+                T::COMP_ATTACK_MAX as i32,
+                T::COMP_ATTACK_STEP as i32,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2286,9 +2291,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                DynamicsParameter::RELEASE_MIN as i32,
-                DynamicsParameter::RELEASE_MAX as i32,
-                DynamicsParameter::RELEASE_STEP as i32,
+                T::COMP_RELEASE_MIN as i32,
+                T::COMP_RELEASE_MAX as i32,
+                T::COMP_RELEASE_STEP as i32,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2300,8 +2305,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                f32_to_i32(DynamicsParameter::GAIN_MIN)?,
-                f32_to_i32(DynamicsParameter::GAIN_MAX)?,
+                f32_to_i32(T::COMP_GAIN_MIN)?,
+                f32_to_i32(T::COMP_GAIN_MAX)?,
                 1,
                 Self::CH_COUNT,
                 None,
@@ -2323,9 +2328,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                u32_to_i32(DynamicsParameter::PERCENTAGE_MIN)?,
-                u32_to_i32(DynamicsParameter::PERCENTAGE_MAX)?,
-                u32_to_i32(DynamicsParameter::PERCENTAGE_STEP)?,
+                u32_to_i32(T::LEVELER_PERCENTAGE_MIN)?,
+                u32_to_i32(T::LEVELER_PERCENTAGE_MAX)?,
+                u32_to_i32(T::LEVELER_PERCENTAGE_STEP)?,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2337,9 +2342,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                DynamicsParameter::PERCENTAGE_MIN as i32,
-                DynamicsParameter::PERCENTAGE_MAX as i32,
-                DynamicsParameter::PERCENTAGE_STEP as i32,
+                T::LEVELER_PERCENTAGE_MIN as i32,
+                T::LEVELER_PERCENTAGE_MAX as i32,
+                T::LEVELER_PERCENTAGE_STEP as i32,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2357,44 +2362,56 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().enable);
+            let dynamics = self.params().as_ref();
+            read_bool_values(elem_value, &dynamics.enable);
             Ok(true)
         } else if name == Self::COMP_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().comp_enable);
+            let dynamics = self.params().as_ref();
+            read_bool_values(elem_value, &dynamics.comp_enable);
             Ok(true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
+            let dynamics = self.params().as_ref();
             read_enum_values(
                 elem_value,
-                &self.state().comp_detect_mode,
+                &dynamics.comp_detect_mode,
                 &Self::LEVEL_DETECT_MODES,
             );
             Ok(true)
         } else if name == Self::COMP_THRESHOLD_NAME {
-            read_i32_values(elem_value, &self.state().comp_threshold);
+            let dynamics = self.params().as_ref();
+            read_i32_values(elem_value, &dynamics.comp_threshold);
             Ok(true)
         } else if name == Self::COMP_RATIO_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().comp_ratio)?;
+            let dynamics = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &dynamics.comp_ratio)?;
             Ok(true)
         } else if name == Self::COMP_ATTACK_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().comp_attack)?;
+            let dynamics = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &dynamics.comp_attack)?;
             Ok(true)
         } else if name == Self::COMP_RELEASE_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().comp_release)?;
+            let dynamics = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &dynamics.comp_release)?;
             Ok(true)
         } else if name == Self::COMP_GAIN_NAME {
-            read_f32_to_i32_values(elem_value, &self.state().comp_gain)?;
+            let dynamics = self.params().as_ref();
+            read_f32_to_i32_values(elem_value, &dynamics.comp_gain)?;
             Ok(true)
         } else if name == Self::LEVELER_ENABLE_NAME {
-            read_bool_values(elem_value, &self.state().leveler_enable);
+            let dynamics = self.params().as_ref();
+            read_bool_values(elem_value, &dynamics.leveler_enable);
             Ok(true)
         } else if name == Self::LEVELER_MODE_NAME {
-            read_enum_values(elem_value, &self.state().leveler_mode, &Self::LEVELER_MODES);
+            let dynamics = self.params().as_ref();
+            read_enum_values(elem_value, &dynamics.leveler_mode, &Self::LEVELER_MODES);
             Ok(true)
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().leveler_makeup)?;
+            let dynamics = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &dynamics.leveler_makeup)?;
             Ok(true)
         } else if name == Self::LEVELER_REDUCE_NAME {
-            read_u32_to_i32_values(elem_value, &self.state().leveler_reduce)?;
+            let dynamics = self.params().as_ref();
+            read_u32_to_i32_values(elem_value, &dynamics.leveler_reduce)?;
             Ok(true)
         } else {
             Ok(false)
@@ -2413,76 +2430,178 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_bool_values(&mut dynamics.enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_ENABLE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.comp_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_bool_values(&mut dynamics.comp_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(
-                    &mut state.comp_detect_mode,
-                    elem_value,
-                    &Self::LEVEL_DETECT_MODES,
-                )
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_enum_values(
+                &mut dynamics.comp_detect_mode,
+                elem_value,
+                &Self::LEVEL_DETECT_MODES,
+            )?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_THRESHOLD_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_i32_values(&mut state.comp_threshold, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_i32_values(&mut dynamics.comp_threshold, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_RATIO_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.comp_ratio, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_f32_from_i32_values(&mut dynamics.comp_ratio, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_ATTACK_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.comp_attack, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_u32_from_i32_values(&mut dynamics.comp_attack, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_RELEASE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.comp_release, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_u32_from_i32_values(&mut dynamics.comp_release, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::COMP_GAIN_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_f32_from_i32_values(&mut state.comp_gain, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_f32_from_i32_values(&mut dynamics.comp_gain, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LEVELER_ENABLE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_bool_values(&mut state.leveler_enable, elem_value);
-                Ok(())
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_bool_values(&mut dynamics.leveler_enable, elem_value);
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LEVELER_MODE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_enum_values(&mut state.leveler_mode, elem_value, &Self::LEVELER_MODES)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_enum_values(&mut dynamics.leveler_mode, elem_value, &Self::LEVELER_MODES)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.leveler_makeup, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_u32_from_i32_values(&mut dynamics.leveler_makeup, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else if name == Self::LEVELER_REDUCE_NAME {
-            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-                write_u32_from_i32_values(&mut state.leveler_reduce, elem_value)
-            })
+            let mut params = self.params().clone();
+            let dynamics = params.as_mut();
+            write_u32_from_i32_values(&mut dynamics.leveler_reduce, elem_value)?;
+            let res = Self::update_partially(
+                req,
+                node,
+                sequence_number,
+                self.params_mut(),
+                params,
+                timeout_ms,
+            );
+            res.map(|_| true)
         } else {
             Ok(false)
         }
     }
 
-    fn write_dynamics_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut U,
+        updates: U,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState) -> Result<(), Error>;
+    ) -> Result<(), Error>;
 }
 
 fn input_stereo_pair_mode_to_string(mode: &InputStereoPairMode) -> &'static str {
@@ -2880,7 +2999,7 @@ where
 
 impl<T> CommandDspDynamicsCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
 where
-    T: CommandDspInputOperation,
+    T: MotuCommandDspDynamicsSpecification + CommandDspInputOperation,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
 
@@ -2899,32 +3018,23 @@ where
     const LEVELER_MAKEUP_NAME: &'static str = "input-dynamics-leveler-makeup";
     const LEVELER_REDUCE_NAME: &'static str = "input-dynamics-leveler-reduce";
 
-    fn state(&self) -> &CommandDspDynamicsState {
-        &self.state.dynamics
+    fn params(&self) -> &CommandDspInputState {
+        &self.state
     }
 
-    fn write_dynamics_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn params_mut(&mut self) -> &mut CommandDspInputState {
+        &mut self.state
+    }
+
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut CommandDspInputState,
+        updates: CommandDspInputState,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState) -> Result<(), Error>,
-    {
-        let mut state = self.state.clone();
-        func(&mut state.dynamics)?;
-        T::write_input_state(
-            req,
-            node,
-            sequence_number,
-            state,
-            &mut self.state,
-            timeout_ms,
-        )
-        .map(|_| true)
+    ) -> Result<(), Error> {
+        T::write_input_state(req, node, sequence_number, updates, params, timeout_ms)
     }
 }
 
@@ -3159,7 +3269,7 @@ where
 
 impl<T> CommandDspDynamicsCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
 where
-    T: CommandDspOutputOperation,
+    T: MotuCommandDspDynamicsSpecification + CommandDspOutputOperation,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -3178,32 +3288,23 @@ where
     const LEVELER_MAKEUP_NAME: &'static str = "output-dynamics-leveler-makeup";
     const LEVELER_REDUCE_NAME: &'static str = "output-dynamics-leveler-reduce";
 
-    fn state(&self) -> &CommandDspDynamicsState {
-        &self.state.dynamics
+    fn params(&self) -> &CommandDspOutputState {
+        &self.state
     }
 
-    fn write_dynamics_state<F>(
-        &mut self,
-        sequence_number: &mut u8,
+    fn params_mut(&mut self) -> &mut CommandDspOutputState {
+        &mut self.state
+    }
+
+    fn update_partially(
         req: &mut FwReq,
         node: &mut FwNode,
+        sequence_number: &mut u8,
+        params: &mut CommandDspOutputState,
+        updates: CommandDspOutputState,
         timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState) -> Result<(), Error>,
-    {
-        let mut state = self.state.clone();
-        func(&mut state.dynamics)?;
-        T::write_output_state(
-            req,
-            node,
-            sequence_number,
-            state,
-            &mut self.state,
-            timeout_ms,
-        )
-        .map(|_| true)
+    ) -> Result<(), Error> {
+        T::write_output_state(req, node, sequence_number, updates, params, timeout_ms)
     }
 }
 
