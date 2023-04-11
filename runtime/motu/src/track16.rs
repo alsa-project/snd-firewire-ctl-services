@@ -5,7 +5,7 @@ use super::{command_dsp_ctls::*, command_dsp_runtime::*, common_ctls::*, v3_ctls
 
 const TIMEOUT_MS: u32 = 100;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Track16 {
     req: FwReq,
     resp: FwResp,
