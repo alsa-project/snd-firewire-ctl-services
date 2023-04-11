@@ -55,6 +55,45 @@ fn write_f32_from_i32_values(dst: &mut [f32], src: &ElemValue) -> Result<(), Err
         .try_for_each(|(d, &val)| f32_from_i32(val).map(|v| *d = v))
 }
 
+fn u32_to_i32(val: u32) -> Result<i32, Error> {
+    if val >= i32::MAX as u32 {
+        let msg = format!("{}u32 can not be casted to i32", val,);
+        Err(Error::new(FileError::Inval, &msg))
+    } else {
+        Ok(val as i32)
+    }
+}
+
+fn u32_from_i32(val: i32) -> Result<u32, Error> {
+    if val < 0 {
+        let msg = format!("{}i32 can not be casted to u32", val,);
+        Err(Error::new(FileError::Inval, &msg))
+    } else {
+        Ok(val as u32)
+    }
+}
+
+fn read_u32_to_i32_value(dst: &mut ElemValue, src: &u32) -> Result<(), Error> {
+    u32_to_i32(*src).map(|val| dst.set_int(&[val]))
+}
+
+fn write_u32_from_i32_value(dst: &mut u32, src: &ElemValue) -> Result<(), Error> {
+    u32_from_i32(src.int()[0]).map(|val| *dst = val)
+}
+
+fn read_u32_to_i32_values(dst: &mut ElemValue, src: &[u32]) -> Result<(), Error> {
+    let mut vals = Vec::new();
+    src.iter()
+        .try_for_each(|&val| u32_to_i32(val).map(|v| vals.push(v)))
+        .map(|_| dst.set_int(&vals))
+}
+
+fn write_u32_from_i32_values(dst: &mut [u32], src: &ElemValue) -> Result<(), Error> {
+    dst.iter_mut()
+        .zip(src.int())
+        .try_for_each(|(d, &val)| u32_from_i32(val).map(|v| *d = v))
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CommandDspReverbCtl<T: CommandDspReverbOperation> {
     pub elem_id_list: Vec<ElemId>,
@@ -129,9 +168,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::DECAY_TIME_MIN as i32,
-                T::DECAY_TIME_MAX as i32,
-                T::DECAY_TIME_STEP as i32,
+                u32_to_i32(T::DECAY_TIME_MIN)?,
+                u32_to_i32(T::DECAY_TIME_MAX)?,
+                u32_to_i32(T::DECAY_TIME_STEP)?,
                 1,
                 None,
                 true,
@@ -143,9 +182,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::PRE_DELAY_MIN as i32,
-                T::PRE_DELAY_MAX as i32,
-                T::PRE_DELAY_STEP as i32,
+                u32_to_i32(T::PRE_DELAY_MIN)?,
+                u32_to_i32(T::PRE_DELAY_MAX)?,
+                u32_to_i32(T::PRE_DELAY_STEP)?,
                 1,
                 None,
                 true,
@@ -158,9 +197,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::SHELF_FILTER_FREQ_MIN as i32,
-                T::SHELF_FILTER_FREQ_MAX as i32,
-                T::SHELF_FILTER_FREQ_STEP as i32,
+                u32_to_i32(T::SHELF_FILTER_FREQ_MIN)?,
+                u32_to_i32(T::SHELF_FILTER_FREQ_MAX)?,
+                u32_to_i32(T::SHELF_FILTER_FREQ_STEP)?,
                 1,
                 None,
                 true,
@@ -187,9 +226,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::FREQ_TIME_MIN as i32,
-                T::FREQ_TIME_MAX as i32,
-                T::FREQ_TIME_STEP as i32,
+                u32_to_i32(T::FREQ_TIME_MIN)?,
+                u32_to_i32(T::FREQ_TIME_MAX)?,
+                u32_to_i32(T::FREQ_TIME_STEP)?,
                 3,
                 None,
                 true,
@@ -202,9 +241,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::FREQ_CROSSOVER_MIN as i32,
-                T::FREQ_CROSSOVER_MAX as i32,
-                T::FREQ_CROSSOVER_STEP as i32,
+                u32_to_i32(T::FREQ_CROSSOVER_MIN)?,
+                u32_to_i32(T::FREQ_CROSSOVER_MAX)?,
+                u32_to_i32(T::FREQ_CROSSOVER_STEP)?,
                 2,
                 None,
                 true,
@@ -241,9 +280,9 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::REFLECTION_SIZE_MIN as i32,
-                T::REFLECTION_SIZE_MAX as i32,
-                T::REFLECTION_SIZE_STEP as i32,
+                u32_to_i32(T::REFLECTION_SIZE_MIN)?,
+                u32_to_i32(T::REFLECTION_SIZE_MAX)?,
+                u32_to_i32(T::REFLECTION_SIZE_STEP)?,
                 1,
                 None,
                 true,
@@ -287,11 +326,11 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[self.state.pre_delay as i32]);
+                read_u32_to_i32_value(elem_value, &self.state.pre_delay)?;
                 Ok(true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                elem_value.set_int(&[self.state.shelf_filter_freq as i32]);
+                read_u32_to_i32_value(elem_value, &self.state.shelf_filter_freq)?;
                 Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
@@ -299,22 +338,15 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
-                elem_value.set_int(&[self.state.decay_time as i32]);
+                read_u32_to_i32_value(elem_value, &self.state.decay_time)?;
                 Ok(true)
             }
             REVERB_FREQ_TIME_NAME => {
-                let vals: Vec<i32> = self.state.freq_time.iter().map(|&val| val as i32).collect();
-                elem_value.set_int(&vals);
+                read_u32_to_i32_values(elem_value, &self.state.freq_time)?;
                 Ok(true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                let vals: Vec<i32> = self
-                    .state
-                    .freq_crossover
-                    .iter()
-                    .map(|&val| val as i32)
-                    .collect();
-                elem_value.set_int(&vals);
+                read_u32_to_i32_values(elem_value, &self.state.freq_crossover)?;
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
@@ -330,7 +362,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
                 Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                elem_value.set_int(&[self.state.reflection_size as i32]);
+                read_u32_to_i32_value(elem_value, &self.state.reflection_size)?;
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
@@ -387,7 +419,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_PRE_DELAY_NAME => {
                 let mut state = self.state.clone();
-                state.pre_delay = elem_value.int()[0] as u32;
+                write_u32_from_i32_value(&mut state.pre_delay, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -400,7 +432,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
                 let mut state = self.state.clone();
-                state.shelf_filter_freq = elem_value.int()[0] as u32;
+                write_u32_from_i32_value(&mut state.shelf_filter_freq, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -413,7 +445,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
                 let mut state = self.state.clone();
-                state.shelf_filter_attenuation = elem_value.int()[0] as i32;
+                state.shelf_filter_attenuation = elem_value.int()[0];
                 T::write_reverb_state(
                     req,
                     node,
@@ -426,7 +458,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_DECAY_TIME_NAME => {
                 let mut state = self.state.clone();
-                state.decay_time = elem_value.int()[0] as u32;
+                write_u32_from_i32_value(&mut state.decay_time, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -439,11 +471,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_FREQ_TIME_NAME => {
                 let mut state = self.state.clone();
-                state
-                    .freq_time
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(time, &val)| *time = val as u32);
+                write_u32_from_i32_values(&mut state.freq_time, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -456,11 +484,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_FREQ_CROSSOVER_NAME => {
                 let mut state = self.state.clone();
-                state
-                    .freq_crossover
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(freq, &val)| *freq = val as u32);
+                write_u32_from_i32_values(&mut state.freq_crossover, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -507,7 +531,7 @@ impl<T: CommandDspReverbOperation> CommandDspReverbCtl<T> {
             }
             REVERB_REFLECTION_SIZE_NAME => {
                 let mut state = self.state.clone();
-                state.reflection_size = elem_value.int()[0] as u32;
+                write_u32_from_i32_value(&mut state.reflection_size, elem_value)?;
                 T::write_reverb_state(
                     req,
                     node,
@@ -1444,9 +1468,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 .add_int_elems(
                     &elem_id,
                     1,
-                    EqualizerParameter::FREQ_MIN as i32,
-                    EqualizerParameter::FREQ_MAX as i32,
-                    EqualizerParameter::FREQ_STEP as i32,
+                    u32_to_i32(EqualizerParameter::FREQ_MIN)?,
+                    u32_to_i32(EqualizerParameter::FREQ_MAX)?,
+                    u32_to_i32(EqualizerParameter::FREQ_STEP)?,
                     Self::CH_COUNT,
                     None,
                     true,
@@ -1518,14 +1542,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
         elem_value.set_int(vals);
-        Ok(true)
-    }
-
-    fn read_u32_values(elem_value: &mut ElemValue, raw: &[u32]) -> Result<bool, Error> {
-        assert_eq!(raw.len(), Self::CH_COUNT);
-
-        let vals: Vec<i32> = raw.iter().map(|&v| v as i32).collect();
-        elem_value.set_int(&vals);
         Ok(true)
     }
 
@@ -1603,19 +1619,22 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HPF_SLOPE_NAME {
             Self::read_roll_off_level(elem_value, &self.state().hpf_slope)
         } else if name == Self::HPF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().hpf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().hpf_freq)?;
+            Ok(true)
         } else if name == Self::LPF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().lpf_enable)
         } else if name == Self::LPF_SLOPE_NAME {
             Self::read_roll_off_level(elem_value, &self.state().lpf_slope)
         } else if name == Self::LPF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().lpf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().lpf_freq)?;
+            Ok(true)
         } else if name == Self::LF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().lf_enable)
         } else if name == Self::LF_TYPE_NAME {
             Self::read_filter_type_5(elem_value, &self.state().lf_type)
         } else if name == Self::LF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().lf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().lf_freq)?;
+            Ok(true)
         } else if name == Self::LF_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().lf_gain)?;
             Ok(true)
@@ -1627,7 +1646,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().lmf_type)
         } else if name == Self::LMF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().lmf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().lmf_freq)?;
+            Ok(true)
         } else if name == Self::LMF_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().lmf_gain)?;
             Ok(true)
@@ -1639,7 +1659,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().mf_type)
         } else if name == Self::MF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().mf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().mf_freq)?;
+            Ok(true)
         } else if name == Self::MF_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().mf_gain)?;
             Ok(true)
@@ -1651,7 +1672,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_TYPE_NAME {
             Self::read_filter_type_4(elem_value, &self.state().hmf_type)
         } else if name == Self::HMF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().hmf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().hmf_freq)?;
+            Ok(true)
         } else if name == Self::HMF_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().hmf_gain)?;
             Ok(true)
@@ -1663,7 +1685,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_TYPE_NAME {
             Self::read_filter_type_5(elem_value, &self.state().hf_type)
         } else if name == Self::HF_FREQ_NAME {
-            Self::read_u32_values(elem_value, &self.state().hf_freq)
+            read_u32_to_i32_values(elem_value, &self.state().hf_freq)?;
+            Ok(true)
         } else if name == Self::HF_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().hf_gain)?;
             Ok(true)
@@ -1709,26 +1732,6 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
-            Ok(())
-        })
-    }
-
-    fn write_u32_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspEqualizerState, &[u32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &raw);
             Ok(())
         })
     }
@@ -1866,16 +1869,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.hpf_slope.copy_from_slice(vals),
             )
         } else if name == Self::HPF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hpf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.hpf_freq, elem_value)
+            })
         } else if name == Self::LPF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -1897,16 +1893,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.lpf_slope.copy_from_slice(vals),
             )
         } else if name == Self::LPF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lpf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.lpf_freq, elem_value)
+            })
         } else if name == Self::LF_ENABLE_NAME {
             self.write_bool_values(
                 sequence_number,
@@ -1928,16 +1917,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.lf_type.copy_from_slice(vals),
             )
         } else if name == Self::LF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.lf_freq, elem_value)
+            })
         } else if name == Self::LF_GAIN_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.lf_gain, elem_value)
@@ -1967,16 +1949,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.lmf_type.copy_from_slice(vals),
             )
         } else if name == Self::LMF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.lmf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.lmf_freq, elem_value)
+            })
         } else if name == Self::LMF_GAIN_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.lmf_gain, elem_value)
@@ -2006,16 +1981,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.mf_type.copy_from_slice(vals),
             )
         } else if name == Self::MF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.mf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.mf_freq, elem_value)
+            })
         } else if name == Self::MF_GAIN_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.mf_gain, elem_value)
@@ -2045,16 +2013,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.hmf_type.copy_from_slice(vals),
             )
         } else if name == Self::HMF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hmf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.hmf_freq, elem_value)
+            })
         } else if name == Self::HMF_GAIN_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.hmf_gain, elem_value)
@@ -2084,16 +2045,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.hf_type.copy_from_slice(vals),
             )
         } else if name == Self::HF_FREQ_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| {
-                    state.hf_freq.copy_from_slice(vals);
-                },
-            )
+            self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.hf_freq, elem_value)
+            })
         } else if name == Self::HF_GAIN_NAME {
             self.write_equalizer_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.hf_gain, elem_value)
@@ -2271,9 +2225,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             .add_int_elems(
                 &elem_id,
                 1,
-                DynamicsParameter::PERCENTAGE_MIN as i32,
-                DynamicsParameter::PERCENTAGE_MAX as i32,
-                DynamicsParameter::PERCENTAGE_STEP as i32,
+                u32_to_i32(DynamicsParameter::PERCENTAGE_MIN)?,
+                u32_to_i32(DynamicsParameter::PERCENTAGE_MAX)?,
+                u32_to_i32(DynamicsParameter::PERCENTAGE_STEP)?,
                 Self::CH_COUNT,
                 None,
                 true,
@@ -2308,14 +2262,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
         elem_value.set_int(vals);
-        Ok(true)
-    }
-
-    fn read_u32_values(elem_value: &mut ElemValue, raw: &[u32]) -> Result<bool, Error> {
-        assert_eq!(raw.len(), Self::CH_COUNT);
-
-        let raw: Vec<i32> = raw.iter().map(|&r| r as i32).collect();
-        elem_value.set_int(&raw);
         Ok(true)
     }
 
@@ -2372,9 +2318,11 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
             read_f32_to_i32_values(elem_value, &self.state().comp_ratio)?;
             Ok(true)
         } else if name == Self::COMP_ATTACK_NAME {
-            Self::read_u32_values(elem_value, &self.state().comp_attack)
+            read_u32_to_i32_values(elem_value, &self.state().comp_attack)?;
+            Ok(true)
         } else if name == Self::COMP_RELEASE_NAME {
-            Self::read_u32_values(elem_value, &self.state().comp_release)
+            read_u32_to_i32_values(elem_value, &self.state().comp_release)?;
+            Ok(true)
         } else if name == Self::COMP_GAIN_NAME {
             read_f32_to_i32_values(elem_value, &self.state().comp_gain)?;
             Ok(true)
@@ -2383,9 +2331,11 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_MODE_NAME {
             Self::read_leveler_mode(elem_value, &self.state().leveler_mode)
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            Self::read_u32_values(elem_value, &self.state().leveler_makeup)
+            read_u32_to_i32_values(elem_value, &self.state().leveler_makeup)?;
+            Ok(true)
         } else if name == Self::LEVELER_REDUCE_NAME {
-            Self::read_u32_values(elem_value, &self.state().leveler_reduce)
+            read_u32_to_i32_values(elem_value, &self.state().leveler_reduce)?;
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -2425,26 +2375,6 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         let vals = &elem_value.int()[..Self::CH_COUNT];
         self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
             func(state, &vals);
-            Ok(())
-        })
-    }
-
-    fn write_u32_values<F>(
-        &mut self,
-        sequence_number: &mut u8,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-        func: F,
-    ) -> Result<bool, Error>
-    where
-        F: Fn(&mut CommandDspDynamicsState, &[u32]),
-    {
-        let vals = &elem_value.int()[..Self::CH_COUNT];
-        let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
-        self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
-            func(state, &raw);
             Ok(())
         })
     }
@@ -2561,23 +2491,13 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 write_f32_from_i32_values(&mut state.comp_ratio, elem_value)
             })
         } else if name == Self::COMP_ATTACK_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_attack.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.comp_attack, elem_value)
+            })
         } else if name == Self::COMP_RELEASE_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.comp_release.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.comp_release, elem_value)
+            })
         } else if name == Self::COMP_GAIN_NAME {
             self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
                 write_f32_from_i32_values(&mut state.comp_gain, elem_value)
@@ -2601,23 +2521,13 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 |state, vals| state.leveler_mode.copy_from_slice(vals),
             )
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.leveler_makeup.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.leveler_makeup, elem_value)
+            })
         } else if name == Self::LEVELER_REDUCE_NAME {
-            self.write_u32_values(
-                sequence_number,
-                req,
-                node,
-                elem_value,
-                timeout_ms,
-                |state, vals| state.leveler_reduce.copy_from_slice(vals),
-            )
+            self.write_dynamics_state(sequence_number, req, node, timeout_ms, |state| {
+                write_u32_from_i32_values(&mut state.leveler_reduce, elem_value)
+            })
         } else {
             Ok(false)
         }
@@ -3482,7 +3392,7 @@ impl CommandDspResourceCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RESOURCE_USAGE_NAME => {
-                elem_value.set_int(&[self.state as i32]);
+                read_u32_to_i32_value(elem_value, &self.state)?;
                 Ok(true)
             }
             _ => Ok(false),
