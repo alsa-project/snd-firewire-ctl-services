@@ -2206,12 +2206,75 @@ where
 pub struct CommandDspMonitorState {
     /// The volume adjusted by main (master) knob. -inf (mute), -80.0 dB to 0.0 dB.
     pub main_volume: f32,
+    /// Whether to enable talkback or not.
     pub talkback_enable: bool,
+    /// Whether to listenback or not.
     pub listenback_enable: bool,
+    /// The volume of talkback.
     pub talkback_volume: f32,
+    /// The volume of listenback.
     pub listenback_volume: f32,
+    /// Input or output to focus on.
     pub focus: FocusTarget,
+    /// The target to focus on.
     pub assign_target: TargetPort,
+}
+
+/// The trait for specification of monitor.
+pub trait MotuCommandDspMonitorSpecification {
+    /// The targets of mixer return.
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort];
+
+    /// The minimum value of volume for monitor output.
+    const VOLUME_MIN: f32 = 0.0;
+    /// The maximum value of volume for monitor output.
+    const VOLUME_MAX: f32 = 1.0;
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspMonitorState> for O
+where
+    O: MotuCommandDspMonitorSpecification,
+{
+    fn build_commands(params: &CommandDspMonitorState) -> Vec<DspCmd> {
+        let pos = Self::RETURN_ASSIGN_TARGETS
+            .iter()
+            .position(|p| params.assign_target.eq(p))
+            .unwrap_or_default();
+
+        vec![
+            DspCmd::Monitor(MonitorCmd::Volume(params.main_volume)),
+            DspCmd::Monitor(MonitorCmd::TalkbackEnable(params.talkback_enable)),
+            DspCmd::Monitor(MonitorCmd::ListenbackEnable(params.listenback_enable)),
+            DspCmd::Monitor(MonitorCmd::TalkbackVolume(params.talkback_volume)),
+            DspCmd::Monitor(MonitorCmd::ListenbackVolume(params.listenback_volume)),
+            DspCmd::Monitor(MonitorCmd::Focus(params.focus)),
+            DspCmd::Monitor(MonitorCmd::ReturnAssign(pos)),
+        ]
+    }
+
+    fn parse_command(params: &mut CommandDspMonitorState, command: &DspCmd) -> bool {
+        if let DspCmd::Monitor(cmd) = command {
+            match cmd {
+                MonitorCmd::Volume(val) => params.main_volume = *val,
+                MonitorCmd::TalkbackEnable(val) => params.talkback_enable = *val,
+                MonitorCmd::ListenbackEnable(val) => params.listenback_enable = *val,
+                MonitorCmd::TalkbackVolume(val) => params.talkback_volume = *val,
+                MonitorCmd::ListenbackVolume(val) => params.listenback_volume = *val,
+                MonitorCmd::Focus(val) => params.focus = *val,
+                MonitorCmd::ReturnAssign(val) => {
+                    params.assign_target = Self::RETURN_ASSIGN_TARGETS
+                        .iter()
+                        .nth(*val as usize)
+                        .map(|&p| p)
+                        .unwrap_or_default();
+                }
+                _ => (),
+            };
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn create_monitor_commands(
