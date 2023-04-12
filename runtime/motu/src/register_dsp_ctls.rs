@@ -25,7 +25,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.0.params, event)
+        let res = T::parse_event(&mut self.0.params, event);
+        if res {
+            debug!(params = ?self.0.params, ?event);
+        }
+        res
     }
 }
 
@@ -73,7 +77,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -161,6 +167,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(vol, &val)| *vol = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
@@ -168,6 +175,7 @@ where
                 let vals = &elem_value.boolean()[..T::MIXER_COUNT];
                 params.mute.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_OUTPUT_DST_NAME => {
@@ -188,6 +196,7 @@ where
                             .map(|&port| *dest = port)
                     })?;
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -199,7 +208,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -229,7 +242,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -267,6 +282,7 @@ where
                 params.0 = elem_value.boolean()[0];
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -357,7 +373,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -454,6 +472,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
@@ -465,6 +484,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(pan, &val)| *pan = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
@@ -474,6 +494,7 @@ where
                 let vals = &elem_value.boolean()[..src.mute.len()];
                 src.mute.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
@@ -483,6 +504,7 @@ where
                 let vals = &elem_value.boolean()[..src.mute.len()];
                 src.solo.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -494,7 +516,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -560,7 +586,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -709,6 +737,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
@@ -720,6 +749,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(pan, &val)| *pan = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
@@ -729,6 +759,7 @@ where
                 let vals = &elem_value.boolean()[..src.mute.len()];
                 src.mute.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
@@ -738,6 +769,7 @@ where
                 let vals = &elem_value.boolean()[..src.solo.len()];
                 src.solo.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
@@ -749,6 +781,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(balance, &val)| *balance = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
@@ -760,6 +793,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(width, &val)| *width = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -771,7 +805,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -813,7 +851,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -880,6 +920,7 @@ where
                 params.master_volume = elem_value.int()[0] as u8;
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms)
                     .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             PHONE_VOLUME_NAME => {
@@ -887,6 +928,7 @@ where
                 params.phone_volume = elem_value.int()[0] as u8;
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms)
                     .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -898,7 +940,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -955,7 +1001,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1033,6 +1081,7 @@ where
                             .map(|&l| *level = l)
                     })?;
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_BOOST_NAME => {
@@ -1040,6 +1089,7 @@ where
                 let vals = &elem_value.boolean()[..params.boost.len()];
                 params.boost.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -1051,7 +1101,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -1097,7 +1151,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1158,6 +1214,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_INVERT_NAME => {
@@ -1165,6 +1222,7 @@ where
                 let vals = &elem_value.boolean()[..params.invert.len()];
                 params.invert.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -1176,7 +1234,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -1232,7 +1294,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1329,6 +1393,7 @@ where
                     .zip(elem_value.int())
                     .for_each(|(gain, &val)| *gain = val as u8);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_INVERT_NAME => {
@@ -1336,6 +1401,7 @@ where
                 let vals = &elem_value.boolean()[..params.invert.len()];
                 params.invert.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_PHANTOM_NAME => {
@@ -1343,6 +1409,7 @@ where
                 let vals = &elem_value.boolean()[..params.phantom.len()];
                 params.phantom.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_PAD_NAME => {
@@ -1350,6 +1417,7 @@ where
                 let vals = &elem_value.boolean()[..params.pad.len()];
                 params.pad.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_PAIRED_NAME => {
@@ -1357,6 +1425,7 @@ where
                 let vals = &elem_value.boolean()[..params.paired.len()];
                 params.paired.copy_from_slice(vals);
                 let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -1368,7 +1437,11 @@ where
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_event(&mut self.params, event)
+        let res = T::parse_event(&mut self.params, event);
+        if res {
+            debug!(params = ?self.params, ?event);
+        }
+        res
     }
 }
 
@@ -1456,6 +1529,7 @@ where
     pub(crate) fn read_dsp_meter(&mut self, unit: &SndMotu) -> Result<(), Error> {
         unit.read_byte_meter(&mut self.image)?;
         T::parse_image(&mut self.params, &self.image);
+        debug!(params = ?self.params);
         Ok(())
     }
 }
@@ -1484,7 +1558,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::update_wholly(req, node, &self.params, timeout_ms)
+        let res = T::update_wholly(req, node, &self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1522,6 +1598,7 @@ where
                 params.0 = elem_value.enumerated()[0] as usize;
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
