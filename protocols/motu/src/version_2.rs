@@ -782,6 +782,8 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for UltraliteProtocol {
     ];
 }
 
+impl MotuRegisterDspMonauralInputSpecification for UltraliteProtocol {}
+
 impl RegisterDspMonauralInputOperation for UltraliteProtocol {}
 
 impl RegisterDspMeterOperation for UltraliteProtocol {
