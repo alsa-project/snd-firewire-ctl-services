@@ -237,7 +237,11 @@ where
     ];
 
     pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
-        T::parse_command(&mut self.params, cmd)
+        let res = T::parse_command(&mut self.params, cmd);
+        if res {
+            debug!(params = ?self.params);
+        }
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -478,6 +482,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_SPLIT_POINT_NAME => {
@@ -491,6 +496,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_PRE_DELAY_NAME => {
@@ -504,6 +510,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
@@ -517,6 +524,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
@@ -530,6 +538,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_DECAY_TIME_NAME => {
@@ -543,6 +552,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_FREQ_TIME_NAME => {
@@ -556,6 +566,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
@@ -569,6 +580,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_WIDTH_NAME => {
@@ -582,6 +594,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_REFLECTION_MODE_NAME => {
@@ -595,6 +608,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
@@ -608,6 +622,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
@@ -621,6 +636,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -653,7 +669,11 @@ where
         + MotuCommandDspUpdatableParamsOperation<CommandDspMonitorState>,
 {
     pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
-        T::parse_command(&mut self.params, cmd)
+        let res = T::parse_command(&mut self.params, cmd);
+        if res {
+            debug!(params = ?self.params);
+        }
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -742,6 +762,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             TALKBACK_ENABLE_NAME => {
@@ -755,6 +776,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             LISTENBACK_ENABLE_NAME => {
@@ -768,6 +790,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             TALKBACK_VOLUME_NAME => {
@@ -781,6 +804,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             LISTENBACK_VOLUME_NAME => {
@@ -794,6 +818,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -860,7 +885,11 @@ where
         [SourceStereoPairMode::Width, SourceStereoPairMode::LrBalance];
 
     pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
-        T::parse_command(&mut self.params, cmd)
+        let res = T::parse_command(&mut self.params, cmd);
+        if res {
+            debug!(params = ?self.params);
+        }
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1142,6 +1171,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
@@ -1155,6 +1185,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
@@ -1168,6 +1199,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_REVERB_SEND_NAME => {
@@ -1181,6 +1213,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_REVERB_RETURN_NAME => {
@@ -1194,6 +1227,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
@@ -1212,6 +1246,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
@@ -1230,6 +1265,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
@@ -1248,6 +1284,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_GAIN_NAME => {
@@ -1266,6 +1303,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
@@ -1288,6 +1326,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
@@ -1306,6 +1345,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
@@ -1324,6 +1364,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -1746,6 +1787,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1759,6 +1801,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_SLOPE_NAME {
             let mut params = self.params().clone();
@@ -1772,6 +1815,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1785,6 +1829,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1798,6 +1843,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_SLOPE_NAME {
             let mut params = self.params().clone();
@@ -1811,6 +1857,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1824,6 +1871,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1837,6 +1885,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -1850,6 +1899,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1863,6 +1913,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -1876,6 +1927,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -1889,6 +1941,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1902,6 +1955,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -1915,6 +1969,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1928,6 +1983,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -1941,6 +1997,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -1954,6 +2011,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1967,6 +2025,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -1980,6 +2039,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1993,6 +2053,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2006,6 +2067,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2019,6 +2081,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2032,6 +2095,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -2045,6 +2109,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -2058,6 +2123,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2071,6 +2137,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2084,6 +2151,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2097,6 +2165,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -2110,6 +2179,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -2123,6 +2193,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2136,6 +2207,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2149,6 +2221,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else {
             Ok(false)
@@ -2426,6 +2499,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2439,6 +2513,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
             let mut params = self.params().clone();
@@ -2456,6 +2531,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_THRESHOLD_NAME {
             let mut params = self.params().clone();
@@ -2469,6 +2545,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_RATIO_NAME {
             let mut params = self.params().clone();
@@ -2482,6 +2559,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_ATTACK_NAME {
             let mut params = self.params().clone();
@@ -2495,6 +2573,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_RELEASE_NAME {
             let mut params = self.params().clone();
@@ -2508,6 +2587,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2521,6 +2601,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2534,6 +2615,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_MODE_NAME {
             let mut params = self.params().clone();
@@ -2547,6 +2629,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_MAKEUP_NAME {
             let mut params = self.params().clone();
@@ -2560,6 +2643,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_REDUCE_NAME {
             let mut params = self.params().clone();
@@ -2573,6 +2657,7 @@ where
                 params,
                 timeout_ms,
             );
+            debug!(params = ?self.params().as_ref(), ?res);
             res.map(|_| true)
         } else {
             Ok(false)
@@ -2846,6 +2931,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_PAIR_NAME => {
@@ -2859,6 +2945,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_GAIN_NAME => {
@@ -2872,6 +2959,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_SWAP_NAME => {
@@ -2885,6 +2973,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_STEREO_MODE_NAME => {
@@ -2902,6 +2991,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_WIDTH_NAME => {
@@ -2915,6 +3005,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_REVERB_SEND_NAME => {
@@ -2928,6 +3019,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_REVERB_BALANCE_NAME => {
@@ -2941,6 +3033,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_PAD_NAME => {
@@ -2954,6 +3047,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_PHANTOM_NAME => {
@@ -2967,6 +3061,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_LIMITTER_NAME => {
@@ -2980,6 +3075,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_LOOKAHEAD_NAME => {
@@ -2993,6 +3089,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_SOFT_CLIP_NAME => {
@@ -3006,6 +3103,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -3013,7 +3111,11 @@ where
     }
 
     pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
-        T::parse_command(&mut self.params, cmd)
+        let res = T::parse_command(&mut self.params, cmd);
+        if res {
+            debug!(params = ?self.params);
+        }
+        res
     }
 }
 
@@ -3252,6 +3354,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OUTPUT_REVERB_RETURN_NAME => {
@@ -3265,6 +3368,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
@@ -3278,6 +3382,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OUTPUT_MASTER_TALKBACK_NAME => {
@@ -3291,6 +3396,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OUTPUT_MASTER_LISTENBACK_NAME => {
@@ -3304,6 +3410,7 @@ where
                     params,
                     timeout_ms,
                 );
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -3311,7 +3418,11 @@ where
     }
 
     pub(crate) fn parse_command(&mut self, cmd: &DspCmd) -> bool {
-        T::parse_command(&mut self.params, cmd)
+        let res = T::parse_command(&mut self.params, cmd);
+        if res {
+            debug!(params = ?self.params);
+        }
+        res
     }
 }
 
@@ -3411,7 +3522,7 @@ where
 #[derive(Default, Debug)]
 pub(crate) struct CommandDspResourceCtl {
     pub elem_id_list: Vec<ElemId>,
-    state: u32,
+    params: u32,
 }
 
 const RESOURCE_USAGE_NAME: &str = "resource-usage";
@@ -3440,7 +3551,7 @@ impl CommandDspResourceCtl {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             RESOURCE_USAGE_NAME => {
-                read_u32_to_i32_value(elem_value, &self.state)?;
+                read_u32_to_i32_value(elem_value, &self.params)?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -3453,10 +3564,11 @@ impl CommandDspResourceCtl {
                 // TODO: flag?
                 ResourceCmd::Usage(usage, _) => {
                     let val = f32_to_i32(*usage).unwrap();
-                    self.state = val as u32;
+                    self.params = val as u32;
                 }
                 _ => (),
             }
+            debug!(params = ?self.params);
             true
         } else {
             false
@@ -3548,6 +3660,7 @@ where
     pub(crate) fn read_dsp_meter(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
         unit.read_float_meter(&mut self.image)?;
         T::parse_image(&mut self.params, &self.image);
+        debug!(params = ?self.params);
         Ok(())
     }
 }
