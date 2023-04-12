@@ -319,22 +319,6 @@ impl MotuRegisterDspSpecification for F828mk2Protocol {
     ];
 }
 
-impl RegisterDspMixerOutputOperation for F828mk2Protocol {
-    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::PhonePair,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::MainPair,
-        TargetPort::SpdifPair,
-        TargetPort::AdatPair(0),
-        TargetPort::AdatPair(1),
-        TargetPort::AdatPair(2),
-        TargetPort::AdatPair(3),
-    ];
-}
 impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
@@ -445,18 +429,6 @@ impl MotuVersion2OpticalIfaceSpecification for F8preProtocol {
 
 impl MotuRegisterDspSpecification for F8preProtocol {
     const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::PhonePair,
-        TargetPort::MainPair,
-        TargetPort::AdatPair(0),
-        TargetPort::AdatPair(1),
-        TargetPort::AdatPair(2),
-        TargetPort::AdatPair(3),
-    ];
-}
-
-impl RegisterDspMixerOutputOperation for F8preProtocol {
-    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair,
         TargetPort::MainPair,
@@ -590,23 +562,6 @@ impl MotuVersion2OpticalIfaceSpecification for TravelerProtocol {
 
 impl MotuRegisterDspSpecification for TravelerProtocol {
     const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::PhonePair,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::AesEbuPair,
-        TargetPort::SpdifPair,
-        TargetPort::AdatPair(0),
-        TargetPort::AdatPair(1),
-        TargetPort::AdatPair(2),
-        TargetPort::AdatPair(3),
-    ];
-}
-
-impl RegisterDspMixerOutputOperation for TravelerProtocol {
-    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair,
         TargetPort::AnalogPair(0),
@@ -818,19 +773,6 @@ impl MotuRegisterDspSpecification for UltraliteProtocol {
     ];
 }
 
-impl RegisterDspMixerOutputOperation for UltraliteProtocol {
-    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::PhonePair,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::MainPair,
-        TargetPort::SpdifPair,
-    ];
-}
-
 impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
@@ -1030,23 +972,6 @@ impl MotuVersion2OpticalIfaceSpecification for F896hdProtocol {
 
 impl MotuRegisterDspSpecification for F896hdProtocol {
     const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::PhonePair,
-        TargetPort::AnalogPair(0),
-        TargetPort::AnalogPair(1),
-        TargetPort::AnalogPair(2),
-        TargetPort::AnalogPair(3),
-        TargetPort::MainPair,
-        TargetPort::AesEbuPair,
-        TargetPort::AdatPair(0),
-        TargetPort::AdatPair(1),
-        TargetPort::AdatPair(2),
-        TargetPort::AdatPair(3),
-    ];
-}
-
-impl RegisterDspMixerOutputOperation for F896hdProtocol {
-    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair,
         TargetPort::AnalogPair(0),

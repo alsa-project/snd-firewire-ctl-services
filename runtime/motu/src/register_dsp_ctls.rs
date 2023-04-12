@@ -26,9 +26,16 @@ where
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct RegisterDspMixerOutputCtl<T: RegisterDspMixerOutputOperation> {
+pub(crate) struct RegisterDspMixerOutputCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerOutputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMixerOutputState>
+        + MotuRegisterDspImageOperation<RegisterDspMixerOutputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspMixerOutputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspMixerOutputState,
+    params: RegisterDspMixerOutputState,
     _phantom: PhantomData<T>,
 }
 
@@ -41,7 +48,14 @@ fn copy_int_to_elem_value<T: Copy + Into<i32>>(elem_value: &mut ElemValue, data:
     elem_value.set_int(&vals);
 }
 
-impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
+impl<T> RegisterDspMixerOutputCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerOutputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMixerOutputState>
+        + MotuRegisterDspImageOperation<RegisterDspMixerOutputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspMixerOutputState>,
+{
     const VOL_TLV: DbInterval = DbInterval {
         min: 0,
         max: 63,
@@ -55,7 +69,7 @@ impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_mixer_output_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -78,8 +92,8 @@ impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
             .add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        if T::OUTPUT_DESTINATIONS.len() > 0 {
-            let labels: Vec<String> = T::OUTPUT_DESTINATIONS
+        if T::MIXER_OUTPUT_DESTINATIONS.len() > 0 {
+            let labels: Vec<String> = T::MIXER_OUTPUT_DESTINATIONS
                 .iter()
                 .map(|p| target_port_to_string(p))
                 .collect();
@@ -99,20 +113,20 @@ impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_VOLUME_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state.volume);
+                copy_int_to_elem_value(elem_value, &self.params.volume);
                 Ok(true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&self.state.mute);
+                elem_value.set_bool(&self.params.mute);
                 Ok(true)
             }
             MIXER_OUTPUT_DST_NAME => {
                 let vals: Vec<u32> = self
-                    .state
+                    .params
                     .destination
                     .iter()
                     .map(|dst| {
-                        T::OUTPUT_DESTINATIONS
+                        T::MIXER_OUTPUT_DESTINATIONS
                             .iter()
                             .position(|p| dst.eq(p))
                             .map(|p| p as u32)
@@ -136,49 +150,52 @@ impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_OUTPUT_VOLUME_NAME => {
-                let vols: Vec<u8> = elem_value
-                    .int()
-                    .iter()
-                    .take(T::MIXER_COUNT)
-                    .map(|&vol| vol as u8)
-                    .collect();
-                T::write_mixer_output_volume(req, node, &vols, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                params
+                    .volume
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(vol, &val)| *vol = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                let mute = &elem_value.boolean()[..T::MIXER_COUNT];
-                T::write_mixer_output_mute(req, node, &mute, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..T::MIXER_COUNT];
+                params.mute.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_OUTPUT_DST_NAME => {
-                let mut dst = Vec::new();
-                elem_value
-                    .enumerated()
-                    .iter()
-                    .take(T::MIXER_COUNT)
-                    .try_for_each(|&val| {
-                        T::OUTPUT_DESTINATIONS
+                let mut params = self.params.clone();
+                params
+                    .destination
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(dest, &val)| {
+                        let pos = val as usize;
+                        T::MIXER_OUTPUT_DESTINATIONS
                             .iter()
-                            .nth(val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
                                 let msg = format!("Invalid index for ourput destination: {}", val);
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&port| dst.push(port))
+                            .map(|&port| *dest = port)
                     })?;
-                T::write_mixer_output_destination(req, node, &dst, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 
