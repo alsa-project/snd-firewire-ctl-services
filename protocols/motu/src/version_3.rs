@@ -393,6 +393,8 @@ impl MotuRegisterDspSpecification for AudioExpressProtocol {
     const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
 
+impl MotuRegisterDspMixerStereoSourceSpecification for AudioExpressProtocol {}
+
 impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
 
 impl RegisterDspStereoInputOperation for AudioExpressProtocol {
@@ -863,6 +865,8 @@ impl MotuVersion3ClockSpecification for H4preProtocol {
 impl MotuRegisterDspSpecification for H4preProtocol {
     const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
+
+impl MotuRegisterDspMixerStereoSourceSpecification for H4preProtocol {}
 
 impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
 
