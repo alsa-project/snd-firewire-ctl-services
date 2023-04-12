@@ -1177,23 +1177,44 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct RegisterDspStereoInputCtl<T: RegisterDspStereoInputOperation> {
+pub(crate) struct RegisterDspStereoInputCtl<T>
+where
+    T: MotuRegisterDspStereoInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspStereoInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspStereoInputState>
+        + MotuRegisterDspImageOperation<RegisterDspStereoInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspStereoInputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspStereoInputState,
+    params: RegisterDspStereoInputState,
     _phantom: PhantomData<T>,
 }
 
-impl<T: RegisterDspStereoInputOperation> Default for RegisterDspStereoInputCtl<T> {
+impl<T> Default for RegisterDspStereoInputCtl<T>
+where
+    T: MotuRegisterDspStereoInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspStereoInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspStereoInputState>
+        + MotuRegisterDspImageOperation<RegisterDspStereoInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspStereoInputState>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            state: T::create_stereo_input_state(),
+            params: T::create_stereo_input_state(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
+impl<T> RegisterDspStereoInputCtl<T>
+where
+    T: MotuRegisterDspStereoInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspStereoInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspStereoInputState>
+        + MotuRegisterDspImageOperation<RegisterDspStereoInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspStereoInputState>,
+{
     const GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 6400,
@@ -1207,7 +1228,7 @@ impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_stereo_input_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1260,27 +1281,27 @@ impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state.gain);
+                copy_int_to_elem_value(elem_value, &self.params.gain);
                 Ok(true)
             }
             INPUT_INVERT_NAME => {
-                elem_value.set_bool(&self.state.invert);
+                elem_value.set_bool(&self.params.invert);
                 Ok(true)
             }
             MIC_PHANTOM_NAME => {
-                elem_value.set_bool(&self.state.phantom);
+                elem_value.set_bool(&self.params.phantom);
                 Ok(true)
             }
             MIC_PAD_NAME => {
-                elem_value.set_bool(&self.state.pad);
+                elem_value.set_bool(&self.params.pad);
                 Ok(true)
             }
             INPUT_JACK_NAME => {
-                elem_value.set_bool(&self.state.jack);
+                elem_value.set_bool(&self.params.jack);
                 Ok(true)
             }
             INPUT_PAIRED_NAME => {
-                elem_value.set_bool(&self.state.paired);
+                elem_value.set_bool(&self.params.paired);
                 Ok(true)
             }
             _ => Ok(false),
@@ -1297,41 +1318,53 @@ impl<T: RegisterDspStereoInputOperation> RegisterDspStereoInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                let vals = &elem_value.int()[..T::INPUT_COUNT];
-                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_stereo_input_gain(req, node, &gain, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                params
+                    .gain
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             INPUT_INVERT_NAME => {
-                let invert = &elem_value.boolean()[..T::INPUT_COUNT];
-                T::write_stereo_input_invert(req, node, &invert, &mut self.state, timeout_ms)?;
-                Ok(true).map(|_| true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.invert.len()];
+                params.invert.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIC_PHANTOM_NAME => {
-                let phantom = &elem_value.boolean()[..T::MIC_COUNT];
-                T::write_mic_phantom(req, node, &phantom, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.phantom.len()];
+                params.phantom.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIC_PAD_NAME => {
-                let pad = &elem_value.boolean()[..T::MIC_COUNT];
-                T::write_mic_pad(req, node, &pad, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.pad.len()];
+                params.pad.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             INPUT_PAIRED_NAME => {
-                let paired = &elem_value.boolean()[..T::INPUT_PAIR_COUNT];
-                T::write_stereo_input_paired(req, node, &paired, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.paired.len()];
+                params.paired.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 

@@ -399,10 +399,6 @@ impl MotuRegisterDspStereoInputSpecification for AudioExpressProtocol {
     const MIC_COUNT: usize = 2;
 }
 
-impl RegisterDspStereoInputOperation for AudioExpressProtocol {
-    const MIC_COUNT: usize = 2;
-}
-
 impl RegisterDspMeterOperation for AudioExpressProtocol {
     const SELECTABLE: bool = false;
     const INPUT_PORTS: &'static [TargetPort] = &[
@@ -871,10 +867,6 @@ impl MotuRegisterDspSpecification for H4preProtocol {
 impl MotuRegisterDspMixerStereoSourceSpecification for H4preProtocol {}
 
 impl MotuRegisterDspStereoInputSpecification for H4preProtocol {
-    const MIC_COUNT: usize = 4;
-}
-
-impl RegisterDspStereoInputOperation for H4preProtocol {
     const MIC_COUNT: usize = 4;
 }
 
