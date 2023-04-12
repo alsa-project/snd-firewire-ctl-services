@@ -191,7 +191,11 @@ where
             Err(Error::new(FileError::Io, "No message for state arrived."))?;
         }
 
+        let enter = debug_span!("cache").entered();
         self.model.cache(&mut self.unit)?;
+        enter.exit();
+
+        let enter = debug_span!("load").entered();
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
         NotifyModel::<(SndMotu, FwNode), u32>::get_notified_elem_list(
             &mut self.model,
@@ -212,11 +216,13 @@ where
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
+        enter.exit();
 
         Ok(())
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
+        let enter = debug_span!("event").entered();
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -226,9 +232,20 @@ where
             match ev {
                 Event::Shutdown | Event::Disconnected => break,
                 Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
+                    debug!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
+                    let _enter = debug_span!("element").entered();
+
+                    debug!(
+                        numid = elem_id.numid(),
+                        name = elem_id.name().as_str(),
+                        iface = ?elem_id.iface(),
+                        device_id = elem_id.device_id(),
+                        subdevice_id = elem_id.subdevice_id(),
+                        index = elem_id.index(),
+                    );
+
                     if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
@@ -253,6 +270,7 @@ where
                     }
                 }
                 Event::Notify(msg) => {
+                    let _enter = debug_span!("message").entered();
                     let _ = self.card_cntr.dispatch_notification(
                         &mut self.unit,
                         &msg,
@@ -261,6 +279,7 @@ where
                     );
                 }
                 Event::DspMsg => {
+                    let _enter = debug_span!("dsp-command").entered();
                     let cmds = if let Ok(handler) = &mut self.msg_handler.lock() {
                         if handler.has_dsp_message() {
                             handler.decode_messages()
@@ -278,6 +297,7 @@ where
                     );
                 }
                 Event::Timer => {
+                    let _enter = debug_span!("timer").entered();
                     let _ = self.card_cntr.measure_elems(
                         &mut self.unit,
                         &self.measured_elem_id_list,
@@ -286,6 +306,9 @@ where
                 }
             }
         }
+
+        enter.exit();
+
         Ok(())
     }
 
