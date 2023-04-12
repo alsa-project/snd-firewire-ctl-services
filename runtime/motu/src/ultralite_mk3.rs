@@ -22,7 +22,7 @@ pub struct UltraLiteMk3 {
     meter_ctl: CommandDspMeterCtl<UltraliteMk3Protocol>,
 }
 
-impl CommandDspCtlModel for UltraLiteMk3 {
+impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
@@ -34,9 +34,7 @@ impl CommandDspCtlModel for UltraLiteMk3 {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
     fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)?;

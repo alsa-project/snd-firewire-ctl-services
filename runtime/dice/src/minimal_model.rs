@@ -12,8 +12,8 @@ pub struct MinimalModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl MinimalModel {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndDice, FwNode)> for MinimalModel {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         GeneralProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
@@ -21,9 +21,7 @@ impl MinimalModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndDice, FwNode)> for MinimalModel {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)
     }

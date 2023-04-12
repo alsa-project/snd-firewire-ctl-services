@@ -14,8 +14,8 @@ pub struct IonixModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl IonixModel {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndDice, FwNode)> for IonixModel {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         IonixProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
@@ -25,9 +25,7 @@ impl IonixModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndDice, FwNode)> for IonixModel {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

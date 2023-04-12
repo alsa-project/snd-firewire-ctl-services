@@ -23,8 +23,8 @@ pub struct Studiok48Model {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl Studiok48Model {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         Studiok48Protocol::read_general_sections(
             &self.req,
             &unit.1,
@@ -53,9 +53,7 @@ impl Studiok48Model {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

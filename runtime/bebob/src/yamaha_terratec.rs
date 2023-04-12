@@ -326,8 +326,8 @@ impl AvcMuteCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl 
     }
 }
 
-impl GoPhase24CoaxModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -344,9 +344,7 @@ impl GoPhase24CoaxModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),
@@ -488,8 +486,8 @@ impl NotifyModel<(SndUnit, FwNode), bool> for GoPhase24CoaxModel {
     }
 }
 
-impl GoPhase24OptModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.phys_out_ctl.cache_levels(&self.avc, FCP_TIMEOUT_MS)?;
@@ -501,9 +499,7 @@ impl GoPhase24OptModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

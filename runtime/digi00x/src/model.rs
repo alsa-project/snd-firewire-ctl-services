@@ -13,17 +13,15 @@ pub struct Digi002Model {
     monitor_ctl: MonitorCtl<Digi002Protocol>,
 }
 
-impl Digi002Model {
-    pub(crate) fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
+    fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
         self.common_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_ctl
             .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
-}
 
-impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
     fn load(
         &mut self,
         _: &mut (SndDigi00x, FwNode),
@@ -146,8 +144,8 @@ pub struct Digi003Model {
     opt_iface_ctl: OpticalIfaceCtl,
 }
 
-impl Digi003Model {
-    pub(crate) fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
+    fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
         self.common_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_ctl
@@ -155,9 +153,7 @@ impl Digi003Model {
         self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
-}
 
-impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
     fn load(
         &mut self,
         _: &mut (SndDigi00x, FwNode),

@@ -30,14 +30,9 @@ pub type F828mk3HybridRuntime = Version3Runtime<F828mk3Hybrid>;
 pub type TravelerMk3Runtime = Version3Runtime<TravelerMk3>;
 pub type Track16Runtime = Version3Runtime<Track16>;
 
-pub trait CommandDspCtlModel {
-    fn cache(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
-}
-
 pub struct Version3Runtime<T>
 where
     for<'a> T: Default
-        + CommandDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>
@@ -62,7 +57,6 @@ where
 impl<T> Drop for Version3Runtime<T>
 where
     for<'a> T: Default
-        + CommandDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>
@@ -105,7 +99,6 @@ const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100
 impl<T> Version3Runtime<T>
 where
     for<'a> T: Default
-        + CommandDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>

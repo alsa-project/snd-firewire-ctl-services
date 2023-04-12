@@ -35,23 +35,6 @@ impl Default for Fw1804Model {
 
 const TIMEOUT_MS: u32 = 50;
 
-impl IsochRackCtlModel for Fw1804Model {
-    fn cache(&mut self, (unit, node): &mut (SndTascam, FwNode)) -> Result<(), Error> {
-        unit.read_state(&mut self.image)?;
-        self.meter_ctl.parse(&self.image)?;
-
-        self.clock_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.input_threshold_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.coax_output_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.rack_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-
-        Ok(())
-    }
-}
-
 impl MeasureModel<(SndTascam, FwNode)> for Fw1804Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
@@ -78,6 +61,21 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1804Model {
 }
 
 impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
+    fn cache(&mut self, (unit, node): &mut (SndTascam, FwNode)) -> Result<(), Error> {
+        unit.read_state(&mut self.image)?;
+        self.meter_ctl.parse(&self.image)?;
+
+        self.clock_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_threshold_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.coax_output_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.rack_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+
     fn load(&mut self, _: &mut (SndTascam, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;

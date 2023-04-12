@@ -178,14 +178,14 @@ where
     }
 }
 
-impl<C, M, O, S> SaffireProIoModel<C, M, O, S>
+impl<C, M, O, S> CtlModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
 where
     C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
     M: SaffireProioMeterOperation,
     O: SaffireProioMonitorProtocol,
     S: SaffireProioSpecificOperation,
 {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.req, &unit.1, TIMEOUT_MS)?;
@@ -199,15 +199,7 @@ where
 
         Ok(())
     }
-}
 
-impl<C, M, O, S> CtlModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
-where
-    C: SaffireProioMediaClockSpecification + SaffireProioSamplingClockSpecification,
-    M: SaffireProioMeterOperation,
-    O: SaffireProioMonitorProtocol,
-    S: SaffireProioSpecificOperation,
-{
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

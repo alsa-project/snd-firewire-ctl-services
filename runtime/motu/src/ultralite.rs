@@ -20,7 +20,7 @@ pub struct UltraLite {
     meter_ctl: RegisterDspMeterCtl<UltraliteProtocol>,
 }
 
-impl RegisterDspCtlModel for UltraLite {
+impl CtlModel<(SndMotu, FwNode)> for UltraLite {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
@@ -46,9 +46,7 @@ impl RegisterDspCtlModel for UltraLite {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndMotu, FwNode)> for UltraLite {
     fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;

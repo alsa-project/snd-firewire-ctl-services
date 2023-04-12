@@ -18,8 +18,8 @@ pub struct Audiofire12Later {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl Audiofire12Later {
-    pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+impl CtlModel<SndEfw> for Audiofire12Later {
+    fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
         let res = Audiofire12LaterProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
         debug!(params = ?hw_info, ?res);
@@ -42,9 +42,6 @@ impl Audiofire12Later {
 
         Ok(())
     }
-}
-
-impl CtlModel<SndEfw> for Audiofire12Later {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
         self.meter_ctl.load(card_cntr)?;

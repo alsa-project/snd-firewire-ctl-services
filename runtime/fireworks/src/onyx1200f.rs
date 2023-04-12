@@ -17,8 +17,8 @@ pub struct Onyx1200f {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl Onyx1200f {
-    pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+impl CtlModel<SndEfw> for Onyx1200f {
+    fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
@@ -30,9 +30,7 @@ impl Onyx1200f {
 
         Ok(())
     }
-}
 
-impl CtlModel<SndEfw> for Onyx1200f {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, true)?;
         self.meter_ctl.load(card_cntr)?;

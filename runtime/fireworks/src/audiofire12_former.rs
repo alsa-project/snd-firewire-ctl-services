@@ -19,7 +19,22 @@ pub struct Audiofire12Former {
 const TIMEOUT_MS: u32 = 100;
 
 impl Audiofire12Former {
-    pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+    pub(crate) fn is_later_model(&mut self, unit: &mut SndEfw) -> Result<bool, Error> {
+        let mut hw_info = HwInfo::default();
+        let res = Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
+        debug!(params = ?hw_info, ?res);
+        res?;
+
+        Ok(hw_info
+            .caps
+            .iter()
+            .find(|cap| HwCap::InputGain.eq(cap))
+            .is_some())
+    }
+}
+
+impl CtlModel<SndEfw> for Audiofire12Former {
+    fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
         let res = Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
         debug!(params = ?hw_info, ?res);
@@ -43,21 +58,6 @@ impl Audiofire12Former {
         Ok(())
     }
 
-    pub(crate) fn is_later_model(&mut self, unit: &mut SndEfw) -> Result<bool, Error> {
-        let mut hw_info = HwInfo::default();
-        let res = Audiofire12FormerProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
-        debug!(params = ?hw_info, ?res);
-        res?;
-
-        Ok(hw_info
-            .caps
-            .iter()
-            .find(|cap| HwCap::InputGain.eq(cap))
-            .is_some())
-    }
-}
-
-impl CtlModel<SndEfw> for Audiofire12Former {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
         self.meter_ctl.load(card_cntr)?;

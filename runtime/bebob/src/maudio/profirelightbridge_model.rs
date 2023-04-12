@@ -57,8 +57,8 @@ struct MeterCtl(PflMeterState, Vec<ElemId>);
 #[derive(Default, Debug)]
 struct InputParamsCtl(PflInputParameters);
 
-impl PflModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for PflModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -69,9 +69,7 @@ impl PflModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for PflModel {
     fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)

@@ -98,8 +98,8 @@ impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {
     }
 }
 
-impl SaffireLeModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -115,9 +115,7 @@ impl SaffireLeModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

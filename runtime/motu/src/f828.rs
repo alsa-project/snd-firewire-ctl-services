@@ -13,7 +13,7 @@ pub struct F828 {
     specific_ctls: SpecificCtl,
 }
 
-impl Version1CtlModel for F828 {
+impl CtlModel<(SndMotu, FwNode)> for F828 {
     fn cache(&mut self, (_, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_input_ctl
@@ -21,9 +21,7 @@ impl Version1CtlModel for F828 {
         self.specific_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
-}
 
-impl CtlModel<(SndMotu, FwNode)> for F828 {
     fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;

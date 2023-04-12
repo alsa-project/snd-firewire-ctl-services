@@ -33,10 +33,6 @@ use {
     tracing::{debug, debug_span, Level},
 };
 
-pub trait FfCacheableModel {
-    fn cache(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error>;
-}
-
 pub enum FfRuntime {
     Ff800(Ff800Runtime),
     Ff400(Ff400Runtime),

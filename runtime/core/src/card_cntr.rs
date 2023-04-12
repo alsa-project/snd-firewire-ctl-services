@@ -15,6 +15,7 @@ pub struct CardCntr {
 }
 
 pub trait CtlModel<O: Sized> {
+    fn cache(&mut self, _: &mut O) -> Result<(), Error>;
     fn load(&mut self, unit: &mut O, card_cntr: &mut CardCntr) -> Result<(), Error>;
     fn read(
         &mut self,

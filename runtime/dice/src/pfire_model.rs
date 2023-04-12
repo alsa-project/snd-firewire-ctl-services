@@ -54,7 +54,32 @@ where
         + TcatExtensionSectionParamsOperation<PfireSpecificParams>
         + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
 {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    pub(crate) fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
+        self.tcd22xx_ctls.store_configuration(
+            &mut self.req,
+            node,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )
+    }
+}
+
+impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
+where
+    T: Tcd22xxSpecification
+        + Tcd22xxOperation
+        + PfireSpecificSpecification
+        + TcatNotifiedSectionOperation<GlobalParameters>
+        + TcatFluctuatedSectionOperation<GlobalParameters>
+        + TcatMutableSectionOperation<GlobalParameters>
+        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
+        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
+        + TcatSectionOperation<ExtendedSyncParameters>
+        + TcatExtensionOperation
+        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
+        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
+{
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
@@ -81,31 +106,6 @@ where
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
-        self.tcd22xx_ctls.store_configuration(
-            &mut self.req,
-            node,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )
-    }
-}
-
-impl<T> CtlModel<(SndDice, FwNode)> for PfireModel<T>
-where
-    T: Tcd22xxSpecification
-        + Tcd22xxOperation
-        + PfireSpecificSpecification
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>
-        + TcatExtensionOperation
-        + TcatExtensionSectionParamsOperation<PfireSpecificParams>
-        + TcatExtensionSectionPartialMutableParamsOperation<PfireSpecificParams>,
-{
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

@@ -390,8 +390,8 @@ impl AnalogInputCtl {
     }
 }
 
-impl FireboxModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -424,9 +424,7 @@ impl FireboxModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),
