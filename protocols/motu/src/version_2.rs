@@ -302,6 +302,23 @@ impl MotuVersion2OpticalIfaceSpecification for F828mk2Protocol {
     ];
 }
 
+impl MotuRegisterDspSpecification for F828mk2Protocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
+}
+
 impl RegisterDspMixerOutputOperation for F828mk2Protocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
@@ -426,6 +443,18 @@ impl MotuVersion2ClockSpecification for F8preProtocol {
 impl MotuVersion2OpticalIfaceSpecification for F8preProtocol {
     const OPT_IFACE_MODES: &'static [V2OptIfaceMode] =
         &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
+}
+
+impl MotuRegisterDspSpecification for F8preProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair,
+        TargetPort::MainPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
 }
 
 impl RegisterDspMixerOutputOperation for F8preProtocol {
@@ -560,6 +589,23 @@ impl MotuVersion2OpticalIfaceSpecification for TravelerProtocol {
         V2OptIfaceMode::None,
         V2OptIfaceMode::Adat,
         V2OptIfaceMode::Spdif,
+    ];
+}
+
+impl MotuRegisterDspSpecification for TravelerProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
@@ -763,6 +809,19 @@ impl MotuVersion2ClockSpecification for UltraliteProtocol {
 
     const CLK_SRCS: &'static [V2ClkSrc] = &[V2ClkSrc::Internal, V2ClkSrc::SpdifCoax];
     const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x02];
+}
+
+impl MotuRegisterDspSpecification for UltraliteProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+    ];
 }
 
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
@@ -975,6 +1034,23 @@ impl MotuVersion2ClockSpecification for F896hdProtocol {
 impl MotuVersion2OpticalIfaceSpecification for F896hdProtocol {
     const OPT_IFACE_MODES: &'static [V2OptIfaceMode] =
         &[V2OptIfaceMode::None, V2OptIfaceMode::Adat];
+}
+
+impl MotuRegisterDspSpecification for F896hdProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::AesEbuPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
 }
 
 impl RegisterDspMixerOutputOperation for F896hdProtocol {
