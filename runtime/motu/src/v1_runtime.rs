@@ -88,7 +88,7 @@ where
         enter.exit();
 
         let enter = debug_span!("load").entered();
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.card_cntr)?;
         self.model
             .get_notified_elem_list(&mut self.notified_elem_id_list);
         enter.exit();

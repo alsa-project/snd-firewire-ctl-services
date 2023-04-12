@@ -345,11 +345,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
@@ -469,7 +465,11 @@ impl NotifyModel<(SndUnit, FwNode), bool> for GoPhase24CoaxModel {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         }
@@ -500,11 +500,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
@@ -624,7 +620,11 @@ impl NotifyModel<(SndUnit, FwNode), bool> for GoPhase24OptModel {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
         }

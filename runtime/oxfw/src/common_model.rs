@@ -22,7 +22,7 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 
         Ok(())

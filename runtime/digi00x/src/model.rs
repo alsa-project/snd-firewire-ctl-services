@@ -22,11 +22,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndDigi00x, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
@@ -154,11 +150,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndDigi00x, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;

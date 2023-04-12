@@ -26,7 +26,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;

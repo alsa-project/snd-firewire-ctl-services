@@ -125,7 +125,7 @@ where
         enter.exit();
 
         let enter = debug_span!("load").entered();
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.card_cntr)?;
 
         NotifyModel::<(SndMotu, FwNode), u32>::get_notified_elem_list(
             &mut self.model,

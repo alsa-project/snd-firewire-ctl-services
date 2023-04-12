@@ -79,21 +79,17 @@ impl EfwModel {
         }
     }
 
-    pub(crate) fn load(
-        &mut self,
-        unit: &mut SndEfw,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match self {
-            Self::Onyx1200f(model) => model.load(unit, card_cntr),
-            Self::Onyx400f(model) => model.load(unit, card_cntr),
-            Self::Audiofire8(model) => model.load(unit, card_cntr),
-            Self::Audiofire12Former(model) => model.load(unit, card_cntr),
-            Self::Audiofire12Later(model) => model.load(unit, card_cntr),
-            Self::Audiofire2(model) => model.load(unit, card_cntr),
-            Self::Audiofire4(model) => model.load(unit, card_cntr),
-            Self::Audiofire9(model) => model.load(unit, card_cntr),
-            Self::Rip(model) => model.load(unit, card_cntr),
+            Self::Onyx1200f(model) => model.load(card_cntr),
+            Self::Onyx400f(model) => model.load(card_cntr),
+            Self::Audiofire8(model) => model.load(card_cntr),
+            Self::Audiofire12Former(model) => model.load(card_cntr),
+            Self::Audiofire12Later(model) => model.load(card_cntr),
+            Self::Audiofire2(model) => model.load(card_cntr),
+            Self::Audiofire4(model) => model.load(card_cntr),
+            Self::Audiofire9(model) => model.load(card_cntr),
+            Self::Rip(model) => model.load(card_cntr),
         }
     }
 

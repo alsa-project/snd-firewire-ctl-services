@@ -128,7 +128,7 @@ impl RuntimeOperation<u32> for OxfwRuntime {
         enter.exit();
 
         let enter = debug_span!("load").entered();
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);

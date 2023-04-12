@@ -31,7 +31,7 @@ impl CtlModel<SndEfw> for Onyx1200f {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, true)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;

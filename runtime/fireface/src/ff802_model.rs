@@ -29,11 +29,7 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndFireface, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meter_ctl.load(card_cntr)?;
         self.dsp_ctl.load(card_cntr)?;
         self.cfg_ctl.load(card_cntr)?;

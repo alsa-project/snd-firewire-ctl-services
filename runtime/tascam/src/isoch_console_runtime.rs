@@ -117,7 +117,7 @@ where
         enter.exit();
 
         let enter = debug_span!("load").entered();
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;

@@ -126,7 +126,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         enter.exit();
 
         let enter = debug_span!("load").entered();
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.card_cntr)?;
         enter.exit();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
