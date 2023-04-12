@@ -994,16 +994,169 @@ where
     }
 }
 
-/// State of inputs in 828mkII.
-#[derive(Default, Debug)]
+/// State of inputs in 828mkII and Traveler.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspLineInputState {
+    /// The nominal level of input signal.
     pub level: Vec<NominalSignalLevel>,
-    /// + 6dB.
+    /// Apply +6dB.
     pub boost: Vec<bool>,
 }
 
 const LINE_INPUT_LEVEL_OFFSET: usize = 0x0c08;
 const LINE_INPUT_BOOST_OFFSET: usize = 0x0c14;
+
+/// The trait for specification of line input.
+pub trait MotuRegisterDspLineInputSpecification: MotuRegisterDspSpecification {
+    const LINE_INPUT_COUNT: usize;
+    const CH_OFFSET: usize;
+
+    fn create_line_input_state() -> RegisterDspLineInputState {
+        RegisterDspLineInputState {
+            level: vec![Default::default(); Self::LINE_INPUT_COUNT],
+            boost: vec![Default::default(); Self::LINE_INPUT_COUNT],
+        }
+    }
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspLineInputState> for O
+where
+    O: MotuRegisterDspLineInputSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspLineInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, LINE_INPUT_LEVEL_OFFSET as u32, timeout_ms).map(|val| {
+            params
+                .level
+                .iter_mut()
+                .enumerate()
+                .for_each(|(mut i, level)| {
+                    i += Self::CH_OFFSET;
+                    *level = if val & (1 << i) > 0 {
+                        NominalSignalLevel::Professional
+                    } else {
+                        NominalSignalLevel::Consumer
+                    };
+                });
+        })?;
+
+        read_quad(req, node, LINE_INPUT_BOOST_OFFSET as u32, timeout_ms).map(|val| {
+            params
+                .boost
+                .iter_mut()
+                .enumerate()
+                .for_each(|(mut i, boost)| {
+                    i += Self::CH_OFFSET;
+                    *boost = val & (1 << i) > 0
+                });
+        })?;
+
+        Ok(())
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspLineInputState> for O
+where
+    O: MotuRegisterDspLineInputSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspLineInputState,
+        updates: RegisterDspLineInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params.level != updates.level {
+            let quad = updates
+                .level
+                .iter()
+                .enumerate()
+                .fold(0u32, |mut quad, (i, l)| {
+                    if NominalSignalLevel::Professional.eq(l) {
+                        quad |= 1 << (i + Self::CH_OFFSET);
+                    }
+                    quad
+                });
+            write_quad(req, node, LINE_INPUT_LEVEL_OFFSET as u32, quad, timeout_ms)?;
+            params.level.copy_from_slice(&updates.level);
+        }
+
+        if params.boost != updates.boost {
+            let quad = updates
+                .boost
+                .iter()
+                .enumerate()
+                .fold(0u32, |mut quad, (mut i, b)| {
+                    i += Self::CH_OFFSET;
+                    if *b {
+                        quad |= 1 << i;
+                    }
+                    quad
+                });
+
+            write_quad(req, node, LINE_INPUT_BOOST_OFFSET as u32, quad, timeout_ms)?;
+            params.boost.copy_from_slice(&updates.boost);
+        }
+
+        Ok(())
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspLineInputState, SndMotuRegisterDspParameter> for O
+where
+    O: MotuRegisterDspLineInputSpecification,
+{
+    fn parse_image(params: &mut RegisterDspLineInputState, image: &SndMotuRegisterDspParameter) {
+        let flags = image.line_input_nominal_level_flag();
+        params.level.iter_mut().enumerate().for_each(|(i, level)| {
+            let shift = i + Self::CH_OFFSET;
+            *level = if flags & (1 << shift) > 0 {
+                NominalSignalLevel::Professional
+            } else {
+                NominalSignalLevel::Consumer
+            };
+        });
+
+        let flags = image.line_input_boost_flag();
+        params.boost.iter_mut().enumerate().for_each(|(i, boost)| {
+            let shift = i + Self::CH_OFFSET;
+            *boost = flags & (1 << shift) > 0;
+        });
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspLineInputState> for O
+where
+    O: MotuRegisterDspLineInputSpecification,
+{
+    fn parse_event(params: &mut RegisterDspLineInputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_LINE_INPUT_NOMINAL_LEVEL => {
+                params.level.iter_mut().enumerate().for_each(|(i, level)| {
+                    let shift = i + Self::CH_OFFSET;
+                    *level = if event.value & (1 << shift) > 0 {
+                        NominalSignalLevel::Professional
+                    } else {
+                        NominalSignalLevel::Consumer
+                    };
+                });
+                true
+            }
+            EV_TYPE_LINE_INPUT_BOOST => {
+                params.boost.iter_mut().enumerate().for_each(|(i, boost)| {
+                    let shift = i + Self::CH_OFFSET;
+                    *boost = event.value & (1 << shift) > 0;
+                });
+                true
+            }
+            _ => false,
+        }
+    }
+}
 
 /// The trait for operation of line input in Traveler and 828mk2.
 pub trait Traveler828mk2LineInputOperation {
