@@ -297,7 +297,7 @@ const MIXER_RETURN_ENABLE_OFFSET: usize = 0x0c18;
 pub struct RegisterDspMixerMonauralSourceEntry {
     /// The gain of source. The value is between 0x00 and 0x80.
     pub gain: Vec<u8>,
-    /// The left and right balance of source. The value is between 0x00 and 0x80.
+    /// The left and right balance of source to stereo mixer. The value is between 0x00 and 0x80.
     pub pan: Vec<u8>,
     /// Whether to mute the source.
     pub mute: Vec<bool>,
@@ -1161,9 +1161,11 @@ where
 const MONAURAL_INPUT_COUNT: usize = 10;
 
 /// State of input in Ultralite.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspMonauralInputState {
+    /// The gain of inputs.
     pub gain: [u8; MONAURAL_INPUT_COUNT],
+    /// Whether to invert signal of inputs.
     pub invert: [bool; MONAURAL_INPUT_COUNT],
 }
 
@@ -1200,6 +1202,133 @@ const EV_MIC_PHANTOM_FLAG: u8 = 0x02;
 const EV_MIC_PAD_FLAG: u8 = 0x04;
 const EV_INPUT_JACK_FLAG: u8 = 0x08;
 const EV_INPUT_PAIRED_CH_MAP: [usize; STEREO_INPUT_COUNT] = [0, 1, 2, 3, 8, 9];
+
+/// The trait for specification of monaural inputs.
+pub trait MotuRegisterDspMonauralInputSpecification {
+    /// The number of inputs.
+    const INPUT_COUNT: usize = MONAURAL_INPUT_COUNT;
+
+    /// The minimum value of gain.
+    const INPUT_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of gain for microphone inputs.
+    const INPUT_MIC_GAIN_MAX: u8 = 0x18;
+    /// The maximum value of gain for line inputs.
+    const INPUT_LINE_GAIN_MAX: u8 = 0x12;
+    /// The maximum value of gain for S/PDIF inputs.
+    const INPUT_SPDIF_GAIN_MAX: u8 = 0x0c;
+    /// The step value of gain.
+    const INPUT_GAIN_STEP: u8 = 0x01;
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspMonauralInputState> for O
+where
+    O: MotuRegisterDspMonauralInputSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMonauralInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quads = [0; (MONAURAL_INPUT_COUNT + 3) / 4];
+        quads.iter_mut().enumerate().try_for_each(|(i, quad)| {
+            let offset = INPUT_GAIN_INVERT_OFFSET + i * 4;
+            read_quad(req, node, offset as u32, timeout_ms).map(|val| *quad = val)
+        })?;
+
+        (0..MONAURAL_INPUT_COUNT).for_each(|i| {
+            let pos = i / 4;
+            let shift = (i % 4) * 8;
+            let val = ((quads[pos] >> shift) as u8) & 0xff;
+
+            params.gain[i] = val & MONAURAL_INPUT_GAIN_MASK;
+            params.invert[i] = val & MONAURAL_INPUT_INVERT_FLAG > 0;
+        });
+
+        Ok(())
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspMonauralInputState> for O
+where
+    O: MotuRegisterDspMonauralInputSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMonauralInputState,
+        updates: RegisterDspMonauralInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        (0..MONAURAL_INPUT_COUNT).try_for_each(|i| {
+            if params.gain[i] != updates.gain[i] || params.invert[i] != updates.invert[i] {
+                let pos = i / 4;
+                let shift = (i % 4) * 8;
+                let mut byte = INPUT_CHANGE_FLAG;
+                if params.gain[i] != updates.gain[i] {
+                    byte |= updates.gain[i];
+                }
+                if params.invert[i] != updates.invert[i] {
+                    if updates.invert[i] {
+                        byte |= MONAURAL_INPUT_INVERT_FLAG;
+                    }
+                }
+                let quad = (byte as u32) << shift;
+                let offset = (INPUT_GAIN_INVERT_OFFSET + pos * 4) as u32;
+                write_quad(req, node, offset, quad, timeout_ms).map(|_| {
+                    params.gain[i] = updates.gain[i];
+                    params.invert[i] = updates.invert[i];
+                })
+            } else {
+                Ok(())
+            }
+        })
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspMonauralInputState, SndMotuRegisterDspParameter>
+    for O
+where
+    O: MotuRegisterDspMonauralInputSpecification,
+{
+    fn parse_image(
+        params: &mut RegisterDspMonauralInputState,
+        image: &SndMotuRegisterDspParameter,
+    ) {
+        let vals = image.input_gain_and_invert();
+        params
+            .gain
+            .iter_mut()
+            .zip(vals)
+            .for_each(|(gain, val)| *gain = val & MONAURAL_INPUT_GAIN_MASK);
+        params
+            .invert
+            .iter_mut()
+            .zip(vals)
+            .for_each(|(invert, val)| *invert = val & MONAURAL_INPUT_INVERT_FLAG > 0);
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspMonauralInputState> for O
+where
+    O: MotuRegisterDspMonauralInputSpecification,
+{
+    fn parse_event(params: &mut RegisterDspMonauralInputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_INPUT_GAIN_AND_INVERT => {
+                let ch = event.identifier0 as usize;
+                if ch < MONAURAL_INPUT_COUNT {
+                    params.gain[ch] = event.value & MONAURAL_INPUT_GAIN_MASK;
+                    params.invert[ch] = event.value & MONAURAL_INPUT_INVERT_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+}
 
 /// The trait for operation of input in Ultralite.
 pub trait RegisterDspMonauralInputOperation {
