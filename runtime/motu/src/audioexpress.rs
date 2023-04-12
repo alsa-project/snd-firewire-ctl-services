@@ -225,7 +225,8 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for AudioExpress {
         events: &Vec<RegisterDspEvent>,
     ) -> Result<(), Error> {
         events.iter().for_each(|event| {
-            let _ = self.mixer_output_ctl.parse_dsp_event(event)
+            let _ = self.phone_assign_ctl.parse_dsp_event(event)
+                || self.mixer_output_ctl.parse_dsp_event(event)
                 || self.mixer_source_ctl.parse_dsp_event(event)
                 || self.output_ctl.parse_dsp_event(event)
                 || self.input_ctl.parse_dsp_event(event);
