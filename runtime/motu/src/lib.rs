@@ -42,7 +42,7 @@ use {
     ieee1212_config_rom::*,
     protocols::{config_rom::*, *},
     std::{convert::TryFrom, marker::PhantomData},
-    tracing::Level,
+    tracing::{debug, debug_span, Level},
 };
 
 pub enum MotuRuntime {
