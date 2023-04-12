@@ -410,6 +410,8 @@ impl MotuRegisterDspMeterSpecification for F828mk2Protocol {
     ];
 }
 
+impl MotuRegisterDspMeterOutputTargetSpecification for F828mk2Protocol {}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -669,6 +671,8 @@ impl MotuRegisterDspMeterSpecification for TravelerProtocol {
         [22, 23],
     ];
 }
+
+impl MotuRegisterDspMeterOutputTargetSpecification for TravelerProtocol {}
 
 /// State of inputs in Traveler.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -1081,3 +1085,5 @@ impl MotuRegisterDspMeterSpecification for F896hdProtocol {
         [22, 23],
     ];
 }
+
+impl MotuRegisterDspMeterOutputTargetSpecification for F896hdProtocol {}
