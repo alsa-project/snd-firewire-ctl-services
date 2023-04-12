@@ -317,7 +317,9 @@ const MAIN_ASSIGNMENT_NAME: &str = "main-assign";
 
 impl MainAssignCtl {
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        UltraliteProtocol::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = UltraliteProtocol::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -367,6 +369,7 @@ impl MainAssignCtl {
                     .map(|&p| params.0 = p)?;
                 let res = UltraliteProtocol::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
