@@ -1124,13 +1124,19 @@ pub struct RegisterDspMonauralInputState {
 const STEREO_INPUT_COUNT: usize = 6;
 
 /// State of input in Audio Express, and 4 pre.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspStereoInputState {
+    /// The gain of inputs.
     pub gain: [u8; STEREO_INPUT_COUNT],
+    /// Whether to invert signal of inputs.
     pub invert: [bool; STEREO_INPUT_COUNT],
+    /// Whether the stereo channels are paired.
     pub paired: [bool; STEREO_INPUT_COUNT / 2],
+    /// Whether to enable phantom powering.
     pub phantom: Vec<bool>,
+    /// Whether to attenate inputs.
     pub pad: Vec<bool>,
+    /// Whether jack is inserted.
     pub jack: Vec<bool>,
 }
 
@@ -1272,6 +1278,260 @@ where
                 if ch < MONAURAL_INPUT_COUNT {
                     params.gain[ch] = event.value & MONAURAL_INPUT_GAIN_MASK;
                     params.invert[ch] = event.value & MONAURAL_INPUT_INVERT_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+}
+
+/// The trait for specification of stereo inputs in Audio Express and 4 pre.
+pub trait MotuRegisterDspStereoInputSpecification: MotuRegisterDspSpecification {
+    /// The number of inputs.
+    const INPUT_COUNT: usize = STEREO_INPUT_COUNT;
+
+    /// The number of input pairs.
+    const INPUT_PAIR_COUNT: usize = STEREO_INPUT_COUNT / 2;
+
+    /// The number of microphone inputs.
+    const MIC_COUNT: usize;
+
+    /// The minimum value of gain.
+    const INPUT_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of gain for microphone inputs.
+    const INPUT_MIC_GAIN_MAX: u8 = 0x3c;
+    /// The maximum value of gain for line inputs.
+    const INPUT_LINE_GAIN_MAX: u8 = 0x16;
+    /// The maximum value of gain for S/PDIF inputs.
+    const INPUT_SPDIF_GAIN_MAX: u8 = 0x0c;
+    /// The step value of gain.
+    const INPUT_GAIN_STEP: u8 = 0x01;
+
+    fn create_stereo_input_state() -> RegisterDspStereoInputState {
+        RegisterDspStereoInputState {
+            gain: Default::default(),
+            invert: Default::default(),
+            paired: Default::default(),
+            phantom: vec![Default::default(); Self::MIC_COUNT],
+            pad: vec![Default::default(); Self::MIC_COUNT],
+            jack: vec![Default::default(); Self::MIC_COUNT],
+        }
+    }
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspStereoInputState> for O
+where
+    O: MotuRegisterDspStereoInputSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspStereoInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        (0..Self::INPUT_COUNT).step_by(4).try_for_each(|i| {
+            let offset = (INPUT_GAIN_INVERT_OFFSET + i) as u32;
+            read_quad(req, node, offset, timeout_ms).map(|quad| {
+                params.gain[i..]
+                    .iter_mut()
+                    .take(4)
+                    .enumerate()
+                    .for_each(|(j, gain)| {
+                        let shift = j * 8;
+                        let val = ((quad >> shift) as u8) & 0xff;
+                        *gain = val & STEREO_INPUT_GAIN_MASK;
+                    });
+                params.invert[i..]
+                    .iter_mut()
+                    .take(4)
+                    .enumerate()
+                    .for_each(|(j, invert)| {
+                        let shift = j * 8;
+                        let val = ((quad >> shift) as u8) & 0xff;
+                        *invert = val & STEREO_INPUT_INVERT_FLAG > 0;
+                    });
+            })
+        })?;
+
+        read_quad(req, node, MIC_PARAM_OFFSET as u32, timeout_ms).map(|quad| {
+            (0..Self::MIC_COUNT).for_each(|i| {
+                let val = (quad >> (i * 8)) as u8;
+                params.phantom[i] = val & MIC_PARAM_PHANTOM_FLAG > 0;
+                params.pad[i] = val & MIC_PARAM_PAD_FLAG > 0;
+            });
+        })?;
+
+        read_quad(req, node, INPUT_PAIRED_OFFSET as u32, timeout_ms).map(|quad| {
+            // MEMO: The flag is put from LSB to MSB in its order.
+            params
+                .paired
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, paired)| {
+                    *paired = ((quad >> (i * 8)) as u8) & INPUT_PAIRED_FLAG > 0
+                });
+        })?;
+
+        Ok(())
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspStereoInputState> for O
+where
+    O: MotuRegisterDspStereoInputSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspStereoInputState,
+        updates: RegisterDspStereoInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        (0..Self::INPUT_COUNT).try_for_each(|i| {
+            if params.gain[i] != updates.gain[i] || params.invert[i] != updates.invert[i] {
+                let pos = i / 4;
+                let shift = (i % 4) * 8;
+
+                let mut byte = 0;
+                if params.gain[i] != updates.gain[i] {
+                    byte |= updates.gain[i] | INPUT_CHANGE_FLAG;
+                }
+
+                if params.invert[i] != updates.invert[i] {
+                    if updates.invert[i] {
+                        byte |= STEREO_INPUT_INVERT_FLAG;
+                    }
+                }
+
+                let quad = (byte as u32) << shift;
+                let offset = (INPUT_GAIN_INVERT_OFFSET + pos * 4) as u32;
+                write_quad(req, node, offset, quad, timeout_ms)
+            } else {
+                Ok(())
+            }
+        })?;
+
+        if params.paired != updates.paired {
+            let quad = params
+                .paired
+                .iter_mut()
+                .zip(&updates.paired)
+                .zip(INPUT_PAIRED_CH_MAP)
+                .filter(|((o, n), _)| !o.eq(n))
+                .fold(0, |quad, ((_, &paired), ch_map)| {
+                    // MEMO: 0x00ff0000 mask is absent.
+                    let shift = ch_map * 8;
+                    let mut val = INPUT_PAIRED_CHANGE_FLAG;
+                    if paired {
+                        val |= INPUT_PAIRED_FLAG;
+                    }
+                    quad | ((val as u32) << shift)
+                });
+            write_quad(req, node, INPUT_PAIRED_OFFSET as u32, quad, timeout_ms)
+                .map(|_| params.paired.copy_from_slice(&updates.paired))?;
+        }
+
+        if params.phantom != updates.phantom || params.pad != updates.pad {
+            let quad = (0..Self::MIC_COUNT).fold(0, |quad, i| {
+                let shift = i * 8;
+                let mut val = MIC_PARAM_CHANGE_FLAG;
+
+                if updates.phantom[i] {
+                    val |= MIC_PARAM_PHANTOM_FLAG;
+                }
+
+                if updates.pad[i] {
+                    val |= MIC_PARAM_PAD_FLAG;
+                }
+
+                quad | ((val as u32) << shift)
+            });
+
+            write_quad(req, node, MIC_PARAM_OFFSET as u32, quad, timeout_ms).map(|_| {
+                params.phantom.copy_from_slice(&updates.phantom);
+                params.pad.copy_from_slice(&updates.pad);
+            })?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspStereoInputState, SndMotuRegisterDspParameter>
+    for O
+where
+    O: MotuRegisterDspStereoInputSpecification,
+{
+    fn parse_image(params: &mut RegisterDspStereoInputState, image: &SndMotuRegisterDspParameter) {
+        let vals = image.input_gain_and_invert();
+        params
+            .gain
+            .iter_mut()
+            .zip(vals)
+            .for_each(|(gain, val)| *gain = val & STEREO_INPUT_GAIN_MASK);
+        params
+            .invert
+            .iter_mut()
+            .zip(vals)
+            .for_each(|(invert, val)| *invert = val & STEREO_INPUT_INVERT_FLAG > 0);
+
+        let flags = image.input_flag();
+        params
+            .phantom
+            .iter_mut()
+            .zip(flags)
+            .for_each(|(phantom, val)| *phantom = val & EV_MIC_PHANTOM_FLAG > 0);
+        params
+            .pad
+            .iter_mut()
+            .zip(flags)
+            .for_each(|(pad, val)| *pad = val & EV_MIC_PAD_FLAG > 0);
+        params
+            .jack
+            .iter_mut()
+            .zip(flags)
+            .for_each(|(jack, val)| *jack = val & EV_INPUT_JACK_FLAG > 0);
+        params
+            .paired
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, paired)| {
+                let pos = EV_INPUT_PAIRED_CH_MAP[i * 2];
+                *paired = flags[pos] & EV_INPUT_PAIRED_FLAG > 0;
+            });
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspStereoInputState> for O
+where
+    O: MotuRegisterDspStereoInputSpecification,
+{
+    fn parse_event(params: &mut RegisterDspStereoInputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_INPUT_GAIN_AND_INVERT => {
+                let ch = event.identifier0 as usize;
+                if ch < STEREO_INPUT_COUNT {
+                    params.gain[ch] = event.value & STEREO_INPUT_GAIN_MASK;
+                    params.invert[ch] = event.value & STEREO_INPUT_INVERT_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_INPUT_FLAG => {
+                let ch = event.identifier0 as usize;
+                if let Some(pos) = EV_INPUT_PAIRED_CH_MAP.iter().position(|&p| p == ch) {
+                    if pos % 2 == 0 {
+                        params.paired[pos / 2] = event.value & EV_INPUT_PAIRED_FLAG > 0;
+                    }
+                    if pos < Self::MIC_COUNT {
+                        params.phantom[ch] = event.value & EV_MIC_PHANTOM_FLAG > 0;
+                        params.pad[ch] = event.value & EV_MIC_PAD_FLAG > 0;
+                        params.jack[ch] = event.value & EV_INPUT_JACK_FLAG > 0;
+                    }
                     true
                 } else {
                     false
