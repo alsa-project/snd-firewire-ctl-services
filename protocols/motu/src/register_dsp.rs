@@ -1543,10 +1543,13 @@ where
 }
 
 /// Information of meter.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspMeterState {
+    /// The detected level of signal in inputs.
     pub inputs: Vec<u8>,
+    /// The detected level of signal in outputs.
     pub outputs: Vec<u8>,
+    /// The selected port for output metering.
     pub selected: Option<usize>,
 }
 
@@ -1558,6 +1561,109 @@ const METER_OUTPUT_SELECT_CHANGE_FLAG: u32 = 0x00000b00;
 // Assertion from UAPI of ALSA firewire stack.
 const MAX_METER_INPUT_COUNT: usize = 24;
 const MAX_METER_OUTPUT_COUNT: usize = 48;
+
+const METER_IMAGE_SIZE: usize = 48;
+
+/// The trait for specification of hardware metering.
+pub trait MotuRegisterDspMeterSpecification: MotuRegisterDspSpecification {
+    /// Whether to select output port for metering.
+    const SELECTABLE: bool;
+    /// The input ports.
+    const INPUT_PORTS: &'static [TargetPort];
+    /// The output pairs.
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]];
+    /// The number of outputs.
+    const OUTPUT_PORT_COUNT: usize = Self::OUTPUT_PORT_PAIRS.len() * 2;
+
+    /// The minimum value of detected signal level.
+    const LEVEL_MIN: u8 = 0;
+    /// The maximum value of detected signal level.
+    const LEVEL_MAX: u8 = 0x7f;
+    /// The step value of detected signal level.
+    const LEVEL_STEP: u8 = 1;
+
+    /// The size of image.
+    const METER_IMAGE_SIZE: usize = METER_IMAGE_SIZE;
+
+    fn create_meter_state() -> RegisterDspMeterState {
+        // Assertion from UAPI of ALSA firewire stack.
+        assert!(Self::INPUT_PORTS.len() <= MAX_METER_INPUT_COUNT);
+        assert!(Self::OUTPUT_PORT_PAIRS.len() <= MAX_METER_OUTPUT_COUNT);
+        assert_eq!(
+            Self::OUTPUT_PORT_PAIRS.len(),
+            Self::OUTPUT_PORT_PAIR_POS.len()
+        );
+
+        RegisterDspMeterState {
+            inputs: vec![0; Self::INPUT_PORTS.len()],
+            outputs: vec![0; Self::OUTPUT_PORT_COUNT],
+            selected: if Self::SELECTABLE { Some(0) } else { None },
+        }
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<RegisterDspMeterState> for O
+where
+    O: MotuRegisterDspMeterSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &RegisterDspMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if !Self::SELECTABLE || params.selected == None {
+            Err(Error::new(FileError::Nxio, "Not supported"))?;
+        }
+
+        if let Some(target) = params.selected {
+            if target >= Self::OUTPUT_PORT_PAIRS.len() {
+                Err(Error::new(
+                    FileError::Inval,
+                    "Invalid argument for output metering target",
+                ))?;
+            } else {
+                let mut quad = ((target + 1) as u32) & METER_OUTPUT_SELECT_TARGET_MASK;
+                quad |= METER_OUTPUT_SELECT_CHANGE_FLAG;
+                write_quad(
+                    req,
+                    node,
+                    METER_OUTPUT_SELECT_OFFSET as u32,
+                    quad,
+                    timeout_ms,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; METER_IMAGE_SIZE]> for O
+where
+    O: MotuRegisterDspMeterSpecification,
+{
+    fn parse_image(params: &mut RegisterDspMeterState, image: &[u8; METER_IMAGE_SIZE]) {
+        params
+            .inputs
+            .copy_from_slice(&image[..Self::INPUT_PORTS.len()]);
+
+        if let Some(selected) = params.selected {
+            params.outputs.iter_mut().for_each(|meter| *meter = 0);
+
+            let pair = &Self::OUTPUT_PORT_PAIR_POS[selected];
+            params.outputs[selected * 2] = image[MAX_METER_INPUT_COUNT + pair[0]];
+            params.outputs[selected * 2 + 1] = image[MAX_METER_INPUT_COUNT + pair[1]];
+        } else {
+            Self::OUTPUT_PORT_PAIR_POS
+                .iter()
+                .flatten()
+                .zip(&mut params.outputs)
+                .for_each(|(pos, m)| *m = image[MAX_METER_INPUT_COUNT + pos]);
+        }
+    }
+}
 
 /// The trait for meter operation.
 pub trait RegisterDspMeterOperation {
