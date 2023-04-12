@@ -1664,3 +1664,39 @@ where
         }
     }
 }
+
+/// The target of output metering.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct RegisterDspMeterOutputTarget(pub usize);
+
+/// The specification of meter for output target.
+pub trait MotuRegisterDspMeterOutputTargetSpecification: MotuRegisterDspMeterSpecification {}
+
+impl<O> MotuWhollyUpdatableParamsOperation<RegisterDspMeterOutputTarget> for O
+where
+    O: MotuRegisterDspMeterOutputTargetSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &RegisterDspMeterOutputTarget,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params.0 >= Self::OUTPUT_PORT_PAIRS.len() {
+            Err(Error::new(
+                FileError::Inval,
+                "Invalid argument for output metering target",
+            ))?;
+        }
+
+        let mut quad = ((params.0 + 1) as u32) & METER_OUTPUT_SELECT_TARGET_MASK;
+        quad |= METER_OUTPUT_SELECT_CHANGE_FLAG;
+        write_quad(
+            req,
+            node,
+            METER_OUTPUT_SELECT_OFFSET as u32,
+            quad,
+            timeout_ms,
+        )
+    }
+}
