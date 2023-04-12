@@ -19,6 +19,7 @@ pub struct F828mk2 {
     output_ctl: RegisterDspOutputCtl<F828mk2Protocol>,
     line_input_ctl: RegisterDspLineInputCtl<F828mk2Protocol>,
     meter_ctl: RegisterDspMeterCtl<F828mk2Protocol>,
+    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<F828mk2Protocol>,
 }
 
 impl RegisterDspCtlModel for F828mk2 {
@@ -46,7 +47,8 @@ impl RegisterDspCtlModel for F828mk2 {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.line_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_output_target_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -64,6 +66,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.output_ctl.load(card_cntr)?;
         self.line_input_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
+        self.meter_output_target_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -93,6 +96,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         } else if self.line_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_output_target_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -167,10 +172,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .meter_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.meter_output_target_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)

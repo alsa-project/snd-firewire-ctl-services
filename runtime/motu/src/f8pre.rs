@@ -39,7 +39,6 @@ impl RegisterDspCtlModel for F8pre {
         self.mixer_source_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }

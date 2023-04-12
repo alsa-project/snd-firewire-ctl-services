@@ -359,7 +359,6 @@ impl F828mk2Protocol {
 }
 
 impl MotuRegisterDspMeterSpecification for F828mk2Protocol {
-    const SELECTABLE: bool = true;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -474,7 +473,6 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F8preProtocol {
 }
 
 impl MotuRegisterDspMeterSpecification for F8preProtocol {
-    const SELECTABLE: bool = false;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -621,7 +619,6 @@ impl MotuRegisterDspLineInputSpecification for TravelerProtocol {
 }
 
 impl MotuRegisterDspMeterSpecification for TravelerProtocol {
-    const SELECTABLE: bool = true;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -817,7 +814,6 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for UltraliteProtocol {
 impl MotuRegisterDspMonauralInputSpecification for UltraliteProtocol {}
 
 impl MotuRegisterDspMeterSpecification for UltraliteProtocol {
-    const SELECTABLE: bool = false;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -1037,7 +1033,6 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F896hdProtocol {
 }
 
 impl MotuRegisterDspMeterSpecification for F896hdProtocol {
-    const SELECTABLE: bool = true;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),

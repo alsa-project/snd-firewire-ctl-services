@@ -400,7 +400,6 @@ impl MotuRegisterDspStereoInputSpecification for AudioExpressProtocol {
 }
 
 impl MotuRegisterDspMeterSpecification for AudioExpressProtocol {
-    const SELECTABLE: bool = false;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -872,7 +871,6 @@ impl MotuRegisterDspStereoInputSpecification for H4preProtocol {
 }
 
 impl MotuRegisterDspMeterSpecification for H4preProtocol {
-    const SELECTABLE: bool = false;
     const INPUT_PORTS: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),

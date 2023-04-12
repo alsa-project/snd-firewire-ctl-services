@@ -43,7 +43,6 @@ impl RegisterDspCtlModel for UltraLite {
         self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.main_assign_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
