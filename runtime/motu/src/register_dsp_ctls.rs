@@ -8,20 +8,24 @@ pub(crate) struct RegisterDspPhoneAssignCtl<T>(pub PhoneAssignCtl<T>)
 where
     T: MotuPortAssignSpecification
         + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
-        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>;
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>
+        + MotuRegisterDspImageOperation<PhoneAssignParameters, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<PhoneAssignParameters>;
 
 impl<T> RegisterDspPhoneAssignCtl<T>
 where
     T: MotuPortAssignSpecification
         + MotuWhollyCacheableParamsOperation<PhoneAssignParameters>
-        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>,
+        + MotuWhollyUpdatableParamsOperation<PhoneAssignParameters>
+        + MotuRegisterDspImageOperation<PhoneAssignParameters, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<PhoneAssignParameters>,
 {
     pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        let idx = params.headphone_output_paired_assignment() as usize;
-        let _ = T::ASSIGN_PORT_TARGETS
-            .iter()
-            .nth(idx)
-            .map(|&p| self.0.params.0 = p);
+        T::parse_image(&mut self.0.params, params);
+    }
+
+    pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_event(&mut self.0.params, event)
     }
 }
 
