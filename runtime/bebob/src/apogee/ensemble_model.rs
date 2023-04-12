@@ -78,11 +78,7 @@ impl EnsembleModel {
 }
 
 impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
@@ -245,7 +241,11 @@ impl NotifyModel<(SndUnit, FwNode), bool> for EnsembleModel {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache_src(&self.avc, FCP_TIMEOUT_MS)?;
         }
@@ -426,15 +426,13 @@ impl MeterCtl {
                 Ok(true)
             }
             IN_METER_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 18, |idx| {
-                    Ok(self.0.phys_inputs[idx] as i32)
-                })?;
+                let vals: Vec<i32> = self.0.phys_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             OUT_METER_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 16, |idx| {
-                    Ok(self.0.phys_outputs[idx] as i32)
-                })?;
+                let vals: Vec<i32> = self.0.phys_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -887,14 +885,20 @@ impl InputCtl {
                 Ok(true)
             }
             INPUT_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    let pos = Self::NOMINAL_LEVELS
-                        .iter()
-                        .position(|l| l.eq(&self.0.levels[idx]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .0
+                    .levels
+                    .iter()
+                    .map(|level| {
+                        let pos = Self::NOMINAL_LEVELS
+                            .iter()
+                            .position(|l| level.eq(l))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             MIC_GAIN_NAME => {
                 let vals: Vec<i32> = self.0.gains.iter().map(|&val| val as i32).collect();
@@ -1103,14 +1107,20 @@ impl<'a> OutputCtl {
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUTPUT_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, Self::OUT_LABELS.len(), |i| {
-                    let pos = Self::NOMINAL_LEVELS
-                        .iter()
-                        .position(|l| l.eq(&self.0.levels[i]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
+                let vals: Vec<u32> = self
+                    .0
+                    .levels
+                    .iter()
+                    .map(|level| {
+                        let pos = Self::NOMINAL_LEVELS
+                            .iter()
+                            .position(|l| level.eq(l))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
             }
             OUTPUT_VOL_NAME => {
                 elem_value.set_int(&[self.0.vol as i32]);
