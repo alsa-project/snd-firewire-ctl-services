@@ -395,8 +395,6 @@ impl MotuRegisterDspSpecification for AudioExpressProtocol {
 
 impl MotuRegisterDspMixerStereoSourceSpecification for AudioExpressProtocol {}
 
-impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
-
 impl RegisterDspStereoInputOperation for AudioExpressProtocol {
     const MIC_COUNT: usize = 2;
 }
@@ -867,8 +865,6 @@ impl MotuRegisterDspSpecification for H4preProtocol {
 }
 
 impl MotuRegisterDspMixerStereoSourceSpecification for H4preProtocol {}
-
-impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
 
 impl RegisterDspStereoInputOperation for H4preProtocol {
     const MIC_COUNT: usize = 4;
