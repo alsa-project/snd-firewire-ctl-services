@@ -131,25 +131,6 @@ impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
 
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.knob_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndUnit, FwNode), bool> for ApogeeModel {

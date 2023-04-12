@@ -132,6 +132,8 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
             Ok(true)
         } else if self.stream_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -214,23 +216,6 @@ impl MeasureModel<(SndUnit, FwNode)> for EnsembleModel {
         self.meter_ctl
             .cache(&mut self.avc, FCP_TIMEOUT_MS)
             .map(|_| input_output_copy_from_meter(self))
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read_state(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read_params(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read_params(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

@@ -219,25 +219,6 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
         }
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.reverb_meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.ch_strip_meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]

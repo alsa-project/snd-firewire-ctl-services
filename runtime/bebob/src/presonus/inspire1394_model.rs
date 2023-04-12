@@ -559,6 +559,8 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self.input_switch_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -699,14 +701,5 @@ impl MeasureModel<(SndUnit, FwNode)> for Inspire1394Model {
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&self.req, unit, TIMEOUT_MS)
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.meter_ctl.read(elem_id, elem_value)
     }
 }

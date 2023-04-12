@@ -260,21 +260,6 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireLeModel {
         self.out_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read_meter(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.out_ctl.read_params(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 const METER_STREAM_INPUT_NAME: &str = "stream-input-meter";

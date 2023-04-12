@@ -229,21 +229,6 @@ impl MeasureModel<(SndDice, FwNode)> for LiquidS56Model {
         )?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 fn analog_input_level_to_str(level: &AnalogInputLevel) -> &str {

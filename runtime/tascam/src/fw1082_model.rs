@@ -147,21 +147,6 @@ impl MeasureModel<(SndTascam, FwNode)> for Fw1082Model {
         self.console_ctl.parse(&self.image)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndTascam, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.console_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
