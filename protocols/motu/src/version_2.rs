@@ -344,31 +344,6 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F828mk2Protocol {
     ];
 }
 
-impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
-    const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::Analog(8), // Mic-0
-        TargetPort::Analog(9), // Mic-1
-        TargetPort::Spdif(0),
-        TargetPort::Spdif(1),
-        TargetPort::Adat(0),
-        TargetPort::Adat(1),
-        TargetPort::Adat(2),
-        TargetPort::Adat(3),
-        TargetPort::Adat(4),
-        TargetPort::Adat(5),
-        TargetPort::Adat(6),
-        TargetPort::Adat(7),
-    ];
-}
-
 impl Traveler828mk2LineInputOperation for F828mk2Protocol {
     const LINE_INPUT_COUNT: usize = 8;
     const CH_OFFSET: usize = 0;
@@ -463,27 +438,6 @@ impl MotuRegisterDspSpecification for F8preProtocol {
 }
 
 impl MotuRegisterDspMixerMonauralSourceSpecification for F8preProtocol {
-    const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::Adat(0),
-        TargetPort::Adat(1),
-        TargetPort::Adat(2),
-        TargetPort::Adat(3),
-        TargetPort::Adat(4),
-        TargetPort::Adat(5),
-        TargetPort::Adat(6),
-        TargetPort::Adat(7),
-    ];
-}
-
-impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -620,31 +574,6 @@ impl MotuRegisterDspSpecification for TravelerProtocol {
 }
 
 impl MotuRegisterDspMixerMonauralSourceSpecification for TravelerProtocol {
-    const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::AesEbu(0),
-        TargetPort::AesEbu(1),
-        TargetPort::Spdif(0),
-        TargetPort::Spdif(1),
-        TargetPort::Adat(0),
-        TargetPort::Adat(1),
-        TargetPort::Adat(2),
-        TargetPort::Adat(3),
-        TargetPort::Adat(4),
-        TargetPort::Adat(5),
-        TargetPort::Adat(6),
-        TargetPort::Adat(7),
-    ];
-}
-
-impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -839,21 +768,6 @@ impl MotuRegisterDspSpecification for UltraliteProtocol {
 }
 
 impl MotuRegisterDspMixerMonauralSourceSpecification for UltraliteProtocol {
-    const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::Spdif(0),
-        TargetPort::Spdif(1),
-    ];
-}
-
-impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
@@ -1066,29 +980,6 @@ impl MotuRegisterDspSpecification for F896hdProtocol {
 }
 
 impl MotuRegisterDspMixerMonauralSourceSpecification for F896hdProtocol {
-    const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog(0),
-        TargetPort::Analog(1),
-        TargetPort::Analog(2),
-        TargetPort::Analog(3),
-        TargetPort::Analog(4),
-        TargetPort::Analog(5),
-        TargetPort::Analog(6),
-        TargetPort::Analog(7),
-        TargetPort::AesEbu(0),
-        TargetPort::AesEbu(1),
-        TargetPort::Adat(0),
-        TargetPort::Adat(1),
-        TargetPort::Adat(2),
-        TargetPort::Adat(3),
-        TargetPort::Adat(4),
-        TargetPort::Adat(5),
-        TargetPort::Adat(6),
-        TargetPort::Adat(7),
-    ];
-}
-
-impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
         TargetPort::Analog(1),
