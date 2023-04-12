@@ -41,7 +41,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -111,6 +113,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 unit.unlock()?;
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             SRC_NAME => {
@@ -128,6 +131,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 unit.unlock()?;
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -161,7 +165,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -213,8 +219,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.0 = mode)?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
