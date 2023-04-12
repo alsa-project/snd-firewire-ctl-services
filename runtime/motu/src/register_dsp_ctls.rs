@@ -1037,10 +1037,17 @@ where
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct RegisterDspMonauralInputCtl<T: RegisterDspMonauralInputOperation> {
+#[derive(Default, Debug)]
+pub(crate) struct RegisterDspMonauralInputCtl<T>
+where
+    T: MotuRegisterDspMonauralInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMonauralInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMonauralInputState>
+        + MotuRegisterDspImageOperation<RegisterDspMonauralInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspMonauralInputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspMonauralInputState,
+    params: RegisterDspMonauralInputState,
     _phantom: PhantomData<T>,
 }
 
@@ -1051,17 +1058,14 @@ const MIC_PAD_NAME: &str = "mic-pad";
 const INPUT_JACK_NAME: &str = "input-jack";
 const INPUT_PAIRED_NAME: &str = "input-paired";
 
-impl<T: RegisterDspMonauralInputOperation> Default for RegisterDspMonauralInputCtl<T> {
-    fn default() -> Self {
-        Self {
-            elem_id_list: Default::default(),
-            state: T::create_monaural_input_state(),
-            _phantom: Default::default(),
-        }
-    }
-}
-
-impl<T: RegisterDspMonauralInputOperation> RegisterDspMonauralInputCtl<T> {
+impl<T> RegisterDspMonauralInputCtl<T>
+where
+    T: MotuRegisterDspMonauralInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMonauralInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMonauralInputState>
+        + MotuRegisterDspImageOperation<RegisterDspMonauralInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspMonauralInputState>,
+{
     const GAIN_TLV: DbInterval = DbInterval {
         min: 0,
         max: 2400,
@@ -1075,7 +1079,7 @@ impl<T: RegisterDspMonauralInputOperation> RegisterDspMonauralInputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_monaural_input_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -1108,11 +1112,11 @@ impl<T: RegisterDspMonauralInputOperation> RegisterDspMonauralInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state.gain);
+                copy_int_to_elem_value(elem_value, &self.params.gain);
                 Ok(true)
             }
             INPUT_INVERT_NAME => {
-                elem_value.set_bool(&self.state.invert);
+                elem_value.set_bool(&self.params.invert);
                 Ok(true)
             }
             _ => Ok(false),
@@ -1129,26 +1133,32 @@ impl<T: RegisterDspMonauralInputOperation> RegisterDspMonauralInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                let vals = &elem_value.int()[..T::INPUT_COUNT];
-                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_monaural_input_gain(req, node, &gain, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                params
+                    .gain
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             INPUT_INVERT_NAME => {
-                let invert = &elem_value.boolean()[..T::INPUT_COUNT];
-                T::write_monaural_input_invert(req, node, &invert, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.invert.len()];
+                params.invert.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 
