@@ -53,18 +53,14 @@ impl OxfwModel {
         }
     }
 
-    pub fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match &mut self.ctl_model {
-            OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Firewave(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Speaker(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::TapcoLinkFw(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Common(m) => m.load(unit, card_cntr),
+            OxfwCtlModel::Fireone(m) => m.load(card_cntr),
+            OxfwCtlModel::Duet(m) => m.load(card_cntr),
+            OxfwCtlModel::Firewave(m) => m.load(card_cntr),
+            OxfwCtlModel::Speaker(m) => m.load(card_cntr),
+            OxfwCtlModel::TapcoLinkFw(m) => m.load(card_cntr),
+            OxfwCtlModel::Common(m) => m.load(card_cntr),
         }?;
 
         match &mut self.ctl_model {

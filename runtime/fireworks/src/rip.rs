@@ -29,7 +29,7 @@ impl CtlModel<SndEfw> for Rip {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, false)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;

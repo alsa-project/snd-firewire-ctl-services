@@ -59,7 +59,7 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
         Ok(())
     }
 
-    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;

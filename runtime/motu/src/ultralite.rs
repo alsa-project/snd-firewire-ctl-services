@@ -47,7 +47,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl.0.load(card_cntr)?;
         self.mixer_return_ctl.load(card_cntr)?;

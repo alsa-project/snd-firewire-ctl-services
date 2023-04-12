@@ -134,8 +134,8 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let enter = debug_span!("load").entered();
         match &mut self.model {
-            Model::Digi002(m) => m.load(&mut self.unit, &mut self.card_cntr),
-            Model::Digi003(m) => m.load(&mut self.unit, &mut self.card_cntr),
+            Model::Digi002(m) => m.load(&mut self.card_cntr),
+            Model::Digi003(m) => m.load(&mut self.card_cntr),
         }?;
 
         match &mut self.model {

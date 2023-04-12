@@ -76,7 +76,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
         Ok(())
     }
 
-    fn load(&mut self, _: &mut (SndTascam, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clock_ctl.load(card_cntr)?;
         self.input_threshold_ctl.load(card_cntr)?;
         self.coax_output_ctl.load(card_cntr)?;

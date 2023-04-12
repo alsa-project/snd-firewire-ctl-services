@@ -200,11 +200,7 @@ where
         Ok(())
     }
 
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.2.append(&mut elem_id_list))?;
@@ -318,7 +314,11 @@ where
         elem_id_list.extend_from_slice(&self.clk_ctl.2);
     }
 
-    fn parse_notification(&mut self, unit: &mut (SndUnit, FwNode), &locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        &locked: &bool,
+    ) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache_src(&self.req, &unit.1, TIMEOUT_MS)?;
         }
@@ -827,7 +827,8 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                let res =
+                    SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
@@ -839,7 +840,8 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                let res =
+                    SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
@@ -851,7 +853,8 @@ impl SaffireProioMixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(level, &val)| *level = val as i16);
-                let res = SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
+                let res =
+                    SaffireProioMixerProtocol::update(req, node, &params, &mut self.0, timeout_ms);
                 debug!(params = ?self.0, ?res);
                 res.map(|_| true)
             }
