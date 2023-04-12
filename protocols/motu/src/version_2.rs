@@ -349,11 +349,6 @@ impl MotuRegisterDspLineInputSpecification for F828mk2Protocol {
     const CH_OFFSET: usize = 0;
 }
 
-impl Traveler828mk2LineInputOperation for F828mk2Protocol {
-    const LINE_INPUT_COUNT: usize = 8;
-    const CH_OFFSET: usize = 0;
-}
-
 impl F828mk2Protocol {
     /// Notification mask for speed of word clock output, and phone assignment. The change of phone
     /// assignment is also notified in message delivered by the sequence of isochronous packets.
@@ -604,11 +599,6 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for TravelerProtocol {
 }
 
 impl MotuRegisterDspLineInputSpecification for TravelerProtocol {
-    const LINE_INPUT_COUNT: usize = 4;
-    const CH_OFFSET: usize = 4;
-}
-
-impl Traveler828mk2LineInputOperation for TravelerProtocol {
     const LINE_INPUT_COUNT: usize = 4;
     const CH_OFFSET: usize = 4;
 }
