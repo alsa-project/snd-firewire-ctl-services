@@ -42,6 +42,7 @@ use {
     ieee1212_config_rom::*,
     protocols::{config_rom::*, *},
     std::{convert::TryFrom, marker::PhantomData},
+    tracing::Level,
 };
 
 pub enum MotuRuntime {
@@ -63,7 +64,14 @@ pub enum MotuRuntime {
 }
 
 impl RuntimeOperation<u32> for MotuRuntime {
-    fn new(card_id: u32, _: Option<LogLevel>) -> Result<Self, Error> {
+    fn new(card_id: u32, log_level: Option<LogLevel>) -> Result<Self, Error> {
+        if let Some(level) = log_level {
+            let fmt_level = match level {
+                LogLevel::Debug => Level::DEBUG,
+            };
+            tracing_subscriber::fmt().with_max_level(fmt_level).init();
+        }
+
         let cdev = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndMotu::new();
         unit.open(&cdev, 0)?;

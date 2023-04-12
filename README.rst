@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/03/29
+2023/04/12
 Takashi Sakamoto
 
 Introduction
@@ -85,7 +85,8 @@ Execute temporarily ::
     & cargo run --bin (the executable name) -- (the arguments of executable)
 
 All of executables can print help when either ``--help`` or ``-h`` is given as an argument of
-command line.
+command line. Additionally, either ``--log-level`` or ``-l`` is also available for runtime
+debugging. For further information, please refer to ``Runtime debugging`` clause.
 
 Install executables ::
 
@@ -177,6 +178,7 @@ your device, please contact to developer.
   * Griffin FireWave
   * Lacie FireWire Speakers
   * Mackie Tapco Link.FireWire 4x6
+  * For the others, common controls are available.
 
 * snd-bebob-ctl-service
 
@@ -272,19 +274,9 @@ Supported protocols
 Runtime debugging
 =================
 
-Some executables support an option for log level for debugging. When either ``-l`` or
+All executables support an option for log level for debugging. When either ``-l`` or
 ``--log-level`` is given with log level, they prints verbose logs to standard output.
 At present, ``debug`` is just supported for the log level.
-
-Currently this function is available for below executables:
-
-* snd-bebob-ctl-service
-* snd-dice-ctl-service
-* snd-oxfw-ctl-service
-* snd-fireface-ctl-service
-* snd-fireworks-ctl-service
-* snd-firewire-digi00x-ctl-service
-* snd-firewire-tascam-ctl-service
 
 This function is implemented by `tracing <https://crates.io/crates/tracing>`_ and
 `tracing-subscriber <https://crates.io/crates/tracing-subscriber>`_ crates.
