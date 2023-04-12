@@ -1379,7 +1379,7 @@ mod test {
 
         let expected = FormerOutputVolumeState(vec![
             0, 0, 0, 0, 0, 0, // Analog.
-            0, 0x32, // Headphone.
+            0, amp_to_vol_value(0x32), // Headphone.
             0, 0, // S/PDIF.
             0, 0, 0, 0, 0, 0, 0, 0, // ADAT.
         ]);
