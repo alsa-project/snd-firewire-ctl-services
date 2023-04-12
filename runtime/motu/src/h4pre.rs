@@ -41,7 +41,6 @@ impl RegisterDspCtlModel for H4pre {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -139,11 +138,6 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             Ok(true)
         } else if self
             .input_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .meter_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)

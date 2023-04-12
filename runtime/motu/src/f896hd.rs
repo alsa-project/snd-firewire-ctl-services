@@ -19,6 +19,7 @@ pub struct F896hd {
     mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<F896hdProtocol>,
     output_ctl: RegisterDspOutputCtl<F896hdProtocol>,
     meter_ctl: RegisterDspMeterCtl<F896hdProtocol>,
+    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<F896hdProtocol>,
 }
 
 impl RegisterDspCtlModel for F896hd {
@@ -44,7 +45,8 @@ impl RegisterDspCtlModel for F896hd {
         self.mixer_source_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_output_target_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -62,6 +64,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
+        self.meter_output_target_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -91,6 +94,8 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_output_target_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -168,10 +173,13 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .meter_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.meter_output_target_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)

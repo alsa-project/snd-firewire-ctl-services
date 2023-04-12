@@ -1372,7 +1372,6 @@ where
 pub(crate) struct RegisterDspMeterCtl<T>
 where
     T: MotuRegisterDspMeterSpecification
-        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
         + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
 {
     pub elem_id_list: Vec<ElemId>,
@@ -1383,12 +1382,10 @@ where
 
 const INPUT_METER_NAME: &str = "input-meter";
 const OUTPUT_METER_NAME: &str = "output-meter";
-const OUTPUT_METER_TARGET_NAME: &str = "output-meter-target";
 
 impl<T> Default for RegisterDspMeterCtl<T>
 where
     T: MotuRegisterDspMeterSpecification
-        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
         + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
 {
     fn default() -> Self {
@@ -1404,22 +1401,8 @@ where
 impl<T> RegisterDspMeterCtl<T>
 where
     T: MotuRegisterDspMeterSpecification
-        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
         + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
 {
-    pub(crate) fn cache(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if T::SELECTABLE {
-            T::update_wholly(req, node, &self.params, timeout_ms)?;
-        }
-
-        Ok(())
-    }
-
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
         card_cntr
@@ -1449,18 +1432,6 @@ where
             )
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        if T::SELECTABLE {
-            let labels: Vec<String> = T::OUTPUT_PORT_PAIRS
-                .iter()
-                .map(|p| target_port_to_string(p))
-                .collect();
-            let elem_id =
-                ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_TARGET_NAME, 0);
-            card_cntr
-                .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
-        }
-
         Ok(())
     }
 
@@ -1474,17 +1445,60 @@ where
                 copy_int_to_elem_value(elem_value, &self.params.outputs);
                 Ok(true)
             }
+            _ => Ok(false),
+        }
+    }
+
+    pub(crate) fn read_dsp_meter(&mut self, unit: &SndMotu) -> Result<(), Error> {
+        unit.read_byte_meter(&mut self.image)?;
+        T::parse_image(&mut self.params, &self.image);
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct RegisterDspMeterOutputTargetCtl<T>
+where
+    T: MotuRegisterDspMeterOutputTargetSpecification
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterOutputTarget>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: RegisterDspMeterOutputTarget,
+    _phantom: PhantomData<T>,
+}
+
+const OUTPUT_METER_TARGET_NAME: &str = "output-meter-target";
+
+impl<T> RegisterDspMeterOutputTargetCtl<T>
+where
+    T: MotuRegisterDspMeterOutputTargetSpecification
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterOutputTarget>,
+{
+    pub(crate) fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::update_wholly(req, node, &self.params, timeout_ms)
+    }
+
+    pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::OUTPUT_PORT_PAIRS
+            .iter()
+            .map(|p| target_port_to_string(p))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_TARGET_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+    }
+
+    pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
             OUTPUT_METER_TARGET_NAME => {
-                if T::SELECTABLE {
-                    if let Some(selected) = self.params.selected {
-                        elem_value.set_enum(&[selected as u32]);
-                        Ok(true)
-                    } else {
-                        unreachable!();
-                    }
-                } else {
-                    Err(Error::new(FileError::Inval, "Not supported"))
-                }
+                elem_value.set_enum(&[self.params.0 as u32]);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -1500,28 +1514,13 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUTPUT_METER_TARGET_NAME => {
-                if T::SELECTABLE {
-                    let mut params = self.params.clone();
-                    let pos = elem_value.enumerated()[0] as usize;
-                    if pos >= T::OUTPUT_PORT_PAIRS.len() {
-                        let msg = format!("Invalid index for output meter pair: {}", pos);
-                        Err(Error::new(FileError::Inval, &msg))?;
-                    }
-                    params.selected = Some(pos);
-                    let res = T::update_wholly(req, node, &params, timeout_ms)
-                        .map(|_| self.params = params);
-                    res.map(|_| true)
-                } else {
-                    Err(Error::new(FileError::Inval, "Not supported"))
-                }
+                let mut params = self.params.clone();
+                params.0 = elem_value.enumerated()[0] as usize;
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
-    }
-
-    pub(crate) fn read_dsp_meter(&mut self, unit: &SndMotu) -> Result<(), Error> {
-        unit.read_byte_meter(&mut self.image)?;
-        T::parse_image(&mut self.params, &self.image);
-        Ok(())
     }
 }

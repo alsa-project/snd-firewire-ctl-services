@@ -20,6 +20,7 @@ pub struct Traveler {
     line_input_ctl: RegisterDspLineInputCtl<TravelerProtocol>,
     mic_input_ctl: MicInputCtl,
     meter_ctl: RegisterDspMeterCtl<TravelerProtocol>,
+    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<TravelerProtocol>,
 }
 
 impl RegisterDspCtlModel for Traveler {
@@ -48,7 +49,8 @@ impl RegisterDspCtlModel for Traveler {
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.line_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.mic_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_output_target_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -67,6 +69,7 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         self.line_input_ctl.load(card_cntr)?;
         self.mic_input_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
+        self.meter_output_target_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -98,6 +101,8 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
         } else if self.mic_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_output_target_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -177,10 +182,13 @@ impl CtlModel<(SndMotu, FwNode)> for Traveler {
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .meter_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.meter_output_target_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
