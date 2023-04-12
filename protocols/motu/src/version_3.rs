@@ -397,8 +397,6 @@ impl RegisterDspMixerOutputOperation for AudioExpressProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
 
-impl RegisterDspMixerReturnOperation for AudioExpressProtocol {}
-
 impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
 
 impl RegisterDspOutputOperation for AudioExpressProtocol {}
@@ -875,8 +873,6 @@ impl MotuRegisterDspSpecification for H4preProtocol {
 impl RegisterDspMixerOutputOperation for H4preProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
-
-impl RegisterDspMixerReturnOperation for H4preProtocol {}
 
 impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
 

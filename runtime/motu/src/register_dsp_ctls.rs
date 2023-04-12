@@ -183,22 +183,32 @@ impl<T: RegisterDspMixerOutputOperation> RegisterDspMixerOutputCtl<T> {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct RegisterDspMixerReturnCtl<T: RegisterDspMixerReturnOperation> {
+pub(crate) struct RegisterDspMixerReturnCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerReturnParameters>
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMixerReturnParameters>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: bool,
+    params: RegisterDspMixerReturnParameters,
     _phantom: PhantomData<T>,
 }
 
 const MIXER_RETURN_ENABLE_NAME: &str = "mixer-return-enable";
 
-impl<T: RegisterDspMixerReturnOperation> RegisterDspMixerReturnCtl<T> {
+impl<T> RegisterDspMixerReturnCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerReturnParameters>
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMixerReturnParameters>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_mixer_return_enable(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -215,7 +225,7 @@ impl<T: RegisterDspMixerReturnOperation> RegisterDspMixerReturnCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_RETURN_ENABLE_NAME => {
-                elem_value.set_bool(&[self.state]);
+                elem_value.set_bool(&[self.params.0]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -232,10 +242,11 @@ impl<T: RegisterDspMixerReturnOperation> RegisterDspMixerReturnCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_RETURN_ENABLE_NAME => {
-                let val = elem_value.boolean()[0];
-                T::write_mixer_return_enable(req, node, val, timeout_ms)
-                    .map(|_| self.state = val)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                params.0 = elem_value.boolean()[0];
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }

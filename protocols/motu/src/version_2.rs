@@ -335,8 +335,6 @@ impl RegisterDspMixerOutputOperation for F828mk2Protocol {
         TargetPort::AdatPair(3),
     ];
 }
-impl RegisterDspMixerReturnOperation for F828mk2Protocol {}
-
 impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
         TargetPort::Analog(0),
@@ -468,8 +466,6 @@ impl RegisterDspMixerOutputOperation for F8preProtocol {
         TargetPort::AdatPair(3),
     ];
 }
-
-impl RegisterDspMixerReturnOperation for F8preProtocol {}
 
 impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
@@ -625,8 +621,6 @@ impl RegisterDspMixerOutputOperation for TravelerProtocol {
         TargetPort::AdatPair(3),
     ];
 }
-
-impl RegisterDspMixerReturnOperation for TravelerProtocol {}
 
 impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
@@ -836,8 +830,6 @@ impl RegisterDspMixerOutputOperation for UltraliteProtocol {
         TargetPort::SpdifPair,
     ];
 }
-
-impl RegisterDspMixerReturnOperation for UltraliteProtocol {}
 
 impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
@@ -1069,8 +1061,6 @@ impl RegisterDspMixerOutputOperation for F896hdProtocol {
         TargetPort::AdatPair(3),
     ];
 }
-
-impl RegisterDspMixerReturnOperation for F896hdProtocol {}
 
 impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
