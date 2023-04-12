@@ -885,27 +885,48 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct RegisterDspLineInputCtl<T: Traveler828mk2LineInputOperation> {
+pub(crate) struct RegisterDspLineInputCtl<T>
+where
+    T: MotuRegisterDspLineInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspLineInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspLineInputState>
+        + MotuRegisterDspImageOperation<RegisterDspLineInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspLineInputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspLineInputState,
+    params: RegisterDspLineInputState,
     _phantom: PhantomData<T>,
 }
 
 const INPUT_NOMINAL_LEVEL_NAME: &str = "input-nominal-level";
 const INPUT_BOOST_NAME: &str = "input-boost";
 
-impl<T: Traveler828mk2LineInputOperation> Default for RegisterDspLineInputCtl<T> {
+impl<T> Default for RegisterDspLineInputCtl<T>
+where
+    T: MotuRegisterDspLineInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspLineInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspLineInputState>
+        + MotuRegisterDspImageOperation<RegisterDspLineInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspLineInputState>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            state: T::create_line_input_state(),
+            params: T::create_line_input_state(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: Traveler828mk2LineInputOperation> RegisterDspLineInputCtl<T> {
-    const NOMINAL_LEVELS: [NominalSignalLevel; 2] = [
+impl<T> RegisterDspLineInputCtl<T>
+where
+    T: MotuRegisterDspLineInputSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspLineInputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspLineInputState>
+        + MotuRegisterDspImageOperation<RegisterDspLineInputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspLineInputState>,
+{
+    const NOMINAL_LEVELS: &[NominalSignalLevel] = &[
         NominalSignalLevel::Consumer,
         NominalSignalLevel::Professional,
     ];
@@ -916,7 +937,7 @@ impl<T: Traveler828mk2LineInputOperation> RegisterDspLineInputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_line_input_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -945,7 +966,7 @@ impl<T: Traveler828mk2LineInputOperation> RegisterDspLineInputCtl<T> {
         match elem_id.name().as_str() {
             INPUT_NOMINAL_LEVEL_NAME => {
                 let vals: Vec<u32> = self
-                    .state
+                    .params
                     .level
                     .iter()
                     .map(|level| {
@@ -960,7 +981,7 @@ impl<T: Traveler828mk2LineInputOperation> RegisterDspLineInputCtl<T> {
                 Ok(true)
             }
             INPUT_BOOST_NAME => {
-                elem_value.set_bool(&self.state.boost);
+                elem_value.set_bool(&self.params.boost);
                 Ok(true)
             }
             _ => Ok(false),
@@ -977,39 +998,42 @@ impl<T: Traveler828mk2LineInputOperation> RegisterDspLineInputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_NOMINAL_LEVEL_NAME => {
-                let mut level = Vec::new();
-                elem_value
-                    .enumerated()
-                    .iter()
-                    .take(T::LINE_INPUT_COUNT)
-                    .try_for_each(|&val| {
+                let mut params = self.params.clone();
+                params
+                    .level
+                    .iter_mut()
+                    .zip(elem_value.enumerated())
+                    .try_for_each(|(level, &val)| {
+                        let pos = val as usize;
                         Self::NOMINAL_LEVELS
                             .iter()
-                            .nth(val as usize)
+                            .nth(pos)
                             .ok_or_else(|| {
-                                let msg = format!("Invalid index of nominal signal level: {}", val);
+                                let msg = format!("Invalid index of nominal signal level: {}", pos);
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&l| level.push(l))
+                            .map(|&l| *level = l)
                     })?;
-                T::write_line_input_level(req, node, &level, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             INPUT_BOOST_NAME => {
-                let vals = &elem_value.boolean()[..T::LINE_INPUT_COUNT];
-                T::write_line_input_boost(req, node, &vals, &mut self.state, timeout_ms)?;
-                Ok(true)
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..params.boost.len()];
+                params.boost.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 
