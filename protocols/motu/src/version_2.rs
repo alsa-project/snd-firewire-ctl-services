@@ -358,6 +358,58 @@ impl F828mk2Protocol {
     pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
 }
 
+impl MotuRegisterDspMeterSpecification for F828mk2Protocol {
+    const SELECTABLE: bool = true;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Analog(8),
+        TargetPort::Analog(9),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] = &[
+        [2, 3],
+        [4, 5],
+        [6, 7],
+        [8, 9],
+        [10, 11],
+        [12, 13],
+        [14, 15],
+        [16, 17],
+        [18, 19],
+        [20, 21],
+        [22, 23],
+    ];
+}
+
 impl RegisterDspMeterOperation for F828mk2Protocol {
     const SELECTABLE: bool = true;
     const INPUT_PORTS: &'static [TargetPort] = &[
@@ -456,6 +508,38 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F8preProtocol {
         TargetPort::Adat(6),
         TargetPort::Adat(7),
     ];
+}
+
+impl MotuRegisterDspMeterSpecification for F8preProtocol {
+    const SELECTABLE: bool = false;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] =
+        &[[2, 3], [4, 5], [6, 7], [8, 9], [10, 11], [12, 13]];
 }
 
 impl RegisterDspMeterOperation for F8preProtocol {
@@ -601,6 +685,58 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for TravelerProtocol {
 impl MotuRegisterDspLineInputSpecification for TravelerProtocol {
     const LINE_INPUT_COUNT: usize = 4;
     const CH_OFFSET: usize = 4;
+}
+
+impl MotuRegisterDspMeterSpecification for TravelerProtocol {
+    const SELECTABLE: bool = true;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(8),
+        TargetPort::AesEbu(9),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] = &[
+        [2, 3],
+        [4, 5],
+        [6, 7],
+        [8, 9],
+        [10, 11],
+        [12, 13],
+        [14, 15],
+        [16, 17],
+        [18, 19],
+        [20, 21],
+        [22, 23],
+    ];
 }
 
 impl RegisterDspMeterOperation for TravelerProtocol {
@@ -783,6 +919,33 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for UltraliteProtocol {
 }
 
 impl MotuRegisterDspMonauralInputSpecification for UltraliteProtocol {}
+
+impl MotuRegisterDspMeterSpecification for UltraliteProtocol {
+    const SELECTABLE: bool = false;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+    ];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] =
+        &[[2, 3], [4, 5], [6, 7], [8, 9], [10, 11], [12, 13], [14, 15]];
+}
 
 impl RegisterDspMeterOperation for UltraliteProtocol {
     const SELECTABLE: bool = false;
@@ -999,6 +1162,56 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F896hdProtocol {
         TargetPort::Adat(5),
         TargetPort::Adat(6),
         TargetPort::Adat(7),
+    ];
+}
+
+impl MotuRegisterDspMeterSpecification for F896hdProtocol {
+    const SELECTABLE: bool = true;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(0),
+        TargetPort::AesEbu(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [TargetPort] = &[
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::AesEbuPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
+    ];
+    const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] = &[
+        [2, 3],
+        [4, 5],
+        [6, 7],
+        [8, 9],
+        [10, 11],
+        [12, 13],
+        [14, 15],
+        [16, 17],
+        [18, 19],
+        [20, 21],
+        [22, 23],
     ];
 }
 
