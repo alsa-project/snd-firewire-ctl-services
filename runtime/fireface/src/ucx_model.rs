@@ -204,34 +204,34 @@ impl CfgCtl {
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            PRIMARY_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            PRIMARY_CLK_SRC_NAME => {
                 let pos = Self::CLK_SRCS
                     .iter()
-                    .position(|s| s.eq(&self.0.clk_src))
+                    .position(|s| self.0.clk_src.eq(s))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
-            OPT_OUTPUT_SIGNAL_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            OPT_OUTPUT_SIGNAL_NAME => {
                 let pos = Self::OPT_OUT_SIGNALS
                     .iter()
-                    .position(|f| f.eq(&self.0.opt_out_signal))
+                    .position(|f| self.0.opt_out_signal.eq(f))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             EFFECT_ON_INPUT_NAME => {
                 elem_value.set_bool(&[self.0.effect_on_inputs]);
                 Ok(true)
             }
-            SPDIF_OUTPUT_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+            SPDIF_OUTPUT_FMT_NAME => {
                 let pos = Self::SPDIF_FMTS
                     .iter()
-                    .position(|f| f.eq(&self.0.spdif_out_format))
+                    .position(|f| self.0.spdif_out_format.eq(f))
                     .unwrap();
-                Ok(pos as u32)
-            })
-            .map(|_| true),
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
                 elem_value.set_bool(&[self.0.word_out_single]);
                 Ok(true)
