@@ -61,11 +61,7 @@ impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
 }
 
 impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
@@ -410,57 +406,55 @@ impl MeterCtl {
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             ANALOG_INPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, ANALOG_INPUT_LABELS.len(), |idx| {
-                    Ok(self.0.analog_inputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.analog_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             SPDIF_INPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, SPDIF_INPUT_LABELS.len(), |idx| {
-                    Ok(self.0.spdif_inputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.spdif_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             ADAT_INPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, ADAT_INPUT_LABELS.len(), |idx| {
-                    Ok(self.0.adat_inputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.adat_inputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             ANALOG_OUTPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, ANALOG_OUTPUT_LABELS.len(), |idx| {
-                    Ok(self.0.analog_outputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self
+                    .0
+                    .analog_outputs
+                    .iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             SPDIF_OUTPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, SPDIF_OUTPUT_LABELS.len(), |idx| {
-                    Ok(self.0.spdif_outputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.spdif_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             ADAT_OUTPUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, ADAT_OUTPUT_LABELS.len(), |idx| {
-                    Ok(self.0.adat_outputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.adat_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             HP_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, HEADPHONE_LABELS.len(), |idx| {
-                    Ok(self.0.headphone[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.headphone.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
             AUX_OUT_METER_NAME => {
-                ElemValueAccessor::set_vals(elem_value, AUX_OUTPUT_LABELS.len(), |idx| {
-                    Ok(self.0.aux_outputs[idx] as i32)
-                })
-                .map(|_| true)
+                let vals: Vec<i32> = self.0.aux_outputs.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
             }
-            ROTARY_NAME => ElemValueAccessor::<i32>::set_vals(elem_value, 3, |idx| {
-                Ok(self.0.rotaries[idx] as i32)
-            })
-            .map(|_| true),
+            ROTARY_NAME => {
+                let vals: Vec<i32> = self.0.rotaries.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
             SWITCH_NAME => {
                 elem_value.set_bool(&[self.0.switch]);
                 Ok(true)
@@ -572,8 +566,9 @@ impl InputCtl {
     }
 
     fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
-        ElemValueAccessor::<i32>::set_vals(elem_value, gains.len(), |idx| Ok(gains[idx] as i32))
-            .map(|_| true)
+        let vals: Vec<i32> = gains.iter().map(|&val| val as i32).collect();
+        elem_value.set_int(&vals);
+        Ok(true)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {

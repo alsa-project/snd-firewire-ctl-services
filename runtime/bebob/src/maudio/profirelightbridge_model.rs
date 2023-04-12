@@ -72,11 +72,7 @@ impl PflModel {
 }
 
 impl CtlModel<(SndUnit, FwNode)> for PflModel {
-    fn load(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
@@ -311,16 +307,16 @@ impl InputParamsCtl {
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::ADAT_MUTE_NAME => {
-                ElemValueAccessor::<bool>::set_vals(elem_value, 4, |idx| Ok(self.0.adat_mute[idx]))
-                    .map(|_| true)
+                elem_value.set_bool(&self.0.adat_mute);
+                Ok(true)
             }
             Self::SPDIF_MUTE_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.spdif_mute))
-                    .map(|_| true)
+                elem_value.set_bool(&[self.0.spdif_mute]);
+                Ok(true)
             }
             Self::FORCE_SMUX_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.force_smux))
-                    .map(|_| true)
+                elem_value.set_bool(&[self.0.force_smux]);
+                Ok(true)
             }
             _ => Ok(false),
         }
