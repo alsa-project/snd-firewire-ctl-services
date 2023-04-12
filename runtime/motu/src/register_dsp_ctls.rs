@@ -721,16 +721,30 @@ impl<T: RegisterDspMixerStereoSourceOperation> RegisterDspMixerStereoSourceCtl<T
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct RegisterDspOutputCtl<T: RegisterDspOutputOperation> {
+pub(crate) struct RegisterDspOutputCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspOutputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspOutputState>
+        + MotuRegisterDspImageOperation<RegisterDspOutputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspOutputState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspOutputState,
+    params: RegisterDspOutputState,
     _phantom: PhantomData<T>,
 }
 
 const MASTER_OUTPUT_VOLUME_NAME: &str = "master-output-volume";
 const PHONE_VOLUME_NAME: &str = "headphone-volume";
 
-impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
+impl<T> RegisterDspOutputCtl<T>
+where
+    T: MotuRegisterDspSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspOutputState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspOutputState>
+        + MotuRegisterDspImageOperation<RegisterDspOutputState, SndMotuRegisterDspParameter>
+        + MotuRegisterDspEventOperation<RegisterDspOutputState>,
+{
     const VOL_TLV: DbInterval = DbInterval {
         min: -6400,
         max: 0,
@@ -744,7 +758,7 @@ impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_output_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -753,9 +767,9 @@ impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::VOLUME_MIN as i32,
-                T::VOLUME_MAX as i32,
-                T::VOLUME_STEP as i32,
+                T::OUTPUT_VOLUME_MIN as i32,
+                T::OUTPUT_VOLUME_MAX as i32,
+                T::OUTPUT_VOLUME_STEP as i32,
                 1,
                 Some(&Vec::<u32>::from(&Self::VOL_TLV)),
                 true,
@@ -767,9 +781,9 @@ impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
             .add_int_elems(
                 &elem_id,
                 1,
-                T::VOLUME_MIN as i32,
-                T::VOLUME_MAX as i32,
-                T::VOLUME_STEP as i32,
+                T::OUTPUT_VOLUME_MIN as i32,
+                T::OUTPUT_VOLUME_MAX as i32,
+                T::OUTPUT_VOLUME_STEP as i32,
                 1,
                 Some(&Vec::<u32>::from(&Self::VOL_TLV)),
                 true,
@@ -786,11 +800,11 @@ impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MASTER_OUTPUT_VOLUME_NAME => {
-                elem_value.set_int(&[self.state.master_volume as i32]);
+                elem_value.set_int(&[self.params.master_volume as i32]);
                 Ok(true)
             }
             PHONE_VOLUME_NAME => {
-                elem_value.set_int(&[self.state.phone_volume as i32]);
+                elem_value.set_int(&[self.params.phone_volume as i32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -807,25 +821,29 @@ impl<T: RegisterDspOutputOperation> RegisterDspOutputCtl<T> {
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MASTER_OUTPUT_VOLUME_NAME => {
-                let val = elem_value.int()[0];
-                T::write_output_master_volume(req, node, val as u8, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                params.master_volume = elem_value.int()[0] as u8;
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms)
+                    .map(|_| self.params = params);
+                res.map(|_| true)
             }
             PHONE_VOLUME_NAME => {
-                let val = elem_value.int()[0];
-                T::write_output_phone_volume(req, node, val as u8, &mut self.state, timeout_ms)
-                    .map(|_| true)
+                let mut params = self.params.clone();
+                params.phone_volume = elem_value.int()[0] as u8;
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms)
+                    .map(|_| self.params = params);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 

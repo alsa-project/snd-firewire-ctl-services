@@ -344,8 +344,6 @@ impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
     ];
 }
 
-impl RegisterDspOutputOperation for F828mk2Protocol {}
-
 impl Traveler828mk2LineInputOperation for F828mk2Protocol {
     const LINE_INPUT_COUNT: usize = 8;
     const CH_OFFSET: usize = 0;
@@ -459,8 +457,6 @@ impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
         TargetPort::Adat(7),
     ];
 }
-
-impl RegisterDspOutputOperation for F8preProtocol {}
 
 impl RegisterDspMeterOperation for F8preProtocol {
     const SELECTABLE: bool = false;
@@ -601,8 +597,6 @@ impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
         TargetPort::Adat(7),
     ];
 }
-
-impl RegisterDspOutputOperation for TravelerProtocol {}
 
 impl Traveler828mk2LineInputOperation for TravelerProtocol {
     const LINE_INPUT_COUNT: usize = 4;
@@ -787,8 +781,6 @@ impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
         TargetPort::Spdif(1),
     ];
 }
-
-impl RegisterDspOutputOperation for UltraliteProtocol {}
 
 impl RegisterDspMonauralInputOperation for UltraliteProtocol {}
 
@@ -1009,8 +1001,6 @@ impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
         TargetPort::Adat(7),
     ];
 }
-
-impl RegisterDspOutputOperation for F896hdProtocol {}
 
 impl RegisterDspMeterOperation for F896hdProtocol {
     const SELECTABLE: bool = true;
