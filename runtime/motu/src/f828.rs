@@ -118,7 +118,9 @@ const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 impl SpecificCtl {
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        F828Protocol::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = F828Protocol::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -187,6 +189,7 @@ impl SpecificCtl {
                 let res = F828Protocol::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.params = params);
                 unit.unlock()?;
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
@@ -204,6 +207,7 @@ impl SpecificCtl {
                 let res = F828Protocol::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.params = params);
                 unit.unlock()?;
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
