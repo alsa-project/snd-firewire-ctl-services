@@ -79,6 +79,8 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }

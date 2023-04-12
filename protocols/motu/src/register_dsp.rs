@@ -311,34 +311,6 @@ pub trait RegisterDspMixerOutputOperation {
 
 const MIXER_RETURN_ENABLE_OFFSET: usize = 0x0c18;
 
-/// The trait for operation of mixer return.
-pub trait RegisterDspMixerReturnOperation {
-    fn read_mixer_return_enable(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enable: &mut bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        read_quad(req, node, MIXER_RETURN_ENABLE_OFFSET as u32, timeout_ms)
-            .map(|val| *enable = val > 0)
-    }
-
-    fn write_mixer_return_enable(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enable: bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_quad(
-            req,
-            node,
-            MIXER_RETURN_ENABLE_OFFSET as u32,
-            enable as u32,
-            timeout_ms,
-        )
-    }
-}
-
 /// State of sources in mixer entiry.
 #[derive(Default, Debug, Clone)]
 pub struct RegisterDspMixerMonauralSourceEntry {

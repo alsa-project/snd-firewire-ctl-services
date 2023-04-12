@@ -86,6 +86,8 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLite {
             Ok(true)
         } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
