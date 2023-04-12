@@ -30,7 +30,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -100,6 +102,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             SRC_NAME => {
@@ -117,6 +120,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -162,11 +166,15 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)?;
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res?;
+
         let label = clk_src_to_str(&self.params.source);
         let params = ClockNameDisplayParameters(label.to_string());
-        T::update_wholly(req, node, &params, timeout_ms)?;
-        Ok(())
+        let res = T::update_wholly(req, node, &params, timeout_ms);
+        debug!(?params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -236,6 +244,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             SRC_NAME => {
@@ -258,6 +267,7 @@ where
                         .or_else(|_| T::update_wholly(req, node, &self.params, timeout_ms))
                 });
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -300,7 +310,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -374,6 +386,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
@@ -392,6 +405,7 @@ where
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
                 let _ = unit.unlock();
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
