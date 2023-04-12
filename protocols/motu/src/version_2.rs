@@ -344,6 +344,11 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for F828mk2Protocol {
     ];
 }
 
+impl MotuRegisterDspLineInputSpecification for F828mk2Protocol {
+    const LINE_INPUT_COUNT: usize = 8;
+    const CH_OFFSET: usize = 0;
+}
+
 impl Traveler828mk2LineInputOperation for F828mk2Protocol {
     const LINE_INPUT_COUNT: usize = 8;
     const CH_OFFSET: usize = 0;
@@ -596,6 +601,11 @@ impl MotuRegisterDspMixerMonauralSourceSpecification for TravelerProtocol {
         TargetPort::Adat(6),
         TargetPort::Adat(7),
     ];
+}
+
+impl MotuRegisterDspLineInputSpecification for TravelerProtocol {
+    const LINE_INPUT_COUNT: usize = 4;
+    const CH_OFFSET: usize = 4;
 }
 
 impl Traveler828mk2LineInputOperation for TravelerProtocol {
