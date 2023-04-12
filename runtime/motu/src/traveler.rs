@@ -376,7 +376,9 @@ impl MicInputCtl {
     };
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        TravelerProtocol::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = TravelerProtocol::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -435,6 +437,7 @@ impl MicInputCtl {
                     .for_each(|(gain, &val)| *gain = val as u8);
                 let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_PAD_NAME => {
@@ -443,6 +446,7 @@ impl MicInputCtl {
                 params.pad.copy_from_slice(vals);
                 let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
