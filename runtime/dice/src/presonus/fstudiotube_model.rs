@@ -137,21 +137,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for FStudioTubeModel {
         )?;
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.tcd22xx_ctls.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for FStudioTubeModel {

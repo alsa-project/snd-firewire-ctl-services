@@ -227,15 +227,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for Quatafire610Model {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.clk_ctl.read_freq(elem_id, elem_value)
-    }
 }
 
 #[cfg(test)]

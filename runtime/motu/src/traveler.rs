@@ -221,25 +221,6 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Traveler {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.mic_input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), bool> for Traveler {
@@ -268,27 +249,6 @@ impl NotifyModel<(SndMotu, FwNode), bool> for Traveler {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.line_input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for Traveler {
@@ -309,27 +269,6 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for Traveler {
                 || self.line_input_ctl.parse_dsp_event(event);
         });
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.line_input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

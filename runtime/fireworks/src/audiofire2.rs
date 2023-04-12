@@ -187,36 +187,4 @@ impl NotifyModel<SndEfw, bool> for Audiofire2 {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.clk_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.playback_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.phys_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self
-            .rx_stream_map_ctl
-            .read(self.clk_ctl.params.rate, elem_id, elem_value)?
-        {
-            Ok(true)
-        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }

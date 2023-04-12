@@ -145,27 +145,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
             .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.knob_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.config_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_state_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.hw_state_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for K8Model {

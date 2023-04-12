@@ -202,19 +202,6 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F896hd {
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.level_meters_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
@@ -239,23 +226,6 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F896hd {
@@ -274,23 +244,6 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F896hd {
                 || self.output_ctl.parse_dsp_event(event);
         });
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

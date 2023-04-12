@@ -247,15 +247,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for SaffireLeModel {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.clk_ctl.read_freq(elem_id, elem_value)
-    }
 }
 
 impl MeasureModel<(SndUnit, FwNode)> for SaffireLeModel {
