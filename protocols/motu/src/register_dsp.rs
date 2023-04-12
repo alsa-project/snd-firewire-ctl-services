@@ -292,17 +292,21 @@ where
 
 const MIXER_RETURN_ENABLE_OFFSET: usize = 0x0c18;
 
-/// State of sources in mixer entiry.
-#[derive(Default, Debug, Clone)]
+/// State of sources in mixer entiry which can be operated as monaural channel.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspMixerMonauralSourceEntry {
+    /// The gain of source. The value is between 0x00 and 0x80.
     pub gain: Vec<u8>,
+    /// The left and right balance of source. The value is between 0x00 and 0x80.
     pub pan: Vec<u8>,
+    /// Whether to mute the source.
     pub mute: Vec<bool>,
+    /// Whether to mute the other sources.
     pub solo: Vec<bool>,
 }
 
-/// State of mixer sources.
-#[derive(Default, Debug)]
+/// State of mixer sources which can be operated as monaural channel.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspMixerMonauralSourceState(
     pub [RegisterDspMixerMonauralSourceEntry; MIXER_COUNT],
 );
@@ -314,6 +318,221 @@ const MIXER_SOURCE_MUTE_FLAG: u32 = 0x00010000;
 const MIXER_SOURCE_SOLO_FLAG: u32 = 0x00020000;
 const MIXER_SOURCE_PAN_MASK: u32 = 0x0000ff00;
 const MIXER_SOURCE_GAIN_MASK: u32 = 0x000000ff;
+
+/// The trait for specification of mixer sources which can be operated as monaural channel.
+pub trait MotuRegisterDspMixerMonauralSourceSpecification: MotuRegisterDspSpecification {
+    /// The port of mixer sources.
+    const MIXER_SOURCES: &'static [TargetPort];
+
+    /// The minimum value of gain for mixer source.
+    const SOURCE_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of gain for mixer source.
+    const SOURCE_GAIN_MAX: u8 = 0x80;
+    /// The step value of gain for mixer source.
+    const SOURCE_GAIN_STEP: u8 = 0x01;
+
+    /// The minimum value of left and right balance for mixer source.
+    const SOURCE_PAN_MIN: u8 = 0x00;
+    /// The maximum value of left and right balance for mixer source.
+    const SOURCE_PAN_MAX: u8 = 0x80;
+    /// The step value of left and right balance for mixer source.
+    const SOURCE_PAN_STEP: u8 = 0x01;
+
+    fn create_mixer_monaural_source_state() -> RegisterDspMixerMonauralSourceState {
+        let entry = RegisterDspMixerMonauralSourceEntry {
+            gain: vec![Default::default(); Self::MIXER_SOURCES.len()],
+            pan: vec![Default::default(); Self::MIXER_SOURCES.len()],
+            mute: vec![Default::default(); Self::MIXER_SOURCES.len()],
+            solo: vec![Default::default(); Self::MIXER_SOURCES.len()],
+        };
+        RegisterDspMixerMonauralSourceState([
+            entry.clone(),
+            entry.clone(),
+            entry.clone(),
+            entry.clone(),
+        ])
+    }
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspMixerMonauralSourceState> for O
+where
+    O: MotuRegisterDspMixerMonauralSourceSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerMonauralSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        params
+            .0
+            .iter_mut()
+            .zip(MIXER_SOURCE_OFFSETS)
+            .try_for_each(|(entry, offset)| {
+                (0..Self::MIXER_SOURCES.len()).try_for_each(|i| {
+                    read_quad(req, node, (offset + i * 4) as u32, timeout_ms).map(|quad| {
+                        entry.gain[i] = (quad & MIXER_SOURCE_GAIN_MASK) as u8;
+                        entry.pan[i] = ((quad & MIXER_SOURCE_PAN_MASK) >> 8) as u8;
+                        entry.mute[i] = quad & MIXER_SOURCE_MUTE_FLAG > 0;
+                        entry.solo[i] = quad & MIXER_SOURCE_SOLO_FLAG > 0;
+                    })
+                })
+            })
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspMixerMonauralSourceState> for O
+where
+    O: MotuRegisterDspMixerMonauralSourceSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerMonauralSourceState,
+        updates: RegisterDspMixerMonauralSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        params
+            .0
+            .iter_mut()
+            .zip(&updates.0)
+            .zip(MIXER_SOURCE_OFFSETS)
+            .try_for_each(|((current, update), mixer_offset)| {
+                (0..Self::MIXER_SOURCES.len()).try_for_each(|i| {
+                    if current.gain[i] != update.gain[i]
+                        || current.pan[i] != update.pan[i]
+                        || current.mute[i] != update.mute[i]
+                        || current.solo[i] != update.solo[i]
+                    {
+                        let offset = (mixer_offset + i * 4) as u32;
+                        let mut quad = read_quad(req, node, offset, timeout_ms)?;
+                        if current.gain[i] != update.gain[i] {
+                            quad &= !MIXER_SOURCE_GAIN_MASK;
+                            quad |= update.gain[i] as u32;
+                            quad |= MIXER_SOURCE_GAIN_CHANGE_FLAG;
+                        }
+                        if current.pan[i] != update.pan[i] {
+                            quad &= !MIXER_SOURCE_PAN_MASK;
+                            quad |= (update.pan[i] as u32) << 8;
+                            quad |= MIXER_SOURCE_PAN_CHANGE_FLAG;
+                        }
+                        if current.mute[i] != update.mute[i] {
+                            quad &= !MIXER_SOURCE_MUTE_FLAG;
+                            if update.mute[i] {
+                                quad |= MIXER_SOURCE_MUTE_FLAG;
+                            }
+                        }
+                        if current.solo[i] != update.solo[i] {
+                            quad &= !MIXER_SOURCE_SOLO_FLAG;
+                            if update.solo[i] {
+                                quad |= MIXER_SOURCE_SOLO_FLAG;
+                            }
+                        }
+                        write_quad(req, node, offset, quad, timeout_ms).map(|_| {
+                            current.gain[i] = update.gain[i];
+                            current.pan[i] = update.pan[i];
+                            current.mute[i] = update.mute[i];
+                            current.solo[i] = update.solo[i];
+                        })
+                    } else {
+                        Ok(())
+                    }
+                })
+            })
+    }
+}
+
+impl<O>
+    MotuRegisterDspImageOperation<RegisterDspMixerMonauralSourceState, SndMotuRegisterDspParameter>
+    for O
+where
+    O: MotuRegisterDspMixerMonauralSourceSpecification,
+{
+    fn parse_image(
+        params: &mut RegisterDspMixerMonauralSourceState,
+        image: &SndMotuRegisterDspParameter,
+    ) {
+        params.0.iter_mut().enumerate().for_each(|(i, src)| {
+            let gains = image.mixer_source_gain(i);
+            src.gain
+                .iter_mut()
+                .zip(gains)
+                .for_each(|(dst, src)| *dst = *src);
+
+            let pans = image.mixer_source_pan(i);
+            src.pan
+                .iter_mut()
+                .zip(pans)
+                .for_each(|(dst, src)| *dst = *src);
+
+            let flags: Vec<u32> = image
+                .mixer_source_flag(i)
+                .iter()
+                .map(|&flag| (flag as u32) << 16)
+                .collect();
+
+            src.mute
+                .iter_mut()
+                .zip(&flags)
+                .for_each(|(mute, flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+            src.solo
+                .iter_mut()
+                .zip(&flags)
+                .for_each(|(solo, flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+        });
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspMixerMonauralSourceState> for O
+where
+    O: MotuRegisterDspMixerMonauralSourceSpecification,
+{
+    fn parse_event(
+        params: &mut RegisterDspMixerMonauralSourceState,
+        event: &RegisterDspEvent,
+    ) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_SRC_GAIN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].gain[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].pan[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_FLAG => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = (event.value as u32) << 16;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].mute[src] = val & MIXER_SOURCE_MUTE_FLAG > 0;
+                    params.0[mixer].solo[src] = val & MIXER_SOURCE_SOLO_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+}
 
 /// The trait for operation of mixer sources.
 pub trait RegisterDspMixerMonauralSourceOperation {
