@@ -922,10 +922,98 @@ const MASTER_VOLUME_OFFSET: usize = 0x0c0c;
 const PHONE_VOLUME_OFFSET: usize = 0x0c10;
 
 /// State of output.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspOutputState {
+    /// The volume of master output.
     pub master_volume: u8,
+    /// The volume of headphone output.
     pub phone_volume: u8,
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, MASTER_VOLUME_OFFSET as u32, timeout_ms).map(|val| {
+            params.master_volume = val as u8;
+        })?;
+        read_quad(req, node, PHONE_VOLUME_OFFSET as u32, timeout_ms).map(|val| {
+            params.phone_volume = val as u8;
+        })?;
+        Ok(())
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspOutputState,
+        updates: RegisterDspOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if params.master_volume != updates.master_volume {
+            write_quad(
+                req,
+                node,
+                MASTER_VOLUME_OFFSET as u32,
+                updates.master_volume as u32,
+                timeout_ms,
+            )?;
+            params.master_volume = updates.master_volume;
+        }
+
+        if params.phone_volume != updates.phone_volume {
+            write_quad(
+                req,
+                node,
+                PHONE_VOLUME_OFFSET as u32,
+                updates.phone_volume as u32,
+                timeout_ms,
+            )?;
+            params.phone_volume = updates.phone_volume;
+        }
+
+        Ok(())
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspOutputState, SndMotuRegisterDspParameter> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn parse_image(params: &mut RegisterDspOutputState, image: &SndMotuRegisterDspParameter) {
+        params.master_volume = image.main_output_paired_volume();
+        params.phone_volume = image.headphone_output_paired_volume();
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn parse_event(params: &mut RegisterDspOutputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_MAIN_OUTPUT_PAIRED_VOLUME => {
+                params.master_volume = event.value;
+                true
+            }
+            EV_TYPE_HP_OUTPUT_PAIRED_VOLUME => {
+                params.phone_volume = event.value;
+                true
+            }
+            _ => false,
+        }
+    }
 }
 
 /// The trait for operation of output.
