@@ -538,24 +538,315 @@ const MIXER_STEREO_SOURCE_COUNT: usize = 6;
 const MIXER_STEREO_SOURCE_PAIR_COUNT: usize = MIXER_STEREO_SOURCE_COUNT / 2;
 
 /// State of sources in mixer entiry.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspMixerStereoSourceEntry {
+    /// The gain of mixer sources.
     pub gain: [u8; MIXER_STEREO_SOURCE_COUNT],
+    /// The left and right panning of mixer sources.
     pub pan: [u8; MIXER_STEREO_SOURCE_COUNT],
+    /// Whether to mute mixer sources.
     pub mute: [bool; MIXER_STEREO_SOURCE_COUNT],
+    /// Whether to mute the other mixer sources.
     pub solo: [bool; MIXER_STEREO_SOURCE_COUNT],
+    /// The left and right balance of paired mixer sources.
     pub balance: [u8; MIXER_STEREO_SOURCE_PAIR_COUNT],
+    /// The left and right width of paired mixer sources.
     pub width: [u8; MIXER_STEREO_SOURCE_PAIR_COUNT],
 }
 
 /// State of mixer sources.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspMixerStereoSourceState(pub [RegisterDspMixerStereoSourceEntry; MIXER_COUNT]);
 
 const MIXER_SOURCE_PAIRED_WIDTH_FLAG: u32 = 0x00400000;
 const MIXER_SOURCE_PAIRED_BALANCE_FLAG: u32 = 0x00800000;
 
 const EV_MIXER_SOURCE_PAIRED_CH_MAP: [usize; MIXER_STEREO_SOURCE_COUNT] = [0, 1, 2, 3, 8, 9];
+
+/// The trait for specification of mixer sources.
+pub trait MotuRegisterDspMixerStereoSourceSpecification: MotuRegisterDspSpecification {
+    /// The ports of mixer sources.
+    const MIXER_SOURCES: [TargetPort; MIXER_STEREO_SOURCE_COUNT] = [
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+    ];
+
+    /// The number of paired mixer sources.
+    const MIXER_SOURCE_PAIR_COUNT: usize = Self::MIXER_SOURCES.len() / 2;
+
+    /// The minimum value of gain for mixer source.
+    const SOURCE_GAIN_MIN: u8 = 0x00;
+    /// The maximum value of gain for mixer source.
+    const SOURCE_GAIN_MAX: u8 = 0x80;
+    /// The step value of gain for mixer source.
+    const SOURCE_GAIN_STEP: u8 = 0x01;
+
+    /// The minimum value of left and right balance for mixer source.
+    const SOURCE_PAN_MIN: u8 = 0x00;
+    /// The maximum value of left and right balance for mixer source.
+    const SOURCE_PAN_MAX: u8 = 0x80;
+    /// The step value of left and right balance for mixer source.
+    const SOURCE_PAN_STEP: u8 = 0x01;
+
+    /// The minimum value of left and right balance for paired mixer source.
+    const SOURCE_STEREO_BALANCE_MIN: u8 = 0x00;
+    /// The maximum value of left and right balance for paired mixer source.
+    const SOURCE_STEREO_BALANCE_MAX: u8 = 0x80;
+    /// The step value of left and right balance for paired mixer source.
+    const SOURCE_STEREO_BALANCE_STEP: u8 = 0x01;
+
+    /// The minimum value of left and right width for paired mixer source.
+    const SOURCE_STEREO_WIDTH_MIN: u8 = 0x00;
+    /// The maximum value of left and right width for paired mixer source.
+    const SOURCE_STEREO_WIDTH_MAX: u8 = 0x80;
+    /// The step value of left and right width for paired mixer source.
+    const SOURCE_STEREO_WIDTH_STEP: u8 = 0x01;
+}
+
+fn compute_mixer_stereo_source_offset(base_offset: usize, src_idx: usize) -> usize {
+    base_offset + 4 * if src_idx < 4 { src_idx } else { src_idx + 4 }
+}
+
+// MEMO: no register to read balance and width of mixer source. They are just expressed in DSP
+// events.
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspMixerStereoSourceState> for O
+where
+    O: MotuRegisterDspMixerStereoSourceSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        params.0.iter_mut().enumerate().try_for_each(|(i, entry)| {
+            let base_offset = MIXER_SOURCE_OFFSETS[i];
+            (0..Self::MIXER_SOURCES.len()).try_for_each(|j| {
+                let offset = compute_mixer_stereo_source_offset(base_offset, j) as u32;
+                read_quad(req, node, offset, timeout_ms).map(|val| {
+                    entry.gain[j] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
+                    entry.mute[j] = ((val & MIXER_SOURCE_MUTE_FLAG) >> 8) > 0;
+                    entry.solo[j] = ((val & MIXER_SOURCE_SOLO_FLAG) >> 16) > 0;
+                })
+            })
+        })?;
+
+        Ok(())
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspMixerStereoSourceState> for O
+where
+    O: MotuRegisterDspMixerStereoSourceSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerStereoSourceState,
+        updates: RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        params
+            .0
+            .iter_mut()
+            .zip(&updates.0)
+            .zip(MIXER_SOURCE_OFFSETS)
+            .try_for_each(|((current, update), base_offset)| {
+                (0..Self::MIXER_SOURCES.len()).try_for_each(|i| {
+                    if current.gain[i] != update.gain[i]
+                        || current.pan[i] != update.pan[i]
+                        || current.mute[i] != update.mute[i]
+                        || current.solo[i] != update.solo[i]
+                    {
+                        let offset = compute_mixer_stereo_source_offset(base_offset, i) as u32;
+                        let mut quad = read_quad(req, node, offset, timeout_ms)?;
+
+                        if current.gain[i] != update.gain[i] {
+                            quad &= !MIXER_SOURCE_GAIN_MASK;
+                            quad |= update.gain[i] as u32;
+                        }
+
+                        if current.pan[i] != update.pan[i] {
+                            quad &= !MIXER_SOURCE_PAN_MASK;
+                            quad |= (update.pan[i] as u32) << 8;
+                            quad |= MIXER_SOURCE_PAN_CHANGE_FLAG;
+                        }
+
+                        if current.mute[i] != update.mute[i] {
+                            quad &= !MIXER_SOURCE_MUTE_FLAG;
+                            if update.mute[i] {
+                                quad |= MIXER_SOURCE_MUTE_FLAG;
+                            }
+                        }
+
+                        if current.solo[i] != update.solo[i] {
+                            quad &= !MIXER_SOURCE_SOLO_FLAG;
+                            if update.solo[i] {
+                                quad |= MIXER_SOURCE_SOLO_FLAG;
+                            }
+                        }
+
+                        write_quad(req, node, offset, quad, timeout_ms).map(|_| {
+                            current.gain[i] = update.gain[i];
+                            current.pan[i] = update.pan[i];
+                            current.mute[i] = update.mute[i];
+                            current.solo[i] = update.solo[i];
+                        })
+                    } else {
+                        Ok(())
+                    }
+                })?;
+
+                (0..Self::MIXER_SOURCE_PAIR_COUNT).try_for_each(|i| {
+                    if current.balance[i] != update.balance[i]
+                        || current.width[i] != update.width[i]
+                    {
+                        let offset = compute_mixer_stereo_source_offset(base_offset, i) as u32;
+                        let mut quad = 0;
+
+                        if current.balance[i] != update.balance[i] {
+                            quad |= MIXER_SOURCE_PAN_CHANGE_FLAG;
+                            quad |= MIXER_SOURCE_PAIRED_WIDTH_FLAG;
+                            quad |= (update.balance[i] as u32) << 8;
+                        }
+
+                        if current.width[i] != update.width[i] {
+                            quad |= MIXER_SOURCE_PAN_CHANGE_FLAG;
+                            quad |= MIXER_SOURCE_PAIRED_BALANCE_FLAG;
+                            quad |= (update.width[i] as u32) << 8;
+                        }
+
+                        write_quad(req, node, offset, quad, timeout_ms).map(|_| {
+                            current.balance[i] = update.balance[i];
+                            current.width[i] = update.width[i];
+                        })
+                    } else {
+                        Ok(())
+                    }
+                })
+            })
+    }
+}
+
+impl<O>
+    MotuRegisterDspImageOperation<RegisterDspMixerStereoSourceState, SndMotuRegisterDspParameter>
+    for O
+where
+    O: MotuRegisterDspMixerStereoSourceSpecification,
+{
+    fn parse_image(
+        params: &mut RegisterDspMixerStereoSourceState,
+        image: &SndMotuRegisterDspParameter,
+    ) {
+        params.0.iter_mut().enumerate().for_each(|(i, src)| {
+            let gains = image.mixer_source_gain(i);
+            src.gain
+                .iter_mut()
+                .zip(gains)
+                .for_each(|(dst, src)| *dst = *src);
+
+            let pans = image.mixer_source_pan(i);
+            src.pan
+                .iter_mut()
+                .zip(pans)
+                .for_each(|(dst, src)| *dst = *src);
+
+            let flags: Vec<u32> = image
+                .mixer_source_flag(i)
+                .iter()
+                .map(|&flag| (flag as u32) << 16)
+                .collect();
+
+            src.mute
+                .iter_mut()
+                .zip(&flags)
+                .for_each(|(mute, flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+            src.solo
+                .iter_mut()
+                .zip(&flags)
+                .for_each(|(solo, flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+        });
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspMixerStereoSourceState> for O
+where
+    O: MotuRegisterDspMixerStereoSourceSpecification,
+{
+    fn parse_event(
+        params: &mut RegisterDspMixerStereoSourceState,
+        event: &RegisterDspEvent,
+    ) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_SRC_GAIN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].gain[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].pan[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_FLAG => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = (event.value as u32) << 16;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    params.0[mixer].mute[src] = val & MIXER_SOURCE_MUTE_FLAG > 0;
+                    params.0[mixer].solo[src] = val & MIXER_SOURCE_SOLO_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAIRED_BALANCE => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if let Some(idx) = EV_MIXER_SOURCE_PAIRED_CH_MAP.iter().position(|&p| p == src) {
+                    params.0[mixer].balance[idx / 2] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAIRED_WIDTH => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if let Some(idx) = EV_MIXER_SOURCE_PAIRED_CH_MAP.iter().position(|&p| p == src) {
+                    params.0[mixer].width[idx / 2] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+}
 
 /// The trait for operation of mixer sources.
 pub trait RegisterDspMixerStereoSourceOperation {
