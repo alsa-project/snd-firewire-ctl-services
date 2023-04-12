@@ -18,7 +18,18 @@ pub struct LiquidS56Model {
 const TIMEOUT_MS: u32 = 20;
 
 impl LiquidS56Model {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    pub(crate) fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
+        self.tcd22xx_ctls.store_configuration(
+            &mut self.req,
+            node,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )
+    }
+}
+
+impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         LiquidS56Protocol::read_general_sections(
             &self.req,
             &unit.1,
@@ -71,17 +82,6 @@ impl LiquidS56Model {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
-        self.tcd22xx_ctls.store_configuration(
-            &mut self.req,
-            node,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )
-    }
-}
-
-impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

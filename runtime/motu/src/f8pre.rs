@@ -19,7 +19,7 @@ pub struct F8pre {
     meter_ctl: RegisterDspMeterCtl<F8preProtocol>,
 }
 
-impl RegisterDspCtlModel for F8pre {
+impl CtlModel<(SndMotu, FwNode)> for F8pre {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
@@ -42,9 +42,7 @@ impl RegisterDspCtlModel for F8pre {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndMotu, FwNode)> for F8pre {
     fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;

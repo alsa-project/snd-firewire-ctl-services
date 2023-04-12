@@ -14,19 +14,12 @@ use {
 pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol>;
 pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol>;
 
-pub trait IsochConsoleCtlModel<T>:
-    CtlModel<(SndTascam, FwNode)>
-    + MeasureModel<(SndTascam, FwNode)>
-    + SequencerCtlOperation<SndTascam, T>
-where
-    T: MachineStateOperation,
-{
-    fn cache(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error>;
-}
-
 pub struct IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T> + Default,
+    S: Default
+        + CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
+        + SequencerCtlOperation<SndTascam, T>,
     T: MachineStateOperation,
 {
     unit: (SndTascam, FwNode),
@@ -44,7 +37,10 @@ where
 
 impl<S, T> Drop for IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T> + Default,
+    S: Default
+        + CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
+        + SequencerCtlOperation<SndTascam, T>,
     T: MachineStateOperation,
 {
     fn drop(&mut self) {
@@ -72,7 +68,10 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T> IsochConsoleRuntime<S, T>
 where
-    S: IsochConsoleCtlModel<T> + Default,
+    S: Default
+        + CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
+        + SequencerCtlOperation<SndTascam, T>,
     T: MachineStateOperation,
 {
     pub(crate) fn new(

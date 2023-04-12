@@ -36,39 +36,6 @@ where
     output_ctl: OutputCtl<T>,
 }
 
-impl<T> IofwModel<T>
-where
-    T: IofwMeterSpecification
-        + AlesisParametersOperation<IofwMeterParams>
-        + IofwOutputSpecification
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + AlesisParametersOperation<IofwOutputParams>
-        + AlesisMutableParametersOperation<IofwOutputParams>
-        + IofwMixerSpecification
-        + AlesisParametersOperation<IofwMixerParams>
-        + AlesisMutableParametersOperation<IofwMixerParams>
-        + TcatNotifiedSectionOperation<GlobalParameters>
-        + TcatFluctuatedSectionOperation<GlobalParameters>
-        + TcatMutableSectionOperation<GlobalParameters>
-        + TcatNotifiedSectionOperation<TxStreamFormatParameters>
-        + TcatNotifiedSectionOperation<RxStreamFormatParameters>
-        + TcatSectionOperation<ExtendedSyncParameters>,
-{
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-
-        self.common_ctl
-            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-
-        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.output_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.mixer_ctl.whole_cache(&self.req, &unit.1, TIMEOUT_MS)?;
-
-        Ok(())
-    }
-}
-
 impl<T> CtlModel<(SndDice, FwNode)> for IofwModel<T>
 where
     T: IofwMeterSpecification
@@ -88,6 +55,19 @@ where
         + TcatNotifiedSectionOperation<RxStreamFormatParameters>
         + TcatSectionOperation<ExtendedSyncParameters>,
 {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+        T::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.common_ctl
+            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+
+        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.output_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.mixer_ctl.whole_cache(&self.req, &unit.1, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

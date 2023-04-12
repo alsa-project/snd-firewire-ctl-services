@@ -46,8 +46,8 @@ impl SamplingClkSrcCtlOperation<Mbox2proClkProtocol> for ClkCtl {
     }
 }
 
-impl Mbox2proModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         let req = FwReq::default();
@@ -58,9 +58,7 @@ impl Mbox2proModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for Mbox2proModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

@@ -20,7 +20,7 @@ pub struct Ff400Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl FfCacheableModel for Ff400Model {
+impl CtlModel<(SndFireface, FwNode)> for Ff400Model {
     fn cache(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
@@ -36,9 +36,7 @@ impl FfCacheableModel for Ff400Model {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndFireface, FwNode)> for Ff400Model {
     fn load(
         &mut self,
         _: &mut (SndFireface, FwNode),

@@ -139,8 +139,8 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
 #[derive(Default, Debug)]
 struct ReverbCtl(SaffireReverbParameters);
 
-impl SaffireModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -156,9 +156,6 @@ impl SaffireModel {
 
         Ok(())
     }
-}
-
-impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

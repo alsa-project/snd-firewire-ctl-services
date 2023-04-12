@@ -23,7 +23,7 @@ pub struct Track16 {
     meter_ctl: CommandDspMeterCtl<Track16Protocol>,
 }
 
-impl CommandDspCtlModel for Track16 {
+impl CtlModel<(SndMotu, FwNode)> for Track16 {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
@@ -36,9 +36,7 @@ impl CommandDspCtlModel for Track16 {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndMotu, FwNode)> for Track16 {
     fn load(&mut self, _: &mut (SndMotu, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)?;

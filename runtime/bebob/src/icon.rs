@@ -201,8 +201,8 @@ impl AvcLevelCtlOperation<FirexonMixerSourceProtocol> for MixerSrcCtl {
     }
 }
 
-impl FirexonModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -220,9 +220,7 @@ impl FirexonModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for FirexonModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

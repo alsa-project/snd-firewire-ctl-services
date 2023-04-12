@@ -17,8 +17,8 @@ pub struct Onyx400f {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl Onyx400f {
-    pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+impl CtlModel<SndEfw> for Onyx400f {
+    fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
         let res = Onyx400fProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
         debug!(params = ?hw_info, ?res);
@@ -40,9 +40,7 @@ impl Onyx400f {
 
         Ok(())
     }
-}
 
-impl CtlModel<SndEfw> for Onyx400f {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
         self.meter_ctl.load(card_cntr)?;

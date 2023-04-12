@@ -18,8 +18,8 @@ pub struct Audiofire8 {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl Audiofire8 {
-    pub(crate) fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
+impl CtlModel<SndEfw> for Audiofire8 {
+    fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
@@ -32,9 +32,7 @@ impl Audiofire8 {
 
         Ok(())
     }
-}
 
-impl CtlModel<SndEfw> for Audiofire8 {
     fn load(&mut self, _: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, false)?;
         self.meter_ctl.load(card_cntr)?;

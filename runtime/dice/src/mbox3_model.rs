@@ -19,7 +19,18 @@ pub struct Mbox3Model {
 const TIMEOUT_MS: u32 = 20;
 
 impl Mbox3Model {
-    pub fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    pub(crate) fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
+        self.tcd22xx_ctls.store_configuration(
+            &mut self.req,
+            node,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )
+    }
+}
+
+impl CtlModel<(SndDice, FwNode)> for Mbox3Model {
+    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         Mbox3Protocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
@@ -51,17 +62,6 @@ impl Mbox3Model {
         Ok(())
     }
 
-    pub fn store_configuration(&mut self, node: &FwNode) -> Result<(), Error> {
-        self.tcd22xx_ctls.store_configuration(
-            &mut self.req,
-            node,
-            &self.extension_sections,
-            TIMEOUT_MS,
-        )
-    }
-}
-
-impl CtlModel<(SndDice, FwNode)> for Mbox3Model {
     fn load(&mut self, _: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 

@@ -151,12 +151,12 @@ impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
     }
 }
 
-impl<T> FaModel<T>
+impl<T> CtlModel<(SndUnit, FwNode)> for FaModel<T>
 where
     T: AvcLevelOperation + AvcLrBalanceOperation,
     MixerAnalogSourceCtl<T>: AvcLevelCtlOperation<T> + AvcLrBalanceCtlOperation<T>,
 {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -166,13 +166,7 @@ where
 
         Ok(())
     }
-}
 
-impl<T> CtlModel<(SndUnit, FwNode)> for FaModel<T>
-where
-    T: AvcLevelOperation + AvcLrBalanceOperation,
-    MixerAnalogSourceCtl<T>: AvcLevelCtlOperation<T> + AvcLrBalanceCtlOperation<T>,
-{
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

@@ -20,10 +20,7 @@ enum Event {
 
 pub struct FfLatterRuntime<T>
 where
-    T: Default
-        + CtlModel<(SndFireface, FwNode)>
-        + MeasureModel<(SndFireface, FwNode)>
-        + FfCacheableModel,
+    T: Default + CtlModel<(SndFireface, FwNode)> + MeasureModel<(SndFireface, FwNode)>,
 {
     unit: (SndFireface, FwNode),
     model: T,
@@ -37,10 +34,7 @@ where
 
 impl<T> FfLatterRuntime<T>
 where
-    T: Default
-        + CtlModel<(SndFireface, FwNode)>
-        + MeasureModel<(SndFireface, FwNode)>
-        + FfCacheableModel,
+    T: Default + CtlModel<(SndFireface, FwNode)> + MeasureModel<(SndFireface, FwNode)>,
 {
     pub(crate) fn new(unit: SndFireface, node: FwNode, card_cntr: CardCntr) -> Result<Self, Error> {
         // Use uni-directional channel for communication to child threads.
@@ -148,10 +142,7 @@ where
 
 impl<T> Drop for FfLatterRuntime<T>
 where
-    T: Default
-        + CtlModel<(SndFireface, FwNode)>
-        + MeasureModel<(SndFireface, FwNode)>
-        + FfCacheableModel,
+    T: Default + CtlModel<(SndFireface, FwNode)> + MeasureModel<(SndFireface, FwNode)>,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -169,10 +160,7 @@ where
 
 impl<T> FfLatterRuntime<T>
 where
-    T: Default
-        + CtlModel<(SndFireface, FwNode)>
-        + MeasureModel<(SndFireface, FwNode)>
-        + FfCacheableModel,
+    T: Default + CtlModel<(SndFireface, FwNode)> + MeasureModel<(SndFireface, FwNode)>,
 {
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = NODE_DISPATCHER_NAME.to_string();

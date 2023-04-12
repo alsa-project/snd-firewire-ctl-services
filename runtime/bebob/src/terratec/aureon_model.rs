@@ -188,8 +188,8 @@ impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
     }
 }
 
-impl AureonModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for AureonModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.clk_ctl.cache_freq(&self.avc, FCP_TIMEOUT_MS)?;
@@ -205,9 +205,7 @@ impl AureonModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for AureonModel {
     fn load(
         &mut self,
         _: &mut (SndUnit, FwNode),

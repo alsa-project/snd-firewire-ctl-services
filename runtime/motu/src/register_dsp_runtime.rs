@@ -23,14 +23,9 @@ pub type UltraliteRuntime = RegisterDspRuntime<UltraLite>;
 pub type AudioExpressRuntime = RegisterDspRuntime<AudioExpress>;
 pub type H4preRuntime = RegisterDspRuntime<H4pre>;
 
-pub trait RegisterDspCtlModel {
-    fn cache(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
-}
-
 pub struct RegisterDspRuntime<T>
 where
     T: Default
-        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>
@@ -53,7 +48,6 @@ where
 impl<T> Drop for RegisterDspRuntime<T>
 where
     T: Default
-        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>
@@ -95,7 +89,6 @@ const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100
 impl<T> RegisterDspRuntime<T>
 where
     T: Default
-        + RegisterDspCtlModel
         + CtlModel<(SndMotu, FwNode)>
         + NotifyModel<(SndMotu, FwNode), u32>
         + NotifyModel<(SndMotu, FwNode), bool>

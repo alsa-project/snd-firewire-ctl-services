@@ -11,8 +11,8 @@ pub struct CommonModel {
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-impl CommonModel {
-    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for CommonModel {
+    fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.avc.bind(&unit.1)?;
 
         self.common_ctl.detect(&mut self.avc, FCP_TIMEOUT_MS)?;
@@ -21,9 +21,7 @@ impl CommonModel {
 
         Ok(())
     }
-}
 
-impl CtlModel<(SndUnit, FwNode)> for CommonModel {
     fn load(&mut self, _: &mut (SndUnit, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 
