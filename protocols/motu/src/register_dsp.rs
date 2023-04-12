@@ -134,11 +134,160 @@ where
 }
 
 /// State of mixer output.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspMixerOutputState {
     pub volume: [u8; MIXER_COUNT],
     pub mute: [bool; MIXER_COUNT],
     pub destination: [TargetPort; MIXER_COUNT],
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspMixerOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MIXER_OUTPUT_OFFSETS
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, &offset)| {
+                read_quad(req, node, offset as u32, timeout_ms).map(|val| {
+                    params.volume[i] = (val & MIXER_OUTPUT_VOLUME_MASK) as u8;
+                    params.mute[i] = (val & MIXER_OUTPUT_MUTE_FLAG) > 0;
+
+                    let src = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
+                    params.destination[i] = Self::MIXER_OUTPUT_DESTINATIONS
+                        .iter()
+                        .nth(src)
+                        .map(|&p| p)
+                        .unwrap_or_default();
+                })
+            })
+    }
+}
+
+impl<O> MotuPartiallyUpdatableParamsOperation<RegisterDspMixerOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn update_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerOutputState,
+        updates: RegisterDspMixerOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        MIXER_OUTPUT_OFFSETS
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, &offset)| {
+                if params.volume[i] != updates.volume[i]
+                    || params.mute[i] != updates.mute[i]
+                    || params.destination[i] != updates.destination[i]
+                {
+                    let quad = read_quad(req, node, offset as u32, timeout_ms)?;
+                    let mut change = quad;
+                    if params.volume[i] != updates.volume[i] {
+                        change &= !MIXER_OUTPUT_VOLUME_MASK;
+                        change |= updates.volume[i] as u32;
+                    }
+                    if params.mute[i] != updates.mute[i] {
+                        change &= !MIXER_OUTPUT_MUTE_FLAG;
+                        if updates.mute[i] {
+                            change |= MIXER_OUTPUT_MUTE_FLAG;
+                        }
+                    }
+                    if params.destination[i] != updates.destination[i] {
+                        let pos = Self::MIXER_OUTPUT_DESTINATIONS
+                            .iter()
+                            .position(|d| updates.destination[i].eq(d))
+                            .unwrap_or_default();
+                        change &= !MIXER_OUTPUT_DESTINATION_MASK;
+                        change |= (pos as u32) << 8;
+                    }
+                    if quad != change {
+                        write_quad(req, node, offset as u32, change, timeout_ms)
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Ok(())
+                }
+            })
+    }
+}
+
+impl<O> MotuRegisterDspImageOperation<RegisterDspMixerOutputState, SndMotuRegisterDspParameter>
+    for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn parse_image(params: &mut RegisterDspMixerOutputState, image: &SndMotuRegisterDspParameter) {
+        let vols = image.mixer_output_paired_volume();
+        params.volume.copy_from_slice(vols);
+
+        let flags = image.mixer_output_paired_flag();
+        params.mute.iter_mut().zip(flags).for_each(|(mute, &flag)| {
+            let val = (flag as u32) << 8;
+            *mute = val & MIXER_OUTPUT_MUTE_FLAG > 0;
+        });
+        params
+            .destination
+            .iter_mut()
+            .zip(flags)
+            .for_each(|(dest, &flag)| {
+                let val = (flag as u32) << 8;
+                let idx = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
+                *dest = Self::MIXER_OUTPUT_DESTINATIONS
+                    .iter()
+                    .nth(idx)
+                    .map(|&port| port)
+                    .unwrap_or_default();
+            });
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<RegisterDspMixerOutputState> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn parse_event(params: &mut RegisterDspMixerOutputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_OUTPUT_PAIRED_VOLUME => {
+                let mixer = event.identifier0 as usize;
+                if mixer < MIXER_COUNT {
+                    params.volume[mixer] = event.value;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_OUTPUT_PAIRED_FLAG => {
+                let mixer = event.identifier0 as usize;
+                if mixer < MIXER_COUNT {
+                    let val = (event.value as u32) << 8;
+
+                    params.mute[mixer] = val & MIXER_OUTPUT_MUTE_FLAG > 0;
+
+                    let assign = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
+                    params.destination[mixer] = Self::MIXER_OUTPUT_DESTINATIONS
+                        .iter()
+                        .nth(assign)
+                        .map(|&port| port)
+                        .unwrap_or_default();
+
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
 }
 
 /// The trait for operations of mixer output.
