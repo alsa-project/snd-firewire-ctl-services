@@ -1369,9 +1369,14 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct RegisterDspMeterCtl<T: RegisterDspMeterOperation> {
+pub(crate) struct RegisterDspMeterCtl<T>
+where
+    T: MotuRegisterDspMeterSpecification
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
+        + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspMeterState,
+    params: RegisterDspMeterState,
     image: [u8; 48],
     _phantom: PhantomData<T>,
 }
@@ -1380,18 +1385,28 @@ const INPUT_METER_NAME: &str = "input-meter";
 const OUTPUT_METER_NAME: &str = "output-meter";
 const OUTPUT_METER_TARGET_NAME: &str = "output-meter-target";
 
-impl<T: RegisterDspMeterOperation> Default for RegisterDspMeterCtl<T> {
+impl<T> Default for RegisterDspMeterCtl<T>
+where
+    T: MotuRegisterDspMeterSpecification
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
+        + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
+{
     fn default() -> Self {
         Self {
             elem_id_list: Default::default(),
-            state: T::create_meter_state(),
+            params: T::create_meter_state(),
             image: [0; 48],
             _phantom: Default::default(),
         }
     }
 }
 
-impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
+impl<T> RegisterDspMeterCtl<T>
+where
+    T: MotuRegisterDspMeterSpecification
+        + MotuWhollyUpdatableParamsOperation<RegisterDspMeterState>
+        + MotuRegisterDspImageOperation<RegisterDspMeterState, [u8; 48]>,
+{
     pub(crate) fn cache(
         &mut self,
         req: &mut FwReq,
@@ -1399,7 +1414,7 @@ impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if T::SELECTABLE {
-            T::select_output(req, node, 0, &mut self.state, timeout_ms)?;
+            T::update_wholly(req, node, &self.params, timeout_ms)?;
         }
 
         Ok(())
@@ -1437,7 +1452,7 @@ impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
         if T::SELECTABLE {
             let labels: Vec<String> = T::OUTPUT_PORT_PAIRS
                 .iter()
-                .map(|(p, _)| target_port_to_string(p))
+                .map(|p| target_port_to_string(p))
                 .collect();
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_TARGET_NAME, 0);
@@ -1452,16 +1467,16 @@ impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
     pub(crate) fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state.inputs);
+                copy_int_to_elem_value(elem_value, &self.params.inputs);
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                copy_int_to_elem_value(elem_value, &self.state.outputs);
+                copy_int_to_elem_value(elem_value, &self.params.outputs);
                 Ok(true)
             }
             OUTPUT_METER_TARGET_NAME => {
                 if T::SELECTABLE {
-                    if let Some(selected) = self.state.selected {
+                    if let Some(selected) = self.params.selected {
                         elem_value.set_enum(&[selected as u32]);
                         Ok(true)
                     } else {
@@ -1486,14 +1501,16 @@ impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
         match elem_id.name().as_str() {
             OUTPUT_METER_TARGET_NAME => {
                 if T::SELECTABLE {
-                    let target = elem_value.enumerated()[0] as usize;
-                    if target < T::OUTPUT_PORT_PAIRS.len() {
-                        T::select_output(req, node, target, &mut self.state, timeout_ms)
-                            .map(|_| true)
-                    } else {
-                        let msg = format!("Invalid index for output meter pair: {}", target);
-                        Err(Error::new(FileError::Inval, &msg))
+                    let mut params = self.params.clone();
+                    let pos = elem_value.enumerated()[0] as usize;
+                    if pos >= T::OUTPUT_PORT_PAIRS.len() {
+                        let msg = format!("Invalid index for output meter pair: {}", pos);
+                        Err(Error::new(FileError::Inval, &msg))?;
                     }
+                    params.selected = Some(pos);
+                    let res = T::update_wholly(req, node, &params, timeout_ms)
+                        .map(|_| self.params = params);
+                    res.map(|_| true)
                 } else {
                     Err(Error::new(FileError::Inval, "Not supported"))
                 }
@@ -1504,7 +1521,7 @@ impl<T: RegisterDspMeterOperation> RegisterDspMeterCtl<T> {
 
     pub(crate) fn read_dsp_meter(&mut self, unit: &SndMotu) -> Result<(), Error> {
         unit.read_byte_meter(&mut self.image)?;
-        T::parse_dsp_meter(&mut self.state, &self.image);
+        T::parse_image(&mut self.params, &self.image);
         Ok(())
     }
 }

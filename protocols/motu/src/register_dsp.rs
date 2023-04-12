@@ -1543,7 +1543,7 @@ where
 }
 
 /// Information of meter.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegisterDspMeterState {
     /// The detected level of signal in inputs.
     pub inputs: Vec<u8>,
@@ -1661,75 +1661,6 @@ where
                 .flatten()
                 .zip(&mut params.outputs)
                 .for_each(|(pos, m)| *m = image[MAX_METER_INPUT_COUNT + pos]);
-        }
-    }
-}
-
-/// The trait for meter operation.
-pub trait RegisterDspMeterOperation {
-    const SELECTABLE: bool;
-    const INPUT_PORTS: &'static [TargetPort];
-    const OUTPUT_PORT_PAIRS: &'static [(TargetPort, [usize; 2])];
-    const OUTPUT_PORT_COUNT: usize = Self::OUTPUT_PORT_PAIRS.len() * 2;
-
-    const LEVEL_MIN: u8 = 0;
-    const LEVEL_MAX: u8 = 0x7f;
-    const LEVEL_STEP: u8 = 1;
-
-    fn create_meter_state() -> RegisterDspMeterState {
-        // Assertion from UAPI of ALSA firewire stack.
-        assert!(Self::INPUT_PORTS.len() <= MAX_METER_INPUT_COUNT);
-        assert!(Self::OUTPUT_PORT_PAIRS.len() <= MAX_METER_OUTPUT_COUNT);
-
-        RegisterDspMeterState {
-            inputs: vec![0; Self::INPUT_PORTS.len()],
-            outputs: vec![0; Self::OUTPUT_PORT_COUNT],
-            selected: if Self::SELECTABLE { Some(0) } else { None },
-        }
-    }
-
-    fn select_output(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        target: usize,
-        meter: &mut RegisterDspMeterState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert!(target < Self::OUTPUT_PORT_COUNT);
-
-        if let Some(t) = &mut meter.selected {
-            let mut quad = ((target + 1) as u32) & METER_OUTPUT_SELECT_TARGET_MASK;
-            quad |= METER_OUTPUT_SELECT_CHANGE_FLAG;
-            write_quad(
-                req,
-                node,
-                METER_OUTPUT_SELECT_OFFSET as u32,
-                quad,
-                timeout_ms,
-            )
-            .map(|_| *t = target)
-        } else {
-            Err(Error::new(FileError::Nxio, "Not supported"))
-        }
-    }
-
-    fn parse_dsp_meter(state: &mut RegisterDspMeterState, data: &[u8]) {
-        state
-            .inputs
-            .copy_from_slice(&data[..Self::INPUT_PORTS.len()]);
-
-        if let Some(selected) = state.selected {
-            state.outputs.iter_mut().for_each(|meter| *meter = 0);
-
-            let pair = &Self::OUTPUT_PORT_PAIRS[selected].1;
-            state.outputs[selected * 2] = data[MAX_METER_INPUT_COUNT + pair[0]];
-            state.outputs[selected * 2 + 1] = data[MAX_METER_INPUT_COUNT + pair[1]];
-        } else {
-            Self::OUTPUT_PORT_PAIRS
-                .iter()
-                .flat_map(|(_, pair)| pair)
-                .zip(&mut state.outputs)
-                .for_each(|(pos, m)| *m = data[MAX_METER_INPUT_COUNT + pos]);
         }
     }
 }
