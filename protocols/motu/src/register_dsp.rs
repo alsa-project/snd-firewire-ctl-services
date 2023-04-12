@@ -94,6 +94,45 @@ const MIXER_OUTPUT_MUTE_FLAG: u32 = 0x00001000;
 const MIXER_OUTPUT_DESTINATION_MASK: u32 = 0x00000f00;
 const MIXER_OUTPUT_VOLUME_MASK: u32 = 0x000000ff;
 
+/// The parameters of mixer return.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct RegisterDspMixerReturnParameters(pub bool);
+
+impl<O> MotuWhollyCacheableParamsOperation<RegisterDspMixerReturnParameters> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut RegisterDspMixerReturnParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, MIXER_RETURN_ENABLE_OFFSET as u32, timeout_ms)
+            .map(|val| params.0 = val > 0)
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<RegisterDspMixerReturnParameters> for O
+where
+    O: MotuRegisterDspSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &RegisterDspMixerReturnParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_quad(
+            req,
+            node,
+            MIXER_RETURN_ENABLE_OFFSET as u32,
+            params.0 as u32,
+            timeout_ms,
+        )
+    }
+}
+
 /// State of mixer output.
 #[derive(Default, Debug)]
 pub struct RegisterDspMixerOutputState {
