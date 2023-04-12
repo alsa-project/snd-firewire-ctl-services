@@ -29,7 +29,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -83,6 +85,7 @@ where
                     .map(|&p| params.0 = p)?;
                 let res =
                     T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
@@ -123,7 +126,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -175,8 +180,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -218,7 +225,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -267,8 +276,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
@@ -332,7 +343,9 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::cache_wholly(req, node, &mut self.params, timeout_ms)
+        let res = T::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -436,8 +449,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.peak_hold_time = mode)?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             CLIP_HOLD_TIME_MODE_NAME => {
                 let mut params = self.params.clone();
@@ -453,8 +468,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.clip_hold_time = mode)?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             AESEBU_MODE_NAME => {
                 let mut params = self.params.clone();
@@ -468,8 +485,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.aesebu_mode = mode)?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             PROGRAMMABLE_MODE_NAME => {
                 let mut params = self.params.clone();
@@ -485,8 +504,10 @@ where
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&mode| params.programmable_mode = mode)?;
-                T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params)?;
-                Ok(true)
+                let res =
+                    T::update_wholly(req, node, &params, timeout_ms).map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
