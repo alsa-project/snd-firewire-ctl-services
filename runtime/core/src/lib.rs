@@ -3,7 +3,6 @@
 pub mod card_cntr;
 pub mod cmdline;
 pub mod dispatcher;
-pub mod elem_value_accessor;
 
 use {clap::ArgEnum, glib::Error};
 
