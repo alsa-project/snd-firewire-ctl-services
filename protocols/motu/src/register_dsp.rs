@@ -29,11 +29,15 @@ const EV_TYPE_MIXER_SRC_PAIRED_BALANCE: u8 = 0x17;
 const EV_TYPE_MIXER_SRC_PAIRED_WIDTH: u8 = 0x18;
 
 /// The event emitted from ALSA firewire-motu driver for register DSP.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct RegisterDspEvent {
+    /// The numeric type of event.
     pub ev_type: u8,
+    /// The first identifier specific to the event.
     pub identifier0: u8,
+    /// The second identifier specific to the event.
     pub identifier1: u8,
+    /// The value of event.
     pub value: u8,
 }
 
@@ -46,6 +50,41 @@ impl From<u32> for RegisterDspEvent {
             value: (val & 0x000000ff) as u8,
         }
     }
+}
+
+/// The specification for register DSP.
+pub trait MotuRegisterDspSpecification {
+    /// The destinations of mixer outputs.
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort];
+
+    /// The number of mixers.
+    const MIXER_COUNT: usize = 4;
+
+    /// The minimum value of mixer output volume.
+    const MIXER_OUTPUT_VOLUME_MIN: u8 = 0x00;
+    /// The maximum value of mixer output volume.
+    const MIXER_OUTPUT_VOLUME_MAX: u8 = 0x80;
+    /// The step value of mixer output volume.
+    const MIXER_OUTPUT_VOLUME_STEP: u8 = 0x01;
+
+    /// The minimum value of physical output volume.
+    const OUTPUT_VOLUME_MIN: u8 = 0x00;
+    /// The maximum value of physical output volume.
+    const OUTPUT_VOLUME_MAX: u8 = 0x80;
+    /// The step value of physical output volume.
+    const OUTPUT_VOLUME_STEP: u8 = 0x01;
+}
+
+/// The trait for DSP image operations.
+pub trait MotuRegisterDspImageOperation<T, U> {
+    /// Parse image transferred in the series of isochronous packets.
+    fn parse_image(params: &mut T, image: &U);
+}
+
+/// The trait for DSP event operation.
+pub trait MotuRegisterDspEventOperation<T> {
+    /// Parse event.
+    fn parse_event(params: &mut T, event: &RegisterDspEvent) -> bool;
 }
 
 const MIXER_COUNT: usize = 4;

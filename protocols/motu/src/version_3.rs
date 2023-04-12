@@ -389,6 +389,10 @@ impl MotuVersion3ClockSpecification for AudioExpressProtocol {
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
 }
 
+impl MotuRegisterDspSpecification for AudioExpressProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
+}
+
 impl RegisterDspMixerOutputOperation for AudioExpressProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
@@ -862,6 +866,10 @@ impl MotuVersion3ClockSpecification for H4preProtocol {
 
     const CLOCK_SRCS: &'static [V3ClkSrc] = &[V3ClkSrc::Internal, V3ClkSrc::SpdifCoax];
     const CLOCK_SRC_VALS: &'static [u8] = &[0x00, 0x01];
+}
+
+impl MotuRegisterDspSpecification for H4preProtocol {
+    const MIXER_OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
 
 impl RegisterDspMixerOutputOperation for H4preProtocol {
