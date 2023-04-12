@@ -21,6 +21,7 @@ const EV_TYPE_MIXER_OUTPUT_PAIRED_VOLUME: u8 = 0x05;
 const EV_TYPE_MIXER_OUTPUT_PAIRED_FLAG: u8 = 0x06;
 const EV_TYPE_MAIN_OUTPUT_PAIRED_VOLUME: u8 = 0x07;
 const EV_TYPE_HP_OUTPUT_PAIRED_VOLUME: u8 = 0x08;
+const EV_TYPE_HP_OUTPUT_PAIRED_SOURCE: u8 = 0x09;
 const EV_TYPE_LINE_INPUT_BOOST: u8 = 0x0d;
 const EV_TYPE_LINE_INPUT_NOMINAL_LEVEL: u8 = 0x0e;
 const EV_TYPE_INPUT_GAIN_AND_INVERT: u8 = 0x15;
@@ -85,6 +86,40 @@ pub trait MotuRegisterDspImageOperation<T, U> {
 pub trait MotuRegisterDspEventOperation<T> {
     /// Parse event.
     fn parse_event(params: &mut T, event: &RegisterDspEvent) -> bool;
+}
+
+impl<O> MotuRegisterDspImageOperation<PhoneAssignParameters, SndMotuRegisterDspParameter> for O
+where
+    O: MotuRegisterDspSpecification + MotuPortAssignSpecification,
+{
+    fn parse_image(params: &mut PhoneAssignParameters, image: &SndMotuRegisterDspParameter) {
+        let val = image.headphone_output_paired_assignment();
+        let _ = Self::ASSIGN_PORT_TARGETS
+            .iter()
+            .zip(Self::ASSIGN_PORT_VALS)
+            .find(|(_, v)| val.eq(v))
+            .map(|(&p, _)| params.0 = p);
+    }
+}
+
+impl<O> MotuRegisterDspEventOperation<PhoneAssignParameters> for O
+where
+    O: MotuRegisterDspSpecification + MotuPortAssignSpecification,
+{
+    fn parse_event(params: &mut PhoneAssignParameters, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_HP_OUTPUT_PAIRED_SOURCE => {
+                let val = event.value;
+                let _ = Self::ASSIGN_PORT_TARGETS
+                    .iter()
+                    .zip(Self::ASSIGN_PORT_VALS)
+                    .find(|(_, v)| val.eq(v))
+                    .map(|(&p, _)| params.0 = p);
+                true
+            }
+            _ => false,
+        }
+    }
 }
 
 const MIXER_COUNT: usize = 4;
