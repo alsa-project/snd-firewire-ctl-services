@@ -15,7 +15,7 @@ mod latter_runtime;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    core::{card_cntr::*, dispatcher::*, *},
     ff400_runtime::*,
     ff800_runtime::*,
     firewire_fireface_protocols as protocols,
