@@ -494,27 +494,55 @@ where
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct RegisterDspMixerStereoSourceCtl<T: RegisterDspMixerStereoSourceOperation> {
+#[derive(Default, Debug)]
+pub(crate) struct RegisterDspMixerStereoSourceCtl<T>
+where
+    T: MotuRegisterDspMixerStereoSourceSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerStereoSourceState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMixerStereoSourceState>
+        + MotuRegisterDspImageOperation<
+            RegisterDspMixerStereoSourceState,
+            SndMotuRegisterDspParameter,
+        > + MotuRegisterDspEventOperation<RegisterDspMixerStereoSourceState>,
+{
     pub elem_id_list: Vec<ElemId>,
-    state: RegisterDspMixerStereoSourceState,
+    params: RegisterDspMixerStereoSourceState,
     _phantom: PhantomData<T>,
 }
 
 const MIXER_SOURCE_STEREO_BALANCE_NAME: &str = "mixer-source-stereo-balance";
 const MIXER_SOURCE_STEREO_WIDTH_NAME: &str = "mixer-source-stereo-width";
 
-impl<T: RegisterDspMixerStereoSourceOperation> Default for RegisterDspMixerStereoSourceCtl<T> {
-    fn default() -> Self {
-        Self {
-            elem_id_list: Default::default(),
-            state: T::create_mixer_stereo_source_state(),
-            _phantom: Default::default(),
-        }
-    }
+fn mixer_stereo_source_entry(
+    params: &RegisterDspMixerStereoSourceState,
+    index: usize,
+) -> Result<&RegisterDspMixerStereoSourceEntry, Error> {
+    params.0.iter().nth(index).ok_or_else(|| {
+        let msg = format!("Invalid index for mixer sources: {}", index);
+        Error::new(FileError::Inval, &msg)
+    })
 }
 
-impl<T: RegisterDspMixerStereoSourceOperation> RegisterDspMixerStereoSourceCtl<T> {
+fn mixer_stereo_source_entry_mut(
+    params: &mut RegisterDspMixerStereoSourceState,
+    index: usize,
+) -> Result<&mut RegisterDspMixerStereoSourceEntry, Error> {
+    params.0.iter_mut().nth(index).ok_or_else(|| {
+        let msg = format!("Invalid index for mixer sources: {}", index);
+        Error::new(FileError::Inval, &msg)
+    })
+}
+
+impl<T> RegisterDspMixerStereoSourceCtl<T>
+where
+    T: MotuRegisterDspMixerStereoSourceSpecification
+        + MotuWhollyCacheableParamsOperation<RegisterDspMixerStereoSourceState>
+        + MotuPartiallyUpdatableParamsOperation<RegisterDspMixerStereoSourceState>
+        + MotuRegisterDspImageOperation<
+            RegisterDspMixerStereoSourceState,
+            SndMotuRegisterDspParameter,
+        > + MotuRegisterDspEventOperation<RegisterDspMixerStereoSourceState>,
+{
     const GAIN_TLV: DbInterval = DbInterval {
         min: -6400,
         max: 0,
@@ -528,7 +556,7 @@ impl<T: RegisterDspMixerStereoSourceOperation> RegisterDspMixerStereoSourceCtl<T
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_mixer_stereo_source_state(req, node, &mut self.state, timeout_ms)
+        T::cache_wholly(req, node, &mut self.params, timeout_ms)
     }
 
     pub(crate) fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -621,32 +649,38 @@ impl<T: RegisterDspMixerStereoSourceOperation> RegisterDspMixerStereoSourceCtl<T
         match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state.0[mixer].gain);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                copy_int_to_elem_value(elem_value, &src.gain);
                 Ok(true)
             }
             MIXER_SOURCE_PAN_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state.0[mixer].pan);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                copy_int_to_elem_value(elem_value, &src.pan);
                 Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state.0[mixer].mute);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                elem_value.set_bool(&src.mute);
                 Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mixer = elem_id.index() as usize;
-                elem_value.set_bool(&self.state.0[mixer].solo);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                elem_value.set_bool(&src.solo);
                 Ok(true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state.0[mixer].balance);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                copy_int_to_elem_value(elem_value, &src.balance);
                 Ok(true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
                 let mixer = elem_id.index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state.0[mixer].width);
+                let src = mixer_stereo_source_entry(&self.params, mixer)?;
+                copy_int_to_elem_value(elem_value, &src.width);
                 Ok(true)
             }
             _ => Ok(false),
@@ -663,97 +697,77 @@ impl<T: RegisterDspMixerStereoSourceOperation> RegisterDspMixerStereoSourceCtl<T
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
-                let vals = &elem_value.int()[..T::MIXER_SOURCES.len()];
-                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_gain(
-                    req,
-                    node,
-                    mixer,
-                    &gain,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                src.gain
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
-                let vals = &elem_value.int()[..T::MIXER_SOURCES.len()];
-                let pan: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_pan(
-                    req,
-                    node,
-                    mixer,
-                    &pan,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                src.pan
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(pan, &val)| *pan = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
-                let mute = &elem_value.boolean()[..T::MIXER_SOURCES.len()];
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_mute(
-                    req,
-                    node,
-                    mixer,
-                    &mute,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                let vals = &elem_value.boolean()[..src.mute.len()];
+                src.mute.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
-                let solo = &elem_value.boolean()[..T::MIXER_SOURCES.len()];
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_mute(
-                    req,
-                    node,
-                    mixer,
-                    &solo,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                let vals = &elem_value.boolean()[..src.solo.len()];
+                src.solo.copy_from_slice(vals);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
-                let vals = &elem_value.int()[..T::MIXER_SOURCE_PAIR_COUNT];
-                let balance: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_balance(
-                    req,
-                    node,
-                    mixer,
-                    &balance,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                src.balance
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(balance, &val)| *balance = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
-                let vals = &elem_value.int()[..T::MIXER_SOURCE_PAIR_COUNT];
-                let width: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mut params = self.params.clone();
                 let mixer = elem_id.index() as usize;
-                T::write_mixer_stereo_source_width(
-                    req,
-                    node,
-                    mixer,
-                    &width,
-                    &mut self.state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                let src = mixer_stereo_source_entry_mut(&mut params, mixer)?;
+                src.width
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(width, &val)| *width = val as u8);
+                let res = T::update_partially(req, node, &mut self.params, params, timeout_ms);
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub(crate) fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
-        T::parse_dsp_parameter(&mut self.state, params)
+    pub(crate) fn parse_dsp_parameter(&mut self, image: &SndMotuRegisterDspParameter) {
+        T::parse_image(&mut self.params, image)
     }
 
     pub(crate) fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
-        T::parse_dsp_event(&mut self.state, event)
+        T::parse_event(&mut self.params, event)
     }
 }
 
