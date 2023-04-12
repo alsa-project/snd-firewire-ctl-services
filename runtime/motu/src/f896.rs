@@ -110,13 +110,4 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F896 {
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        _: &ElemId,
-        _: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        Ok(false)
-    }
 }

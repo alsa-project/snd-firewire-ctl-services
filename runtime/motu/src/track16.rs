@@ -248,21 +248,6 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Track16 {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.port_assign_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for Track16 {
@@ -289,37 +274,6 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for Track16 {
                 || self.resource_ctl.parse_command(cmd);
         }
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.reverb_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read_equalizer(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read_dynamics(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.resource_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

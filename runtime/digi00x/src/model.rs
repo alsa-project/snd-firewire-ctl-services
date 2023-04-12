@@ -114,21 +114,6 @@ impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi002Model {
             .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]

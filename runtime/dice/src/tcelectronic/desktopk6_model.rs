@@ -143,23 +143,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
 
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.hw_state_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.panel_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {

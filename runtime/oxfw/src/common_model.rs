@@ -74,15 +74,6 @@ impl NotifyModel<(SndUnit, FwNode), bool> for CommonModel {
         }
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.common_ctl.read(elem_id, elem_value)
-    }
 }
 
 #[derive(Default, Debug)]

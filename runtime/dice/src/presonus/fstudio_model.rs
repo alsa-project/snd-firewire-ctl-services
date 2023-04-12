@@ -104,15 +104,6 @@ impl NotifyModel<(SndDice, FwNode), u32> for FStudioModel {
         self.common_ctl
             .parse_notification(&self.req, &unit.1, &mut self.sections, msg, TIMEOUT_MS)
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.common_ctl.read(elem_id, elem_value)
-    }
 }
 
 impl MeasureModel<(SndDice, FwNode)> for FStudioModel {

@@ -316,23 +316,14 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        (unit, node): &mut (SndUnit, FwNode),
         &locked: &bool,
     ) -> Result<(), Error> {
         if locked {
-            self.clk_ctl.cache_src(&self.req, &unit.1, TIMEOUT_MS)?;
+            self.clk_ctl.cache_src(&self.req, node, TIMEOUT_MS)?;
+            C::cache(&self.req, node, &mut self.clk_ctl.0, TIMEOUT_MS)?;
         }
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        unit: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        C::cache(&self.req, &unit.1, &mut self.clk_ctl.0, TIMEOUT_MS)?;
-        self.clk_ctl.read_freq(elem_id, elem_value)
     }
 }
 

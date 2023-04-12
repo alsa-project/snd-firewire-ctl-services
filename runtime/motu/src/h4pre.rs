@@ -151,15 +151,6 @@ impl NotifyModel<(SndMotu, FwNode), u32> for H4pre {
     fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        _: &ElemId,
-        _: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        Ok(false)
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), bool> for H4pre {
@@ -188,27 +179,6 @@ impl NotifyModel<(SndMotu, FwNode), bool> for H4pre {
             Ok(())
         }
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for H4pre {
@@ -229,27 +199,6 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for H4pre {
                 || self.input_ctl.parse_dsp_event(event);
         });
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

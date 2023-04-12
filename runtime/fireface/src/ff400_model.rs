@@ -171,21 +171,6 @@ impl NotifyModel<(SndFireface, FwNode), u32> for Ff400Model {
 
         Ok(())
     }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndFireface, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.input_gain_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.out_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]
