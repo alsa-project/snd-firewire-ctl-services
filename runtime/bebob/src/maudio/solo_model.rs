@@ -323,15 +323,6 @@ impl MeasureModel<(SndUnit, FwNode)> for SoloModel {
         self.meter_ctl
             .cache_meter(&self.req, &unit.1, &self.avc, TIMEOUT_MS)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.meter_ctl.read_meter(elem_id, elem_value)
-    }
 }
 
 impl NotifyModel<(SndUnit, FwNode), bool> for SoloModel {

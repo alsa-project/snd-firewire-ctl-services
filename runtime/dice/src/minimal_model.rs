@@ -74,15 +74,6 @@ impl MeasureModel<(SndDice, FwNode)> for MinimalModel {
         self.common_ctl
             .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.common_ctl.read(elem_id, elem_value)
-    }
 }
 
 #[derive(Default, Debug)]

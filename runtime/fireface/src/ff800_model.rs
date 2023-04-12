@@ -105,21 +105,6 @@ impl MeasureModel<(SndFireface, FwNode)> for Ff800Model {
             .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndFireface, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.status_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 fn clk_src_to_string(src: &Ff800ClkSrc) -> String {

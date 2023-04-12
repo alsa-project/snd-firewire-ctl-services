@@ -45,6 +45,8 @@ impl CtlModel<(SndDice, FwNode)> for IonixModel {
             Ok(true)
         } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -100,21 +102,6 @@ impl MeasureModel<(SndDice, FwNode)> for IonixModel {
             .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

@@ -159,21 +159,6 @@ impl MeasureModel<(SndDice, FwNode)> for K8Model {
         self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Default, Debug)]

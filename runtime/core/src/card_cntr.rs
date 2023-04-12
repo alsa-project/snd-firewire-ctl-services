@@ -35,12 +35,6 @@ pub trait CtlModel<O: Sized> {
 pub trait MeasureModel<O: Sized> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn measure_states(&mut self, unit: &mut O) -> Result<(), Error>;
-    fn measure_elem(
-        &mut self,
-        unit: &O,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error>;
 }
 
 pub trait NotifyModel<O: Sized, N> {
@@ -639,7 +633,7 @@ impl CardCntr {
                 .try_for_each(|(elem_info, elem_value)| {
                     let _enter = debug_span!("hardware").entered();
 
-                    let res = ctl_model.measure_elem(unit, elem_id, elem_value);
+                    let res = ctl_model.read(unit, elem_id, elem_value);
                     debug!(
                         numid = elem_id.numid(),
                         values = value_array_literal(elem_info, &elem_value),

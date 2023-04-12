@@ -124,19 +124,6 @@ impl MeasureModel<SndEfw> for Onyx1200f {
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<SndEfw, bool> for Onyx1200f {

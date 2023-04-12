@@ -316,7 +316,7 @@ where
 
     fn parse_notification(
         &mut self,
-        (unit, node): &mut (SndUnit, FwNode),
+        (_, node): &mut (SndUnit, FwNode),
         &locked: &bool,
     ) -> Result<(), Error> {
         if locked {
@@ -340,15 +340,6 @@ where
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.meter_ctl.read_state(elem_id, elem_value)
     }
 }
 

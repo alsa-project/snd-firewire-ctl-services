@@ -90,6 +90,8 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
             Ok(true)
         } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
+        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -222,21 +224,6 @@ impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)> for Specia
         }
 
         Ok(())
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read_state(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read_params(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

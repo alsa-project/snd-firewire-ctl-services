@@ -81,19 +81,6 @@ impl MeasureModel<(SndDigi00x, FwNode)> for Digi002Model {
     fn measure_states(&mut self, (_, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi002Model {
@@ -206,19 +193,6 @@ impl MeasureModel<(SndDigi00x, FwNode)> for Digi003Model {
     fn measure_states(&mut self, (_, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi003Model {
@@ -238,21 +212,6 @@ impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi003Model {
         self.monitor_ctl
             .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
         Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &(SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 

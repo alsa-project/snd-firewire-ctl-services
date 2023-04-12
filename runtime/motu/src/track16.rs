@@ -285,19 +285,6 @@ impl MeasureModel<(SndMotu, FwNode)> for Track16 {
     fn measure_states(&mut self, (unit, _): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.meter_ctl.read_dsp_meter(unit)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 impl CommandDspModel for Track16 {

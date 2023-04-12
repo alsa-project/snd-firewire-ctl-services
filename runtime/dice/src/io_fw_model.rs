@@ -192,23 +192,6 @@ where
             .partial_cache(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[derive(Debug)]

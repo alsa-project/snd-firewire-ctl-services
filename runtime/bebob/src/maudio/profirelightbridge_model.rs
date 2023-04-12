@@ -149,15 +149,6 @@ impl MeasureModel<(SndUnit, FwNode)> for PflModel {
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)
     }
-
-    fn measure_elem(
-        &mut self,
-        _: &(SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        self.meter_ctl.read(elem_id, elem_value)
-    }
 }
 
 impl NotifyModel<(SndUnit, FwNode), bool> for PflModel {
