@@ -19,7 +19,9 @@ pub struct TravelerMk3Model {
     monitor_ctl: CommandDspMonitorCtl<TravelerMk3Protocol>,
     mixer_ctl: CommandDspMixerCtl<TravelerMk3Protocol>,
     input_ctl: CommandDspInputCtl<TravelerMk3Protocol>,
+    input_eq_ctl: CommandDspInputEqualizerCtl<TravelerMk3Protocol>,
     output_ctl: CommandDspOutputCtl<TravelerMk3Protocol>,
+    output_eq_ctl: CommandDspOutputEqualizerCtl<TravelerMk3Protocol>,
     resource_ctl: CommandDspResourceCtl,
     meter_ctl: CommandDspMeterCtl<TravelerMk3Protocol>,
 }
@@ -49,16 +51,12 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3Model {
         self.monitor_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
-        self.input_ctl
-            .load_equalizer(card_cntr)
-            .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
+        self.input_eq_ctl.load(card_cntr)?;
         self.input_ctl
             .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
         self.output_ctl.load(card_cntr)?;
-        self.output_ctl
-            .load_equalizer(card_cntr)
-            .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
+        self.output_eq_ctl.load(card_cntr)?;
         self.output_ctl
             .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
@@ -91,13 +89,13 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3Model {
             Ok(true)
         } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read_equalizer(elem_id, elem_value)? {
+        } else if self.input_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read_dynamics(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
+        } else if self.output_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
             Ok(true)
@@ -188,7 +186,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.input_ctl.write_equalizer(
+        } else if self.input_eq_ctl.write(
             &mut self.sequence_number,
             &mut self.req,
             node,
@@ -215,7 +213,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.output_ctl.write_equalizer(
+        } else if self.output_eq_ctl.write(
             &mut self.sequence_number,
             &mut self.req,
             node,
@@ -253,7 +251,9 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for TravelerMk3Model {
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.input_eq_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.output_eq_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.resource_ctl.elem_id_list);
     }
 
@@ -267,7 +267,9 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for TravelerMk3Model {
                 || self.monitor_ctl.parse_command(cmd)
                 || self.mixer_ctl.parse_command(cmd)
                 || self.input_ctl.parse_command(cmd)
+                || self.input_eq_ctl.parse_command(cmd)
                 || self.output_ctl.parse_command(cmd)
+                || self.output_eq_ctl.parse_command(cmd)
                 || self.resource_ctl.parse_command(cmd);
         }
         Ok(())
