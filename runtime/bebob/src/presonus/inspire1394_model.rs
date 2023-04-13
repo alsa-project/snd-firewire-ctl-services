@@ -590,7 +590,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self
             .phys_in_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -600,7 +600,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -615,7 +615,7 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             Ok(true)
         } else if self
             .hp_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -631,7 +631,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         } else if self.mixer_phys_src_ctl.write_mute(
             &self.avc,
             elem_id,
-            old,
             new,
             FCP_TIMEOUT_MS,
         )? {
@@ -644,7 +643,6 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
         } else if self.mixer_stream_src_ctl.write_mute(
             &self.avc,
             elem_id,
-            old,
             new,
             FCP_TIMEOUT_MS,
         )? {
