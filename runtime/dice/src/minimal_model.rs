@@ -26,12 +26,7 @@ impl CtlModel<(SndDice, FwNode)> for MinimalModel {
         self.common_ctl.load(card_cntr)
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         self.common_ctl.read(elem_id, elem_value)
     }
 
@@ -39,7 +34,6 @@ impl CtlModel<(SndDice, FwNode)> for MinimalModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         self.common_ctl.write(

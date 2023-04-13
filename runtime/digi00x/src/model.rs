@@ -29,12 +29,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
@@ -50,7 +45,6 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         &mut self,
         (unit, node): &mut (SndDigi00x, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
@@ -130,12 +124,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
@@ -153,7 +142,6 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
         &mut self,
         (unit, node): &mut (SndDigi00x, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self

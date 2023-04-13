@@ -58,12 +58,7 @@ impl CtlModel<(SndMotu, FwNode)> for H4preModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndMotu, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
@@ -89,7 +84,6 @@ impl CtlModel<(SndMotu, FwNode)> for H4preModel {
         &mut self,
         (unit, node): &mut (SndMotu, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self

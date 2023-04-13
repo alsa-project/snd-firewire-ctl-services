@@ -106,12 +106,7 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.clk_ctl.read_freq(elem_id, elem_value)? {
             Ok(true)
         } else if self.clk_ctl.read_src(elem_id, elem_value)? {
@@ -143,7 +138,6 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write_freq(
