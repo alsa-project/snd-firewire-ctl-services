@@ -362,14 +362,13 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::MIXER_NAME {
             let dst_idx = elem_id.index() as usize;
             let mut params = self.state().clone();
-            let vals = &new.boolean()[..Self::SRC_COUNT];
+            let vals = &elem_value.boolean()[..Self::SRC_COUNT];
             params.0[dst_idx].copy_from_slice(&vals);
             let res = O::update(avc, &params, self.state_mut(), timeout_ms);
             debug!(params = ?self.state(), ?res);
