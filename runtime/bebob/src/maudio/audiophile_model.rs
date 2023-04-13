@@ -394,7 +394,7 @@ impl CtlModel<(SndUnit, FwNode)> for AudiophileModel {
             Ok(true)
         } else if self
             .meter_ctl
-            .write_meter(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_meter(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
