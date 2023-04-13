@@ -1647,4 +1647,130 @@ mod test {
             assert_eq!(quad, val, "{:?},0x{:08x},{},{}", mode, val, is_b, is_out);
         });
     }
+
+    #[test]
+    fn common_assign_port_specification() {
+        assert_eq!(
+            F828mk3Protocol::ASSIGN_PORT_TARGETS.len(),
+            F828mk3Protocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            F828mk3HybridProtocol::ASSIGN_PORT_TARGETS.len(),
+            F828mk3HybridProtocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            H4preProtocol::ASSIGN_PORT_TARGETS.len(),
+            H4preProtocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            UltraliteMk3Protocol::ASSIGN_PORT_TARGETS.len(),
+            UltraliteMk3Protocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            UltraliteMk3HybridProtocol::ASSIGN_PORT_TARGETS.len(),
+            UltraliteMk3HybridProtocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            TravelerMk3Protocol::ASSIGN_PORT_TARGETS.len(),
+            TravelerMk3Protocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            Track16Protocol::ASSIGN_PORT_TARGETS.len(),
+            Track16Protocol::ASSIGN_PORT_VALS.len()
+        );
+    }
+
+    #[test]
+    fn v3_clock_specification() {
+        assert_eq!(
+            AudioExpressProtocol::CLOCK_RATES.len(),
+            AudioExpressProtocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            AudioExpressProtocol::CLOCK_SRCS.len(),
+            AudioExpressProtocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            F828mk3Protocol::CLOCK_RATES.len(),
+            F828mk3Protocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            F828mk3Protocol::CLOCK_SRCS.len(),
+            F828mk3Protocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            F828mk3HybridProtocol::CLOCK_RATES.len(),
+            F828mk3HybridProtocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            F828mk3HybridProtocol::CLOCK_SRCS.len(),
+            F828mk3HybridProtocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            H4preProtocol::CLOCK_RATES.len(),
+            H4preProtocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            H4preProtocol::CLOCK_SRCS.len(),
+            H4preProtocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            UltraliteMk3Protocol::CLOCK_RATES.len(),
+            UltraliteMk3Protocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            UltraliteMk3Protocol::CLOCK_SRCS.len(),
+            UltraliteMk3Protocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            UltraliteMk3HybridProtocol::CLOCK_RATES.len(),
+            UltraliteMk3HybridProtocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            UltraliteMk3HybridProtocol::CLOCK_SRCS.len(),
+            UltraliteMk3HybridProtocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            TravelerMk3Protocol::CLOCK_RATES.len(),
+            TravelerMk3Protocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            TravelerMk3Protocol::CLOCK_SRCS.len(),
+            TravelerMk3Protocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            Track16Protocol::CLOCK_RATES.len(),
+            Track16Protocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            Track16Protocol::CLOCK_SRCS.len(),
+            Track16Protocol::CLOCK_SRC_VALS.len(),
+        );
+    }
+
+    #[test]
+    fn register_dsp_meter_specification() {
+        assert_eq!(
+            AudioExpressProtocol::OUTPUT_PORT_PAIRS.len(),
+            AudioExpressProtocol::OUTPUT_PORT_PAIR_POS.len()
+        );
+
+        assert_eq!(
+            H4preProtocol::OUTPUT_PORT_PAIRS.len(),
+            H4preProtocol::OUTPUT_PORT_PAIR_POS.len()
+        );
+    }
 }
