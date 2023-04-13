@@ -185,7 +185,7 @@ impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
             Ok(true)
         } else if self
             .input_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -195,7 +195,7 @@ impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
             Ok(true)
         } else if self
             .output_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {

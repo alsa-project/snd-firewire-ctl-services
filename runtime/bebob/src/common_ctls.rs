@@ -183,13 +183,12 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::LEVEL_NAME {
             let mut params = self.state().clone();
-            let vals = &new.int()[..params.levels.len()];
+            let vals = &elem_value.int()[..params.levels.len()];
             params
                 .levels
                 .iter_mut()

@@ -277,7 +277,7 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
             Ok(true)
         } else if self
             .phys_input_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -287,7 +287,7 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
             Ok(true)
         } else if self
             .stream_input_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.spdif_output_ctl.write_selector(

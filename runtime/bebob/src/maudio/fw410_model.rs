@@ -468,7 +468,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             Ok(true)
         } else if self
             .phys_input_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -478,17 +478,17 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             Ok(true)
         } else if self
             .aux_src_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .aux_output_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_output_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.phys_output_ctl.write_selector(
@@ -501,7 +501,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             Ok(true)
         } else if self
             .hp_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
