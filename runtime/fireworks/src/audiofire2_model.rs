@@ -4,7 +4,7 @@
 use {super::*, protocols::audiofire::Audiofire2Protocol};
 
 #[derive(Default, Debug)]
-pub struct Audiofire2 {
+pub struct Audiofire2Model {
     clk_ctl: SamplingClockCtl<Audiofire2Protocol>,
     meter_ctl: HwMeterCtl<Audiofire2Protocol>,
     monitor_ctl: MonitorCtl<Audiofire2Protocol>,
@@ -19,7 +19,7 @@ pub struct Audiofire2 {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndEfw> for Audiofire2 {
+impl CtlModel<SndEfw> for Audiofire2Model {
     fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
@@ -141,7 +141,7 @@ impl CtlModel<SndEfw> for Audiofire2 {
     }
 }
 
-impl MeasureModel<SndEfw> for Audiofire2 {
+impl MeasureModel<SndEfw> for Audiofire2Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
@@ -152,7 +152,7 @@ impl MeasureModel<SndEfw> for Audiofire2 {
     }
 }
 
-impl NotifyModel<SndEfw, bool> for Audiofire2 {
+impl NotifyModel<SndEfw, bool> for Audiofire2Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.elem_id_list);
     }

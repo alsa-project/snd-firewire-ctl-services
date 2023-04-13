@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2023 Takashi Sakamoto
 
-use {super::*, protocols::audiofire::Audiofire9Protocol};
+use {super::*, protocols::audiofire::Audiofire8Protocol};
 
 #[derive(Default, Debug)]
-pub struct Audiofire9 {
-    clk_ctl: SamplingClockCtl<Audiofire9Protocol>,
-    meter_ctl: HwMeterCtl<Audiofire9Protocol>,
-    monitor_ctl: MonitorCtl<Audiofire9Protocol>,
-    playback_ctl: PlaybackCtl<Audiofire9Protocol>,
-    playback_solo_ctl: PlaybackSoloCtl<Audiofire9Protocol>,
-    output_ctl: OutCtl<Audiofire9Protocol>,
-    phys_output_ctl: PhysOutputCtl<Audiofire9Protocol>,
-    phys_input_ctl: PhysInputCtl<Audiofire9Protocol>,
-    digital_mode_ctl: DigitalModeCtl<Audiofire9Protocol>,
-    iec60958_ctl: Iec60958Ctl<Audiofire9Protocol>,
+pub struct Audiofire8Model {
+    clk_ctl: SamplingClockCtl<Audiofire8Protocol>,
+    meter_ctl: HwMeterCtl<Audiofire8Protocol>,
+    monitor_ctl: MonitorCtl<Audiofire8Protocol>,
+    playback_ctl: PlaybackCtl<Audiofire8Protocol>,
+    playback_solo_ctl: PlaybackSoloCtl<Audiofire8Protocol>,
+    output_ctl: OutCtl<Audiofire8Protocol>,
+    phys_output_ctl: PhysOutputCtl<Audiofire8Protocol>,
+    phys_input_ctl: PhysInputCtl<Audiofire8Protocol>,
+    iec60958_ctl: Iec60958Ctl<Audiofire8Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndEfw> for Audiofire9 {
+impl CtlModel<SndEfw> for Audiofire8Model {
     fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.clk_ctl.cache(unit, TIMEOUT_MS)?;
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
@@ -29,7 +28,6 @@ impl CtlModel<SndEfw> for Audiofire9 {
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
         self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
-        self.digital_mode_ctl.cache(unit, TIMEOUT_MS)?;
         self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
@@ -44,7 +42,6 @@ impl CtlModel<SndEfw> for Audiofire9 {
         self.output_ctl.load(card_cntr)?;
         self.phys_output_ctl.load(card_cntr)?;
         self.phys_input_ctl.load(card_cntr)?;
-        self.digital_mode_ctl.load(card_cntr)?;
         self.iec60958_ctl.load(card_cntr)?;
         Ok(())
     }
@@ -70,8 +67,6 @@ impl CtlModel<SndEfw> for Audiofire9 {
         } else if self.phys_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.digital_mode_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -120,11 +115,6 @@ impl CtlModel<SndEfw> for Audiofire9 {
         {
             Ok(true)
         } else if self
-            .digital_mode_ctl
-            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
             .iec60958_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
@@ -135,7 +125,7 @@ impl CtlModel<SndEfw> for Audiofire9 {
     }
 }
 
-impl MeasureModel<SndEfw> for Audiofire9 {
+impl MeasureModel<SndEfw> for Audiofire8Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
@@ -146,7 +136,7 @@ impl MeasureModel<SndEfw> for Audiofire9 {
     }
 }
 
-impl NotifyModel<SndEfw, bool> for Audiofire9 {
+impl NotifyModel<SndEfw, bool> for Audiofire8Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.elem_id_list);
     }
@@ -162,7 +152,6 @@ impl NotifyModel<SndEfw, bool> for Audiofire9 {
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
                 self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
-                self.digital_mode_ctl.cache(unit, TIMEOUT_MS)?;
                 self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }

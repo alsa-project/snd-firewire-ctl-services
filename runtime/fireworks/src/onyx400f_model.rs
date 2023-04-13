@@ -1,27 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2023 Takashi Sakamoto
 
-use {super::*, protocols::audiofire::Audiofire12LaterProtocol};
+use {super::*, protocols::onyx_f::Onyx400fProtocol};
 
 #[derive(Default, Debug)]
-pub struct Audiofire12Later {
+pub struct Onyx400fModel {
     higher_rates_supported: bool,
-    clk_ctl: SamplingClockCtl<Audiofire12LaterProtocol>,
-    meter_ctl: HwMeterCtl<Audiofire12LaterProtocol>,
-    monitor_ctl: MonitorCtl<Audiofire12LaterProtocol>,
-    playback_ctl: PlaybackCtl<Audiofire12LaterProtocol>,
-    playback_solo_ctl: PlaybackSoloCtl<Audiofire12LaterProtocol>,
-    output_ctl: OutCtl<Audiofire12LaterProtocol>,
-    phys_output_ctl: PhysOutputCtl<Audiofire12LaterProtocol>,
-    phys_input_ctl: PhysInputCtl<Audiofire12LaterProtocol>,
+    clk_ctl: SamplingClockCtl<Onyx400fProtocol>,
+    meter_ctl: HwMeterCtl<Onyx400fProtocol>,
+    monitor_ctl: MonitorCtl<Onyx400fProtocol>,
+    playback_ctl: PlaybackCtl<Onyx400fProtocol>,
+    output_ctl: OutCtl<Onyx400fProtocol>,
+    control_room_ctl: ControlRoomSourceCtl<Onyx400fProtocol>,
+    iec60958_ctl: Iec60958Ctl<Onyx400fProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndEfw> for Audiofire12Later {
+impl CtlModel<SndEfw> for Onyx400fModel {
     fn cache(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         let mut hw_info = HwInfo::default();
-        let res = Audiofire12LaterProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
+        let res = Onyx400fProtocol::cache_wholly(unit, &mut hw_info, TIMEOUT_MS);
         debug!(params = ?hw_info, ?res);
         res?;
 
@@ -35,22 +34,21 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         self.meter_ctl.cache(unit, TIMEOUT_MS)?;
         self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
         self.playback_ctl.cache(unit, TIMEOUT_MS)?;
-        self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
         self.output_ctl.cache(unit, TIMEOUT_MS)?;
-        self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
-        self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+        self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
+        self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
 
         Ok(())
     }
+
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctl.load(card_cntr, self.higher_rates_supported)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
         self.playback_ctl.load(card_cntr)?;
-        self.playback_solo_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
-        self.phys_output_ctl.load(card_cntr)?;
-        self.phys_input_ctl.load(card_cntr)?;
+        self.control_room_ctl.load(card_cntr)?;
+        self.iec60958_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -68,13 +66,11 @@ impl CtlModel<SndEfw> for Audiofire12Later {
             Ok(true)
         } else if self.playback_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.playback_solo_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phys_output_ctl.read(elem_id, elem_value)? {
+        } else if self.control_room_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phys_input_ctl.read(elem_id, elem_value)? {
+        } else if self.iec60958_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -101,22 +97,17 @@ impl CtlModel<SndEfw> for Audiofire12Later {
         {
             Ok(true)
         } else if self
-            .playback_solo_ctl
-            .write(unit, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
             .output_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
-            .phys_output_ctl
+            .control_room_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
-            .phys_input_ctl
+            .iec60958_ctl
             .write(unit, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -126,7 +117,7 @@ impl CtlModel<SndEfw> for Audiofire12Later {
     }
 }
 
-impl MeasureModel<SndEfw> for Audiofire12Later {
+impl MeasureModel<SndEfw> for Onyx400fModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
@@ -137,7 +128,7 @@ impl MeasureModel<SndEfw> for Audiofire12Later {
     }
 }
 
-impl NotifyModel<SndEfw, bool> for Audiofire12Later {
+impl NotifyModel<SndEfw, bool> for Onyx400fModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.elem_id_list);
     }
@@ -149,10 +140,9 @@ impl NotifyModel<SndEfw, bool> for Audiofire12Later {
             if self.clk_ctl.params.rate != rate {
                 self.monitor_ctl.cache(unit, TIMEOUT_MS)?;
                 self.playback_ctl.cache(unit, TIMEOUT_MS)?;
-                self.playback_solo_ctl.cache(unit, TIMEOUT_MS)?;
                 self.output_ctl.cache(unit, TIMEOUT_MS)?;
-                self.phys_output_ctl.cache(unit, TIMEOUT_MS)?;
-                self.phys_input_ctl.cache(unit, TIMEOUT_MS)?;
+                self.control_room_ctl.cache(unit, TIMEOUT_MS)?;
+                self.iec60958_ctl.cache(unit, TIMEOUT_MS)?;
             }
         }
         Ok(())

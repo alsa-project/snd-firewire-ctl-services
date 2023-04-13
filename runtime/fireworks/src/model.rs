@@ -3,8 +3,9 @@
 
 use {
     super::{
-        audiofire12_former::*, audiofire12_later::*, audiofire2::*, audiofire4::*, audiofire8::*,
-        audiofire9::*, onyx1200f::*, onyx400f::*, rip::*, *,
+        audiofire12_former_model::*, audiofire12_later_model::*, audiofire2_model::*,
+        audiofire4_model::*, audiofire8_model::*, audiofire9_model::*, onyx1200f_model::*,
+        onyx400f_model::*, rip_model::*, *,
     },
     ieee1212_config_rom::ConfigRom,
     std::convert::TryFrom,
@@ -12,15 +13,15 @@ use {
 };
 
 pub(crate) enum EfwModel {
-    Onyx1200f(Onyx1200f),
-    Onyx400f(Onyx400f),
-    Audiofire8(Audiofire8),
-    Audiofire12Former(Audiofire12Former),
-    Audiofire12Later(Audiofire12Later),
-    Audiofire2(Audiofire2),
-    Audiofire4(Audiofire4),
-    Audiofire9(Audiofire9),
-    Rip(Rip),
+    Onyx1200f(Onyx1200fModel),
+    Onyx400f(Onyx400fModel),
+    Audiofire8(Audiofire8Model),
+    Audiofire12Former(Audiofire12FormerModel),
+    Audiofire12Later(Audiofire12LaterModel),
+    Audiofire2(Audiofire2Model),
+    Audiofire4(Audiofire4Model),
+    Audiofire9(Audiofire9Model),
+    Rip(RipModel),
 }
 
 impl EfwModel {
@@ -62,7 +63,7 @@ impl EfwModel {
             Self::Audiofire12Former(model) => {
                 // Swap model instance for later model if detected.
                 if model.is_later_model(unit)? {
-                    let mut model = Audiofire12Later::default();
+                    let mut model = Audiofire12LaterModel::default();
                     model
                         .cache(unit)
                         .map(|_| *self = Self::Audiofire12Later(model))
