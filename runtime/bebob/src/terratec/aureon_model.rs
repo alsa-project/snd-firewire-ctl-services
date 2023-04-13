@@ -278,7 +278,7 @@ impl CtlModel<(SndUnit, FwNode)> for AureonModel {
             Ok(true)
         } else if self
             .mon_out_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -288,7 +288,7 @@ impl CtlModel<(SndUnit, FwNode)> for AureonModel {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self

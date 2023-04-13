@@ -310,13 +310,12 @@ pub trait AvcMuteCtlOperation<T: AvcMuteOperation> {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::MUTE_NAME {
             let mut params = self.state().clone();
-            let vals = &new.boolean()[..params.mutes.len()];
+            let vals = &elem_value.boolean()[..params.mutes.len()];
             params.mutes.copy_from_slice(&vals);
             let res = T::update_mutes(avc, &params, self.state_mut(), timeout_ms);
             debug!(params = ?self.state(), ?res);

@@ -159,32 +159,32 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
+            .write_freq(&mut unit.0, &self.avc, elem_id, elem_value, FCP_TIMEOUT_MS * 3)?
         {
             Ok(true)
         } else if self
             .clk_ctl
-            .write_src(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_src(&mut unit.0, &self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_balance(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {
