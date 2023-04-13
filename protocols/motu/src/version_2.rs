@@ -1082,3 +1082,116 @@ impl MotuRegisterDspMeterSpecification for F896hdProtocol {
 }
 
 impl MotuRegisterDspMeterOutputTargetSpecification for F896hdProtocol {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn common_assign_port_specification() {
+        assert_eq!(
+            F828mk2Protocol::ASSIGN_PORT_TARGETS.len(),
+            F828mk2Protocol::ASSIGN_PORT_VALS.len()
+        );
+        assert_eq!(
+            F8preProtocol::ASSIGN_PORT_TARGETS.len(),
+            F8preProtocol::ASSIGN_PORT_VALS.len()
+        );
+        assert_eq!(
+            TravelerProtocol::ASSIGN_PORT_TARGETS.len(),
+            TravelerProtocol::ASSIGN_PORT_VALS.len()
+        );
+        assert_eq!(
+            UltraliteProtocol::ASSIGN_PORT_TARGETS.len(),
+            UltraliteProtocol::ASSIGN_PORT_VALS.len()
+        );
+        assert_eq!(
+            F896hdProtocol::ASSIGN_PORT_TARGETS.len(),
+            F896hdProtocol::ASSIGN_PORT_VALS.len()
+        );
+    }
+
+    #[test]
+    fn v2_clock_specification() {
+        assert_eq!(
+            F828mk2Protocol::CLK_RATES.len(),
+            F828mk2Protocol::CLK_RATE_VALS.len()
+        );
+        assert_eq!(
+            F828mk2Protocol::CLK_SRCS.len(),
+            F828mk2Protocol::CLK_SRC_VALS.len()
+        );
+
+        assert_eq!(
+            F8preProtocol::CLK_RATES.len(),
+            F8preProtocol::CLK_RATE_VALS.len()
+        );
+        assert_eq!(
+            F8preProtocol::CLK_SRCS.len(),
+            F8preProtocol::CLK_SRC_VALS.len()
+        );
+
+        assert_eq!(
+            TravelerProtocol::CLK_RATES.len(),
+            TravelerProtocol::CLK_RATE_VALS.len()
+        );
+        assert_eq!(
+            TravelerProtocol::CLK_SRCS.len(),
+            TravelerProtocol::CLK_SRC_VALS.len()
+        );
+
+        assert_eq!(
+            UltraliteProtocol::CLK_RATES.len(),
+            UltraliteProtocol::CLK_RATE_VALS.len()
+        );
+        assert_eq!(
+            UltraliteProtocol::CLK_SRCS.len(),
+            UltraliteProtocol::CLK_SRC_VALS.len()
+        );
+
+        assert_eq!(
+            F896hdProtocol::CLK_RATES.len(),
+            F896hdProtocol::CLK_RATE_VALS.len()
+        );
+        assert_eq!(
+            F896hdProtocol::CLK_SRCS.len(),
+            F896hdProtocol::CLK_SRC_VALS.len()
+        );
+    }
+
+    #[test]
+    fn register_dsp_meter_specification() {
+        assert_eq!(
+            F828mk2Protocol::OUTPUT_PORT_PAIRS.len(),
+            F828mk2Protocol::OUTPUT_PORT_PAIR_POS.len(),
+        );
+
+        assert_eq!(
+            F8preProtocol::OUTPUT_PORT_PAIRS.len(),
+            F8preProtocol::OUTPUT_PORT_PAIR_POS.len(),
+        );
+
+        assert_eq!(
+            TravelerProtocol::OUTPUT_PORT_PAIRS.len(),
+            TravelerProtocol::OUTPUT_PORT_PAIR_POS.len(),
+        );
+
+        assert_eq!(
+            UltraliteProtocol::OUTPUT_PORT_PAIRS.len(),
+            UltraliteProtocol::OUTPUT_PORT_PAIR_POS.len(),
+        );
+
+        assert_eq!(
+            F896hdProtocol::OUTPUT_PORT_PAIRS.len(),
+            F896hdProtocol::OUTPUT_PORT_PAIR_POS.len(),
+        );
+    }
+
+    #[test]
+    fn ultralite_specification() {
+        assert_eq!(
+            UltraliteProtocol::KNOB_TARGETS.len(),
+            KNOB_TARGET_VALS.len()
+        );
+    }
+}
