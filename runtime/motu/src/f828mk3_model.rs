@@ -251,7 +251,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Model {
         (_, node): &mut (SndMotu, FwNode),
         msg: &u32,
     ) -> Result<(), Error> {
-        if *msg & F828mk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
+        if *msg & F828mk3Protocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
                 .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.phone_assign_ctl
@@ -320,7 +320,7 @@ impl CommandDspModel for F828mk3Model {
     }
 
     fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::begin_messaging(
+        F828mk3Protocol::begin_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
@@ -329,7 +329,7 @@ impl CommandDspModel for F828mk3Model {
     }
 
     fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::cancel_messaging(
+        F828mk3Protocol::cancel_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
