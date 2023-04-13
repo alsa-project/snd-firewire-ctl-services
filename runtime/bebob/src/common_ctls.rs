@@ -35,15 +35,14 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
         unit: &mut SndUnit,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 unit.lock()?;
                 let mut params = self.state().clone();
-                params.freq_idx = new.enumerated()[0] as usize;
+                params.freq_idx = elem_value.enumerated()[0] as usize;
                 let res = T::update_freq(avc, &params, self.state_mut(), timeout_ms);
                 debug!(params = ?self.state(), ?res);
                 let _ = unit.unlock();

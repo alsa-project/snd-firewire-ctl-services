@@ -101,17 +101,13 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(
-            &mut unit.0,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS * 3,
-        )? {
+        if self
+            .clk_ctl
+            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
         } else if self.input_ctl.write_params(
             &mut self.cache,
