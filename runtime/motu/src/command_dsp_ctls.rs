@@ -2254,16 +2254,19 @@ fn leveler_mode_to_str(mode: &LevelerMode) -> &'static str {
     }
 }
 
-// TODO: better trait parameters to distinguish input and output.
 pub trait CommandDspDynamicsCtlOperation<T, U>
 where
-    T: MotuCommandDspDynamicsSpecification + MotuCommandDspUpdatableParamsOperation<U>,
-    U: Clone + AsRef<CommandDspDynamicsState> + AsMut<CommandDspDynamicsState>,
+    T: MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<U>
+        + MotuCommandDspUpdatableParamsOperation<U>,
+    U: Clone + std::fmt::Debug + AsRef<CommandDspDynamicsState> + AsMut<CommandDspDynamicsState>,
 {
     const CH_COUNT: usize;
 
     fn params(&self) -> &U;
     fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
 
     const ENABLE_NAME: &'static str = "input-dynamics-enable";
 
@@ -2284,7 +2287,7 @@ where
 
     const LEVELER_MODES: [LevelerMode; 2] = [LevelerMode::Compress, LevelerMode::Limit];
 
-    fn load_dynamics(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut notified_elem_id_list = Vec::new();
 
         // Enable.
@@ -2418,14 +2421,12 @@ where
             )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        self.elem_id_list_mut().append(&mut notified_elem_id_list);
+
+        Ok(())
     }
 
-    fn read_dynamics(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
@@ -2485,7 +2486,7 @@ where
         }
     }
 
-    fn write_dynamics(
+    fn write(
         &mut self,
         sequence_number: &mut u8,
         req: &mut FwReq,
@@ -2508,7 +2509,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2522,7 +2523,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_DETECT_MODE_NAME {
             let mut params = self.params().clone();
@@ -2540,7 +2541,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_THRESHOLD_NAME {
             let mut params = self.params().clone();
@@ -2554,7 +2555,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_RATIO_NAME {
             let mut params = self.params().clone();
@@ -2568,7 +2569,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_ATTACK_NAME {
             let mut params = self.params().clone();
@@ -2582,7 +2583,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_RELEASE_NAME {
             let mut params = self.params().clone();
@@ -2596,7 +2597,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::COMP_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2610,7 +2611,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2624,7 +2625,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_MODE_NAME {
             let mut params = self.params().clone();
@@ -2638,7 +2639,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_MAKEUP_NAME {
             let mut params = self.params().clone();
@@ -2652,7 +2653,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LEVELER_REDUCE_NAME {
             let mut params = self.params().clone();
@@ -2666,11 +2667,19 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else {
             Ok(false)
         }
+    }
+
+    fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        let res = T::parse_command(self.params_mut(), cmd);
+        if res {
+            debug!(params = ?self.params());
+        }
+        res
     }
 }
 
@@ -3220,13 +3229,43 @@ where
     }
 }
 
-impl<T> CommandDspDynamicsCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
+#[derive(Debug)]
+pub struct CommandDspInputDynamicsCtl<T>
 where
     T: MotuCommandDspInputSpecification
-        + MotuCommandDspEqualizerSpecification
         + MotuCommandDspDynamicsSpecification
-        + MotuCommandDspParametersOperation<CommandDspInputState>
-        + MotuCommandDspUpdatableParamsOperation<CommandDspInputState>,
+        + MotuCommandDspParametersOperation<CommandDspInputDynamicsState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspInputDynamicsState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: CommandDspInputDynamicsState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for CommandDspInputDynamicsCtl<T>
+where
+    T: MotuCommandDspInputSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspInputDynamicsState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspInputDynamicsState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_dynamics_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> CommandDspDynamicsCtlOperation<T, CommandDspInputDynamicsState>
+    for CommandDspInputDynamicsCtl<T>
+where
+    T: CommandDspOperation
+        + MotuCommandDspInputSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspInputEqualizerState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspInputEqualizerState>,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
 
@@ -3245,12 +3284,16 @@ where
     const LEVELER_MAKEUP_NAME: &'static str = "input-dynamics-leveler-makeup";
     const LEVELER_REDUCE_NAME: &'static str = "input-dynamics-leveler-reduce";
 
-    fn params(&self) -> &CommandDspInputState {
+    fn params(&self) -> &CommandDspInputDynamicsState {
         &self.params
     }
 
-    fn params_mut(&mut self) -> &mut CommandDspInputState {
+    fn params_mut(&mut self) -> &mut CommandDspInputDynamicsState {
         &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
     }
 }
 
@@ -3560,13 +3603,43 @@ where
     }
 }
 
-impl<T> CommandDspDynamicsCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
+#[derive(Debug)]
+pub struct CommandDspOutputDynamicsCtl<T>
 where
     T: MotuCommandDspOutputSpecification
-        + MotuCommandDspEqualizerSpecification
         + MotuCommandDspDynamicsSpecification
-        + MotuCommandDspParametersOperation<CommandDspOutputState>
-        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
+        + MotuCommandDspParametersOperation<CommandDspOutputDynamicsState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputDynamicsState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: CommandDspOutputDynamicsState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for CommandDspOutputDynamicsCtl<T>
+where
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputDynamicsState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputDynamicsState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_dynamics_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> CommandDspDynamicsCtlOperation<T, CommandDspOutputDynamicsState>
+    for CommandDspOutputDynamicsCtl<T>
+where
+    T: CommandDspOperation
+        + MotuCommandDspOutputSpecification
+        + MotuCommandDspDynamicsSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputDynamicsState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputDynamicsState>,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -3585,12 +3658,16 @@ where
     const LEVELER_MAKEUP_NAME: &'static str = "output-dynamics-leveler-makeup";
     const LEVELER_REDUCE_NAME: &'static str = "output-dynamics-leveler-reduce";
 
-    fn params(&self) -> &CommandDspOutputState {
+    fn params(&self) -> &CommandDspOutputDynamicsState {
         &self.params
     }
 
-    fn params_mut(&mut self) -> &mut CommandDspOutputState {
+    fn params_mut(&mut self) -> &mut CommandDspOutputDynamicsState {
         &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
     }
 }
 
