@@ -320,7 +320,7 @@ impl CommandDspModel for F828mk3HybridModel {
     }
 
     fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::begin_messaging(
+        F828mk3HybridProtocol::begin_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
@@ -329,7 +329,7 @@ impl CommandDspModel for F828mk3HybridModel {
     }
 
     fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::cancel_messaging(
+        F828mk3HybridProtocol::cancel_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
