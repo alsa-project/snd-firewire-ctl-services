@@ -2895,6 +2895,26 @@ pub trait MotuCommandDspInputSpecification {
             hf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
         })
     }
+
+    /// Instantiate input dynamics parameters.
+    fn create_input_dynamics_state() -> CommandDspInputDynamicsState {
+        CommandDspInputDynamicsState(CommandDspDynamicsState {
+            enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+            comp_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_detect_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_threshold: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_ratio: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_attack: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_release: vec![Default::default(); Self::INPUT_PORTS.len()],
+            comp_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+            leveler_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+            leveler_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+            leveler_makeup: vec![Default::default(); Self::INPUT_PORTS.len()],
+            leveler_reduce: vec![Default::default(); Self::INPUT_PORTS.len()],
+        })
+    }
 }
 
 impl<O> MotuCommandDspParametersOperation<CommandDspInputState> for O
@@ -3049,6 +3069,51 @@ where
     }
 }
 
+/// State of input equalizers.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct CommandDspInputDynamicsState(pub CommandDspDynamicsState);
+
+impl AsRef<CommandDspDynamicsState> for CommandDspInputDynamicsState {
+    fn as_ref(&self) -> &CommandDspDynamicsState {
+        &self.0
+    }
+}
+
+impl AsMut<CommandDspDynamicsState> for CommandDspInputDynamicsState {
+    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
+        &mut self.0
+    }
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspInputDynamicsState> for O
+where
+    O: MotuCommandDspInputSpecification + MotuCommandDspDynamicsSpecification,
+{
+    fn build_commands(params: &CommandDspInputDynamicsState) -> Vec<DspCmd> {
+        let mut cmds = Vec::new();
+
+        (0..Self::INPUT_PORTS.len()).for_each(|ch| {
+            Self::create_dynamics_parameters(&params.0, ch)
+                .into_iter()
+                .for_each(|param| {
+                    let cmd = DspCmd::Input(InputCmd::Dynamics(ch, param));
+                    cmds.push(cmd);
+                });
+        });
+
+        cmds
+    }
+
+    fn parse_command(params: &mut CommandDspInputDynamicsState, command: &DspCmd) -> bool {
+        if let DspCmd::Input(InputCmd::Dynamics(ch, param)) = command {
+            Self::parse_dynamics_parameter(&mut params.0, param, *ch);
+            true
+        } else {
+            false
+        }
+    }
+}
+
 /// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspOutputState {
@@ -3164,6 +3229,25 @@ pub trait MotuCommandDspOutputSpecification {
             hf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
         })
     }
+
+    fn create_output_dynamics_state() -> CommandDspOutputDynamicsState {
+        CommandDspOutputDynamicsState(CommandDspDynamicsState {
+            enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+            comp_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_detect_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_threshold: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_ratio: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_attack: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_release: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            comp_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+            leveler_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            leveler_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            leveler_makeup: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            leveler_reduce: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+        })
+    }
 }
 
 impl<O> MotuCommandDspParametersOperation<CommandDspOutputState> for O
@@ -3277,6 +3361,51 @@ where
     fn parse_command(params: &mut CommandDspOutputEqualizerState, command: &DspCmd) -> bool {
         if let DspCmd::Output(OutputCmd::Equalizer(ch, param)) = command {
             Self::parse_equalizer_parameter(&mut params.0, param, *ch);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+/// State of output dynamics.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct CommandDspOutputDynamicsState(pub CommandDspDynamicsState);
+
+impl AsRef<CommandDspDynamicsState> for CommandDspOutputDynamicsState {
+    fn as_ref(&self) -> &CommandDspDynamicsState {
+        &self.0
+    }
+}
+
+impl AsMut<CommandDspDynamicsState> for CommandDspOutputDynamicsState {
+    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
+        &mut self.0
+    }
+}
+
+impl<O> MotuCommandDspParametersOperation<CommandDspOutputDynamicsState> for O
+where
+    O: MotuCommandDspOutputSpecification + MotuCommandDspDynamicsSpecification,
+{
+    fn build_commands(params: &CommandDspOutputDynamicsState) -> Vec<DspCmd> {
+        let mut cmds = Vec::new();
+
+        (0..Self::OUTPUT_PORTS.len()).for_each(|ch| {
+            Self::create_dynamics_parameters(&params.0, ch)
+                .into_iter()
+                .for_each(|param| {
+                    let cmd = DspCmd::Output(OutputCmd::Dynamics(ch, param));
+                    cmds.push(cmd);
+                });
+        });
+
+        cmds
+    }
+
+    fn parse_command(params: &mut CommandDspOutputDynamicsState, command: &DspCmd) -> bool {
+        if let DspCmd::Output(OutputCmd::Dynamics(ch, param)) = command {
+            Self::parse_dynamics_parameter(&mut params.0, param, *ch);
             true
         } else {
             false
