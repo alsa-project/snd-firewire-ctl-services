@@ -222,33 +222,35 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self.clk_ctl.write_src(
             &mut unit.0,
             &self.avc,
             elem_id,
-            old,
-            new,
+            elem_value,
             FCP_TIMEOUT_MS * 3,
         )? {
             Ok(true)
         } else if self
             .out_ctl
-            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.specific_ctl.write_params(
             &self.req,
             &unit.1,
             elem_id,
-            new,
+            elem_value,
             &mut self.separated_mixer_ctl.1,
             &mut self.paired_mixer_ctl.1,
             TIMEOUT_MS,
@@ -259,7 +261,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
             unit,
             &self.req,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
@@ -268,14 +270,17 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
             unit,
             &self.req,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .reverb_ctl
-            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.reverb_ctl.write_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
