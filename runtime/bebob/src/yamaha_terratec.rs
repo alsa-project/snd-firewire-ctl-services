@@ -428,7 +428,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
             Ok(true)
         } else if self
             .mixer_src_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -438,7 +438,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -551,7 +551,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -566,7 +566,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
             Ok(true)
         } else if self
             .mixer_src_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -576,7 +576,7 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
