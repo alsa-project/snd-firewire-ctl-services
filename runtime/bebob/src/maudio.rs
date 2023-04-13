@@ -258,15 +258,14 @@ trait MaudioNormalMeterCtlOperation<O: MaudioNormalMeterProtocol> {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             SWITCH_NAME => {
                 if O::HAS_SWITCH {
                     if let Some(switch) = &mut self.state_mut().switch {
-                        let pos = new.enumerated()[0] as usize;
+                        let pos = elem_value.enumerated()[0] as usize;
                         let &state = SWITCH_LIST.iter().nth(pos).ok_or_else(|| {
                             let msg = format!("Invalid index for LED switch: {}", pos);
                             Error::new(FileError::Inval, &msg)
