@@ -109,25 +109,28 @@ impl CtlModel<(SndUnit, FwNode)> for PflModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self.clk_ctl.write_src(
             &mut unit.0,
             &self.avc,
             elem_id,
-            new,
+            elem_value,
             FCP_TIMEOUT_MS * 3,
         )? {
             Ok(true)
         } else if self
             .input_params_ctl
-            .write(unit, &self.req, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -302,8 +305,7 @@ impl InputParamsCtl {
         unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
@@ -314,7 +316,7 @@ impl InputParamsCtl {
 
                 let mut params = self.0.clone();
                 let mutes = &mut params.adat_mute;
-                let vals = &new.boolean()[..mutes.len()];
+                let vals = &elem_value.boolean()[..mutes.len()];
                 mutes.copy_from_slice(vals);
 
                 PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
@@ -326,14 +328,14 @@ impl InputParamsCtl {
                 }
 
                 let mut params = self.0.clone();
-                params.spdif_mute = new.boolean()[0];
+                params.spdif_mute = elem_value.boolean()[0];
 
                 PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
                     .map(|_| true)
             }
             Self::FORCE_SMUX_NAME => {
                 let mut params = self.0.clone();
-                params.force_smux = new.boolean()[0];
+                params.force_smux = elem_value.boolean()[0];
 
                 PflInputParametersProtocol::update(req, &unit.1, &mut params, timeout_ms)
                     .map(|_| true)
