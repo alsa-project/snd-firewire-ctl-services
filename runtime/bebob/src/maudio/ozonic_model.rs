@@ -251,7 +251,7 @@ impl CtlModel<(SndUnit, FwNode)> for OzonicModel {
             Ok(true)
         } else if self
             .phys_input_ctl
-            .write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_balance(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
