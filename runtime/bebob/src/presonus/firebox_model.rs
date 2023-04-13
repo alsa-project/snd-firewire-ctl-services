@@ -372,14 +372,13 @@ impl AnalogInputCtl {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::SWITCH_NAME => {
                 let mut params = self.0.clone();
-                let vals = &new.boolean()[..params.boosts.len()];
+                let vals = &elem_value.boolean()[..params.boosts.len()];
                 params.boosts.copy_from_slice(&vals);
                 let res = FireboxAnalogInputProtocol::update(avc, &params, &mut self.0, timeout_ms);
                 debug!(params = ?self.0, ?res);
@@ -508,99 +507,121 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
+            Ok(true)
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .clk_ctl
-            .write_src(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .phys_out_ctl
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.write_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .phys_out_ctl
-            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .headphone_ctl
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .headphone_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .headphone_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.headphone_ctl.write_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .headphone_ctl
-            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_phys_src_ctl.write_level(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_phys_src_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_phys_src_ctl.write_balance(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_phys_src_ctl
-            .write_balance(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_phys_src_ctl.write_mute(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_phys_src_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_stream_src_ctl.write_level(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_stream_src_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .mixer_stream_src_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.mixer_stream_src_ctl.write_mute(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.write_selector(
             &self.avc,
             elem_id,
-            new,
+            elem_value,
             FCP_TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_balance(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_balance(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .mixer_out_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .analog_in_ctl
-            .write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {
