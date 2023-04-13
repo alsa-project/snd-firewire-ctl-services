@@ -388,7 +388,6 @@ impl CtlModel<(SndUnit, FwNode)> for AudiophileModel {
             &mut unit.0,
             &self.avc,
             elem_id,
-            old,
             new,
             FCP_TIMEOUT_MS * 3,
         )? {

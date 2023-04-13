@@ -99,15 +99,14 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
         unit: &mut SndUnit,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 unit.lock()?;
                 let mut params = self.state().clone();
-                params.src_idx = new.enumerated()[0] as usize;
+                params.src_idx = elem_value.enumerated()[0] as usize;
                 let res = T::update_src(avc, &params, self.state_mut(), timeout_ms);
                 debug!(params = ?self.state(), ?res);
                 let _ = unit.unlock();

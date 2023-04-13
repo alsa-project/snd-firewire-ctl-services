@@ -462,7 +462,6 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             &mut unit.0,
             &self.avc,
             elem_id,
-            old,
             new,
             FCP_TIMEOUT_MS * 3,
         )? {

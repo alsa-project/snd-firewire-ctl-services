@@ -178,14 +178,10 @@ impl CtlModel<(SndUnit, FwNode)> for Quatafire610Model {
             .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
         {
             Ok(true)
-        } else if self.clk_ctl.write_src(
-            &mut unit.0,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .clk_ctl
+            .write_src(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .input_ctl

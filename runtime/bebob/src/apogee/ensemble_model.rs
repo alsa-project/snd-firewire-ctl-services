@@ -143,57 +143,68 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self.clk_ctl.write_src(
             &mut unit.0,
             &self.avc,
             elem_id,
-            old,
-            new,
+            elem_value,
             FCP_TIMEOUT_MS * 3,
         )? {
             Ok(true)
-        } else if self
-            .convert_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.convert_ctl.write_params(
+            &mut self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .display_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.display_ctl.write_params(
+            &mut self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .input_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_params(&mut self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .output_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.output_ctl.write_params(
+            &mut self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .route_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_params(&mut self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_params(&mut self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .stream_ctl
-            .write_params(unit, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.stream_ctl.write_params(
+            unit,
+            &mut self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(true)
