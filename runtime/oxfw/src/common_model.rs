@@ -28,12 +28,7 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndUnit, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
@@ -45,7 +40,6 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self

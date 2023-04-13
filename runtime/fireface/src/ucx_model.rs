@@ -37,12 +37,7 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndFireface, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.dsp_ctl.read(elem_id, elem_value)? {
@@ -60,7 +55,6 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         &mut self,
         unit: &mut (SndFireface, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self

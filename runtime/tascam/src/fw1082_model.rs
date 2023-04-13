@@ -174,12 +174,7 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndTascam, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.clock_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_threshold_ctl.read(elem_id, elem_value)? {
@@ -199,7 +194,6 @@ impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
         &mut self,
         unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clock_ctl.write(

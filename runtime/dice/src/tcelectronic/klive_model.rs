@@ -74,12 +74,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut (SndDice, FwNode),
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(elem_id, elem_value)? {
@@ -109,7 +104,6 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(

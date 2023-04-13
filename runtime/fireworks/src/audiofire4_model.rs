@@ -52,12 +52,7 @@ impl CtlModel<SndEfw> for Audiofire4Model {
         Ok(())
     }
 
-    fn read(
-        &mut self,
-        _: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
@@ -92,7 +87,6 @@ impl CtlModel<SndEfw> for Audiofire4Model {
         &mut self,
         unit: &mut SndEfw,
         elem_id: &ElemId,
-        _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, elem_value, TIMEOUT_MS)? {
