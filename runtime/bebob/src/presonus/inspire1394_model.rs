@@ -623,13 +623,10 @@ impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
             .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.write_balance(
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_phys_src_ctl
+            .write_balance(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_mute(
             &self.avc,
