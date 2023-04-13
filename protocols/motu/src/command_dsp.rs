@@ -2755,8 +2755,6 @@ pub struct CommandDspInputState {
     /// The left and right balance to send to reverb effect.
     pub reverb_balance: Vec<f32>,
 
-    /// The parameters of qeualizers for each input.
-    pub equalizer: CommandDspEqualizerState,
     /// The parameters of dynamics for each input.
     pub dynamics: CommandDspDynamicsState,
 
@@ -2772,18 +2770,6 @@ pub struct CommandDspInputState {
     pub lookahead: Vec<bool>,
     /// Whether to enable soft clipping.
     pub soft_clip: Vec<bool>,
-}
-
-impl AsRef<CommandDspEqualizerState> for CommandDspInputState {
-    fn as_ref(&self) -> &CommandDspEqualizerState {
-        &self.equalizer
-    }
-}
-
-impl AsMut<CommandDspEqualizerState> for CommandDspInputState {
-    fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
-        &mut self.equalizer
-    }
 }
 
 impl AsRef<CommandDspDynamicsState> for CommandDspInputState {
@@ -2840,47 +2826,6 @@ pub trait MotuCommandDspInputSpecification {
             width: vec![Default::default(); Self::INPUT_PORTS.len()],
             reverb_send: vec![Default::default(); Self::INPUT_PORTS.len()],
             reverb_balance: vec![Default::default(); Self::INPUT_PORTS.len()],
-            equalizer: CommandDspEqualizerState {
-                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                hpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                lpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                lf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                lmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-                lmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                mf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                mf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
-                mf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-                mf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-                mf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                hmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                hf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-                hf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
-            },
             dynamics: CommandDspDynamicsState {
                 enable: vec![Default::default(); Self::INPUT_PORTS.len()],
 
@@ -2954,9 +2899,7 @@ pub trait MotuCommandDspInputSpecification {
 
 impl<O> MotuCommandDspParametersOperation<CommandDspInputState> for O
 where
-    O: MotuCommandDspInputSpecification
-        + MotuCommandDspEqualizerSpecification
-        + MotuCommandDspDynamicsSpecification,
+    O: MotuCommandDspInputSpecification + MotuCommandDspDynamicsSpecification,
 {
     fn build_commands(params: &CommandDspInputState) -> Vec<DspCmd> {
         let mut cmds = Vec::new();
@@ -2971,10 +2914,6 @@ where
                 params.stereo_mode[ch],
             )));
             cmds.push(DspCmd::Input(InputCmd::Width(ch, params.width[ch])));
-
-            O::create_equalizer_parameters(&params.equalizer, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Equalizer(ch, param))));
 
             O::create_dynamics_parameters(&params.dynamics, ch)
                 .into_iter()
@@ -3011,30 +2950,54 @@ where
     fn parse_command(params: &mut CommandDspInputState, command: &DspCmd) -> bool {
         if let DspCmd::Input(cmd) = command {
             match cmd {
-                InputCmd::Phase(ch, val) => params.phase[*ch] = *val,
-                InputCmd::Pair(ch, val) => params.pair[*ch] = *val,
-                InputCmd::Gain(ch, val) => params.gain[*ch] = *val,
-                InputCmd::Swap(ch, val) => params.swap[*ch] = *val,
-                InputCmd::StereoMode(ch, val) => params.stereo_mode[*ch] = *val,
-                InputCmd::Width(ch, val) => params.width[*ch] = *val,
-                InputCmd::Equalizer(ch, param) => {
-                    O::parse_equalizer_parameter(&mut params.equalizer, param, *ch)
+                InputCmd::Phase(ch, val) => {
+                    params.phase[*ch] = *val;
+                    true
+                }
+                InputCmd::Pair(ch, val) => {
+                    params.pair[*ch] = *val;
+                    true
+                }
+                InputCmd::Gain(ch, val) => {
+                    params.gain[*ch] = *val;
+                    true
+                }
+                InputCmd::Swap(ch, val) => {
+                    params.swap[*ch] = *val;
+                    true
+                }
+                InputCmd::StereoMode(ch, val) => {
+                    params.stereo_mode[*ch] = *val;
+                    true
+                }
+                InputCmd::Width(ch, val) => {
+                    params.width[*ch] = *val;
+                    true
                 }
                 InputCmd::Dynamics(ch, param) => {
-                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch)
+                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch);
+                    true
                 }
-                InputCmd::ReverbSend(ch, val) => params.reverb_send[*ch] = *val,
-                InputCmd::ReverbLrBalance(ch, val) => params.reverb_balance[*ch] = *val,
+                InputCmd::ReverbSend(ch, val) => {
+                    params.reverb_send[*ch] = *val;
+                    true
+                }
+                InputCmd::ReverbLrBalance(ch, val) => {
+                    params.reverb_balance[*ch] = *val;
+                    true
+                }
                 InputCmd::NominalLevel(ch, val) => {
                     if *ch >= params.pad.len()
                         && *ch < params.pad.len() + params.nominal_level.len()
                     {
                         params.nominal_level[*ch - params.pad.len()] = *val;
+                        true
+                    } else {
+                        false
                     }
                 }
-                _ => (),
-            };
-            true
+                _ => false,
+            }
         } else {
             false
         }
@@ -3089,8 +3052,6 @@ where
 /// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspOutputState {
-    /// The parameters of equalizers for each output.
-    pub equalizer: CommandDspEqualizerState,
     /// The parameters of dynamics for each output.
     pub dynamics: CommandDspDynamicsState,
 
@@ -3105,18 +3066,6 @@ pub struct CommandDspOutputState {
     pub master_talkback: Vec<bool>,
     /// Whether to take listenback in master.
     pub master_listenback: Vec<bool>,
-}
-
-impl AsRef<CommandDspEqualizerState> for CommandDspOutputState {
-    fn as_ref(&self) -> &CommandDspEqualizerState {
-        &self.equalizer
-    }
-}
-
-impl AsMut<CommandDspEqualizerState> for CommandDspOutputState {
-    fn as_mut(&mut self) -> &mut CommandDspEqualizerState {
-        &mut self.equalizer
-    }
 }
 
 impl AsRef<CommandDspDynamicsState> for CommandDspOutputState {
@@ -3148,47 +3097,6 @@ pub trait MotuCommandDspOutputSpecification {
 
     fn create_output_state() -> CommandDspOutputState {
         CommandDspOutputState {
-            equalizer: CommandDspEqualizerState {
-                enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                hpf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hpf_slope: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hpf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                lpf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lpf_slope: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lpf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                lf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                lmf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lmf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lmf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lmf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                lmf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                mf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                mf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                mf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                mf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                mf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                hmf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hmf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hmf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hmf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hmf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                hf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                hf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-            },
             dynamics: CommandDspDynamicsState {
                 enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
 
@@ -3260,18 +3168,12 @@ pub trait MotuCommandDspOutputSpecification {
 
 impl<O> MotuCommandDspParametersOperation<CommandDspOutputState> for O
 where
-    O: MotuCommandDspOutputSpecification
-        + MotuCommandDspEqualizerSpecification
-        + MotuCommandDspDynamicsSpecification,
+    O: MotuCommandDspOutputSpecification + MotuCommandDspDynamicsSpecification,
 {
     fn build_commands(params: &CommandDspOutputState) -> Vec<DspCmd> {
         let mut cmds = Vec::new();
 
         (0..Self::OUTPUT_PORTS.len()).for_each(|ch| {
-            O::create_equalizer_parameters(&params.equalizer, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Equalizer(ch, param))));
-
             O::create_dynamics_parameters(&params.dynamics, ch)
                 .into_iter()
                 .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Dynamics(ch, param))));
@@ -3305,20 +3207,32 @@ where
     fn parse_command(params: &mut CommandDspOutputState, command: &DspCmd) -> bool {
         if let DspCmd::Output(cmd) = command {
             match cmd {
-                OutputCmd::Equalizer(ch, param) => {
-                    O::parse_equalizer_parameter(&mut params.equalizer, param, *ch)
-                }
                 OutputCmd::Dynamics(ch, param) => {
-                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch)
+                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch);
+                    true
                 }
-                OutputCmd::ReverbSend(ch, val) => params.reverb_send[*ch] = *val,
-                OutputCmd::ReverbReturn(ch, val) => params.reverb_return[*ch] = *val,
-                OutputCmd::MasterMonitor(ch, val) => params.master_monitor[*ch] = *val,
-                OutputCmd::MasterTalkback(ch, val) => params.master_talkback[*ch] = *val,
-                OutputCmd::MasterListenback(ch, val) => params.master_listenback[*ch] = *val,
-                _ => (),
-            };
-            true
+                OutputCmd::ReverbSend(ch, val) => {
+                    params.reverb_send[*ch] = *val;
+                    true
+                }
+                OutputCmd::ReverbReturn(ch, val) => {
+                    params.reverb_return[*ch] = *val;
+                    true
+                }
+                OutputCmd::MasterMonitor(ch, val) => {
+                    params.master_monitor[*ch] = *val;
+                    true
+                }
+                OutputCmd::MasterTalkback(ch, val) => {
+                    params.master_talkback[*ch] = *val;
+                    true
+                }
+                OutputCmd::MasterListenback(ch, val) => {
+                    params.master_listenback[*ch] = *val;
+                    true
+                }
+                _ => false,
+            }
         } else {
             false
         }

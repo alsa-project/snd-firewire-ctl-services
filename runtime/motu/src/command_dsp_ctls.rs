@@ -1405,16 +1405,19 @@ fn filter_type_4_to_str(filter_type: &FilterType4) -> &'static str {
     }
 }
 
-// TODO: better trait parameters to distinguish input and output.
 pub trait CommandDspEqualizerCtlOperation<T, U>
 where
-    T: MotuCommandDspEqualizerSpecification + MotuCommandDspUpdatableParamsOperation<U>,
-    U: Clone + AsRef<CommandDspEqualizerState> + AsMut<CommandDspEqualizerState>,
+    T: MotuCommandDspEqualizerSpecification
+        + MotuCommandDspParametersOperation<U>
+        + MotuCommandDspUpdatableParamsOperation<U>,
+    U: Clone + std::fmt::Debug + AsRef<CommandDspEqualizerState> + AsMut<CommandDspEqualizerState>,
 {
     const CH_COUNT: usize;
 
     fn params(&self) -> &U;
     fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
 
     const ENABLE_NAME: &'static str;
 
@@ -1480,7 +1483,7 @@ where
         FilterType4::T4,
     ];
 
-    fn load_equalizer(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut notified_elem_id_list = Vec::new();
 
         // Enable.
@@ -1621,14 +1624,12 @@ where
                 .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
         })?;
 
-        Ok(notified_elem_id_list)
+        self.elem_id_list_mut().append(&mut notified_elem_id_list);
+
+        Ok(())
     }
 
-    fn read_equalizer(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         let name = elem_id.name();
 
         if name == Self::ENABLE_NAME {
@@ -1764,7 +1765,7 @@ where
         }
     }
 
-    fn write_equalizer(
+    fn write(
         &mut self,
         sequence_number: &mut u8,
         req: &mut FwReq,
@@ -1787,7 +1788,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1801,7 +1802,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_SLOPE_NAME {
             let mut params = self.params().clone();
@@ -1815,7 +1816,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HPF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1829,7 +1830,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1843,7 +1844,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_SLOPE_NAME {
             let mut params = self.params().clone();
@@ -1857,7 +1858,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LPF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1871,7 +1872,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1885,7 +1886,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -1899,7 +1900,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1913,7 +1914,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -1927,7 +1928,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -1941,7 +1942,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -1955,7 +1956,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -1969,7 +1970,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -1983,7 +1984,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -1997,7 +1998,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::LMF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2011,7 +2012,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2025,7 +2026,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -2039,7 +2040,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -2053,7 +2054,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2067,7 +2068,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::MF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2081,7 +2082,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2095,7 +2096,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -2109,7 +2110,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -2123,7 +2124,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2137,7 +2138,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HMF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2151,7 +2152,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_ENABLE_NAME {
             let mut params = self.params().clone();
@@ -2165,7 +2166,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_TYPE_NAME {
             let mut params = self.params().clone();
@@ -2179,7 +2180,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_FREQ_NAME {
             let mut params = self.params().clone();
@@ -2193,7 +2194,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_GAIN_NAME {
             let mut params = self.params().clone();
@@ -2207,7 +2208,7 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if name == Self::HF_WIDTH_NAME {
             let mut params = self.params().clone();
@@ -2221,11 +2222,19 @@ where
                 params,
                 timeout_ms,
             );
-            debug!(params = ?self.params().as_ref(), ?res);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else {
             Ok(false)
         }
+    }
+
+    fn parse_command(&mut self, cmd: &DspCmd) -> bool {
+        let res = T::parse_command(self.params_mut(), cmd);
+        if res {
+            debug!(params = ?self.params());
+        }
+        res
     }
 }
 
@@ -3119,13 +3128,42 @@ where
     }
 }
 
-impl<T> CommandDspEqualizerCtlOperation<T, CommandDspInputState> for CommandDspInputCtl<T>
+#[derive(Debug)]
+pub struct CommandDspInputEqualizerCtl<T>
 where
     T: MotuCommandDspInputSpecification
         + MotuCommandDspEqualizerSpecification
-        + MotuCommandDspDynamicsSpecification
-        + MotuCommandDspParametersOperation<CommandDspInputState>
-        + MotuCommandDspUpdatableParamsOperation<CommandDspInputState>,
+        + MotuCommandDspParametersOperation<CommandDspInputEqualizerState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspInputEqualizerState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: CommandDspInputEqualizerState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for CommandDspInputEqualizerCtl<T>
+where
+    T: MotuCommandDspInputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspParametersOperation<CommandDspInputEqualizerState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspInputEqualizerState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_equalizer_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> CommandDspEqualizerCtlOperation<T, CommandDspInputEqualizerState>
+    for CommandDspInputEqualizerCtl<T>
+where
+    T: CommandDspOperation
+        + MotuCommandDspInputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspParametersOperation<CommandDspInputEqualizerState>,
 {
     const CH_COUNT: usize = T::INPUT_PORTS.len();
 
@@ -3169,12 +3207,16 @@ where
     const HF_GAIN_NAME: &'static str = "input-equalizer-hf-gain";
     const HF_WIDTH_NAME: &'static str = "input-equalizer-hf-width";
 
-    fn params(&self) -> &CommandDspInputState {
+    fn params(&self) -> &CommandDspInputEqualizerState {
         &self.params
     }
 
-    fn params_mut(&mut self) -> &mut CommandDspInputState {
+    fn params_mut(&mut self) -> &mut CommandDspInputEqualizerState {
         &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
     }
 }
 
@@ -3426,13 +3468,42 @@ where
     }
 }
 
-impl<T> CommandDspEqualizerCtlOperation<T, CommandDspOutputState> for CommandDspOutputCtl<T>
+#[derive(Debug)]
+pub struct CommandDspOutputEqualizerCtl<T>
 where
     T: MotuCommandDspOutputSpecification
         + MotuCommandDspEqualizerSpecification
-        + MotuCommandDspDynamicsSpecification
-        + MotuCommandDspParametersOperation<CommandDspOutputState>
-        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputState>,
+        + MotuCommandDspParametersOperation<CommandDspOutputEqualizerState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputEqualizerState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: CommandDspOutputEqualizerState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for CommandDspOutputEqualizerCtl<T>
+where
+    T: MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputEqualizerState>
+        + MotuCommandDspUpdatableParamsOperation<CommandDspOutputEqualizerState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_equalizer_state(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> CommandDspEqualizerCtlOperation<T, CommandDspOutputEqualizerState>
+    for CommandDspOutputEqualizerCtl<T>
+where
+    T: CommandDspOperation
+        + MotuCommandDspOutputSpecification
+        + MotuCommandDspEqualizerSpecification
+        + MotuCommandDspParametersOperation<CommandDspOutputEqualizerState>,
 {
     const CH_COUNT: usize = T::OUTPUT_PORTS.len();
 
@@ -3476,12 +3547,16 @@ where
     const HF_GAIN_NAME: &'static str = "output-equalizer-hf-gain";
     const HF_WIDTH_NAME: &'static str = "output-equalizer-hf-width";
 
-    fn params(&self) -> &CommandDspOutputState {
+    fn params(&self) -> &CommandDspOutputEqualizerState {
         &self.params
     }
 
-    fn params_mut(&mut self) -> &mut CommandDspOutputState {
+    fn params_mut(&mut self) -> &mut CommandDspOutputEqualizerState {
         &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
     }
 }
 
