@@ -76,8 +76,8 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
         &mut self,
         unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
             &unit.0,
@@ -85,28 +85,28 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             &unit.1,
             &mut self.sections,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .config_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(&self.req, &unit.1, elem_id, old, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .panel_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -859,15 +859,14 @@ impl MixerCtl {
         req: &FwReq,
         node: &FwNode,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
                 let levels = &mut params.mic_inst_level;
-                let vals = &new.int()[..levels.len()];
+                let vals = &elem_value.int()[..levels.len()];
                 levels.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -881,7 +880,7 @@ impl MixerCtl {
             MIXER_MIC_INST_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
                 let pans = &mut params.mic_inst_pan;
-                let vals = &new.int()[..pans.len()];
+                let vals = &elem_value.int()[..pans.len()];
                 pans.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -895,7 +894,7 @@ impl MixerCtl {
             MIXER_MIC_INST_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
                 let sends = &mut params.mic_inst_send;
-                let vals = &new.int()[..sends.len()];
+                let vals = &elem_value.int()[..sends.len()];
                 sends.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -909,7 +908,7 @@ impl MixerCtl {
             MIXER_DUAL_INST_SRC_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
                 let levels = &mut params.mic_inst_level;
-                let vals = &new.int()[..levels.len()];
+                let vals = &elem_value.int()[..levels.len()];
                 levels.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -923,7 +922,7 @@ impl MixerCtl {
             MIXER_DUAL_INST_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
                 let pans = &mut params.mic_inst_pan;
-                let vals = &new.int()[..pans.len()];
+                let vals = &elem_value.int()[..pans.len()];
                 pans.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -937,7 +936,7 @@ impl MixerCtl {
             MIXER_DUAL_INST_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
                 let sends = &mut params.mic_inst_send;
-                let vals = &new.int()[..sends.len()];
+                let vals = &elem_value.int()[..sends.len()];
                 sends.copy_from_slice(&vals);
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
@@ -950,7 +949,7 @@ impl MixerCtl {
             }
             MIXER_STEREO_IN_SRC_LEVEL_NAME => {
                 let mut params = self.0.data.clone();
-                params.stereo_in_level = new.int()[0];
+                params.stereo_in_level = elem_value.int()[0];
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
@@ -962,7 +961,7 @@ impl MixerCtl {
             }
             MIXER_STEREO_IN_SRC_BALANCE_NAME => {
                 let mut params = self.0.data.clone();
-                params.stereo_in_pan = new.int()[0];
+                params.stereo_in_pan = elem_value.int()[0];
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
@@ -974,7 +973,7 @@ impl MixerCtl {
             }
             MIXER_STEREO_IN_SRC_SEND_NAME => {
                 let mut params = self.0.data.clone();
-                params.stereo_in_send = new.int()[0];
+                params.stereo_in_send = elem_value.int()[0];
                 let res = Desktopk6Protocol::update_partial_segment(
                     req,
                     &node,
@@ -986,7 +985,7 @@ impl MixerCtl {
             }
             HP_SRC_NAME => {
                 let mut params = self.0.data.clone();
-                let pos = new.enumerated()[0] as usize;
+                let pos = elem_value.enumerated()[0] as usize;
                 params.hp_src = Self::HP_SRCS
                     .iter()
                     .nth(pos)
