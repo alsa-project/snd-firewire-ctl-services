@@ -6,23 +6,24 @@ use super::{common_ctls::*, register_dsp_ctls::*, register_dsp_runtime::*, v2_ct
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F828mk2 {
+pub struct TravelerModel {
     req: FwReq,
-    clk_ctls: V2LcdClkCtl<F828mk2Protocol>,
-    opt_iface_ctl: V2OptIfaceCtl<F828mk2Protocol>,
-    phone_assign_ctl: RegisterDspPhoneAssignCtl<F828mk2Protocol>,
-    word_clk_ctl: WordClockCtl<F828mk2Protocol>,
-    mixer_return_ctl: RegisterDspMixerReturnCtl<F828mk2Protocol>,
+    clk_ctls: V2LcdClkCtl<TravelerProtocol>,
+    opt_iface_ctl: V2OptIfaceCtl<TravelerProtocol>,
+    phone_assign_ctl: RegisterDspPhoneAssignCtl<TravelerProtocol>,
+    word_clk_ctl: WordClockCtl<TravelerProtocol>,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<TravelerProtocol>,
     params: SndMotuRegisterDspParameter,
-    mixer_output_ctl: RegisterDspMixerOutputCtl<F828mk2Protocol>,
-    mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<F828mk2Protocol>,
-    output_ctl: RegisterDspOutputCtl<F828mk2Protocol>,
-    line_input_ctl: RegisterDspLineInputCtl<F828mk2Protocol>,
-    meter_ctl: RegisterDspMeterCtl<F828mk2Protocol>,
-    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<F828mk2Protocol>,
+    mixer_output_ctl: RegisterDspMixerOutputCtl<TravelerProtocol>,
+    mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<TravelerProtocol>,
+    output_ctl: RegisterDspOutputCtl<TravelerProtocol>,
+    line_input_ctl: RegisterDspLineInputCtl<TravelerProtocol>,
+    mic_input_ctl: MicInputCtl,
+    meter_ctl: RegisterDspMeterCtl<TravelerProtocol>,
+    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<TravelerProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
+impl CtlModel<(SndMotu, FwNode)> for TravelerModel {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
@@ -47,6 +48,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.line_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mic_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.meter_output_target_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
 
@@ -63,6 +65,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.line_input_ctl.load(card_cntr)?;
+        self.mic_input_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.meter_output_target_ctl.load(card_cntr)?;
 
@@ -92,6 +95,8 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.line_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mic_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -170,6 +175,11 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
+        } else if self
+            .mic_input_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
         } else if self.meter_output_target_ctl.write(
             &mut self.req,
             node,
@@ -184,9 +194,12 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F828mk2 {
+impl NotifyModel<(SndMotu, FwNode), u32> for TravelerModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.opt_iface_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.mic_input_ctl.elem_id_list);
     }
 
     fn parse_notification(
@@ -194,15 +207,23 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk2 {
         (_, node): &mut (SndMotu, FwNode),
         msg: &u32,
     ) -> Result<(), Error> {
-        if *msg & F828mk2Protocol::NOTIFY_PORT_CHANGE > 0 {
+        if *msg & TravelerProtocol::NOTIFY_MIC_PARAM_MASK > 0 {
+            self.mic_input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        }
+        if *msg & TravelerProtocol::NOTIFY_PORT_CHANGE > 0 {
+            self.phone_assign_ctl
+                .0
+                .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
-        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
+        if *msg & TravelerProtocol::NOTIFY_FORMAT_CHANGE > 0 {
+            self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        }
         Ok(())
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
+impl NotifyModel<(SndMotu, FwNode), bool> for TravelerModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
@@ -213,11 +234,11 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
 
     fn parse_notification(
         &mut self,
-        (unit, _): &mut (SndMotu, FwNode),
+        unit: &mut (SndMotu, FwNode),
         is_locked: &bool,
     ) -> Result<(), Error> {
         if *is_locked {
-            unit.read_parameter(&mut self.params).map(|_| {
+            unit.0.read_parameter(&mut self.params).map(|_| {
                 self.phone_assign_ctl.parse_dsp_parameter(&self.params);
                 self.mixer_output_ctl.parse_dsp_parameter(&self.params);
                 self.mixer_source_ctl.parse_dsp_parameter(&self.params);
@@ -230,7 +251,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F828mk2 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F828mk2 {
+impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for TravelerModel {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
         // MEMO: handled by the above implementation.
     }
@@ -251,12 +272,108 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F828mk2 {
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for F828mk2 {
+impl MeasureModel<(SndMotu, FwNode)> for TravelerModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }
 
     fn measure_states(&mut self, (unit, _): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.meter_ctl.read_dsp_meter(unit)
+    }
+}
+
+#[derive(Default, Debug)]
+struct MicInputCtl {
+    elem_id_list: Vec<ElemId>,
+    params: TravelerMicInputState,
+}
+
+const MIC_GAIN_NAME: &str = "mic-gain-name";
+const MIC_PAD_NAME: &str = "mic-pad-name";
+
+impl MicInputCtl {
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -6400,
+        max: 0,
+        linear: true,
+        mute_avail: false,
+    };
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = TravelerProtocol::cache_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                TravelerProtocol::MIC_GAIN_MIN as i32,
+                TravelerProtocol::MIC_GAIN_MAX as i32,
+                TravelerProtocol::MIC_GAIN_STEP as i32,
+                TravelerProtocol::MIC_INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PAD_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, TravelerProtocol::MIC_INPUT_COUNT, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MIC_GAIN_NAME => {
+                let vals: Vec<i32> = self.params.gain.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            MIC_PAD_NAME => {
+                elem_value.set_bool(&self.params.pad);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            MIC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .gain
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(gain, &val)| *gain = val as u8);
+                let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            MIC_PAD_NAME => {
+                let mut params = self.params.clone();
+                let vals = &elem_value.boolean()[..TravelerProtocol::MIC_INPUT_COUNT];
+                params.pad.copy_from_slice(vals);
+                let res = TravelerProtocol::update_wholly(req, node, &params, timeout_ms)
+                    .map(|_| self.params = params);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
     }
 }

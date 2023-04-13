@@ -6,7 +6,7 @@ use super::{common_ctls::*, v1_ctls::*, v1_runtime::*};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F896 {
+pub struct F896Model {
     req: FwReq,
     clk_ctls: V1ClkCtl<F896Protocol>,
     monitor_input_ctl: V1MonitorInputCtl<F896Protocol>,
@@ -15,7 +15,7 @@ pub struct F896 {
     level_meters_ctl: LevelMetersCtl<F896Protocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F896 {
+impl CtlModel<(SndMotu, FwNode)> for F896Model {
     fn cache(&mut self, (_, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -103,7 +103,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F896 {
+impl NotifyModel<(SndMotu, FwNode), u32> for F896Model {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {

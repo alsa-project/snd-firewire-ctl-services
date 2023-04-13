@@ -1,43 +1,38 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2021 Takashi Sakamoto
+// Copyright (c) 2020 Takashi Sakamoto
 
-use super::{common_ctls::*, register_dsp_ctls::*, register_dsp_runtime::*, v2_ctls::*};
+use super::{register_dsp_ctls::*, register_dsp_runtime::*, v3_ctls::*};
 
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F896hd {
+pub struct H4preModel {
     req: FwReq,
-    clk_ctls: V2ClkCtl<F896hdProtocol>,
-    opt_iface_ctl: V2OptIfaceCtl<F896hdProtocol>,
-    word_clk_ctl: WordClockCtl<F896hdProtocol>,
-    aesebu_rate_convert_ctl: AesebuRateConvertCtl<F896hdProtocol>,
-    level_meters_ctl: LevelMetersCtl<F896hdProtocol>,
-    mixer_return_ctl: RegisterDspMixerReturnCtl<F896hdProtocol>,
+    clk_ctls: V3ClkCtl<H4preProtocol>,
+    phone_assign_ctl: RegisterDspPhoneAssignCtl<H4preProtocol>,
+    mixer_return_ctl: RegisterDspMixerReturnCtl<H4preProtocol>,
     params: SndMotuRegisterDspParameter,
-    mixer_output_ctl: RegisterDspMixerOutputCtl<F896hdProtocol>,
-    mixer_source_ctl: RegisterDspMixerMonauralSourceCtl<F896hdProtocol>,
-    output_ctl: RegisterDspOutputCtl<F896hdProtocol>,
-    meter_ctl: RegisterDspMeterCtl<F896hdProtocol>,
-    meter_output_target_ctl: RegisterDspMeterOutputTargetCtl<F896hdProtocol>,
+    mixer_output_ctl: RegisterDspMixerOutputCtl<H4preProtocol>,
+    mixer_source_ctl: RegisterDspMixerStereoSourceCtl<H4preProtocol>,
+    output_ctl: RegisterDspOutputCtl<H4preProtocol>,
+    input_ctl: RegisterDspStereoInputCtl<H4preProtocol>,
+    meter_ctl: RegisterDspMeterCtl<H4preProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F896hd {
+impl CtlModel<(SndMotu, FwNode)> for H4preModel {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
+        self.phone_assign_ctl.parse_dsp_parameter(&self.params);
         self.mixer_output_ctl.parse_dsp_parameter(&self.params);
         self.mixer_source_ctl.parse_dsp_parameter(&self.params);
         self.output_ctl.parse_dsp_parameter(&self.params);
+        self.input_ctl.parse_dsp_parameter(&self.params);
 
         self.meter_ctl.read_dsp_meter(unit)?;
 
-        self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.aesebu_rate_convert_ctl
+        self.phone_assign_ctl
+            .0
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.level_meters_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.mixer_return_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.mixer_output_ctl
@@ -45,24 +40,20 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
         self.mixer_source_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_output_target_ctl
-            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr)?;
-        self.word_clk_ctl.load(card_cntr)?;
-        self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl.load(card_cntr)?;
+        self.phone_assign_ctl.0.load(card_cntr)?;
         self.mixer_return_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr)?;
         self.mixer_source_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
+        self.input_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
-        self.meter_output_target_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -75,13 +66,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.aesebu_rate_convert_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.level_meters_ctl.read(elem_id, elem_value)? {
+        } else if self.phone_assign_ctl.0.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -91,9 +76,9 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.meter_output_target_ctl.read(elem_id, elem_value)? {
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -112,29 +97,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.opt_iface_ctl.write(
-            unit,
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self
-            .word_clk_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self.aesebu_rate_convert_ctl.write(
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.level_meters_ctl.write(
+        } else if self.phone_assign_ctl.0.write(
             &mut self.req,
             node,
             elem_id,
@@ -171,13 +134,10 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.meter_output_target_ctl.write(
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .input_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -185,30 +145,21 @@ impl CtlModel<(SndMotu, FwNode)> for F896hd {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F896hd {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.level_meters_ctl.elem_id_list);
-    }
+impl NotifyModel<(SndMotu, FwNode), u32> for H4preModel {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
-    fn parse_notification(
-        &mut self,
-        (_, node): &mut (SndMotu, FwNode),
-        msg: &u32,
-    ) -> Result<(), Error> {
-        if *msg & F896hdProtocol::NOTIFY_PROGRAMMABLE_METER_MASK > 0 {
-            self.level_meters_ctl
-                .cache(&mut self.req, node, TIMEOUT_MS)?;
-        }
-        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
+    fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {
         Ok(())
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
+impl NotifyModel<(SndMotu, FwNode), bool> for H4preModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
     }
 
     fn parse_notification(
@@ -218,9 +169,11 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
     ) -> Result<(), Error> {
         if *is_locked {
             unit.0.read_parameter(&mut self.params).map(|_| {
+                self.phone_assign_ctl.parse_dsp_parameter(&self.params);
                 self.mixer_output_ctl.parse_dsp_parameter(&self.params);
                 self.mixer_source_ctl.parse_dsp_parameter(&self.params);
                 self.output_ctl.parse_dsp_parameter(&self.params);
+                self.input_ctl.parse_dsp_parameter(&self.params);
             })
         } else {
             Ok(())
@@ -228,7 +181,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F896hd {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F896hd {
+impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for H4preModel {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
         // MEMO: handled by the above implementation.
     }
@@ -239,15 +192,17 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F896hd {
         events: &Vec<RegisterDspEvent>,
     ) -> Result<(), Error> {
         events.iter().for_each(|event| {
-            let _ = self.mixer_output_ctl.parse_dsp_event(event)
+            let _ = self.phone_assign_ctl.parse_dsp_event(event)
+                || self.mixer_output_ctl.parse_dsp_event(event)
                 || self.mixer_source_ctl.parse_dsp_event(event)
-                || self.output_ctl.parse_dsp_event(event);
+                || self.output_ctl.parse_dsp_event(event)
+                || self.input_ctl.parse_dsp_event(event);
         });
         Ok(())
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for F896hd {
+impl MeasureModel<(SndMotu, FwNode)> for H4preModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }

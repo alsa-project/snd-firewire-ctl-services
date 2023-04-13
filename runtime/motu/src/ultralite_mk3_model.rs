@@ -6,7 +6,7 @@ use super::{command_dsp_ctls::*, command_dsp_runtime::*, common_ctls::*, v3_ctls
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-pub struct UltraLiteMk3 {
+pub struct UltraliteMk3Model {
     req: FwReq,
     resp: FwResp,
     clk_ctls: V3LcdClkCtl<UltraliteMk3Protocol>,
@@ -22,7 +22,7 @@ pub struct UltraLiteMk3 {
     meter_ctl: CommandDspMeterCtl<UltraliteMk3Protocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
+impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3Model {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
@@ -215,7 +215,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for UltraLiteMk3 {
+impl NotifyModel<(SndMotu, FwNode), u32> for UltraliteMk3Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
@@ -236,7 +236,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for UltraLiteMk3 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for UltraLiteMk3 {
+impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for UltraliteMk3Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
@@ -263,7 +263,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for UltraLiteMk3 {
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for UltraLiteMk3 {
+impl MeasureModel<(SndMotu, FwNode)> for UltraliteMk3Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }
@@ -273,7 +273,7 @@ impl MeasureModel<(SndMotu, FwNode)> for UltraLiteMk3 {
     }
 }
 
-impl CommandDspModel for UltraLiteMk3 {
+impl CommandDspModel for UltraliteMk3Model {
     fn prepare_message_handler<F>(
         &mut self,
         unit: &mut (SndMotu, FwNode),

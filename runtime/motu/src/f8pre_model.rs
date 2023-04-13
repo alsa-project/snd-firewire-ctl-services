@@ -6,7 +6,7 @@ use super::{register_dsp_ctls::*, register_dsp_runtime::*, v2_ctls::*};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F8pre {
+pub struct F8preModel {
     req: FwReq,
     clk_ctls: V2ClkCtl<F8preProtocol>,
     opt_iface_ctl: V2OptIfaceCtl<F8preProtocol>,
@@ -19,7 +19,7 @@ pub struct F8pre {
     meter_ctl: RegisterDspMeterCtl<F8preProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F8pre {
+impl CtlModel<(SndMotu, FwNode)> for F8preModel {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         unit.read_parameter(&mut self.params)?;
         self.phone_assign_ctl.parse_dsp_parameter(&self.params);
@@ -147,7 +147,7 @@ impl CtlModel<(SndMotu, FwNode)> for F8pre {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F8pre {
+impl NotifyModel<(SndMotu, FwNode), u32> for F8preModel {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {
@@ -155,7 +155,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F8pre {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), bool> for F8pre {
+impl NotifyModel<(SndMotu, FwNode), bool> for F8preModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_source_ctl.elem_id_list);
@@ -179,7 +179,7 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F8pre {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F8pre {
+impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F8preModel {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
         // MEMO: handled by the above implementation.
     }
@@ -199,7 +199,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for F8pre {
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for F8pre {
+impl MeasureModel<(SndMotu, FwNode)> for F8preModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }

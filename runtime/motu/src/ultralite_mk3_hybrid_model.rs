@@ -6,33 +6,29 @@ use super::{command_dsp_ctls::*, command_dsp_runtime::*, common_ctls::*, v3_ctls
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-pub struct F828mk3Hybrid {
+pub struct UltraliteMk3HybridModel {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: V3LcdClkCtl<F828mk3HybridProtocol>,
-    port_assign_ctl: V3PortAssignCtl<F828mk3HybridProtocol>,
-    opt_iface_ctl: V3OptIfaceCtl<F828mk3HybridProtocol>,
-    phone_assign_ctl: PhoneAssignCtl<F828mk3HybridProtocol>,
-    word_clk_ctl: WordClockCtl<F828mk3HybridProtocol>,
+    clk_ctls: V3LcdClkCtl<UltraliteMk3HybridProtocol>,
+    port_assign_ctl: V3PortAssignCtl<UltraliteMk3HybridProtocol>,
+    phone_assign_ctl: PhoneAssignCtl<UltraliteMk3HybridProtocol>,
     sequence_number: u8,
-    reverb_ctl: CommandDspReverbCtl<F828mk3HybridProtocol>,
-    monitor_ctl: CommandDspMonitorCtl<F828mk3HybridProtocol>,
-    mixer_ctl: CommandDspMixerCtl<F828mk3HybridProtocol>,
-    input_ctl: CommandDspInputCtl<F828mk3HybridProtocol>,
-    output_ctl: CommandDspOutputCtl<F828mk3HybridProtocol>,
+    reverb_ctl: CommandDspReverbCtl<UltraliteMk3HybridProtocol>,
+    monitor_ctl: CommandDspReverbCtl<UltraliteMk3HybridProtocol>,
+    mixer_ctl: CommandDspMixerCtl<UltraliteMk3HybridProtocol>,
+    input_ctl: CommandDspInputCtl<UltraliteMk3HybridProtocol>,
+    output_ctl: CommandDspOutputCtl<UltraliteMk3HybridProtocol>,
     resource_ctl: CommandDspResourceCtl,
-    meter_ctl: CommandDspMeterCtl<F828mk3HybridProtocol>,
+    meter_ctl: CommandDspMeterCtl<UltraliteMk3HybridProtocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
+impl CtlModel<(SndMotu, FwNode)> for UltraliteMk3HybridModel {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.phone_assign_ctl
             .cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         self.meter_ctl.read_dsp_meter(unit)?;
 
@@ -42,9 +38,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)?;
-        self.word_clk_ctl.load(card_cntr)?;
         self.reverb_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
@@ -77,11 +71,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.reverb_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -130,15 +120,6 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.opt_iface_ctl.write(
-            unit,
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
         } else if self.phone_assign_ctl.write(
             &mut self.req,
             node,
@@ -146,11 +127,6 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             elem_value,
             TIMEOUT_MS,
         )? {
-            Ok(true)
-        } else if self
-            .word_clk_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
             Ok(true)
         } else if self.reverb_ctl.write(
             &mut self.sequence_number,
@@ -239,11 +215,10 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Hybrid {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl NotifyModel<(SndMotu, FwNode), u32> for UltraliteMk3HybridModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
     }
 
     fn parse_notification(
@@ -251,19 +226,17 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Hybrid {
         (_, node): &mut (SndMotu, FwNode),
         msg: &u32,
     ) -> Result<(), Error> {
-        if *msg & F828mk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
+        if *msg & UltraliteMk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
                 .cache(&mut self.req, node, TIMEOUT_MS)?;
             self.phone_assign_ctl
                 .cache(&mut self.req, node, TIMEOUT_MS)?;
-            self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         }
-        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3Hybrid {
+impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for UltraliteMk3HybridModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
@@ -290,7 +263,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3Hybrid {
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for F828mk3Hybrid {
+impl MeasureModel<(SndMotu, FwNode)> for UltraliteMk3HybridModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }
@@ -300,7 +273,7 @@ impl MeasureModel<(SndMotu, FwNode)> for F828mk3Hybrid {
     }
 }
 
-impl CommandDspModel for F828mk3Hybrid {
+impl CommandDspModel for UltraliteMk3HybridModel {
     fn prepare_message_handler<F>(
         &mut self,
         unit: &mut (SndMotu, FwNode),
@@ -309,7 +282,7 @@ impl CommandDspModel for F828mk3Hybrid {
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
-        F828mk3HybridProtocol::register_message_destination_address(
+        UltraliteMk3HybridProtocol::register_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.1,
@@ -320,7 +293,7 @@ impl CommandDspModel for F828mk3Hybrid {
     }
 
     fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::begin_messaging(
+        UltraliteMk3HybridProtocol::begin_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
@@ -329,13 +302,13 @@ impl CommandDspModel for F828mk3Hybrid {
     }
 
     fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::cancel_messaging(
+        UltraliteMk3HybridProtocol::cancel_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
             TIMEOUT_MS,
         )?;
-        F828mk3HybridProtocol::release_message_destination_address(
+        UltraliteMk3HybridProtocol::release_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.1,

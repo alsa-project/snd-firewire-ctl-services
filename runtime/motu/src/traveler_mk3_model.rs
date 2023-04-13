@@ -6,25 +6,25 @@ use super::{command_dsp_ctls::*, command_dsp_runtime::*, common_ctls::*, v3_ctls
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-pub struct F828mk3 {
+pub struct TravelerMk3Model {
     req: FwReq,
     resp: FwResp,
-    clk_ctls: V3LcdClkCtl<F828mk3Protocol>,
-    port_assign_ctl: V3PortAssignCtl<F828mk3Protocol>,
-    opt_iface_ctl: V3OptIfaceCtl<F828mk3Protocol>,
-    phone_assign_ctl: PhoneAssignCtl<F828mk3Protocol>,
-    word_clk_ctl: WordClockCtl<F828mk3Protocol>,
+    clk_ctls: V3LcdClkCtl<TravelerMk3Protocol>,
+    port_assign_ctl: V3PortAssignCtl<TravelerMk3Protocol>,
+    opt_iface_ctl: V3OptIfaceCtl<TravelerMk3Protocol>,
+    phone_assign_ctl: PhoneAssignCtl<TravelerMk3Protocol>,
+    word_clk_ctl: WordClockCtl<TravelerMk3Protocol>,
     sequence_number: u8,
-    reverb_ctl: CommandDspReverbCtl<F828mk3Protocol>,
-    monitor_ctl: CommandDspMonitorCtl<F828mk3Protocol>,
-    mixer_ctl: CommandDspMixerCtl<F828mk3Protocol>,
-    input_ctl: CommandDspInputCtl<F828mk3Protocol>,
-    output_ctl: CommandDspOutputCtl<F828mk3Protocol>,
+    reverb_ctl: CommandDspReverbCtl<TravelerMk3Protocol>,
+    monitor_ctl: CommandDspMonitorCtl<TravelerMk3Protocol>,
+    mixer_ctl: CommandDspMixerCtl<TravelerMk3Protocol>,
+    input_ctl: CommandDspInputCtl<TravelerMk3Protocol>,
+    output_ctl: CommandDspOutputCtl<TravelerMk3Protocol>,
     resource_ctl: CommandDspResourceCtl,
-    meter_ctl: CommandDspMeterCtl<F828mk3Protocol>,
+    meter_ctl: CommandDspMeterCtl<TravelerMk3Protocol>,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
+impl CtlModel<(SndMotu, FwNode)> for TravelerMk3Model {
     fn cache(&mut self, (unit, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.port_assign_ctl
@@ -239,31 +239,15 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3 {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.port_assign_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.word_clk_ctl.elem_id_list);
-    }
+impl NotifyModel<(SndMotu, FwNode), u32> for TravelerMk3Model {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
-    fn parse_notification(
-        &mut self,
-        (_, node): &mut (SndMotu, FwNode),
-        msg: &u32,
-    ) -> Result<(), Error> {
-        if *msg & F828mk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
-            self.port_assign_ctl
-                .cache(&mut self.req, node, TIMEOUT_MS)?;
-            self.phone_assign_ctl
-                .cache(&mut self.req, node, TIMEOUT_MS)?;
-            self.word_clk_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        }
-        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
+    fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {
         Ok(())
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3 {
+impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for TravelerMk3Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
@@ -290,7 +274,7 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3 {
     }
 }
 
-impl MeasureModel<(SndMotu, FwNode)> for F828mk3 {
+impl MeasureModel<(SndMotu, FwNode)> for TravelerMk3Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }
@@ -300,7 +284,7 @@ impl MeasureModel<(SndMotu, FwNode)> for F828mk3 {
     }
 }
 
-impl CommandDspModel for F828mk3 {
+impl CommandDspModel for TravelerMk3Model {
     fn prepare_message_handler<F>(
         &mut self,
         unit: &mut (SndMotu, FwNode),
@@ -309,7 +293,7 @@ impl CommandDspModel for F828mk3 {
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
-        F828mk3Protocol::register_message_destination_address(
+        TravelerMk3Protocol::register_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.1,
@@ -320,7 +304,7 @@ impl CommandDspModel for F828mk3 {
     }
 
     fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::begin_messaging(
+        TravelerMk3Protocol::begin_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
@@ -329,13 +313,13 @@ impl CommandDspModel for F828mk3 {
     }
 
     fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        UltraliteMk3Protocol::cancel_messaging(
+        TravelerMk3Protocol::cancel_messaging(
             &mut self.req,
             &mut unit.1,
             &mut self.sequence_number,
             TIMEOUT_MS,
         )?;
-        F828mk3Protocol::release_message_destination_address(
+        TravelerMk3Protocol::release_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.1,

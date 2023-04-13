@@ -4,23 +4,23 @@ mod command_dsp_runtime;
 mod register_dsp_runtime;
 mod v1_runtime;
 
-mod f828;
-mod f896;
+mod f828_model;
+mod f896_model;
 
-mod f828mk2;
-mod f896hd;
-mod f8pre;
-mod traveler;
-mod ultralite;
+mod f828mk2_model;
+mod f896hd_model;
+mod f8pre_model;
+mod traveler_model;
+mod ultralite_model;
 
-mod audioexpress;
-mod f828mk3;
-mod f828mk3_hybrid;
-mod h4pre;
-mod track16;
-mod traveler_mk3;
-mod ultralite_mk3;
-mod ultralite_mk3_hybrid;
+mod audioexpress_model;
+mod f828mk3_hybrid_model;
+mod f828mk3_model;
+mod h4pre_model;
+mod track16_model;
+mod traveler_mk3_model;
+mod ultralite_mk3_hybrid_model;
+mod ultralite_mk3_model;
 
 mod command_dsp_ctls;
 mod common_ctls;

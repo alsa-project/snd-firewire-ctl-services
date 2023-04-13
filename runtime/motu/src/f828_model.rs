@@ -6,14 +6,14 @@ use super::{v1_ctls::*, v1_runtime::*};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F828 {
+pub struct F828Model {
     req: FwReq,
     clk_ctls: V1ClkCtl<F828Protocol>,
     monitor_input_ctl: V1MonitorInputCtl<F828Protocol>,
     specific_ctls: SpecificCtl,
 }
 
-impl CtlModel<(SndMotu, FwNode)> for F828 {
+impl CtlModel<(SndMotu, FwNode)> for F828Model {
     fn cache(&mut self, (_, node): &mut (SndMotu, FwNode)) -> Result<(), Error> {
         self.clk_ctls.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_input_ctl
@@ -81,7 +81,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828 {
     }
 }
 
-impl NotifyModel<(SndMotu, FwNode), u32> for F828 {
+impl NotifyModel<(SndMotu, FwNode), u32> for F828Model {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {

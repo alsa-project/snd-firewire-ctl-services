@@ -2,15 +2,15 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 pub(crate) use {
-    super::{f828::*, f896::*, *},
+    super::{f828_model::*, f896_model::*, *},
     alsactl::{prelude::*, *},
     core::card_cntr::*,
 };
 
 use {core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
 
-pub type F828Runtime = Version1Runtime<F828>;
-pub type F896Runtime = Version1Runtime<F896>;
+pub type F828Runtime = Version1Runtime<F828Model>;
+pub type F896Runtime = Version1Runtime<F896Model>;
 
 pub struct Version1Runtime<T>
 where

@@ -3,7 +3,8 @@
 
 pub(crate) use {
     super::{
-        audioexpress::*, f828mk2::*, f896hd::*, f8pre::*, h4pre::*, traveler::*, ultralite::*, *,
+        audioexpress_model::*, f828mk2_model::*, f896hd_model::*, f8pre_model::*, h4pre_model::*,
+        traveler_model::*, ultralite_model::*, *,
     },
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
@@ -14,14 +15,14 @@ pub(crate) use {
 
 use {core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
 
-pub type F828mk2Runtime = RegisterDspRuntime<F828mk2>;
-pub type F896hdRuntime = RegisterDspRuntime<F896hd>;
-pub type F8preRuntime = RegisterDspRuntime<F8pre>;
-pub type TravelerRuntime = RegisterDspRuntime<Traveler>;
-pub type UltraliteRuntime = RegisterDspRuntime<UltraLite>;
+pub type F828mk2Runtime = RegisterDspRuntime<F828mk2Model>;
+pub type F896hdRuntime = RegisterDspRuntime<F896hdModel>;
+pub type F8preRuntime = RegisterDspRuntime<F8preModel>;
+pub type TravelerRuntime = RegisterDspRuntime<TravelerModel>;
+pub type UltraliteRuntime = RegisterDspRuntime<UltraliteModel>;
 
-pub type AudioExpressRuntime = RegisterDspRuntime<AudioExpress>;
-pub type H4preRuntime = RegisterDspRuntime<H4pre>;
+pub type AudioExpressRuntime = RegisterDspRuntime<AudioExpressModel>;
+pub type H4preRuntime = RegisterDspRuntime<H4preModel>;
 
 pub struct RegisterDspRuntime<T>
 where
