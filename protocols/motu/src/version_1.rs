@@ -742,3 +742,29 @@ impl MotuAesebuRateConvertSpecification for F896Protocol {
 }
 
 impl MotuLevelMetersSpecification for F896Protocol {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn v1_clock_specification() {
+        assert_eq!(
+            F828Protocol::CLK_RATE_VALS.len(),
+            F828Protocol::CLK_RATES.len()
+        );
+        assert_eq!(
+            F828Protocol::CLK_SRC_VALS.len(),
+            F828Protocol::CLK_SRCS.len()
+        );
+
+        assert_eq!(
+            F896Protocol::CLK_RATE_VALS.len(),
+            F896Protocol::CLK_RATES.len()
+        );
+        assert_eq!(
+            F896Protocol::CLK_SRC_VALS.len(),
+            F896Protocol::CLK_SRCS.len()
+        );
+    }
+}
