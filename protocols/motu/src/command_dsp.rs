@@ -2755,9 +2755,6 @@ pub struct CommandDspInputState {
     /// The left and right balance to send to reverb effect.
     pub reverb_balance: Vec<f32>,
 
-    /// The parameters of dynamics for each input.
-    pub dynamics: CommandDspDynamicsState,
-
     /// Whether to attenuate inputs.
     pub pad: Vec<bool>,
     /// The nominal level of inputs.
@@ -2770,18 +2767,6 @@ pub struct CommandDspInputState {
     pub lookahead: Vec<bool>,
     /// Whether to enable soft clipping.
     pub soft_clip: Vec<bool>,
-}
-
-impl AsRef<CommandDspDynamicsState> for CommandDspInputState {
-    fn as_ref(&self) -> &CommandDspDynamicsState {
-        &self.dynamics
-    }
-}
-
-impl AsMut<CommandDspDynamicsState> for CommandDspInputState {
-    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
-        &mut self.dynamics
-    }
 }
 
 /// The trait for specification of inputs.
@@ -2826,22 +2811,6 @@ pub trait MotuCommandDspInputSpecification {
             width: vec![Default::default(); Self::INPUT_PORTS.len()],
             reverb_send: vec![Default::default(); Self::INPUT_PORTS.len()],
             reverb_balance: vec![Default::default(); Self::INPUT_PORTS.len()],
-            dynamics: CommandDspDynamicsState {
-                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                comp_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_detect_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_threshold: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_ratio: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_attack: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_release: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
-
-                leveler_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
-                leveler_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
-                leveler_makeup: vec![Default::default(); Self::INPUT_PORTS.len()],
-                leveler_reduce: vec![Default::default(); Self::INPUT_PORTS.len()],
-            },
             pad: vec![Default::default(); Self::MIC_COUNT],
             phantom: vec![Default::default(); Self::MIC_COUNT],
             limitter: vec![Default::default(); Self::MIC_COUNT],
@@ -2919,7 +2888,7 @@ pub trait MotuCommandDspInputSpecification {
 
 impl<O> MotuCommandDspParametersOperation<CommandDspInputState> for O
 where
-    O: MotuCommandDspInputSpecification + MotuCommandDspDynamicsSpecification,
+    O: MotuCommandDspInputSpecification,
 {
     fn build_commands(params: &CommandDspInputState) -> Vec<DspCmd> {
         let mut cmds = Vec::new();
@@ -2934,10 +2903,6 @@ where
                 params.stereo_mode[ch],
             )));
             cmds.push(DspCmd::Input(InputCmd::Width(ch, params.width[ch])));
-
-            O::create_dynamics_parameters(&params.dynamics, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Dynamics(ch, param))));
 
             cmds.push(DspCmd::Input(InputCmd::ReverbSend(
                 ch,
@@ -2992,10 +2957,6 @@ where
                 }
                 InputCmd::Width(ch, val) => {
                     params.width[*ch] = *val;
-                    true
-                }
-                InputCmd::Dynamics(ch, param) => {
-                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch);
                     true
                 }
                 InputCmd::ReverbSend(ch, val) => {
@@ -3117,9 +3078,6 @@ where
 /// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspOutputState {
-    /// The parameters of dynamics for each output.
-    pub dynamics: CommandDspDynamicsState,
-
     /// The gain to send to reverb effect.
     pub reverb_send: Vec<f32>,
     /// The volume to return from reverb effect.
@@ -3131,18 +3089,6 @@ pub struct CommandDspOutputState {
     pub master_talkback: Vec<bool>,
     /// Whether to take listenback in master.
     pub master_listenback: Vec<bool>,
-}
-
-impl AsRef<CommandDspDynamicsState> for CommandDspOutputState {
-    fn as_ref(&self) -> &CommandDspDynamicsState {
-        &self.dynamics
-    }
-}
-
-impl AsMut<CommandDspDynamicsState> for CommandDspOutputState {
-    fn as_mut(&mut self) -> &mut CommandDspDynamicsState {
-        &mut self.dynamics
-    }
 }
 
 /// The trait for specification of output.
@@ -3162,22 +3108,6 @@ pub trait MotuCommandDspOutputSpecification {
 
     fn create_output_state() -> CommandDspOutputState {
         CommandDspOutputState {
-            dynamics: CommandDspDynamicsState {
-                enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                comp_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_detect_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_threshold: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_ratio: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_attack: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_release: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-
-                leveler_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                leveler_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                leveler_makeup: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                leveler_reduce: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-            },
             reverb_send: vec![Default::default(); Self::OUTPUT_PORTS.len()],
             reverb_return: vec![Default::default(); Self::OUTPUT_PORTS.len()],
             master_monitor: vec![Default::default(); Self::OUTPUT_PORTS.len()],
@@ -3252,16 +3182,12 @@ pub trait MotuCommandDspOutputSpecification {
 
 impl<O> MotuCommandDspParametersOperation<CommandDspOutputState> for O
 where
-    O: MotuCommandDspOutputSpecification + MotuCommandDspDynamicsSpecification,
+    O: MotuCommandDspOutputSpecification,
 {
     fn build_commands(params: &CommandDspOutputState) -> Vec<DspCmd> {
         let mut cmds = Vec::new();
 
         (0..Self::OUTPUT_PORTS.len()).for_each(|ch| {
-            O::create_dynamics_parameters(&params.dynamics, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Dynamics(ch, param))));
-
             cmds.push(DspCmd::Output(OutputCmd::ReverbSend(
                 ch,
                 params.reverb_send[ch],
@@ -3291,10 +3217,6 @@ where
     fn parse_command(params: &mut CommandDspOutputState, command: &DspCmd) -> bool {
         if let DspCmd::Output(cmd) = command {
             match cmd {
-                OutputCmd::Dynamics(ch, param) => {
-                    O::parse_dynamics_parameter(&mut params.dynamics, param, *ch);
-                    true
-                }
                 OutputCmd::ReverbSend(ch, val) => {
                     params.reverb_send[*ch] = *val;
                     true

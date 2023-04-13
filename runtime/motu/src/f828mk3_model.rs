@@ -20,8 +20,10 @@ pub struct F828mk3Model {
     mixer_ctl: CommandDspMixerCtl<F828mk3Protocol>,
     input_ctl: CommandDspInputCtl<F828mk3Protocol>,
     input_eq_ctl: CommandDspInputEqualizerCtl<F828mk3Protocol>,
+    input_dyn_ctl: CommandDspInputDynamicsCtl<F828mk3Protocol>,
     output_ctl: CommandDspOutputCtl<F828mk3Protocol>,
     output_eq_ctl: CommandDspOutputEqualizerCtl<F828mk3Protocol>,
+    output_dyn_ctl: CommandDspOutputDynamicsCtl<F828mk3Protocol>,
     resource_ctl: CommandDspResourceCtl,
     meter_ctl: CommandDspMeterCtl<F828mk3Protocol>,
 }
@@ -52,14 +54,10 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Model {
         self.mixer_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
         self.input_eq_ctl.load(card_cntr)?;
-        self.input_ctl
-            .load_dynamics(card_cntr)
-            .map(|mut elem_id_list| self.input_ctl.elem_id_list.append(&mut elem_id_list))?;
+        self.input_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         self.output_eq_ctl.load(card_cntr)?;
-        self.output_ctl
-            .load_dynamics(card_cntr)
-            .map(|mut elem_id_list| self.output_ctl.elem_id_list.append(&mut elem_id_list))?;
+        self.output_ctl.load(card_cntr)?;
         self.resource_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         Ok(())
@@ -91,13 +89,13 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Model {
             Ok(true)
         } else if self.input_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read_dynamics(elem_id, elem_value)? {
+        } else if self.input_dyn_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
+        } else if self.output_dyn_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.resource_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -195,7 +193,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.input_ctl.write_dynamics(
+        } else if self.input_dyn_ctl.write(
             &mut self.sequence_number,
             &mut self.req,
             node,
@@ -222,7 +220,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Model {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.output_ctl.write_dynamics(
+        } else if self.output_dyn_ctl.write(
             &mut self.sequence_number,
             &mut self.req,
             node,
@@ -268,8 +266,10 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3Model {
         elem_id_list.extend_from_slice(&self.mixer_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.input_eq_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.input_dyn_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.output_eq_ctl.elem_id_list);
+        elem_id_list.extend_from_slice(&self.output_dyn_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.resource_ctl.elem_id_list);
     }
 
@@ -284,8 +284,10 @@ impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for F828mk3Model {
                 || self.mixer_ctl.parse_command(cmd)
                 || self.input_ctl.parse_command(cmd)
                 || self.input_eq_ctl.parse_command(cmd)
+                || self.input_dyn_ctl.parse_command(cmd)
                 || self.output_ctl.parse_command(cmd)
                 || self.output_eq_ctl.parse_command(cmd)
+                || self.output_dyn_ctl.parse_command(cmd)
                 || self.resource_ctl.parse_command(cmd);
         }
         Ok(())
