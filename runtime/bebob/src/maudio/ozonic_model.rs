@@ -231,14 +231,10 @@ impl CtlModel<(SndUnit, FwNode)> for OzonicModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(
-            &mut unit.0,
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS * 3,
-        )? {
+        if self
+            .clk_ctl
+            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
         } else if self.clk_ctl.write_src(
             &mut unit.0,
