@@ -162,15 +162,21 @@ impl CtlModel<(SndUnit, FwNode)> for Fp10Model {
         _: &ElemValue,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, elem_value, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(&mut unit.0, &self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phys_out_ctl

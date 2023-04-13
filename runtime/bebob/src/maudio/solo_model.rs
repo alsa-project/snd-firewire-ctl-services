@@ -290,13 +290,10 @@ impl CtlModel<(SndUnit, FwNode)> for SoloModel {
             .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.spdif_output_ctl.write_selector(
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .spdif_output_ctl
+            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .mixer_ctl
