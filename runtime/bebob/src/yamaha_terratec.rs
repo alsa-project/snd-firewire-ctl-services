@@ -398,52 +398,60 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24CoaxModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phys_in_ctl
-            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.write_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .hp_ctl
-            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_src_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_src_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -536,52 +544,60 @@ impl CtlModel<(SndUnit, FwNode)> for GoPhase24OptModel {
         &mut self,
         unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
+        _: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS * 3,
+        )? {
+            Ok(true)
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .clk_ctl
-            .write_src(&mut unit.0, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .phys_out_ctl
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .phys_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phys_out_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.phys_out_ctl.write_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
-            .phys_out_ctl
-            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .mixer_src_ctl
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_src_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
-            .mixer_src_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_out_ctl
-            .write_mute(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+            .write_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else {

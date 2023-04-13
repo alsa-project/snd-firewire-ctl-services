@@ -386,13 +386,12 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
         &mut self,
         avc: &BebobAvc,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         if elem_id.name().as_str() == Self::SELECTOR_NAME {
             let mut params = self.state().clone();
-            let vals = &new.enumerated()[..params.selectors.len()];
+            let vals = &elem_value.enumerated()[..params.selectors.len()];
             params
                 .selectors
                 .iter_mut()

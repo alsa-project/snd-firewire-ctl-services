@@ -491,13 +491,10 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             .write_level(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.phys_output_ctl.write_selector(
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .phys_output_ctl
+            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .hp_ctl
@@ -506,7 +503,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             Ok(true)
         } else if self
             .hp_ctl
-            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -514,13 +511,10 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
             .write_src_state(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.spdif_input_ctl.write_selector(
-            &self.avc,
-            elem_id,
-            old,
-            new,
-            FCP_TIMEOUT_MS,
-        )? {
+        } else if self
+            .spdif_input_ctl
+            .write_selector(&self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .mixer_ctl
