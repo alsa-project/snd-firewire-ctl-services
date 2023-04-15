@@ -2453,27 +2453,6 @@ where
     const CH_COUNT: usize = T::OUTPUT_COUNT;
 }
 
-fn fx_echo_type_to_string(echo_type: &FfLatterFxEchoType) -> String {
-    match echo_type {
-        FfLatterFxEchoType::StereoEcho => "Stereo-echo",
-        FfLatterFxEchoType::StereoCross => "Stereo-cross",
-        FfLatterFxEchoType::PongEcho => "Pong-echo",
-    }
-    .to_string()
-}
-
-fn fx_echo_lpf_freq_to_string(lpf_freq: &FfLatterFxEchoLpfFreq) -> String {
-    match lpf_freq {
-        FfLatterFxEchoLpfFreq::Off => "Off",
-        FfLatterFxEchoLpfFreq::H2000 => "2kHz",
-        FfLatterFxEchoLpfFreq::H4000 => "4kHz",
-        FfLatterFxEchoLpfFreq::H8000 => "8kHz",
-        FfLatterFxEchoLpfFreq::H12000 => "12kHz",
-        FfLatterFxEchoLpfFreq::H16000 => "16kHz",
-    }
-    .to_string()
-}
-
 const LINE_SRC_GAIN_NAME: &str = "fx:line-source-gain";
 const MIC_SRC_GAIN_NAME: &str = "fx:mic-source-gain";
 const SPDIF_SRC_GAIN_NAME: &str = "fx:spdif-source-gain";
@@ -3338,41 +3317,42 @@ const ECHO_LPF_FREQ_NAME: &str = "fx:echo-lpf-freq";
 const ECHO_VOL_NAME: &str = "fx:echo-volume";
 const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 
-#[derive(Debug)]
-pub struct LatterFxCtl<T>
+#[derive(Default, Debug)]
+pub struct LatterFxEchoCtl<T>
 where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
+    T: RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxEchoState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxEchoState>,
 {
     pub elem_id_list: Vec<ElemId>,
-    params: FfLatterFxState,
+    params: FfLatterFxEchoState,
     _phantom: PhantomData<T>,
 }
 
-impl<T> Default for LatterFxCtl<T>
-where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
-{
-    fn default() -> Self {
-        Self {
-            elem_id_list: Default::default(),
-            params: T::create_fx_parameters(),
-            _phantom: Default::default(),
-        }
+fn fx_echo_type_to_str(echo_type: &FfLatterFxEchoType) -> &str {
+    match echo_type {
+        FfLatterFxEchoType::StereoEcho => "Stereo-echo",
+        FfLatterFxEchoType::StereoCross => "Stereo-cross",
+        FfLatterFxEchoType::PongEcho => "Pong-echo",
     }
 }
 
-impl<T> LatterFxCtl<T>
+fn fx_echo_lpf_freq_to_str(lpf_freq: &FfLatterFxEchoLpfFreq) -> &str {
+    match lpf_freq {
+        FfLatterFxEchoLpfFreq::Off => "Off",
+        FfLatterFxEchoLpfFreq::H2000 => "2kHz",
+        FfLatterFxEchoLpfFreq::H4000 => "4kHz",
+        FfLatterFxEchoLpfFreq::H8000 => "8kHz",
+        FfLatterFxEchoLpfFreq::H12000 => "12kHz",
+        FfLatterFxEchoLpfFreq::H16000 => "16kHz",
+    }
+}
+
+impl<T> LatterFxEchoCtl<T>
 where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
+    T: RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxEchoState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxEchoState>,
 {
     const ECHO_TYPES: &[FfLatterFxEchoType] = &[
         FfLatterFxEchoType::StereoEcho,
@@ -3406,9 +3386,9 @@ where
             .add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::ECHO_TYPES
+        let labels: Vec<&str> = Self::ECHO_TYPES
             .iter()
-            .map(|t| fx_echo_type_to_string(t))
+            .map(|t| fx_echo_type_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_TYPE_NAME, 0);
         card_cntr
@@ -3443,9 +3423,9 @@ where
             )
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::ECHO_LPF_FREQS
+        let labels: Vec<&str> = Self::ECHO_LPF_FREQS
             .iter()
-            .map(|t| fx_echo_lpf_freq_to_string(t))
+            .map(|t| fx_echo_lpf_freq_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_LPF_FREQ_NAME, 0);
         card_cntr
@@ -3486,39 +3466,39 @@ where
     pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             ECHO_ACTIVATE_NAME => {
-                elem_value.set_bool(&[self.params.echo.activate]);
+                elem_value.set_bool(&[self.params.activate]);
                 Ok(true)
             }
             ECHO_TYPE_NAME => {
                 let pos = Self::ECHO_TYPES
                     .iter()
-                    .position(|t| self.params.echo.echo_type.eq(t))
+                    .position(|t| self.params.echo_type.eq(t))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_DELAY_NAME => {
-                elem_value.set_int(&[self.params.echo.delay as i32]);
+                elem_value.set_int(&[self.params.delay as i32]);
                 Ok(true)
             }
             ECHO_FEEDBACK_NAME => {
-                elem_value.set_int(&[self.params.echo.feedback as i32]);
+                elem_value.set_int(&[self.params.feedback as i32]);
                 Ok(true)
             }
             ECHO_LPF_FREQ_NAME => {
                 let pos = Self::ECHO_LPF_FREQS
                     .iter()
-                    .position(|f| self.params.echo.lpf.eq(f))
+                    .position(|f| self.params.lpf.eq(f))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_VOL_NAME => {
-                elem_value.set_int(&[self.params.echo.volume as i32]);
+                elem_value.set_int(&[self.params.volume as i32]);
                 Ok(true)
             }
             ECHO_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[self.params.echo.stereo_width as i32]);
+                elem_value.set_int(&[self.params.stereo_width as i32]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -3536,7 +3516,7 @@ where
         match elem_id.name().as_str() {
             ECHO_ACTIVATE_NAME => {
                 let mut params = self.params.clone();
-                params.echo.activate = elem_value.boolean()[0];
+                params.activate = elem_value.boolean()[0];
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
@@ -3551,21 +3531,21 @@ where
                         let msg = format!("Invalid index of type of echo effect: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&t| params.echo.echo_type = t)?;
+                    .map(|&t| params.echo_type = t)?;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ECHO_DELAY_NAME => {
                 let mut params = self.params.clone();
-                params.echo.delay = elem_value.int()[0] as u16;
+                params.delay = elem_value.int()[0] as u16;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ECHO_FEEDBACK_NAME => {
                 let mut params = self.params.clone();
-                params.echo.feedback = elem_value.int()[0] as u16;
+                params.feedback = elem_value.int()[0] as u16;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
@@ -3580,21 +3560,21 @@ where
                         let msg = format!("Invalid index of type of echo HPF frequency: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&t| params.echo.lpf = t)?;
+                    .map(|&t| params.lpf = t)?;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ECHO_VOL_NAME => {
                 let mut params = self.params.clone();
-                params.echo.volume = elem_value.int()[0] as i16;
+                params.volume = elem_value.int()[0] as i16;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ECHO_STEREO_WIDTH_NAME => {
                 let mut params = self.params.clone();
-                params.echo.stereo_width = elem_value.int()[0] as u16;
+                params.stereo_width = elem_value.int()[0] as u16;
                 let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
                 debug!(params = ?self.params, ?res);
                 res.map(|_| true)
