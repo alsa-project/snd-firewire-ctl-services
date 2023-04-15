@@ -359,9 +359,9 @@ impl CfgCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_INST_SPKR_EMU_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let labels: Vec<String> = Self::OUTPUT_LINE_LEVELS
+        let labels: Vec<&str> = Self::OUTPUT_LINE_LEVELS
             .iter()
-            .map(|l| line_out_nominal_level_to_string(l))
+            .map(|l| line_out_nominal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUTPUT_LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;

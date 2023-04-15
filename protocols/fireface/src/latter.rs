@@ -356,7 +356,6 @@ where
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
-    pub output: FfLatterOutputState,
     pub mixer: FfLatterMixerState,
     pub input_ch_strip: FfLatterInputChStripState,
     pub output_ch_strip: FfLatterOutputChStripState,
@@ -497,14 +496,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
 
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
-            output: FfLatterOutputState {
-                vols: vec![Default::default(); Self::OUTPUT_COUNT],
-                stereo_balance: vec![Default::default(); Self::OUTPUT_COUNT / 2],
-                stereo_links: vec![Default::default(); Self::OUTPUT_COUNT / 2],
-                invert_phases: vec![Default::default(); Self::OUTPUT_COUNT],
-                line_levels: vec![Default::default(); Self::LINE_OUTPUT_COUNT],
-            },
-
             mixer: FfLatterMixerState(vec![
                 FfLatterMixer {
                     line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
@@ -802,18 +793,16 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
     }
 }
 
-impl From<LineOutNominalLevel> for i16 {
-    fn from(level: LineOutNominalLevel) -> Self {
-        match level {
-            LineOutNominalLevel::Consumer => 0x0000,
-            LineOutNominalLevel::Professional => 0x0001,
-            LineOutNominalLevel::High => 0x0002,
-        }
+fn deserialize_output_nominal_level(level: &LineOutNominalLevel) -> i16 {
+    match level {
+        LineOutNominalLevel::Consumer => 0x0000,
+        LineOutNominalLevel::Professional => 0x0001,
+        LineOutNominalLevel::High => 0x0002,
     }
 }
 
 /// The specification of output.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterOutputState {
     /// The level of volume. Each value is between -650 (0xfd76) and 60 (0x003c) to represent
     /// -65.00 dB and 6.00 dB.
@@ -830,16 +819,35 @@ pub struct FfLatterOutputState {
 
 /// The specification of output.
 pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
+    /// The minimum value for volume of physical output.
     const PHYS_OUTPUT_VOL_MIN: i32 = -650;
+    /// The maximum value for volume of physical output.
     const PHYS_OUTPUT_VOL_MAX: i32 = 60;
+    /// The step value of for volume physical output.
     const PHYS_OUTPUT_VOL_STEP: i32 = 1;
 
+    /// The minimum value for left and right balance of physical output.
     const PHYS_OUTPUT_BALANCE_MIN: i32 = -100;
+    /// The maximum value for left and right balance of physical output.
     const PHYS_OUTPUT_BALANCE_MAX: i32 = 100;
+    /// The step value for left and right balance of physical output.
     const PHYS_OUTPUT_BALANCE_STEP: i32 = 1;
 
+    /// The number of physical outputs.
     const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
+    /// The number of physical output pairs.
     const OUTPUT_PAIR_COUNT: usize = Self::OUTPUT_COUNT / 2;
+
+    /// Instantiate output parameters.
+    fn create_output_parameters() -> FfLatterOutputState {
+        FfLatterOutputState {
+            vols: vec![Default::default(); Self::OUTPUT_COUNT],
+            stereo_balance: vec![Default::default(); Self::OUTPUT_COUNT / 2],
+            stereo_links: vec![Default::default(); Self::OUTPUT_COUNT / 2],
+            invert_phases: vec![Default::default(); Self::OUTPUT_COUNT],
+            line_levels: vec![Default::default(); Self::LINE_OUTPUT_COUNT],
+        }
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputSpecification for O {}
@@ -899,12 +907,12 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
             .line_levels
             .iter()
             .enumerate()
-            .for_each(|(i, &line_level)| {
+            .for_each(|(i, line_level)| {
                 let ch = ch_offset + i as u8;
                 cmds.push(create_phys_port_cmd(
                     ch,
                     OUTPUT_LINE_LEVEL_CMD,
-                    line_level as i16,
+                    deserialize_output_nominal_level(line_level),
                 ));
             });
 
