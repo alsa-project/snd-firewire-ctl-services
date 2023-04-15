@@ -1678,6 +1678,36 @@ where
     }
 }
 
+/// Parameters of outputs from fx component.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterFxOutputParameters {
+    /// The volume to line outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub line_output_vols: Vec<i16>,
+    /// The volume to hp outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub hp_output_vols: Vec<i16>,
+    /// The volume to S/PDIF outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub spdif_output_vols: Vec<i16>,
+    /// The volume to ADAT outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub adat_output_vols: Vec<i16>,
+}
+
+impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxOutputParameters> for O {
+    fn serialize_commands(params: &FfLatterFxOutputParameters) -> Vec<u32> {
+        params
+            .line_output_vols
+            .iter()
+            .chain(&params.hp_output_vols)
+            .chain(&params.spdif_output_vols)
+            .chain(&params.adat_output_vols)
+            .enumerate()
+            .map(|(i, &gain)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain)
+            })
+            .collect()
+    }
+}
+
 /// Type of reverb effect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterFxReverbType {
@@ -1950,14 +1980,6 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
 /// State of send effects (reverb and echo).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterFxState {
-    /// The volume to line outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub line_output_vols: Vec<i16>,
-    /// The volume to hp outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub hp_output_vols: Vec<i16>,
-    /// The volume to S/PDIF outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub spdif_output_vols: Vec<i16>,
-    /// The volume to ADAT outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub adat_output_vols: Vec<i16>,
     /// The state of reverb effect.
     pub reverb: FfLatterFxReverbState,
     /// The state of echo effect.
@@ -2089,13 +2111,19 @@ pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
         }
     }
 
-    /// Instantiate fx parameters.
-    fn create_fx_parameters() -> FfLatterFxState {
-        FfLatterFxState {
+    /// Instantiate fx output parameters.
+    fn create_fx_output_parameters() -> FfLatterFxOutputParameters {
+        FfLatterFxOutputParameters {
             line_output_vols: vec![0; Self::LINE_OUTPUT_COUNT],
             hp_output_vols: vec![0; Self::HP_OUTPUT_COUNT],
             spdif_output_vols: vec![0; Self::SPDIF_OUTPUT_COUNT],
             adat_output_vols: vec![0; Self::ADAT_OUTPUT_COUNT],
+        }
+    }
+
+    /// Instantiate fx parameters.
+    fn create_fx_parameters() -> FfLatterFxState {
+        FfLatterFxState {
             reverb: Default::default(),
             echo: Default::default(),
         }
@@ -2107,23 +2135,6 @@ impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
 impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxState> for O {
     fn serialize_commands(state: &FfLatterFxState) -> Vec<u32> {
         let mut cmds = Vec::new();
-
-        assert_eq!(state.line_output_vols.len(), Self::LINE_OUTPUT_COUNT);
-        assert_eq!(state.hp_output_vols.len(), Self::HP_OUTPUT_COUNT);
-        assert_eq!(state.spdif_output_vols.len(), Self::SPDIF_OUTPUT_COUNT);
-        assert_eq!(state.adat_output_vols.len(), Self::ADAT_OUTPUT_COUNT);
-
-        state
-            .line_output_vols
-            .iter()
-            .chain(&state.hp_output_vols)
-            .chain(&state.spdif_output_vols)
-            .chain(&state.adat_output_vols)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
-                cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
-            });
 
         cmds.append(&mut reverb_state_to_cmds(&state.reverb));
         cmds.append(&mut echo_state_to_cmds(&state.echo));

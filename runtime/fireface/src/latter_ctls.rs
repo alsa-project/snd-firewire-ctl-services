@@ -2732,6 +2732,189 @@ const HP_OUT_VOL_NAME: &str = "fx:hp-output-volume";
 const SPDIF_OUT_VOL_NAME: &str = "fx:spdif-output-volume";
 const ADAT_OUT_VOL_NAME: &str = "fx:adat-output-volume";
 
+#[derive(Debug)]
+pub struct LatterFxOutputCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxOutputParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxOutputParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterFxOutputParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterFxOutputCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxOutputParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxOutputParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_fx_output_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> LatterFxOutputCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxOutputParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxOutputParameters>,
+{
+    const PHYS_LEVEL_TLV: DbInterval = DbInterval {
+        min: -6500,
+        max: 000,
+        linear: false,
+        mute_avail: false,
+    };
+
+    pub fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
+    }
+
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        [
+            (LINE_OUT_VOL_NAME, T::LINE_OUTPUT_COUNT),
+            (HP_OUT_VOL_NAME, T::HP_OUTPUT_COUNT),
+            (SPDIF_OUT_VOL_NAME, T::SPDIF_OUTPUT_COUNT),
+            (ADAT_OUT_VOL_NAME, T::ADAT_OUTPUT_COUNT),
+        ]
+        .iter()
+        .try_for_each(|&(name, count)| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    T::FX_PHYS_LEVEL_MIN,
+                    T::FX_PHYS_LEVEL_MAX,
+                    T::FX_PHYS_LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
+                    true,
+                )
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+        })
+    }
+
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            LINE_OUT_VOL_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .line_output_vols
+                    .iter()
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            HP_OUT_VOL_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .hp_output_vols
+                    .iter()
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            SPDIF_OUT_VOL_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .spdif_output_vols
+                    .iter()
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            ADAT_OUT_VOL_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .adat_output_vols
+                    .iter()
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            LINE_OUT_VOL_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .line_output_vols
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            HP_OUT_VOL_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .hp_output_vols
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            SPDIF_OUT_VOL_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .spdif_output_vols
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            ADAT_OUT_VOL_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .adat_output_vols
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 const REVERB_ACTIVATE_NAME: &str = "fx:reverb-activate";
 const REVERB_TYPE_NAME: &str = "fx:reverb-type";
 const REVERB_PRE_DELAY_NAME: &str = "fx:reverb-pre-delay";
@@ -2791,13 +2974,6 @@ where
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
 {
-    const PHYS_LEVEL_TLV: DbInterval = DbInterval {
-        min: -6500,
-        max: 000,
-        linear: false,
-        mute_avail: false,
-    };
-
     const REVERB_TYPES: &'static [FfLatterFxReverbType] = &[
         FfLatterFxReverbType::SmallRoom,
         FfLatterFxReverbType::MediumRoom,
@@ -2843,29 +3019,6 @@ where
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        [
-            (LINE_OUT_VOL_NAME, T::LINE_OUTPUT_COUNT),
-            (HP_OUT_VOL_NAME, T::HP_OUTPUT_COUNT),
-            (SPDIF_OUT_VOL_NAME, T::SPDIF_OUTPUT_COUNT),
-            (ADAT_OUT_VOL_NAME, T::ADAT_OUTPUT_COUNT),
-        ]
-        .iter()
-        .try_for_each(|&(name, count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_int_elems(
-                    &elem_id,
-                    1,
-                    T::FX_PHYS_LEVEL_MIN,
-                    T::FX_PHYS_LEVEL_MAX,
-                    T::FX_PHYS_LEVEL_STEP,
-                    count,
-                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
-                    true,
-                )
-                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
-        })?;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ACTIVATE_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, true)
@@ -3114,46 +3267,6 @@ where
 
     pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            LINE_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .line_output_vols
-                    .iter()
-                    .map(|&vol| vol as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            HP_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .hp_output_vols
-                    .iter()
-                    .map(|&vol| vol as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            SPDIF_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .spdif_output_vols
-                    .iter()
-                    .map(|&vol| vol as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            ADAT_OUT_VOL_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .adat_output_vols
-                    .iter()
-                    .map(|&vol| vol as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
             REVERB_ACTIVATE_NAME => {
                 elem_value.set_bool(&[self.params.reverb.activate]);
                 Ok(true)
@@ -3263,50 +3376,6 @@ where
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            LINE_OUT_VOL_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .line_output_vols
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            HP_OUT_VOL_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .hp_output_vols
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            SPDIF_OUT_VOL_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .spdif_output_vols
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            ADAT_OUT_VOL_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .adat_output_vols
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
             REVERB_ACTIVATE_NAME => {
                 let mut params = self.params.clone();
                 params.reverb.activate = elem_value.boolean()[0];
