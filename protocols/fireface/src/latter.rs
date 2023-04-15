@@ -356,7 +356,6 @@ where
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
-    pub input: FfLatterInputState,
     pub output: FfLatterOutputState,
     pub mixer: FfLatterMixerState,
     pub input_ch_strip: FfLatterInputChStripState,
@@ -498,14 +497,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
 
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
-            input: FfLatterInputState {
-                stereo_links: vec![Default::default(); Self::PHYS_INPUT_COUNT / 2],
-                invert_phases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
-                line_levels: vec![Default::default(); Self::LINE_INPUT_COUNT],
-                mic_powers: vec![Default::default(); Self::MIC_INPUT_COUNT],
-                mic_insts: vec![Default::default(); Self::MIC_INPUT_COUNT],
-            },
             output: FfLatterOutputState {
                 vols: vec![Default::default(); Self::OUTPUT_COUNT],
                 stereo_balance: vec![Default::default(); Self::OUTPUT_COUNT / 2],
@@ -684,7 +675,7 @@ const FX_ECHO_VOLUME_CMD: u8 = 0x25;
 const FX_ECHO_STEREO_WIDTH_CMD: u8 = 0x26;
 
 /// Nominal level of analog input.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LatterInNominalLevel {
     Low,
     /// +4 dBu.
@@ -697,17 +688,15 @@ impl Default for LatterInNominalLevel {
     }
 }
 
-impl From<LatterInNominalLevel> for i16 {
-    fn from(level: LatterInNominalLevel) -> Self {
-        match level {
-            LatterInNominalLevel::Low => 0x0000,
-            LatterInNominalLevel::Professional => 0x0001,
-        }
+fn deserialize_input_nominal_level(level: &LatterInNominalLevel) -> i16 {
+    match level {
+        LatterInNominalLevel::Low => 0x0000,
+        LatterInNominalLevel::Professional => 0x0001,
     }
 }
 
 /// State of inputs.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterInputState {
     /// Whether to link each pair of left and right ports.
     pub stereo_links: Vec<bool>,
@@ -726,9 +715,24 @@ pub struct FfLatterInputState {
 
 /// The specification of inputs.
 pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
+    /// The minimum value of physical inputs.
     const PHYS_INPUT_GAIN_MIN: i32 = 0;
+    /// The maximum value of physical inputs.
     const PHYS_INPUT_GAIN_MAX: i32 = 120;
+    /// The step value of physical inputs.
     const PHYS_INPUT_GAIN_STEP: i32 = 1;
+
+    /// Instantiate input parameters.
+    fn create_input_parameters() -> FfLatterInputState {
+        FfLatterInputState {
+            stereo_links: vec![Default::default(); Self::PHYS_INPUT_COUNT / 2],
+            invert_phases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
+            line_levels: vec![Default::default(); Self::LINE_INPUT_COUNT],
+            mic_powers: vec![Default::default(); Self::MIC_INPUT_COUNT],
+            mic_insts: vec![Default::default(); Self::MIC_INPUT_COUNT],
+        }
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
@@ -771,14 +775,14 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
             cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
         });
 
-        state
-            .line_levels
-            .iter()
-            .enumerate()
-            .for_each(|(i, &level)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
-            });
+        state.line_levels.iter().enumerate().for_each(|(i, level)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(
+                ch,
+                INPUT_LINE_LEVEL_CMD,
+                deserialize_input_nominal_level(level),
+            ));
+        });
 
         (0..Self::MIC_INPUT_COUNT).for_each(|i| {
             // NOTE: The offset is required for microphone inputs.

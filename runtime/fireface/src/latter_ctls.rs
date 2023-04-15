@@ -127,9 +127,6 @@ where
 pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
@@ -149,9 +146,6 @@ where
 impl<T> Default for LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
@@ -191,9 +185,6 @@ where
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterInputSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
@@ -216,7 +207,6 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::cache_input(req, node, &mut self.0.input, timeout_ms)?;
         Self::cache_output(req, node, &mut self.0.output, timeout_ms)?;
         Self::cache_mixer(req, node, &mut self.0.mixer, timeout_ms)?;
         Self::cache_ch_strip(req, node, &mut self.0.input_ch_strip, timeout_ms)?;
@@ -226,7 +216,6 @@ where
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        Self::load_input(card_cntr)?;
         Self::load_output(card_cntr)?;
         Self::load_mixer(card_cntr)?;
         Self::load_ch_strip(card_cntr, &self.0.input_ch_strip)?;
@@ -236,9 +225,7 @@ where
     }
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if Self::read_input(elem_id, elem_value, &self.0.input)? {
-            Ok(true)
-        } else if Self::read_output(elem_id, elem_value, &self.0.output)? {
+        if Self::read_output(elem_id, elem_value, &self.0.output)? {
             Ok(true)
         } else if Self::read_mixer(elem_id, elem_value, &self.0.mixer)? {
             Ok(true)
@@ -261,16 +248,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if Self::write_input(
-            req,
-            node,
-            elem_id,
-            elem_value,
-            &mut self.0.input,
-            timeout_ms,
-        )? {
-            Ok(true)
-        } else if Self::write_output(
+        if Self::write_output(
             req,
             node,
             elem_id,
@@ -321,7 +299,41 @@ const INPUT_MIC_POWER_NAME: &str = "input:mic-power";
 const INPUT_MIC_INST_NAME: &str = "input:mic-instrument";
 const INPUT_INVERT_PHASE_NAME: &str = "input:invert-phase";
 
-impl<T> LatterDspCtl<T>
+#[derive(Debug)]
+pub struct LatterInputCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterInputState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterInputCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+fn latter_line_in_nominal_level_to_str(level: &LatterInNominalLevel) -> &str {
+    match level {
+        LatterInNominalLevel::Low => "Low",
+        LatterInNominalLevel::Professional => "+4dBu",
+    }
+}
+
+impl<T> LatterInputCtl<T>
 where
     T: RmeFfLatterInputSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
@@ -334,74 +346,88 @@ where
         mute_avail: false,
     };
 
-    const INPUT_LINE_LEVELS: [LatterInNominalLevel; 2] = [
+    const INPUT_LINE_LEVELS: &'static [LatterInNominalLevel] = &[
         LatterInNominalLevel::Low,
         LatterInNominalLevel::Professional,
     ];
 
-    fn cache_input(
+    pub fn cache(
+        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
-        params: &mut FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::command_wholly(req, node, params, timeout_ms);
-        debug!(?params, ?res);
+        let res = T::command_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
         res
     }
 
-    fn load_input(card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_LINK_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::PHYS_INPUT_COUNT / 2, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::PHYS_INPUT_COUNT / 2, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_LINE_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::PHYS_INPUT_GAIN_MIN,
-            T::PHYS_INPUT_GAIN_MAX,
-            T::PHYS_INPUT_GAIN_STEP,
-            T::PHYS_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&Self::INPUT_GAIN_TLV)),
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::PHYS_INPUT_GAIN_MIN,
+                T::PHYS_INPUT_GAIN_MAX,
+                T::PHYS_INPUT_GAIN_STEP,
+                T::PHYS_INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::INPUT_GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::INPUT_LINE_LEVELS
+        let labels: Vec<&str> = Self::INPUT_LINE_LEVELS
             .iter()
-            .map(|l| latter_line_in_nominal_level_to_string(l))
+            .map(|l| latter_line_in_nominal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LINE_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_POWER_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_INST_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_PHASE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn read_input(
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        params: &FfLatterInputState,
-    ) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                elem_value.set_bool(&params.stereo_links);
+                elem_value.set_bool(&self.params.stereo_links);
                 Ok(true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let vals: Vec<i32> = params.line_gains.iter().map(|&gain| gain as i32).collect();
+                let vals: Vec<i32> = self
+                    .params
+                    .line_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let vals: Vec<u32> = params
+                let vals: Vec<u32> = self
+                    .params
                     .line_levels
                     .iter()
                     .map(|level| {
@@ -416,54 +442,54 @@ where
                 Ok(true)
             }
             INPUT_MIC_POWER_NAME => {
-                elem_value.set_bool(&params.mic_powers);
+                elem_value.set_bool(&self.params.mic_powers);
                 Ok(true)
             }
             INPUT_MIC_INST_NAME => {
-                elem_value.set_bool(&params.mic_insts);
+                elem_value.set_bool(&self.params.mic_insts);
                 Ok(true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                elem_value.set_bool(&params.invert_phases);
+                elem_value.set_bool(&self.params.invert_phases);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write_input(
+    pub fn write(
+        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
-        state: &mut FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .stereo_links
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .line_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .line_levels
                     .iter_mut()
@@ -479,41 +505,41 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .mic_powers
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .mic_insts
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .invert_phases
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
