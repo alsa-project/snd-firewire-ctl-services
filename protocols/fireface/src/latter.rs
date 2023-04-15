@@ -496,20 +496,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
             input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
-                eq: FfLatterEqState {
-                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    low_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    low_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    low_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    low_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    middle_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    middle_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    middle_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    high_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    high_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    high_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    high_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                },
                 dynamics: FfLatterDynState {
                     activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                     gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
@@ -528,20 +514,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
                 },
             }),
             output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState {
-                eq: FfLatterEqState {
-                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
-                    low_types: vec![Default::default(); Self::OUTPUT_COUNT],
-                    low_gains: vec![Default::default(); Self::OUTPUT_COUNT],
-                    low_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
-                    low_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
-                    middle_gains: vec![Default::default(); Self::OUTPUT_COUNT],
-                    middle_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
-                    middle_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
-                    high_types: vec![Default::default(); Self::OUTPUT_COUNT],
-                    high_gains: vec![Default::default(); Self::OUTPUT_COUNT],
-                    high_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
-                    high_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
-                },
                 dynamics: FfLatterDynState {
                     activates: vec![Default::default(); Self::OUTPUT_COUNT],
                     gains: vec![Default::default(); Self::OUTPUT_COUNT],
@@ -712,6 +684,24 @@ pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
             roll_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
         })
     }
+
+    /// Instantiate input equalizer parameters.
+    fn create_input_equalizer_parameters() -> FfLatterInputEqualizerParameters {
+        FfLatterInputEqualizerParameters(FfLatterEqState {
+            activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            low_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            low_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            low_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            low_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            middle_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            middle_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            middle_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            high_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            high_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            high_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            high_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+        })
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
@@ -843,6 +833,24 @@ pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
             activates: vec![Default::default(); Self::OUTPUT_COUNT],
             cut_offs: vec![Default::default(); Self::OUTPUT_COUNT],
             roll_offs: vec![Default::default(); Self::OUTPUT_COUNT],
+        })
+    }
+
+    /// Instantiate output equalizer parameters.
+    fn create_output_equalizer_parameters() -> FfLatterOutputEqualizerParameters {
+        FfLatterOutputEqualizerParameters(FfLatterEqState {
+            activates: vec![Default::default(); Self::OUTPUT_COUNT],
+            low_types: vec![Default::default(); Self::OUTPUT_COUNT],
+            low_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+            low_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+            low_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
+            middle_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+            middle_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+            middle_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
+            high_types: vec![Default::default(); Self::OUTPUT_COUNT],
+            high_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+            high_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+            high_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
         })
     }
 }
@@ -1117,7 +1125,7 @@ where
 }
 
 /// Type of bandwidth equalizing.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterChStripEqType {
     Peak,
     Shelf,
@@ -1130,18 +1138,16 @@ impl Default for FfLatterChStripEqType {
     }
 }
 
-impl From<FfLatterChStripEqType> for i16 {
-    fn from(eq_type: FfLatterChStripEqType) -> Self {
-        match eq_type {
-            FfLatterChStripEqType::Peak => 0x0000,
-            FfLatterChStripEqType::Shelf => 0x0001,
-            FfLatterChStripEqType::LowPass => 0x0002,
-        }
+fn deserialize_eq_type(eq_type: &FfLatterChStripEqType) -> i16 {
+    match eq_type {
+        FfLatterChStripEqType::Peak => 0x0000,
+        FfLatterChStripEqType::Shelf => 0x0001,
+        FfLatterChStripEqType::LowPass => 0x0002,
     }
 }
 
 /// State of equalizer in channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterEqState {
     /// Whether to activate equalizer.
     pub activates: Vec<bool>,
@@ -1194,7 +1200,7 @@ fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
         cmds.push(create_phys_port_cmd(
             ch,
             EQ_LOW_TYPE_CMD,
-            state.low_types[i] as i16,
+            deserialize_eq_type(&state.low_types[i]),
         ));
         cmds.push(create_phys_port_cmd(
             ch,
@@ -1229,7 +1235,7 @@ fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
         cmds.push(create_phys_port_cmd(
             ch,
             EQ_HIGH_TYPE_CMD,
-            state.high_types[i] as i16,
+            deserialize_eq_type(&state.high_types[i]),
         ));
         cmds.push(create_phys_port_cmd(
             ch,
@@ -1249,6 +1255,82 @@ fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
     });
 
     cmds
+}
+
+/// Parameters of input equalizer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterInputEqualizerParameters(pub FfLatterEqState);
+
+impl AsRef<FfLatterEqState> for FfLatterInputEqualizerParameters {
+    fn as_ref(&self) -> &FfLatterEqState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterEqState> for FfLatterInputEqualizerParameters {
+    fn as_mut(&mut self) -> &mut FfLatterEqState {
+        &mut self.0
+    }
+}
+
+/// Parameters of output equalizer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterOutputEqualizerParameters(pub FfLatterEqState);
+
+impl AsRef<FfLatterEqState> for FfLatterOutputEqualizerParameters {
+    fn as_ref(&self) -> &FfLatterEqState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterEqState> for FfLatterOutputEqualizerParameters {
+    fn as_mut(&mut self) -> &mut FfLatterEqState {
+        &mut self.0
+    }
+}
+
+/// The trait for specification of equalizer.
+pub trait RmeFfLatterEqualizerSpecification {
+    /// The minimum value of gain.
+    const EQ_GAIN_MIN: i32 = -20;
+    /// The maximum value of gain.
+    const EQ_GAIN_MAX: i32 = 20;
+    /// The step value of gain.
+    const EQ_GAIN_STEP: i32 = 1;
+
+    /// The minimum value of frequency.
+    const EQ_FREQ_MIN: i32 = 20;
+    /// The maximum value of frequency.
+    const EQ_FREQ_MAX: i32 = 20000;
+    /// The step value of frequency.
+    const EQ_FREQ_STEP: i32 = 1;
+
+    /// The minimum value of quality.
+    const EQ_QUALITY_MIN: i32 = 7;
+    /// The maximum value of quality.
+    const EQ_QUALITY_MAX: i32 = 50;
+    /// The step value of quality.
+    const EQ_QUALITY_STEP: i32 = 1;
+}
+
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterEqualizerSpecification for O {}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterInputEqualizerParameters> for O
+where
+    O: RmeFfLatterEqualizerSpecification + RmeFfLatterInputSpecification,
+{
+    fn serialize_commands(params: &FfLatterInputEqualizerParameters) -> Vec<u32> {
+        eq_state_to_cmds(&params.0, 0)
+    }
+}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterOutputEqualizerParameters> for O
+where
+    O: RmeFfLatterEqualizerSpecification + RmeFfLatterOutputSpecification,
+{
+    fn serialize_commands(params: &FfLatterOutputEqualizerParameters) -> Vec<u32> {
+        eq_state_to_cmds(&params.0, Self::PHYS_INPUT_COUNT as u8)
+    }
 }
 
 /// State of dynamics in channel strip effect.
@@ -1380,7 +1462,6 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
 /// State of channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterChStripState {
-    pub eq: FfLatterEqState,
     pub dynamics: FfLatterDynState,
     pub autolevel: FfLatterAutolevelState,
 }
@@ -1389,18 +1470,6 @@ pub struct FfLatterChStripState {
 pub trait RmeFfLatterChStripSpecification<T>: RmeFfLatterDspSpecification {
     const CH_COUNT: usize;
     const CH_OFFSET: u8;
-
-    const EQ_GAIN_MIN: i32 = -20;
-    const EQ_GAIN_MAX: i32 = 20;
-    const EQ_GAIN_STEP: i32 = 1;
-
-    const EQ_FREQ_MIN: i32 = 20;
-    const EQ_FREQ_MAX: i32 = 20000;
-    const EQ_FREQ_STEP: i32 = 1;
-
-    const EQ_QUALITY_MIN: i32 = 7;
-    const EQ_QUALITY_MAX: i32 = 50;
-    const EQ_QUALITY_STEP: i32 = 1;
 
     const DYN_GAIN_MIN: i32 = -300;
     const DYN_GAIN_MAX: i32 = 300;
@@ -1468,7 +1537,6 @@ where
 {
     fn serialize_commands(state: &FfLatterInputChStripState) -> Vec<u32> {
         [
-            eq_state_to_cmds(&state.0.eq, 0),
             dyn_state_to_cmds(&state.0.dynamics, 0),
             autolevel_state_to_cmds(&state.0.autolevel, 0),
         ]
@@ -1510,7 +1578,6 @@ impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChSt
             + Self::ADAT_INPUT_COUNT) as u8;
 
         [
-            eq_state_to_cmds(&state.0.eq, ch_offset),
             dyn_state_to_cmds(&state.0.dynamics, ch_offset),
             autolevel_state_to_cmds(&state.0.autolevel, ch_offset),
         ]
