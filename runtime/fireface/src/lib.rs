@@ -173,11 +173,3 @@ fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> String 
         "not-detected".to_string()
     }
 }
-
-fn latter_line_in_nominal_level_to_string(level: &LatterInNominalLevel) -> String {
-    match level {
-        LatterInNominalLevel::Low => "Low",
-        LatterInNominalLevel::Professional => "+4dBu",
-    }
-    .to_string()
-}
