@@ -18,13 +18,11 @@ pub struct UcxModel {
 const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<(SndFireface, FwNode)> for UcxModel {
-    fn cache(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error> {
-        self.meter_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.dsp_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.cfg_ctl.cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.status_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+    fn cache(&mut self, (_, node): &mut (SndFireface, FwNode)) -> Result<(), Error> {
+        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.dsp_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.cfg_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.status_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -53,18 +51,18 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
 
     fn write(
         &mut self,
-        unit: &mut (SndFireface, FwNode),
+        (_, node): &mut (SndFireface, FwNode),
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .dsp_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .cfg_ctl
-            .write(&mut self.req, &mut unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -79,11 +77,9 @@ impl MeasureModel<(SndFireface, FwNode)> for UcxModel {
         elem_id_list.extend_from_slice(&self.status_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndFireface, FwNode)) -> Result<(), Error> {
-        self.meter_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
-        self.status_ctl
-            .cache(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
+    fn measure_states(&mut self, (_, node): &mut (SndFireface, FwNode)) -> Result<(), Error> {
+        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.status_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
 }
