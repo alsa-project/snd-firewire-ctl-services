@@ -107,7 +107,7 @@ snd-oxfw-ctl-service
 snd-bebob-ctl-service
     ``snd-bebob-ctl-service`` crate locates in ``runtime/bebob``
 snd-dice-ctl-service
-    ``dice-runtime`` crate locates in ``runtime/dice``
+    ``snd-dice-ctl-service`` crate locates in ``runtime/dice``
 snd-fireface-ctl-service
     ``fireface-runtime`` crate locates in ``runtime/fireface``
 

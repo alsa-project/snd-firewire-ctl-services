@@ -19,8 +19,9 @@ mod tcd22xx_ctl;
 use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
+    clap::Parser,
     common_ctl::*,
-    core::{card_cntr::*, dispatcher::*, *},
+    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -44,7 +45,7 @@ enum Event {
     Timer,
 }
 
-pub struct DiceRuntime {
+struct DiceRuntime {
     unit: (SndDice, FwNode),
     model: DiceModel,
     card_cntr: CardCntr,
@@ -320,4 +321,27 @@ fn clock_source_to_string(source: &ClockSource) -> String {
         ClockSource::Internal => "Internal".to_string(),
         ClockSource::Reserved(val) => format!("Reserved({})", val),
     }
+}
+
+struct DiceServiceCmd;
+
+#[derive(Parser, Default)]
+#[clap(name = "snd-dice-ctl-service")]
+struct Arguments {
+    /// The numeric identifier of sound card in Linux sound subsystem.
+    card_id: u32,
+
+    /// The level to debug runtime, disabled as a default.
+    #[clap(long, short, arg_enum)]
+    log_level: Option<LogLevel>,
+}
+
+impl ServiceCmd<Arguments, u32, DiceRuntime> for DiceServiceCmd {
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, args.log_level)
+    }
+}
+
+fn main() {
+    DiceServiceCmd::run()
 }
