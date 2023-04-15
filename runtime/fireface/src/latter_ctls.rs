@@ -128,45 +128,45 @@ pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
 where
     T: RmeFfLatterDspSpecification
         + RmeFfLatterInputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>;
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>;
 
 impl<T> Default for LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
         + RmeFfLatterInputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
 {
     fn default() -> Self {
         let mut state = T::create_dsp_state();
@@ -192,23 +192,23 @@ impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
         + RmeFfLatterInputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>
         + RmeFfLatterOutputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>
         + RmeFfLatterMixerSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterMixerState>
         + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
         + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
 {
     pub fn cache(
         &mut self,
@@ -324,8 +324,8 @@ const INPUT_INVERT_PHASE_NAME: &str = "input:invert-phase";
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterInputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterInputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputState>,
 {
     const INPUT_GAIN_TLV: DbInterval = DbInterval {
         min: 0,
@@ -345,7 +345,7 @@ where
         params: &mut FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, params, timeout_ms);
+        let res = T::command_wholly(req, node, params, timeout_ms);
         debug!(?params, ?res);
         res
     }
@@ -447,7 +447,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -458,7 +458,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -479,7 +479,7 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -490,7 +490,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -501,7 +501,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -512,7 +512,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -530,8 +530,8 @@ const LINE_LEVEL_NAME: &str = "output:line-level";
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterOutputSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputState>,
 {
     const VOL_TLV: DbInterval = DbInterval {
         min: -6500,
@@ -552,7 +552,7 @@ where
         params: &mut FfLatterOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, params, timeout_ms);
+        let res = T::command_wholly(req, node, params, timeout_ms);
         debug!(?params, ?res);
         res
     }
@@ -661,7 +661,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -672,7 +672,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -683,7 +683,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -694,7 +694,7 @@ where
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -716,7 +716,7 @@ where
                             })
                             .map(|&l| *level = l)
                     })?;
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -734,8 +734,8 @@ const MIXER_STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterMixerSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterMixerState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterMixerState>,
 {
     const SRC_GAIN_TLV: DbInterval = DbInterval {
         min: -6500,
@@ -750,7 +750,7 @@ where
         params: &mut FfLatterMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, params, timeout_ms);
+        let res = T::command_wholly(req, node, params, timeout_ms);
         debug!(?params, ?res);
         res
     }
@@ -901,7 +901,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -917,7 +917,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -933,7 +933,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -949,7 +949,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -965,7 +965,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -996,8 +996,8 @@ fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
 pub trait FfLatterChStripCtlOperation<T, U>
 where
     T: RmeFfLatterChStripSpecification<U>
-        + RmeFfWhollyUpdatableParamsOperation<U>
-        + RmeFfPartiallyUpdatableParamsOperation<U>,
+        + RmeFfWhollyCommandableParamsOperation<U>
+        + RmeFfPartiallyCommandableParamsOperation<U>,
     U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
 {
     const HPF_ACTIVATE_NAME: &'static str;
@@ -1050,7 +1050,7 @@ where
         params: &mut U,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, params, timeout_ms);
+        let res = T::command_wholly(req, node, params, timeout_ms);
         debug!(?params, ?res);
         res
     }
@@ -1632,7 +1632,7 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
@@ -1644,7 +1644,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(dst, &val)| *dst = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
@@ -1666,7 +1666,7 @@ where
                         })
                         .map(|&l| *level = l)
                 })?;
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().hpf, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
@@ -1678,7 +1678,7 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
@@ -1700,7 +1700,7 @@ where
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
@@ -1722,7 +1722,7 @@ where
                         })
                         .map(|&t| *eq_type = t)
                 })?;
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
@@ -1734,7 +1734,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
@@ -1746,7 +1746,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
@@ -1758,7 +1758,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
@@ -1770,7 +1770,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
@@ -1782,7 +1782,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
@@ -1794,7 +1794,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
@@ -1806,7 +1806,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
@@ -1818,7 +1818,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
@@ -1830,7 +1830,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().eq, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
@@ -1842,7 +1842,7 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
@@ -1854,7 +1854,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
@@ -1866,7 +1866,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(attack, &val)| *attack = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
@@ -1878,7 +1878,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(release, &val)| *release = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
@@ -1890,7 +1890,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
@@ -1902,7 +1902,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
@@ -1914,7 +1914,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
@@ -1926,7 +1926,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().dynamics, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
@@ -1938,7 +1938,7 @@ where
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
@@ -1950,7 +1950,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
@@ -1962,7 +1962,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(headroom, &val)| *headroom = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
@@ -1974,7 +1974,7 @@ where
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(time, &val)| *time = val as u16);
-            let res = T::update_partially(req, node, state, params, timeout_ms);
+            let res = T::command_partially(req, node, state, params, timeout_ms);
             debug!(params = ?state.as_ref().autolevel, ?res);
             res.map(|_| true)
         } else {
@@ -2134,8 +2134,8 @@ const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterFxSpecification
-        + RmeFfWhollyUpdatableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState>,
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
 {
     const PHYS_LEVEL_TLV: DbInterval = DbInterval {
         min: -6500,
@@ -2189,7 +2189,7 @@ where
         params: &mut FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::update_wholly(req, node, params, timeout_ms);
+        let res = T::command_wholly(req, node, params, timeout_ms);
         debug!(?params, ?res);
         res
     }
@@ -2660,7 +2660,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -2671,7 +2671,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -2682,7 +2682,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -2693,7 +2693,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -2704,7 +2704,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state, ?res);
                 res.map(|_| true)
             }
@@ -2715,7 +2715,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state);
                 res.map(|_| true)
             }
@@ -2726,7 +2726,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state);
                 res.map(|_| true)
             }
@@ -2737,7 +2737,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state);
                 res.map(|_| true)
             }
@@ -2748,7 +2748,7 @@ where
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::update_partially(req, node, state, params, timeout_ms);
+                let res = T::command_partially(req, node, state, params, timeout_ms);
                 debug!(params = ?state);
                 res.map(|_| true)
             }
@@ -2912,7 +2912,7 @@ where
     {
         let mut params = state.clone();
         cb(&mut params.reverb)?;
-        let res = T::update_partially(req, node, state, params, timeout_ms);
+        let res = T::command_partially(req, node, state, params, timeout_ms);
         debug!(params = ?state, ?res);
         res
     }
@@ -2929,7 +2929,7 @@ where
     {
         let mut params = state.clone();
         cb(&mut params.echo)?;
-        let res = T::update_partially(req, node, state, params, timeout_ms);
+        let res = T::command_partially(req, node, state, params, timeout_ms);
         debug!(params = ?state, ?res);
         res
     }
