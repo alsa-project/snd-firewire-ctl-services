@@ -123,72 +123,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
-where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>;
-
-impl<T> Default for LatterDspCtl<T>
-where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
-{
-    fn default() -> Self {
-        Self(T::create_dsp_state(), Default::default())
-    }
-}
-
-impl<T> LatterDspCtl<T>
-where
-    T: RmeFfLatterDspSpecification
-        + RmeFfLatterFxSpecification
-        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
-{
-    pub fn cache(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache_fx(req, node, &mut self.0.fx, timeout_ms)?;
-        Ok(())
-    }
-
-    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        Self::load_fx(card_cntr)?;
-        Ok(())
-    }
-
-    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if Self::read_fx(elem_id, elem_value, &self.0.fx)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    pub fn write(
-        &mut self,
-        req: &mut FwReq,
-        node: &mut FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        if Self::write_fx(req, node, elem_id, elem_value, &mut self.0.fx, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
 const INPUT_STEREO_LINK_NAME: &str = "input:stereo-link";
 const INPUT_LINE_GAIN_NAME: &str = "input:line-gain";
 const INPUT_LINE_LEVEL_NAME: &str = "input:line-level";
@@ -2595,9 +2529,39 @@ const ECHO_LPF_FREQ_NAME: &str = "fx:echo-lpf-freq";
 const ECHO_VOL_NAME: &str = "fx:echo-volume";
 const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 
-impl<T> LatterDspCtl<T>
+#[derive(Debug)]
+pub struct LatterFxCtl<T>
 where
-    T: RmeFfLatterFxSpecification
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterFxState,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterFxCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_fx_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> LatterFxCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
 {
@@ -2614,7 +2578,7 @@ where
         mute_avail: false,
     };
 
-    const REVERB_TYPES: [FfLatterFxReverbType; 15] = [
+    const REVERB_TYPES: &'static [FfLatterFxReverbType] = &[
         FfLatterFxReverbType::SmallRoom,
         FfLatterFxReverbType::MediumRoom,
         FfLatterFxReverbType::LargeRoom,
@@ -2632,13 +2596,13 @@ where
         FfLatterFxReverbType::Space,
     ];
 
-    const ECHO_TYPES: [FfLatterFxEchoType; 3] = [
+    const ECHO_TYPES: &[FfLatterFxEchoType] = &[
         FfLatterFxEchoType::StereoEcho,
         FfLatterFxEchoType::StereoCross,
         FfLatterFxEchoType::PongEcho,
     ];
 
-    const ECHO_LPF_FREQS: [FfLatterFxEchoLpfFreq; 6] = [
+    const ECHO_LPF_FREQS: &[FfLatterFxEchoLpfFreq] = &[
         FfLatterFxEchoLpfFreq::Off,
         FfLatterFxEchoLpfFreq::H2000,
         FfLatterFxEchoLpfFreq::H4000,
@@ -2647,18 +2611,18 @@ where
         FfLatterFxEchoLpfFreq::H16000,
     ];
 
-    fn cache_fx(
+    pub fn cache(
+        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
-        params: &mut FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let res = T::command_wholly(req, node, params, timeout_ms);
-        debug!(?params, ?res);
+        let res = T::command_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
         res
     }
 
-    fn load_fx(card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
             (MIC_SRC_GAIN_NAME, T::MIC_INPUT_COUNT),
@@ -2679,20 +2643,22 @@ where
                     Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
                     true,
                 )
-                .map(|_| ())
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::FX_VIRT_LEVEL_MIN,
-            T::FX_VIRT_LEVEL_MAX,
-            T::FX_VIRT_LEVEL_STEP,
-            T::STREAM_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)),
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::FX_VIRT_LEVEL_MIN,
+                T::FX_VIRT_LEVEL_MAX,
+                T::FX_VIRT_LEVEL_STEP,
+                T::STREAM_INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         [
             (LINE_OUT_VOL_NAME, T::LINE_OUTPUT_COUNT),
@@ -2714,221 +2680,260 @@ where
                     Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
                     true,
                 )
-                .map(|_| ())
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::REVERB_TYPES
             .iter()
             .map(|t| fx_reverb_type_to_string(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_DELAY_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_PRE_DELAY_MIN,
-            T::REVERB_PRE_DELAY_MAX,
-            T::REVERB_PRE_DELAY_STEP,
-            1,
-            None,
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_PRE_DELAY_MIN,
+                T::REVERB_PRE_DELAY_MAX,
+                T::REVERB_PRE_DELAY_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_HPF_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 500, 1, 1, None, true)?;
+        card_cntr
+            .add_int_elems(&elem_id, 1, 20, 500, 1, 1, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ROOM_SCALE_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 50, 300, 1, 1, None, true)?;
+        card_cntr
+            .add_int_elems(&elem_id, 1, 50, 300, 1, 1, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ATTACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_ATTACK_MIN,
-            T::REVERB_ATTACK_MAX,
-            T::REVERB_ATTACK_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_ATTACK_MIN,
+                T::REVERB_ATTACK_MAX,
+                T::REVERB_ATTACK_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_HOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_HOLD_MIN,
-            T::REVERB_HOLD_MAX,
-            T::REVERB_HOLD_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_HOLD_MIN,
+                T::REVERB_HOLD_MAX,
+                T::REVERB_HOLD_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_RELEASE_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_RELEASE_MIN,
-            T::REVERB_RELEASE_MAX,
-            T::REVERB_RELEASE_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_RELEASE_MIN,
+                T::REVERB_RELEASE_MAX,
+                T::REVERB_RELEASE_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_POST_LPF_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_POST_LPF_FREQ_MIN,
-            T::REVERB_POST_LPF_FREQ_MAX,
-            T::REVERB_POST_LPF_FREQ_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_POST_LPF_FREQ_MIN,
+                T::REVERB_POST_LPF_FREQ_MAX,
+                T::REVERB_POST_LPF_FREQ_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TIME_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_TIME_MIN,
-            T::REVERB_TIME_MAX,
-            T::REVERB_TIME_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_TIME_MIN,
+                T::REVERB_TIME_MAX,
+                T::REVERB_TIME_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_DAMPING_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_DAMPING_MIN,
-            T::REVERB_DAMPING_MAX,
-            T::REVERB_DAMPING_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_DAMPING_MIN,
+                T::REVERB_DAMPING_MAX,
+                T::REVERB_DAMPING_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SMOOTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_SMOOTH_MIN,
-            T::REVERB_SMOOTH_MAX,
-            T::REVERB_SMOOTH_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_SMOOTH_MIN,
+                T::REVERB_SMOOTH_MAX,
+                T::REVERB_SMOOTH_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_VOL_MIN,
-            T::REVERB_VOL_MAX,
-            T::REVERB_VOL_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_VOL_MIN,
+                T::REVERB_VOL_MAX,
+                T::REVERB_VOL_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_STEREO_WIDTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::REVERB_STEREO_WIDTH_MIN,
-            T::REVERB_STEREO_WIDTH_MAX,
-            T::REVERB_STEREO_WIDTH_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::REVERB_STEREO_WIDTH_MIN,
+                T::REVERB_STEREO_WIDTH_MAX,
+                T::REVERB_STEREO_WIDTH_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::ECHO_TYPES
             .iter()
             .map(|t| fx_echo_type_to_string(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_DELAY_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::ECHO_DELAY_MIN,
-            T::ECHO_DELAY_MAX,
-            T::ECHO_DELAY_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::ECHO_DELAY_MIN,
+                T::ECHO_DELAY_MAX,
+                T::ECHO_DELAY_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_FEEDBACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::ECHO_FEEDBACK_MIN,
-            T::ECHO_FEEDBACK_MAX,
-            T::ECHO_FEEDBACK_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::ECHO_FEEDBACK_MIN,
+                T::ECHO_FEEDBACK_MAX,
+                T::ECHO_FEEDBACK_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::ECHO_LPF_FREQS
             .iter()
             .map(|t| fx_echo_lpf_freq_to_string(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_LPF_FREQ_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::ECHO_VOL_MIN,
-            T::ECHO_VOL_MAX,
-            T::ECHO_VOL_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::ECHO_VOL_MIN,
+                T::ECHO_VOL_MAX,
+                T::ECHO_VOL_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_STEREO_WIDTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::ECHO_STEREO_WIDTH_MIN,
-            T::ECHO_STEREO_WIDTH_MAX,
-            T::ECHO_STEREO_WIDTH_STEP,
-            1,
-            None,
-            true,
-        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::ECHO_STEREO_WIDTH_MIN,
+                T::ECHO_STEREO_WIDTH_MAX,
+                T::ECHO_STEREO_WIDTH_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn read_fx(
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        params: &FfLatterFxState,
-    ) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .line_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2937,7 +2942,8 @@ where
                 Ok(true)
             }
             MIC_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .mic_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2946,7 +2952,8 @@ where
                 Ok(true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .spdif_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2955,7 +2962,8 @@ where
                 Ok(true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .adat_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2964,7 +2972,8 @@ where
                 Ok(true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .stream_input_gains
                     .iter()
                     .map(|&gain| gain as i32)
@@ -2973,7 +2982,8 @@ where
                 Ok(true)
             }
             LINE_OUT_VOL_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .line_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2982,7 +2992,8 @@ where
                 Ok(true)
             }
             HP_OUT_VOL_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .hp_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -2991,7 +3002,8 @@ where
                 Ok(true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .spdif_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -3000,7 +3012,8 @@ where
                 Ok(true)
             }
             ADAT_OUT_VOL_NAME => {
-                let vals: Vec<i32> = params
+                let vals: Vec<i32> = self
+                    .params
                     .adat_output_vols
                     .iter()
                     .map(|&vol| vol as i32)
@@ -3009,392 +3022,385 @@ where
                 Ok(true)
             }
             REVERB_ACTIVATE_NAME => {
-                elem_value.set_bool(&[params.reverb.activate]);
+                elem_value.set_bool(&[self.params.reverb.activate]);
                 Ok(true)
             }
             REVERB_TYPE_NAME => {
                 let val = Self::REVERB_TYPES
                     .iter()
-                    .position(|t| t.eq(&params.reverb.reverb_type))
+                    .position(|t| self.params.reverb.reverb_type.eq(t))
                     .unwrap();
                 elem_value.set_enum(&[val as u32]);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[params.reverb.pre_delay as i32]);
+                elem_value.set_int(&[self.params.reverb.pre_delay as i32]);
                 Ok(true)
             }
             REVERB_PRE_HPF_FREQ_NAME => {
-                elem_value.set_int(&[params.reverb.pre_hpf as i32]);
+                elem_value.set_int(&[self.params.reverb.pre_hpf as i32]);
                 Ok(true)
             }
             REVERB_ROOM_SCALE_NAME => {
-                elem_value.set_int(&[params.reverb.room_scale as i32]);
+                elem_value.set_int(&[self.params.reverb.room_scale as i32]);
                 Ok(true)
             }
             REVERB_ATTACK_NAME => {
-                elem_value.set_int(&[params.reverb.attack as i32]);
+                elem_value.set_int(&[self.params.reverb.attack as i32]);
                 Ok(true)
             }
             REVERB_HOLD_NAME => {
-                elem_value.set_int(&[params.reverb.hold as i32]);
+                elem_value.set_int(&[self.params.reverb.hold as i32]);
                 Ok(true)
             }
             REVERB_RELEASE_NAME => {
-                elem_value.set_int(&[params.reverb.release as i32]);
+                elem_value.set_int(&[self.params.reverb.release as i32]);
                 Ok(true)
             }
             REVERB_POST_LPF_FREQ_NAME => {
-                elem_value.set_int(&[params.reverb.post_lpf as i32]);
+                elem_value.set_int(&[self.params.reverb.post_lpf as i32]);
                 Ok(true)
             }
             REVERB_TIME_NAME => {
-                elem_value.set_int(&[params.reverb.time as i32]);
+                elem_value.set_int(&[self.params.reverb.time as i32]);
                 Ok(true)
             }
             REVERB_DAMPING_NAME => {
-                elem_value.set_int(&[params.reverb.damping as i32]);
+                elem_value.set_int(&[self.params.reverb.damping as i32]);
                 Ok(true)
             }
             REVERB_SMOOTH_NAME => {
-                elem_value.set_int(&[params.reverb.smooth as i32]);
+                elem_value.set_int(&[self.params.reverb.smooth as i32]);
                 Ok(true)
             }
             REVERB_VOL_NAME => {
-                elem_value.set_int(&[params.reverb.volume as i32]);
+                elem_value.set_int(&[self.params.reverb.volume as i32]);
                 Ok(true)
             }
             REVERB_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[params.reverb.stereo_width as i32]);
+                elem_value.set_int(&[self.params.reverb.stereo_width as i32]);
                 Ok(true)
             }
             ECHO_ACTIVATE_NAME => {
-                elem_value.set_bool(&[params.echo.activate]);
+                elem_value.set_bool(&[self.params.echo.activate]);
                 Ok(true)
             }
             ECHO_TYPE_NAME => {
                 let pos = Self::ECHO_TYPES
                     .iter()
-                    .position(|t| t.eq(&params.echo.echo_type))
+                    .position(|t| self.params.echo.echo_type.eq(t))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_DELAY_NAME => {
-                elem_value.set_int(&[params.echo.delay as i32]);
+                elem_value.set_int(&[self.params.echo.delay as i32]);
                 Ok(true)
             }
             ECHO_FEEDBACK_NAME => {
-                elem_value.set_int(&[params.echo.feedback as i32]);
+                elem_value.set_int(&[self.params.echo.feedback as i32]);
                 Ok(true)
             }
             ECHO_LPF_FREQ_NAME => {
                 let pos = Self::ECHO_LPF_FREQS
                     .iter()
-                    .position(|f| f.eq(&params.echo.lpf))
+                    .position(|f| self.params.echo.lpf.eq(f))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_VOL_NAME => {
-                elem_value.set_int(&[params.echo.volume as i32]);
+                elem_value.set_int(&[self.params.echo.volume as i32]);
                 Ok(true)
             }
             ECHO_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[params.echo.stereo_width as i32]);
+                elem_value.set_int(&[self.params.echo.stereo_width as i32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write_fx(
+    pub fn write(
+        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
-        state: &mut FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .line_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             MIC_SRC_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .mic_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .spdif_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .adat_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .stream_input_gains
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state, ?res);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             LINE_OUT_VOL_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .line_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             HP_OUT_VOL_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .hp_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .spdif_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
             ADAT_OUT_VOL_NAME => {
-                let mut params = state.clone();
+                let mut params = self.params.clone();
                 params
                     .adat_output_vols
                     .iter_mut()
                     .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, state, params, timeout_ms);
-                debug!(params = ?state);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
                 res.map(|_| true)
             }
-            REVERB_ACTIVATE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.activate = elem_value.boolean()[0];
-                Ok(())
-            })
-            .map(|_| true),
+            REVERB_ACTIVATE_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.activate = elem_value.boolean()[0];
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             REVERB_TYPE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let reverb_type = Self::REVERB_TYPES
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::REVERB_TYPES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of type of reverb effect: {}", val);
+                        let msg = format!("Invalid index of type of reverb effect: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&t| t)?;
-                Self::update_reverb(req, node, state, timeout_ms, |params| {
-                    params.reverb_type = reverb_type;
-                    Ok(())
-                })
-                .map(|_| true)
+                    .map(|&t| params.reverb.reverb_type = t)?;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            REVERB_PRE_DELAY_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.pre_delay = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
+            REVERB_PRE_DELAY_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.pre_delay = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             REVERB_PRE_HPF_FREQ_NAME => {
-                Self::update_reverb(req, node, state, timeout_ms, |params| {
-                    params.pre_hpf = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true)
+                let mut params = self.params.clone();
+                params.reverb.pre_hpf = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            REVERB_ROOM_SCALE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.room_scale = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_ATTACK_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.attack = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_HOLD_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.hold = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_RELEASE_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.release = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
+            REVERB_ROOM_SCALE_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.room_scale = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_ATTACK_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.attack = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_HOLD_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.hold = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_RELEASE_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.release = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             REVERB_POST_LPF_FREQ_NAME => {
-                Self::update_reverb(req, node, state, timeout_ms, |params| {
-                    params.post_lpf = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true)
+                let mut params = self.params.clone();
+                params.reverb.post_lpf = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            REVERB_TIME_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.time = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_DAMPING_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.damping = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_SMOOTH_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.smooth = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            REVERB_VOL_NAME => Self::update_reverb(req, node, state, timeout_ms, |params| {
-                params.volume = elem_value.int()[0] as i16;
-                Ok(())
-            })
-            .map(|_| true),
+            REVERB_TIME_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.time = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_DAMPING_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.damping = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_SMOOTH_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.smooth = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            REVERB_VOL_NAME => {
+                let mut params = self.params.clone();
+                params.reverb.volume = elem_value.int()[0] as i16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             REVERB_STEREO_WIDTH_NAME => {
-                Self::update_reverb(req, node, state, timeout_ms, |params| {
-                    params.stereo_width = elem_value.int()[0] as u16;
-                    Ok(())
-                })
-                .map(|_| true)
+                let mut params = self.params.clone();
+                params.reverb.stereo_width = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            ECHO_ACTIVATE_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
-                params.activate = elem_value.boolean()[0];
-                Ok(())
-            })
-            .map(|_| true),
+            ECHO_ACTIVATE_NAME => {
+                let mut params = self.params.clone();
+                params.echo.activate = elem_value.boolean()[0];
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             ECHO_TYPE_NAME => {
-                let val = elem_value.enumerated()[0];
-                let echo_type = Self::ECHO_TYPES
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::ECHO_TYPES
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of type of echo effect: {}", val);
+                        let msg = format!("Invalid index of type of echo effect: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&t| t)?;
-                Self::update_echo(req, node, state, timeout_ms, |params| {
-                    params.echo_type = echo_type;
-                    Ok(())
-                })?;
-                Ok(true)
+                    .map(|&t| params.echo.echo_type = t)?;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            ECHO_DELAY_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
-                params.delay = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
-            ECHO_FEEDBACK_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
-                params.feedback = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
+            ECHO_DELAY_NAME => {
+                let mut params = self.params.clone();
+                params.echo.delay = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            ECHO_FEEDBACK_NAME => {
+                let mut params = self.params.clone();
+                params.echo.feedback = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             ECHO_LPF_FREQ_NAME => {
-                let val = elem_value.enumerated()[0];
-                let lpf = Self::ECHO_LPF_FREQS
+                let mut params = self.params.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::ECHO_LPF_FREQS
                     .iter()
-                    .nth(val as usize)
+                    .nth(pos)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of type of echo HPF frequency: {}", val);
+                        let msg = format!("Invalid index of type of echo HPF frequency: {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .map(|&t| t)?;
-                Self::update_echo(req, node, state, timeout_ms, |params| {
-                    params.lpf = lpf;
-                    Ok(())
-                })?;
-                Ok(true)
+                    .map(|&t| params.echo.lpf = t)?;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
             }
-            ECHO_VOL_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
-                params.volume = elem_value.int()[0] as i16;
-                Ok(())
-            })
-            .map(|_| true),
-            ECHO_STEREO_WIDTH_NAME => Self::update_echo(req, node, state, timeout_ms, |params| {
-                params.stereo_width = elem_value.int()[0] as u16;
-                Ok(())
-            })
-            .map(|_| true),
+            ECHO_VOL_NAME => {
+                let mut params = self.params.clone();
+                params.echo.volume = elem_value.int()[0] as i16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            ECHO_STEREO_WIDTH_NAME => {
+                let mut params = self.params.clone();
+                params.echo.stereo_width = elem_value.int()[0] as u16;
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
             _ => Ok(false),
         }
-    }
-
-    fn update_reverb<F>(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterFxState,
-        timeout_ms: u32,
-        cb: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut FfLatterFxReverbState) -> Result<(), Error>,
-    {
-        let mut params = state.clone();
-        cb(&mut params.reverb)?;
-        let res = T::command_partially(req, node, state, params, timeout_ms);
-        debug!(params = ?state, ?res);
-        res
-    }
-
-    fn update_echo<F>(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterFxState,
-        timeout_ms: u32,
-        cb: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut FfLatterFxEchoState) -> Result<(), Error>,
-    {
-        let mut params = state.clone();
-        cb(&mut params.echo)?;
-        let res = T::command_partially(req, node, state, params, timeout_ms);
-        debug!(params = ?state, ?res);
-        res
     }
 }

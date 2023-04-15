@@ -10,7 +10,6 @@ use {
 pub struct UcxModel {
     req: FwReq,
     meter_ctl: LatterMeterCtl<FfUcxProtocol>,
-    dsp_ctl: LatterDspCtl<FfUcxProtocol>,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     input_ctl: LatterInputCtl<FfUcxProtocol>,
@@ -24,6 +23,7 @@ pub struct UcxModel {
     output_dyn_ctl: LatterOutputDynamicsCtl<FfUcxProtocol>,
     input_al_ctl: LatterInputAutolevelCtl<FfUcxProtocol>,
     output_al_ctl: LatterOutputAutolevelCtl<FfUcxProtocol>,
+    fx_ctl: LatterFxCtl<FfUcxProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -31,7 +31,6 @@ const TIMEOUT_MS: u32 = 100;
 impl CtlModel<(SndFireface, FwNode)> for UcxModel {
     fn cache(&mut self, (_, node): &mut (SndFireface, FwNode)) -> Result<(), Error> {
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.dsp_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.cfg_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.status_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -45,13 +44,13 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.output_dyn_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.fx_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meter_ctl.load(card_cntr)?;
-        self.dsp_ctl.load(card_cntr)?;
         self.cfg_ctl.load(card_cntr)?;
         self.status_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
@@ -65,13 +64,12 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.output_dyn_ctl.load(card_cntr)?;
         self.input_al_ctl.load(card_cntr)?;
         self.output_al_ctl.load(card_cntr)?;
+        self.fx_ctl.load(card_cntr)?;
         Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.dsp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -99,6 +97,8 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
             Ok(true)
         } else if self.output_al_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.fx_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -111,11 +111,6 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self
-            .dsp_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
             .cfg_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
@@ -172,6 +167,11 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
             Ok(true)
         } else if self
             .output_al_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .fx_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
