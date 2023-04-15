@@ -496,16 +496,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
             input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
-                dynamics: FfLatterDynState {
-                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    attacks: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    releases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    compressor_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    compressor_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    expander_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    expander_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                },
                 autolevel: FfLatterAutolevelState {
                     activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                     max_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
@@ -514,16 +504,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
                 },
             }),
             output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState {
-                dynamics: FfLatterDynState {
-                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
-                    gains: vec![Default::default(); Self::OUTPUT_COUNT],
-                    attacks: vec![Default::default(); Self::OUTPUT_COUNT],
-                    releases: vec![Default::default(); Self::OUTPUT_COUNT],
-                    compressor_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
-                    compressor_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
-                    expander_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
-                    expander_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
-                },
                 autolevel: FfLatterAutolevelState {
                     activates: vec![Default::default(); Self::OUTPUT_COUNT],
                     max_gains: vec![Default::default(); Self::OUTPUT_COUNT],
@@ -702,6 +682,20 @@ pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
             high_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
         })
     }
+
+    /// Instantiate input dynamics parameters.
+    fn create_input_dynamics_parameters() -> FfLatterInputDynamicsParameters {
+        FfLatterInputDynamicsParameters(FfLatterDynState {
+            activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            attacks: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            releases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            compressor_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            compressor_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            expander_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            expander_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+        })
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
@@ -851,6 +845,20 @@ pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
             high_gains: vec![Default::default(); Self::OUTPUT_COUNT],
             high_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
             high_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
+        })
+    }
+
+    /// Instantiate output dynamics parameters.
+    fn create_output_dynamics_parameters() -> FfLatterOutputDynamicsParameters {
+        FfLatterOutputDynamicsParameters(FfLatterDynState {
+            activates: vec![Default::default(); Self::OUTPUT_COUNT],
+            gains: vec![Default::default(); Self::OUTPUT_COUNT],
+            attacks: vec![Default::default(); Self::OUTPUT_COUNT],
+            releases: vec![Default::default(); Self::OUTPUT_COUNT],
+            compressor_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
+            compressor_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
+            expander_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
+            expander_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
         })
     }
 }
@@ -1334,7 +1342,7 @@ where
 }
 
 /// State of dynamics in channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterDynState {
     /// Whether to activate dynamics.
     pub activates: Vec<bool>,
@@ -1412,6 +1420,103 @@ fn dyn_state_to_cmds(state: &FfLatterDynState, ch_offset: u8) -> Vec<u32> {
     cmds
 }
 
+/// Parameters of input dynamics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterInputDynamicsParameters(pub FfLatterDynState);
+
+impl AsRef<FfLatterDynState> for FfLatterInputDynamicsParameters {
+    fn as_ref(&self) -> &FfLatterDynState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterDynState> for FfLatterInputDynamicsParameters {
+    fn as_mut(&mut self) -> &mut FfLatterDynState {
+        &mut self.0
+    }
+}
+
+/// Parameters of output dynamics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterOutputDynamicsParameters(pub FfLatterDynState);
+
+impl AsRef<FfLatterDynState> for FfLatterOutputDynamicsParameters {
+    fn as_ref(&self) -> &FfLatterDynState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterDynState> for FfLatterOutputDynamicsParameters {
+    fn as_mut(&mut self) -> &mut FfLatterDynState {
+        &mut self.0
+    }
+}
+
+/// The specification of channel strip.
+pub trait RmeFfLatterDynamicsSpecification {
+    /// The minimum value of gain.
+    const DYN_GAIN_MIN: i32 = -300;
+    /// The maximum value of gain.
+    const DYN_GAIN_MAX: i32 = 300;
+    /// The step value of gain.
+    const DYN_GAIN_STEP: i32 = 1;
+
+    /// The minimum value of attack.
+    const DYN_ATTACK_MIN: i32 = 0;
+    /// The maximum value of attack.
+    const DYN_ATTACK_MAX: i32 = 200;
+    /// The step value of attack.
+    const DYN_ATTACK_STEP: i32 = 1;
+
+    /// The minimum value of release.
+    const DYN_RELEASE_MIN: i32 = 100;
+    /// The maximum value of release.
+    const DYN_RELEASE_MAX: i32 = 999;
+    /// The step value of release.
+    const DYN_RELEASE_STEP: i32 = 1;
+
+    /// The minimum value of compressor threshold.
+    const DYN_COMP_THRESHOLD_MIN: i32 = -600;
+    /// The maximum value of compressor threshold.
+    const DYN_COMP_THRESHOLD_MAX: i32 = 0;
+    /// The step value of compressor threshold.
+    const DYN_COMP_THRESHOLD_STEP: i32 = 1;
+
+    /// The minimum value of ratio.
+    const DYN_RATIO_MIN: i32 = 10;
+    /// The maximum value of ratio.
+    const DYN_RATIO_MAX: i32 = 100;
+    /// The step value of ratio.
+    const DYN_RATIO_STEP: i32 = 1;
+
+    /// The minimum value of extra threshold.
+    const DYN_EX_THRESHOLD_MIN: i32 = -999;
+    /// The maximum value of extra .
+    const DYN_EX_THRESHOLD_MAX: i32 = -200;
+    /// The step value of extra .
+    const DYN_EX_THRESHOLD_STEP: i32 = 1;
+}
+
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterDynamicsSpecification for O {}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterInputDynamicsParameters> for O
+where
+    O: RmeFfLatterDynamicsSpecification + RmeFfLatterInputSpecification,
+{
+    fn serialize_commands(params: &FfLatterInputDynamicsParameters) -> Vec<u32> {
+        dyn_state_to_cmds(&params.0, 0)
+    }
+}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterOutputDynamicsParameters> for O
+where
+    O: RmeFfLatterDynamicsSpecification + RmeFfLatterOutputSpecification,
+{
+    fn serialize_commands(params: &FfLatterOutputDynamicsParameters) -> Vec<u32> {
+        dyn_state_to_cmds(&params.0, Self::PHYS_INPUT_COUNT as u8)
+    }
+}
+
 /// State of autolevel in channel strip effects.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterAutolevelState {
@@ -1462,7 +1567,6 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
 /// State of channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterChStripState {
-    pub dynamics: FfLatterDynState,
     pub autolevel: FfLatterAutolevelState,
 }
 
@@ -1536,14 +1640,11 @@ where
     O: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
     fn serialize_commands(state: &FfLatterInputChStripState) -> Vec<u32> {
-        [
-            dyn_state_to_cmds(&state.0.dynamics, 0),
-            autolevel_state_to_cmds(&state.0.autolevel, 0),
-        ]
-        .iter()
-        .flatten()
-        .copied()
-        .collect()
+        [autolevel_state_to_cmds(&state.0.autolevel, 0)]
+            .iter()
+            .flatten()
+            .copied()
+            .collect()
     }
 }
 
@@ -1577,14 +1678,11 @@ impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChSt
             + Self::SPDIF_INPUT_COUNT
             + Self::ADAT_INPUT_COUNT) as u8;
 
-        [
-            dyn_state_to_cmds(&state.0.dynamics, ch_offset),
-            autolevel_state_to_cmds(&state.0.autolevel, ch_offset),
-        ]
-        .iter()
-        .flatten()
-        .copied()
-        .collect()
+        [autolevel_state_to_cmds(&state.0.autolevel, ch_offset)]
+            .iter()
+            .flatten()
+            .copied()
+            .collect()
     }
 }
 

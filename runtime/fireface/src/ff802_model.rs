@@ -20,6 +20,8 @@ pub struct Ff802Model {
     output_hpf_ctl: LatterOutputHpfCtl<Ff802Protocol>,
     input_eq_ctl: LatterInputEqualizerCtl<Ff802Protocol>,
     output_eq_ctl: LatterOutputEqualizerCtl<Ff802Protocol>,
+    input_dyn_ctl: LatterInputDynamicsCtl<Ff802Protocol>,
+    output_dyn_ctl: LatterOutputDynamicsCtl<Ff802Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -37,6 +39,8 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         self.output_hpf_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_eq_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_eq_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_dyn_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.output_dyn_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -53,6 +57,8 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         self.output_hpf_ctl.load(card_cntr)?;
         self.input_eq_ctl.load(card_cntr)?;
         self.output_eq_ctl.load(card_cntr)?;
+        self.input_dyn_ctl.load(card_cntr)?;
+        self.output_dyn_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -78,6 +84,10 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         } else if self.input_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_eq_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_dyn_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_dyn_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -132,6 +142,16 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
             Ok(true)
         } else if self
             .output_eq_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .input_dyn_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .output_dyn_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
