@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/04/12
+2023/04/16
 Takashi Sakamoto
 
 Introduction
@@ -105,7 +105,7 @@ snd-firewire-motu-ctl-service
 snd-oxfw-ctl-service
     ``oxfw-runtime`` crate locates in ``runtime/oxfw``
 snd-bebob-ctl-service
-    ``bebob-runtime`` crate locates in ``runtime/bebob``
+    ``snd-bebob-ctl-service`` crate locates in ``runtime/bebob``
 snd-dice-ctl-service
     ``dice-runtime`` crate locates in ``runtime/dice``
 snd-fireface-ctl-service
