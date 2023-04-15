@@ -1618,6 +1618,66 @@ where
     }
 }
 
+/// Parameters of sources to fx component.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterFxSourceParameters {
+    /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub line_input_gains: Vec<i16>,
+    /// The gain of mic inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub mic_input_gains: Vec<i16>,
+    /// The gain of S/PDIF inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub spdif_input_gains: Vec<i16>,
+    /// The gain of ADAT inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub adat_input_gains: Vec<i16>,
+    /// The gain of stream inputs. Each value is between 0x0000 (-65.0 dB) and 0x8b5c (0.0 dB).
+    pub stream_input_gains: Vec<u16>,
+}
+
+const FX_MIXER_0: u16 = 0x1e;
+const FX_MIXER_1: u16 = 0x1f;
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterFxSourceParameters> for O
+where
+    O: RmeFfLatterFxSpecification,
+{
+    fn serialize_commands(params: &FfLatterFxSourceParameters) -> Vec<u32> {
+        let mut cmds = Vec::new();
+
+        params
+            .line_input_gains
+            .iter()
+            .chain(&params.mic_input_gains)
+            .chain(&params.spdif_input_gains)
+            .chain(&params.adat_input_gains)
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
+            });
+
+        params
+            .stream_input_gains
+            .iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                cmds.push(create_virt_port_cmd(
+                    Self::MIXER_STEP,
+                    FX_MIXER_0,
+                    Self::STREAM_OFFSET + i as u16,
+                    gain,
+                ));
+                cmds.push(create_virt_port_cmd(
+                    Self::MIXER_STEP,
+                    FX_MIXER_1,
+                    Self::STREAM_OFFSET + i as u16,
+                    gain,
+                ));
+            });
+
+        cmds
+    }
+}
+
 /// Type of reverb effect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterFxReverbType {
@@ -1890,16 +1950,6 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
 /// State of send effects (reverb and echo).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterFxState {
-    /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub line_input_gains: Vec<i16>,
-    /// The gain of mic inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub mic_input_gains: Vec<i16>,
-    /// The gain of S/PDIF inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub spdif_input_gains: Vec<i16>,
-    /// The gain of ADAT inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
-    pub adat_input_gains: Vec<i16>,
-    /// The gain of stream inputs. Each value is between 0x0000 (-65.0 dB) and 0x8b5c (0.0 dB).
-    pub stream_input_gains: Vec<u16>,
     /// The volume to line outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
     pub line_output_vols: Vec<i16>,
     /// The volume to hp outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
@@ -1913,9 +1963,6 @@ pub struct FfLatterFxState {
     /// The state of echo effect.
     pub echo: FfLatterFxEchoState,
 }
-
-const FX_MIXER_0: u16 = 0x1e;
-const FX_MIXER_1: u16 = 0x1f;
 
 /// The specification of FX.
 pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
@@ -2031,14 +2078,20 @@ pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
     /// The step value for echo stereo width.
     const ECHO_STEREO_WIDTH_STEP: i32 = 1;
 
-    /// Instantiate fx parameters.
-    fn create_fx_parameters() -> FfLatterFxState {
-        FfLatterFxState {
+    /// Instantiate fx source parameters.
+    fn create_fx_sources_parameters() -> FfLatterFxSourceParameters {
+        FfLatterFxSourceParameters {
             line_input_gains: vec![0; Self::LINE_INPUT_COUNT],
             mic_input_gains: vec![0; Self::MIC_INPUT_COUNT],
             spdif_input_gains: vec![0; Self::SPDIF_INPUT_COUNT],
             adat_input_gains: vec![0; Self::ADAT_INPUT_COUNT],
             stream_input_gains: vec![0; Self::STREAM_INPUT_COUNT],
+        }
+    }
+
+    /// Instantiate fx parameters.
+    fn create_fx_parameters() -> FfLatterFxState {
+        FfLatterFxState {
             line_output_vols: vec![0; Self::LINE_OUTPUT_COUNT],
             hp_output_vols: vec![0; Self::HP_OUTPUT_COUNT],
             spdif_output_vols: vec![0; Self::SPDIF_OUTPUT_COUNT],
@@ -2053,44 +2106,7 @@ impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
 
 impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxState> for O {
     fn serialize_commands(state: &FfLatterFxState) -> Vec<u32> {
-        assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
-        assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
-        assert_eq!(state.spdif_input_gains.len(), Self::SPDIF_INPUT_COUNT);
-        assert_eq!(state.adat_input_gains.len(), Self::ADAT_INPUT_COUNT);
-        assert_eq!(state.stream_input_gains.len(), Self::STREAM_INPUT_COUNT);
-
         let mut cmds = Vec::new();
-
-        state
-            .line_input_gains
-            .iter()
-            .chain(&state.mic_input_gains)
-            .chain(&state.spdif_input_gains)
-            .chain(&state.adat_input_gains)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
-            });
-
-        state
-            .stream_input_gains
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                cmds.push(create_virt_port_cmd(
-                    Self::MIXER_STEP,
-                    FX_MIXER_0,
-                    Self::STREAM_OFFSET + i as u16,
-                    gain,
-                ));
-                cmds.push(create_virt_port_cmd(
-                    Self::MIXER_STEP,
-                    FX_MIXER_1,
-                    Self::STREAM_OFFSET + i as u16,
-                    gain,
-                ));
-            });
 
         assert_eq!(state.line_output_vols.len(), Self::LINE_OUTPUT_COUNT);
         assert_eq!(state.hp_output_vols.len(), Self::HP_OUTPUT_COUNT);

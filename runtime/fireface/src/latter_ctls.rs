@@ -2501,6 +2501,232 @@ const SPDIF_SRC_GAIN_NAME: &str = "fx:spdif-source-gain";
 const ADAT_SRC_GAIN_NAME: &str = "fx:adat-source-gain";
 const STREAM_SRC_GAIN_NAME: &str = "fx:stream-source-gain";
 
+#[derive(Debug)]
+pub struct LatterFxSourceCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxSourceParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxSourceParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterFxSourceParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterFxSourceCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxSourceParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxSourceParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_fx_sources_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> LatterFxSourceCtl<T>
+where
+    T: RmeFfLatterDspSpecification
+        + RmeFfLatterFxSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterFxSourceParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterFxSourceParameters>,
+{
+    const PHYS_LEVEL_TLV: DbInterval = DbInterval {
+        min: -6500,
+        max: 000,
+        linear: false,
+        mute_avail: false,
+    };
+    const VIRT_LEVEL_TLV: DbInterval = DbInterval {
+        min: -6500,
+        max: 000,
+        linear: false,
+        mute_avail: false,
+    };
+
+    pub fn cache(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, &mut self.params, timeout_ms);
+        debug!(params = ?self.params, ?res);
+        res
+    }
+
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        [
+            (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
+            (MIC_SRC_GAIN_NAME, T::MIC_INPUT_COUNT),
+            (SPDIF_SRC_GAIN_NAME, T::SPDIF_INPUT_COUNT),
+            (ADAT_SRC_GAIN_NAME, T::ADAT_INPUT_COUNT),
+        ]
+        .iter()
+        .try_for_each(|&(name, count)| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    T::FX_PHYS_LEVEL_MIN,
+                    T::FX_PHYS_LEVEL_MAX,
+                    T::FX_PHYS_LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
+                    true,
+                )
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+        })?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::FX_VIRT_LEVEL_MIN,
+                T::FX_VIRT_LEVEL_MAX,
+                T::FX_VIRT_LEVEL_STEP,
+                T::STREAM_INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            LINE_SRC_GAIN_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .line_input_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            MIC_SRC_GAIN_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .mic_input_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            SPDIF_SRC_GAIN_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .spdif_input_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            ADAT_SRC_GAIN_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .adat_input_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            STREAM_SRC_GAIN_NAME => {
+                let vals: Vec<i32> = self
+                    .params
+                    .stream_input_gains
+                    .iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            LINE_SRC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .line_input_gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            MIC_SRC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .mic_input_gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            SPDIF_SRC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .spdif_input_gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            ADAT_SRC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .adat_input_gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as i16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            STREAM_SRC_GAIN_NAME => {
+                let mut params = self.params.clone();
+                params
+                    .stream_input_gains
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(d, s)| *d = *s as u16);
+                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
+                debug!(params = ?self.params, ?res);
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 const LINE_OUT_VOL_NAME: &str = "fx:line-output-volume";
 const HP_OUT_VOL_NAME: &str = "fx:hp-output-volume";
 const SPDIF_OUT_VOL_NAME: &str = "fx:spdif-output-volume";
@@ -2571,12 +2797,6 @@ where
         linear: false,
         mute_avail: false,
     };
-    const VIRT_LEVEL_TLV: DbInterval = DbInterval {
-        min: -6500,
-        max: 000,
-        linear: false,
-        mute_avail: false,
-    };
 
     const REVERB_TYPES: &'static [FfLatterFxReverbType] = &[
         FfLatterFxReverbType::SmallRoom,
@@ -2623,43 +2843,6 @@ where
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        [
-            (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
-            (MIC_SRC_GAIN_NAME, T::MIC_INPUT_COUNT),
-            (SPDIF_SRC_GAIN_NAME, T::SPDIF_INPUT_COUNT),
-            (ADAT_SRC_GAIN_NAME, T::ADAT_INPUT_COUNT),
-        ]
-        .iter()
-        .try_for_each(|&(name, count)| {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-            card_cntr
-                .add_int_elems(
-                    &elem_id,
-                    1,
-                    T::FX_PHYS_LEVEL_MIN,
-                    T::FX_PHYS_LEVEL_MAX,
-                    T::FX_PHYS_LEVEL_STEP,
-                    count,
-                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
-                    true,
-                )
-                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
-        })?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                T::FX_VIRT_LEVEL_MIN,
-                T::FX_VIRT_LEVEL_MAX,
-                T::FX_VIRT_LEVEL_STEP,
-                T::STREAM_INPUT_COUNT,
-                Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)),
-                true,
-            )
-            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
-
         [
             (LINE_OUT_VOL_NAME, T::LINE_OUTPUT_COUNT),
             (HP_OUT_VOL_NAME, T::HP_OUTPUT_COUNT),
@@ -2931,56 +3114,6 @@ where
 
     pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            LINE_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .line_input_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            MIC_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .mic_input_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            SPDIF_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .spdif_input_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            ADAT_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .adat_input_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            STREAM_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = self
-                    .params
-                    .stream_input_gains
-                    .iter()
-                    .map(|&gain| gain as i32)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
             LINE_OUT_VOL_NAME => {
                 let vals: Vec<i32> = self
                     .params
@@ -3130,61 +3263,6 @@ where
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
-            LINE_SRC_GAIN_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .line_input_gains
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            MIC_SRC_GAIN_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .mic_input_gains
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            SPDIF_SRC_GAIN_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .spdif_input_gains
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            ADAT_SRC_GAIN_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .adat_input_gains
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as i16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
-            STREAM_SRC_GAIN_NAME => {
-                let mut params = self.params.clone();
-                params
-                    .stream_input_gains
-                    .iter_mut()
-                    .zip(elem_value.int())
-                    .for_each(|(d, s)| *d = *s as u16);
-                let res = T::command_partially(req, node, &mut self.params, params, timeout_ms);
-                debug!(params = ?self.params, ?res);
-                res.map(|_| true)
-            }
             LINE_OUT_VOL_NAME => {
                 let mut params = self.params.clone();
                 params

@@ -24,6 +24,7 @@ pub struct UcxModel {
     input_al_ctl: LatterInputAutolevelCtl<FfUcxProtocol>,
     output_al_ctl: LatterOutputAutolevelCtl<FfUcxProtocol>,
     fx_ctl: LatterFxCtl<FfUcxProtocol>,
+    fx_source_ctl: LatterFxSourceCtl<FfUcxProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -45,6 +46,7 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.input_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.fx_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.fx_source_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -65,6 +67,7 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.input_al_ctl.load(card_cntr)?;
         self.output_al_ctl.load(card_cntr)?;
         self.fx_ctl.load(card_cntr)?;
+        self.fx_source_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -98,6 +101,8 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         } else if self.output_al_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.fx_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.fx_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -172,6 +177,11 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
             Ok(true)
         } else if self
             .fx_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .fx_source_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
