@@ -99,7 +99,7 @@ snd-firewire-digi00x-ctl-service
 snd-firewire-tascam-ctl-service
     ``tascam-runtime`` crate locates in ``runtime/tascam``
 snd-fireworks-ctl-service
-    ``fireworks-runtime`` crate locates in ``runtime/fireworks``
+    ``snd-fireworks-ctl-service`` crate locates in ``runtime/fireworks``
 snd-firewire-motu-ctl-service
     ``motu-runtime`` crate locates in ``runtime/motu``
 snd-oxfw-ctl-service

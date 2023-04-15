@@ -29,7 +29,8 @@ use {
         model::*, output_ctl::*, port_ctl::*,
     },
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, *},
+    clap::Parser,
+    core::{card_cntr::*, dispatcher::*, cmdline::*, LogLevel, *},
     firewire_fireworks_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -52,7 +53,7 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct EfwRuntime {
+struct EfwRuntime {
     node: FwNode,
     unit: SndEfw,
     model: EfwModel,
@@ -304,4 +305,27 @@ impl EfwRuntime {
             self.timer = None;
         }
     }
+}
+
+struct EfwServiceCmd;
+
+#[derive(Parser, Default)]
+#[clap(name = "snd-fireworks-ctl-service")]
+struct Arguments {
+    /// The numeric identifier of sound card in Linux sound subsystem.
+    card_id: u32,
+
+    /// The level to debug runtime, disabled as a default.
+    #[clap(long, short, arg_enum)]
+    log_level: Option<LogLevel>,
+}
+
+impl ServiceCmd<Arguments, u32, EfwRuntime> for EfwServiceCmd {
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, args.log_level)
+    }
+}
+
+fn main() {
+    EfwServiceCmd::run()
 }
