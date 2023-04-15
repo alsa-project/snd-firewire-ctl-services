@@ -60,7 +60,7 @@ fn write_amp_cmd(
 }
 
 /// Status of input gains of Fireface 400.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400InputGainStatus {
     /// The level of gain for input 1 and 2. The value is between 0 and 65 by step 1 to represent
     /// the range from 0 to 65 dB.
@@ -98,7 +98,7 @@ const KNOB_SIGNAL_LEVEL_MASK: u32 = 0x00fffc00;
 const KNOB_SIGNAL_LEVEL_SHIFT: u32 = 10;
 
 /// The inbound MIDI message to physical port in Fireface 400.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400MidiMessage {
     pub port: u8,
     pub byte: u8,
@@ -323,7 +323,7 @@ impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Proto
         params: &FormerOutputVolumeState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut raw = Self::serialize(params);
+        let mut raw = Self::serialize_offsets(params);
         req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
@@ -348,8 +348,8 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Pr
         update: FormerOutputVolumeState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(params);
-        let mut new = Self::serialize(&update);
+        let old = Self::serialize_offsets(params);
+        let mut new = Self::serialize_offsets(&update);
 
         (0..(new.len() / 4))
             .try_for_each(|i| {
@@ -380,7 +380,7 @@ impl RmeFormerMixerSpecification for Ff400Protocol {
 }
 
 /// Signal source of sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Ff400ClkSrc {
     Internal,
     WordClock,
@@ -453,7 +453,7 @@ const Q1_CONF_CLK_RATE_44100_FLAG: u32 = 0x00000000;
 const Q1_CONF_CLK_RATE_32000_FLAG: u32 = 0x00000002;
 
 /// Status of clock locking.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400ClkLockStatus {
     pub adat: bool,
     pub spdif: bool,
@@ -492,7 +492,7 @@ fn deserialize_lock_status(status: &mut Ff400ClkLockStatus, quads: &[u32]) {
 }
 
 /// Status of clock synchronization.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400ClkSyncStatus {
     pub adat: bool,
     pub spdif: bool,
@@ -531,7 +531,7 @@ fn deserialize_sync_status(status: &mut Ff400ClkSyncStatus, quads: &[u32]) {
 }
 
 /// Status of clock synchronization.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400Status {
     /// For S/PDIF input.
     pub spdif_in: SpdifInput,
@@ -557,8 +557,8 @@ impl Ff400Status {
     const QUADLET_COUNT: usize = FORMER_STATUS_SIZE / 4;
 }
 
-impl RmeFfParamsSerialize<Ff400Status, u8> for Ff400Protocol {
-    fn serialize(params: &Ff400Status) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff400Status> for Ff400Protocol {
+    fn serialize_offsets(params: &Ff400Status) -> Vec<u8> {
         let mut quads = [0; Ff400Status::QUADLET_COUNT];
 
         serialize_lock_status(&params.lock, &mut quads);
@@ -659,8 +659,8 @@ impl RmeFfParamsSerialize<Ff400Status, u8> for Ff400Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff400Status, u8> for Ff400Protocol {
-    fn deserialize(params: &mut Ff400Status, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff400Status> for Ff400Protocol {
+    fn deserialize_offsets(params: &mut Ff400Status, raw: &[u8]) {
         assert!(raw.len() >= FORMER_STATUS_SIZE);
 
         let mut quads = [0; Ff400Status::QUADLET_COUNT];
@@ -821,7 +821,7 @@ const Q2_CLK_AVAIL_RATE_BASE_48000_MASK: u32 = 0x00000004;
 const Q2_CLK_AVAIL_RATE_BASE_44100_MASK: u32 = 0x00000002;
 
 /// Configurations of sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400ClkConfig {
     pub primary_src: Ff400ClkSrc,
     avail_rate_44100: bool,
@@ -898,7 +898,7 @@ fn deserialize_clock_config(config: &mut Ff400ClkConfig, quads: &[u32]) {
 }
 
 /// Configuration for analog inputs.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400AnalogInConfig {
     /// The nominal level of audio signal for input 5, 6, 7 and 8.
     pub line_level: FormerLineInNominalLevel,
@@ -985,7 +985,7 @@ fn deserialize_analog_input_config(config: &mut Ff400AnalogInConfig, quads: &[u3
 }
 
 /// Low offset of destination address for MIDI messages.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 enum Ff400MidiTxLowOffset {
     /// Between 0x0000 to 0x007c.
@@ -1033,7 +1033,7 @@ fn deserialize_midi_tx_low_offset(offset: &mut Ff400MidiTxLowOffset, quads: &[u3
 }
 
 /// Configurations for Fireface 400.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff400Config {
     /// The low offset of destination address for MIDI messages.
     midi_tx_low_offset: Ff400MidiTxLowOffset,
@@ -1091,8 +1091,8 @@ impl Ff400Config {
     }
 }
 
-impl RmeFfParamsSerialize<Ff400Config, u8> for Ff400Protocol {
-    fn serialize(params: &Ff400Config) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff400Config> for Ff400Protocol {
+    fn serialize_offsets(params: &Ff400Config) -> Vec<u8> {
         let mut quads = [0; Ff400Config::QUADLET_COUNT];
 
         serialize_midi_tx_low_offset(&params.midi_tx_low_offset, &mut quads);
@@ -1167,8 +1167,8 @@ impl RmeFfParamsSerialize<Ff400Config, u8> for Ff400Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff400Config, u8> for Ff400Protocol {
-    fn deserialize(params: &mut Ff400Config, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff400Config> for Ff400Protocol {
+    fn deserialize_offsets(params: &mut Ff400Config, raw: &[u8]) {
         assert!(raw.len() >= FORMER_CONFIG_SIZE);
 
         let mut quads = [0; Ff400Config::QUADLET_COUNT];
@@ -1301,9 +1301,9 @@ mod test {
             configured_clk_rate: ClkNominalRate::R176400,
             ..Default::default()
         };
-        let raw = Ff400Protocol::serialize(&orig);
+        let raw = Ff400Protocol::serialize_offsets(&orig);
         let mut target = Ff400Status::default();
-        Ff400Protocol::deserialize(&mut target, &raw);
+        Ff400Protocol::deserialize_offsets(&mut target, &raw);
 
         assert_eq!(target, orig);
     }
@@ -1355,9 +1355,9 @@ mod test {
     #[test]
     fn config_serdes() {
         let orig = Ff400Config::default();
-        let raw = Ff400Protocol::serialize(&orig);
+        let raw = Ff400Protocol::serialize_offsets(&orig);
         let mut target = Ff400Config::default();
-        Ff400Protocol::deserialize(&mut target, &raw);
+        Ff400Protocol::deserialize_offsets(&mut target, &raw);
 
         assert_eq!(target, orig);
     }

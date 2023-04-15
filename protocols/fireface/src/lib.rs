@@ -122,16 +122,16 @@ impl Default for LineOutNominalLevel {
     }
 }
 
-/// Parameters deserializer.
-pub trait RmeFfParamsDeserialize<T, U> {
-    /// Deserialize parameters into raw data.
-    fn deserialize(params: &mut T, raw: &[U]);
+/// Serialize offsets for parameters.
+pub trait RmeFfOffsetParamsSerialize<T> {
+    /// Serialize parameters from raw data.
+    fn serialize_offsets(params: &T) -> Vec<u8>;
 }
 
-/// Parameters serializer.
-pub trait RmeFfParamsSerialize<T, U> {
-    /// Serialize parameters from raw data.
-    fn serialize(params: &T) -> Vec<U>;
+/// Deserialize offsets for parameters.
+pub trait RmeFfOffsetParamsDeserialize<T> {
+    /// Deserialize parameters into raw data.
+    fn deserialize_offsets(params: &mut T, raw: &[u8]);
 }
 
 /// Operation for parameters which can be updated wholly at once.

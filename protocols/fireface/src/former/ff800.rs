@@ -45,7 +45,7 @@ impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Proto
         params: &FormerOutputVolumeState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut raw = Self::serialize(params);
+        let mut raw = Self::serialize_offsets(params);
         req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
@@ -65,8 +65,8 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Pr
         update: FormerOutputVolumeState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(params);
-        let mut new = Self::serialize(&update);
+        let old = Self::serialize_offsets(params);
+        let mut new = Self::serialize_offsets(&update);
 
         (0..(new.len() / 4))
             .try_for_each(|i| {
@@ -94,7 +94,7 @@ impl RmeFormerMixerSpecification for Ff800Protocol {
 }
 
 /// Signal source of sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Ff800ClkSrc {
     Internal,
     WordClock,
@@ -174,7 +174,7 @@ const Q1_CONF_CLK_RATE_44100_FLAGS: u32 = 0x00000000;
 const Q1_CONF_CLK_RATE_32000_FLAGS: u32 = 0x00000002;
 
 /// Status of clock locking.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800ClkLockStatus {
     pub adat_a: bool,
     pub adat_b: bool,
@@ -227,7 +227,7 @@ fn deserialize_lock_status(status: &mut Ff800ClkLockStatus, quads: &[u32]) {
 }
 
 /// Status of clock synchronization.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800ClkSyncStatus {
     pub adat_a: bool,
     pub adat_b: bool,
@@ -280,7 +280,7 @@ fn deserialize_sync_status(status: &mut Ff800ClkSyncStatus, quads: &[u32]) {
 }
 
 /// Status of clock synchronization.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800Status {
     /// For S/PDIF input.
     pub spdif_in: SpdifInput,
@@ -306,8 +306,8 @@ impl Ff800Status {
     const QUADLET_COUNT: usize = FORMER_STATUS_SIZE / 4;
 }
 
-impl RmeFfParamsSerialize<Ff800Status, u8> for Ff800Protocol {
-    fn serialize(params: &Ff800Status) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff800Status> for Ff800Protocol {
+    fn serialize_offsets(params: &Ff800Status) -> Vec<u8> {
         let mut quads = [0; Ff800Status::QUADLET_COUNT];
 
         serialize_lock_status(&params.lock, &mut quads);
@@ -410,8 +410,8 @@ impl RmeFfParamsSerialize<Ff800Status, u8> for Ff800Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff800Status, u8> for Ff800Protocol {
-    fn deserialize(params: &mut Ff800Status, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff800Status> for Ff800Protocol {
+    fn deserialize_offsets(params: &mut Ff800Status, raw: &[u8]) {
         assert!(raw.len() >= FORMER_STATUS_SIZE);
 
         let mut quads = [0; Ff800Status::QUADLET_COUNT];
@@ -573,7 +573,7 @@ const Q2_CLK_AVAIL_RATE_BASE_44100_MASK: u32 = 0x00000002;
 const Q2_CONTINUE_AT_ERRORS: u32 = 0x80000000;
 
 /// Configurations of sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800ClkConfig {
     pub primary_src: Ff800ClkSrc,
     avail_rate_44100: bool,
@@ -652,7 +652,7 @@ fn deserialize_clock_config(config: &mut Ff800ClkConfig, quads: &[u32]) {
 }
 
 /// Configurations for instrument.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800InstConfig {
     /// Whether to add extra gain by 25 dB.
     pub drive: bool,
@@ -697,7 +697,7 @@ fn deserialize_instrument_config(config: &mut Ff800InstConfig, quads: &[u32]) {
 }
 
 /// Jack of analog inputs.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Ff800AnalogInputJack {
     Front,
     Rear,
@@ -711,7 +711,7 @@ impl Default for Ff800AnalogInputJack {
 }
 
 /// Configuration for analog inputs.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800AnalogInConfig {
     /// Whether to use rear jack instead of front jack for input 1, 7, and 8.
     pub jacks: [Ff800AnalogInputJack; 3],
@@ -822,7 +822,7 @@ fn deserialize_analog_input_config(config: &mut Ff800AnalogInConfig, quads: &[u3
 }
 
 /// Configurations for Fireface 800.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ff800Config {
     /// For sampling clock.
     pub clk: Ff800ClkConfig,
@@ -871,8 +871,8 @@ impl Ff800Config {
     }
 }
 
-impl RmeFfParamsSerialize<Ff800Config, u8> for Ff800Protocol {
-    fn serialize(params: &Ff800Config) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff800Config> for Ff800Protocol {
+    fn serialize_offsets(params: &Ff800Config) -> Vec<u8> {
         let mut quads = [0; Ff800Config::QUADLET_COUNT];
 
         serialize_clock_config(&params.clk, &mut quads);
@@ -939,8 +939,8 @@ impl RmeFfParamsSerialize<Ff800Config, u8> for Ff800Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff800Config, u8> for Ff800Protocol {
-    fn deserialize(params: &mut Ff800Config, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff800Config> for Ff800Protocol {
+    fn deserialize_offsets(params: &mut Ff800Config, raw: &[u8]) {
         let mut quads = [0; Ff800Config::QUADLET_COUNT];
 
         let mut quadlet = [0; 4];
@@ -1052,228 +1052,228 @@ mod test {
         let mut status = Ff800Status::default();
 
         let quads = [0x02001000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.lock.adat_a, true);
 
         let quads = [0x02002000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.lock.adat_b, true);
 
         let quads = [0x02040000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.lock.spdif, true);
 
         let quads = [0x22000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.lock.word_clock, true);
 
         let quads = [0x02000400, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.adat_a, true);
 
         let quads = [0x02000800, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.adat_b, true);
 
         let quads = [0x02100800, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.spdif, true);
 
         let quads = [0x42000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.word_clock, true);
 
         let quads = [0x02000000, 0x00800000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.tco, true);
 
         let quads = [0x02004000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R32000));
 
         let quads = [0x02008000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R44100));
 
         let quads = [0x0200c000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R48000));
 
         let quads = [0x02010000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R64000));
 
         let quads = [0x02014000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R88200));
 
         let quads = [0x02018000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R96000));
 
         let quads = [0x0201c000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R128000));
 
         let quads = [0x02020000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R176400));
 
         let quads = [0x02024000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_rate, Some(ClkNominalRate::R192000));
 
         let quads = [0x02000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::AdatA);
 
         let quads = [0x02400000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::AdatB);
 
         let quads = [0x02c00000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::Spdif);
 
         let quads = [0x03000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::WordClock);
 
         let quads = [0x03800000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::Tco);
 
         let quads = [0x03c00000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.active_clk_src, Ff800ClkSrc::Internal);
 
         let quads = [0x02000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R32000));
 
         let quads = [0x04000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R44100));
 
         let quads = [0x06000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R48000));
 
         let quads = [0x08000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R64000));
 
         let quads = [0x0a000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R88200));
 
         let quads = [0x0e000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R96000));
 
         let quads = [0x0c000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R128000));
 
         let quads = [0x10000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R176400));
 
         let quads = [0x12000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.external_clk_rate, Some(ClkNominalRate::R192000));
 
         let quads = [0x02000000, 0x00400000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.lock.tco, true);
 
         let quads = [0x02000000, 0x00800000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.sync.tco, true);
 
         let quads = [0x02000000, 0x00002000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.word_out_single, true);
 
         let quads = [0x02000000, 0x00000200];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_in.iface, SpdifIface::Optical);
 
         let quads = [0x02000000, 0x00000100];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.opt_out_signal, OpticalOutputSignal::Spdif);
 
         let quads = [0x02000000, 0x00000040];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_out.emphasis, true);
 
         let quads = [0x02000000, 0x00000020];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.spdif_out.format, SpdifFormat::Professional);
 
         let quads = [0x02000000, 0x00000002];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R32000);
 
         let quads = [0x02000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R44100);
 
         let quads = [0x02000000, 0x00000006];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R48000);
 
         let quads = [0x02000000, 0x0000000a];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R64000);
 
         let quads = [0x02000000, 0x00000008];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R88200);
 
         let quads = [0x02000000, 0x0000000e];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R96000);
 
         let quads = [0x02000000, 0x00000012];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R128000);
 
         let quads = [0x02000000, 0x00000010];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R176400);
 
         let quads = [0x02000000, 0x00000016];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_rate, ClkNominalRate::R192000);
 
         let quads = [0x02000000, 0x00001000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::WordClock);
 
         let quads = [0x02000000, 0x00001800];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::Tco);
 
         let quads = [0x02000000, 0x00000c00];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::Spdif);
 
         let quads = [0x02000000, 0x00000400];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::AdatB);
 
         let quads = [0x02000000, 0x00000001];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::Internal);
 
         let quads = [0x02000000, 0x00000000];
-        Ff800Protocol::deserialize(&mut status, &quads_to_bytes(&quads));
+        Ff800Protocol::deserialize_offsets(&mut status, &quads_to_bytes(&quads));
         assert_eq!(status.configured_clk_src, Ff800ClkSrc::AdatA);
 
-        let raw = Ff800Protocol::serialize(&status);
+        let raw = Ff800Protocol::serialize_offsets(&status);
         let mut target = Ff800Status::default();
-        Ff800Protocol::deserialize(&mut target, &raw);
+        Ff800Protocol::deserialize_offsets(&mut target, &raw);
         assert_eq!(target, status);
     }
 
@@ -1447,71 +1447,71 @@ mod test {
         let mut cfg = Ff800Config::default();
 
         orig.line_out_level = LineOutNominalLevel::High;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000408, 0x000008b0, 0x8000001e]);
 
         orig.line_out_level = LineOutNominalLevel::Consumer;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00001008, 0x000008a8, 0x8000001e]);
 
         orig.line_out_level = LineOutNominalLevel::Professional;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000001e]);
 
         orig.spdif_in.iface = SpdifIface::Optical;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0x8000021e]);
 
         orig.spdif_in.use_preemble = true;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000021e]);
 
         orig.opt_out_signal = OpticalOutputSignal::Spdif;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000031e]);
 
         orig.spdif_out.format = SpdifFormat::Professional;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000033e]);
 
         orig.spdif_out.emphasis = true;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc000037e]);
 
         orig.spdif_out.non_audio = true;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00003fe]);
 
         orig.word_out_single = true;
-        let raw = Ff800Protocol::serialize(&orig);
-        Ff800Protocol::deserialize(&mut cfg, &raw);
+        let raw = Ff800Protocol::serialize_offsets(&orig);
+        Ff800Protocol::deserialize_offsets(&mut cfg, &raw);
         assert_eq!(cfg, orig);
         let quads = config_to_quads(&raw);
         assert_eq!(&quads[..], &[0x00000808, 0x000008b8, 0xc00023fe]);
