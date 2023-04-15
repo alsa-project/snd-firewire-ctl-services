@@ -95,7 +95,7 @@ Install executables ::
 The runtime crates which provide the executables are listed below:
 
 snd-firewire-digi00x-ctl-service
-    ``digi00x-runtme`` crate locates in ``runtime/digi00x``
+    ``snd-firewire-digi00x-ctl-service`` crate locates in ``runtime/digi00x``
 snd-firewire-tascam-ctl-service
     ``tascam-runtime`` crate locates in ``runtime/tascam``
 snd-fireworks-ctl-service
