@@ -22,7 +22,7 @@ const CFG_WORD_INPUT_TERMINATE_MASK: u32 = 0x00000008;
 const CFG_SPDIF_OUT_PRO_MASK: u32 = 0x00000020;
 
 /// Signal source of sampling clock.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfUcxClkSrc {
     Internal,
     Coax,
@@ -56,7 +56,7 @@ fn deserialize_clock_source(src: &mut FfUcxClkSrc, quad: &u32) {
 }
 
 /// Configuration for UCX.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfUcxConfig {
     /// The low offset of destination address for MIDI messages.
     midi_tx_low_offset: FfLatterMidiTxLowOffset,
@@ -74,8 +74,8 @@ pub struct FfUcxConfig {
     pub spdif_out_format: SpdifFormat,
 }
 
-impl RmeFfParamsSerialize<FfUcxConfig, u8> for FfUcxProtocol {
-    fn serialize(state: &FfUcxConfig) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<FfUcxConfig> for FfUcxProtocol {
+    fn serialize_offsets(state: &FfUcxConfig) -> Vec<u8> {
         let mut quad = 0;
 
         serialize_midi_tx_low_offset(&state.midi_tx_low_offset, &mut quad);
@@ -105,8 +105,8 @@ impl RmeFfParamsSerialize<FfUcxConfig, u8> for FfUcxProtocol {
     }
 }
 
-impl RmeFfParamsDeserialize<FfUcxConfig, u8> for FfUcxProtocol {
-    fn deserialize(state: &mut FfUcxConfig, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<FfUcxConfig> for FfUcxProtocol {
+    fn deserialize_offsets(state: &mut FfUcxConfig, raw: &[u8]) {
         assert!(raw.len() >= LATTER_CONFIG_SIZE);
 
         let mut r = [0; 4];
@@ -169,7 +169,7 @@ const STATUS_LOCK_OPT_IFACE_MASK: u32 = 0x00000002;
 const STATUS_LOCK_COAX_IFACE_MASK: u32 = 0x00000001;
 
 /// Lock status of UCX.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfUcxExtLockStatus {
     pub word_clk: bool,
     pub opt_iface: bool,
@@ -196,7 +196,7 @@ fn deserialize_external_lock_status(status: &mut FfUcxExtLockStatus, quad: &u32)
 }
 
 /// Sync status of UCX.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfUcxExtSyncStatus {
     pub word_clk: bool,
     pub opt_iface: bool,
@@ -223,7 +223,7 @@ fn deserialize_external_sync_status(status: &mut FfUcxExtSyncStatus, quad: &u32)
 }
 
 /// Sync status of UCX.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfUcxExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
     pub opt_iface: Option<ClkNominalRate>,
@@ -271,7 +271,7 @@ fn deserialize_external_rate_status(status: &mut FfUcxExtRateStatus, quad: &u32)
 }
 
 /// Status of UCX.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfUcxStatus {
     pub ext_lock: FfUcxExtLockStatus,
     pub ext_sync: FfUcxExtSyncStatus,
@@ -281,8 +281,8 @@ pub struct FfUcxStatus {
     pub active_clk_rate: ClkNominalRate,
 }
 
-impl RmeFfParamsSerialize<FfUcxStatus, u8> for FfUcxProtocol {
-    fn serialize(state: &FfUcxStatus) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<FfUcxStatus> for FfUcxProtocol {
+    fn serialize_offsets(state: &FfUcxStatus) -> Vec<u8> {
         let mut quad = 0;
 
         serialize_external_lock_status(&state.ext_lock, &mut quad);
@@ -309,8 +309,8 @@ impl RmeFfParamsSerialize<FfUcxStatus, u8> for FfUcxProtocol {
     }
 }
 
-impl RmeFfParamsDeserialize<FfUcxStatus, u8> for FfUcxProtocol {
-    fn deserialize(state: &mut FfUcxStatus, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<FfUcxStatus> for FfUcxProtocol {
+    fn deserialize_offsets(state: &mut FfUcxStatus, raw: &[u8]) {
         assert!(raw.len() >= LATTER_STATUS_SIZE);
 
         let mut r = [0; 4];
@@ -397,9 +397,9 @@ mod test {
             word_in_terminate: true,
             spdif_out_format: SpdifFormat::Professional,
         };
-        let quads = FfUcxProtocol::serialize(&orig);
+        let quads = FfUcxProtocol::serialize_offsets(&orig);
         let mut target = FfUcxConfig::default();
-        FfUcxProtocol::deserialize(&mut target, &quads);
+        FfUcxProtocol::deserialize_offsets(&mut target, &quads);
 
         assert_eq!(target, orig);
     }
@@ -471,9 +471,9 @@ mod test {
             active_clk_src: FfUcxClkSrc::Opt,
             active_clk_rate: ClkNominalRate::R88200,
         };
-        let raw = FfUcxProtocol::serialize(&orig);
+        let raw = FfUcxProtocol::serialize_offsets(&orig);
         let mut target = FfUcxStatus::default();
-        FfUcxProtocol::deserialize(&mut target, &raw);
+        FfUcxProtocol::deserialize_offsets(&mut target, &raw);
 
         assert_eq!(target, orig);
     }

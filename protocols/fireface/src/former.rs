@@ -38,7 +38,7 @@ pub trait RmeFfFormerSpecification {
 ///
 /// Each value of 32 bit integer is between 0x00000000 and 0x7fffff00 to represent -90.03 and
 /// 0.00 dB. When reaching saturation, 1 byte in LSB side represent ratio of overload.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FormerMeterState {
     /// The detected levels for analog (line and microphone) inputs.
     pub analog_inputs: Vec<i32>,
@@ -139,8 +139,8 @@ fn deserialize_meter(
         });
 }
 
-impl<O: RmeFfFormerSpecification> RmeFfParamsSerialize<FormerMeterState, u8> for O {
-    fn serialize(params: &FormerMeterState) -> Vec<u8> {
+impl<O: RmeFfFormerSpecification> RmeFfOffsetParamsSerialize<FormerMeterState> for O {
+    fn serialize_offsets(params: &FormerMeterState) -> Vec<u8> {
         serialize_meter(
             params,
             Self::PHYS_INPUT_COUNT,
@@ -150,8 +150,8 @@ impl<O: RmeFfFormerSpecification> RmeFfParamsSerialize<FormerMeterState, u8> for
     }
 }
 
-impl<O: RmeFfFormerMeterSpecification> RmeFfParamsDeserialize<FormerMeterState, u8> for O {
-    fn deserialize(params: &mut FormerMeterState, raw: &[u8]) {
+impl<O: RmeFfFormerMeterSpecification> RmeFfOffsetParamsDeserialize<FormerMeterState> for O {
+    fn deserialize_offsets(params: &mut FormerMeterState, raw: &[u8]) {
         deserialize_meter(
             params,
             raw,
@@ -162,7 +162,7 @@ impl<O: RmeFfFormerMeterSpecification> RmeFfParamsDeserialize<FormerMeterState, 
     }
 }
 
-impl<O: RmeFfFormerMeterSpecification + RmeFfParamsDeserialize<FormerMeterState, u8>>
+impl<O: RmeFfFormerMeterSpecification + RmeFfOffsetParamsDeserialize<FormerMeterState>>
     RmeFfCacheableParamsOperation<FormerMeterState> for O
 {
     fn cache_wholly(
@@ -189,7 +189,7 @@ impl<O: RmeFfFormerMeterSpecification + RmeFfParamsDeserialize<FormerMeterState,
             &mut raw,
             timeout_ms,
         )
-        .map(|_| Self::deserialize(params, &raw))
+        .map(|_| Self::deserialize_offsets(params, &raw))
     }
 }
 
@@ -197,7 +197,7 @@ impl<O: RmeFfFormerMeterSpecification + RmeFfParamsDeserialize<FormerMeterState,
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
 /// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FormerOutputVolumeState(pub Vec<i32>);
 
 /// Output protocol specific to former models of RME Fireface.
@@ -235,14 +235,14 @@ fn deserialize_output_volumes(
     });
 }
 
-impl<O: RmeFormerOutputSpecification> RmeFfParamsSerialize<FormerOutputVolumeState, u8> for O {
-    fn serialize(params: &FormerOutputVolumeState) -> Vec<u8> {
+impl<O: RmeFormerOutputSpecification> RmeFfOffsetParamsSerialize<FormerOutputVolumeState> for O {
+    fn serialize_offsets(params: &FormerOutputVolumeState) -> Vec<u8> {
         serialize_output_volumes(params, Self::PHYS_OUTPUT_COUNT)
     }
 }
 
-impl<O: RmeFormerOutputSpecification> RmeFfParamsDeserialize<FormerOutputVolumeState, u8> for O {
-    fn deserialize(params: &mut FormerOutputVolumeState, raw: &[u8]) {
+impl<O: RmeFormerOutputSpecification> RmeFfOffsetParamsDeserialize<FormerOutputVolumeState> for O {
+    fn deserialize_offsets(params: &mut FormerOutputVolumeState, raw: &[u8]) {
         deserialize_output_volumes(params, raw, Self::PHYS_OUTPUT_COUNT)
     }
 }
@@ -251,7 +251,7 @@ impl<O: RmeFormerOutputSpecification> RmeFfParamsDeserialize<FormerOutputVolumeS
 ///
 /// The value is between 0x00000000 and 0x00010000 through 0x00008000 to represent -90.30 and 6.02 dB
 /// through 0x00008000.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FormerMixerSrc {
     /// Gains of sources from analog inputs.
     pub analog_gains: Vec<i32>,
@@ -264,7 +264,7 @@ pub struct FormerMixerSrc {
 }
 
 /// State of mixer.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
 /// The specification of mixer in former models.
@@ -359,21 +359,21 @@ fn deserialize_mixer(
     });
 }
 
-impl<O: RmeFormerMixerSpecification> RmeFfParamsSerialize<FormerMixerState, u8> for O {
-    fn serialize(params: &FormerMixerState) -> Vec<u8> {
+impl<O: RmeFormerMixerSpecification> RmeFfOffsetParamsSerialize<FormerMixerState> for O {
+    fn serialize_offsets(params: &FormerMixerState) -> Vec<u8> {
         serialize_mixer(params, Self::DST_COUNT, Self::AVAIL_COUNT)
     }
 }
 
-impl<O: RmeFormerMixerSpecification> RmeFfParamsDeserialize<FormerMixerState, u8> for O {
-    fn deserialize(params: &mut FormerMixerState, raw: &[u8]) {
+impl<O: RmeFormerMixerSpecification> RmeFfOffsetParamsDeserialize<FormerMixerState> for O {
+    fn deserialize_offsets(params: &mut FormerMixerState, raw: &[u8]) {
         deserialize_mixer(params, raw, Self::DST_COUNT, Self::AVAIL_COUNT)
     }
 }
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FormerMixerState> for O
 where
-    O: RmeFormerMixerSpecification + RmeFfParamsDeserialize<FormerMixerState, u8>,
+    O: RmeFormerMixerSpecification + RmeFfOffsetParamsDeserialize<FormerMixerState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -381,7 +381,7 @@ where
         params: &FormerMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut raw = Self::serialize(params);
+        let mut raw = Self::serialize_offsets(params);
 
         let mixer_length = calculate_mixer_length(Self::AVAIL_COUNT);
 
@@ -401,7 +401,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FormerMixerState> for O
 where
-    O: RmeFormerMixerSpecification + RmeFfParamsDeserialize<FormerMixerState, u8>,
+    O: RmeFormerMixerSpecification + RmeFfOffsetParamsDeserialize<FormerMixerState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -410,8 +410,8 @@ where
         update: FormerMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(params);
-        let mut new = Self::serialize(&update);
+        let old = Self::serialize_offsets(params);
+        let mut new = Self::serialize_offsets(&update);
 
         let mixer_length = calculate_mixer_length(Self::AVAIL_COUNT);
 
@@ -437,14 +437,14 @@ where
 
 const FORMER_CONFIG_SIZE: usize = 12;
 
-fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
+fn write_config<T: RmeFfOffsetParamsSerialize<U>, U>(
     req: &mut FwReq,
     node: &mut FwNode,
     offset: u64,
     config: &U,
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    let mut raw = T::serialize(config);
+    let mut raw = T::serialize_offsets(config);
 
     req.transaction_sync(
         node,
@@ -458,7 +458,7 @@ fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
 
 const FORMER_STATUS_SIZE: usize = 8;
 
-fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
+fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     req: &mut FwReq,
     node: &mut FwNode,
     offset: u64,
@@ -474,11 +474,11 @@ fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
         &mut raw,
         timeout_ms,
     )
-    .map(|_| T::deserialize(status, &raw))
+    .map(|_| T::deserialize_offsets(status, &raw))
 }
 
 /// Configuration of S/PDIF output.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FormerSpdifOutput {
     /// The format of S/PDIF signal.
     pub format: SpdifFormat,
@@ -489,7 +489,7 @@ pub struct FormerSpdifOutput {
 }
 
 /// Nominal level of line inputs.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FormerLineInNominalLevel {
     Low,
     /// -10 dBV.

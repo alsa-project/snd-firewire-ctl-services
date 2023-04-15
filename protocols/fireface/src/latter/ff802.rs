@@ -23,7 +23,7 @@ const CFG_AESEBU_OUT_PRO_MASK: u32 = 0x00000020;
 const CFG_WORD_OUT_SINGLE_MASK: u32 = 0x00000010;
 
 /// Signal source of sampling clock.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ff802ClkSrc {
     Internal,
     AdatA,
@@ -61,7 +61,7 @@ fn deserialize_clock_source(src: &mut Ff802ClkSrc, quad: &u32) {
 }
 
 /// Digital interface of S/PDIF signal for 802.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Ff802SpdifIface {
     Xlr,
     Optical,
@@ -74,7 +74,7 @@ impl Default for Ff802SpdifIface {
 }
 
 /// Unique protocol for 802.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ff802Config {
     /// The low offset of destination address for MIDI messages.
     midi_tx_low_offset: FfLatterMidiTxLowOffset,
@@ -92,8 +92,8 @@ pub struct Ff802Config {
     pub word_out_single: bool,
 }
 
-impl RmeFfParamsSerialize<Ff802Config, u8> for Ff802Protocol {
-    fn serialize(state: &Ff802Config) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff802Config> for Ff802Protocol {
+    fn serialize_offsets(state: &Ff802Config) -> Vec<u8> {
         let mut quad = 0;
 
         serialize_midi_tx_low_offset(&state.midi_tx_low_offset, &mut quad);
@@ -128,8 +128,8 @@ impl RmeFfParamsSerialize<Ff802Config, u8> for Ff802Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff802Config, u8> for Ff802Protocol {
-    fn deserialize(state: &mut Ff802Config, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff802Config> for Ff802Protocol {
+    fn deserialize_offsets(state: &mut Ff802Config, raw: &[u8]) {
         assert!(raw.len() >= LATTER_CONFIG_SIZE);
 
         let mut r = [0; 4];
@@ -195,7 +195,7 @@ const STATUS_LOCK_SPDIF_MASK: u32 = 0x00000002;
 const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000001;
 
 /// Lock status of 802.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ff802ExtLockStatus {
     pub word_clk: bool,
     pub spdif: bool,
@@ -228,7 +228,7 @@ fn deserialize_external_lock_status(status: &mut Ff802ExtLockStatus, quad: &u32)
 }
 
 /// Sync status of 802.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ff802ExtSyncStatus {
     pub word_clk: bool,
     pub spdif: bool,
@@ -261,7 +261,7 @@ fn deserialize_external_sync_status(status: &mut Ff802ExtSyncStatus, quad: &u32)
 }
 
 /// Sync status of 802.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ff802ExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
     pub spdif: Option<ClkNominalRate>,
@@ -321,7 +321,7 @@ fn deserialize_external_rate_status(status: &mut Ff802ExtRateStatus, quad: &u32)
 }
 
 /// Status of 802.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ff802Status {
     pub ext_lock: Ff802ExtLockStatus,
     pub ext_sync: Ff802ExtSyncStatus,
@@ -330,8 +330,8 @@ pub struct Ff802Status {
     pub active_clk_rate: ClkNominalRate,
 }
 
-impl RmeFfParamsSerialize<Ff802Status, u8> for Ff802Protocol {
-    fn serialize(status: &Ff802Status) -> Vec<u8> {
+impl RmeFfOffsetParamsSerialize<Ff802Status> for Ff802Protocol {
+    fn serialize_offsets(status: &Ff802Status) -> Vec<u8> {
         let mut quad = 0;
 
         serialize_external_lock_status(&status.ext_lock, &mut quad);
@@ -355,8 +355,8 @@ impl RmeFfParamsSerialize<Ff802Status, u8> for Ff802Protocol {
     }
 }
 
-impl RmeFfParamsDeserialize<Ff802Status, u8> for Ff802Protocol {
-    fn deserialize(status: &mut Ff802Status, raw: &[u8]) {
+impl RmeFfOffsetParamsDeserialize<Ff802Status> for Ff802Protocol {
+    fn deserialize_offsets(status: &mut Ff802Status, raw: &[u8]) {
         assert!(raw.len() >= LATTER_STATUS_SIZE);
 
         let mut r = [0; 4];
@@ -439,9 +439,9 @@ mod test {
             spdif_out_format: SpdifFormat::Professional,
             word_out_single: true,
         };
-        let quads = Ff802Protocol::serialize(&orig);
+        let quads = Ff802Protocol::serialize_offsets(&orig);
         let mut target = Ff802Config::default();
-        Ff802Protocol::deserialize(&mut target, &quads);
+        Ff802Protocol::deserialize_offsets(&mut target, &quads);
 
         assert_eq!(target, orig);
     }
@@ -518,9 +518,9 @@ mod test {
             active_clk_src: Ff802ClkSrc::AdatA,
             active_clk_rate: ClkNominalRate::R96000,
         };
-        let raw = Ff802Protocol::serialize(&orig);
+        let raw = Ff802Protocol::serialize_offsets(&orig);
         let mut target = Ff802Status::default();
-        Ff802Protocol::deserialize(&mut target, &raw);
+        Ff802Protocol::deserialize_offsets(&mut target, &raw);
 
         assert_eq!(target, orig);
     }

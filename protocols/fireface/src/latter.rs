@@ -20,7 +20,7 @@ const CFG_MIDI_TX_LOW_OFFSET_0080_FLAG: u32 = 0x00004000;
 const CFG_MIDI_TX_LOW_OFFSET_0000_FLAG: u32 = 0x00002000;
 
 /// Low offset of destination address for MIDI messages.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FfLatterMidiTxLowOffset {
     /// Between 0x0000 to 0x007c.
     A0000,
@@ -60,13 +60,13 @@ fn deserialize_midi_tx_low_offset(offset: &mut FfLatterMidiTxLowOffset, quad: &u
 
 const LATTER_CONFIG_SIZE: usize = 4;
 
-fn write_config<T: RmeFfParamsSerialize<U, u8>, U>(
+fn write_config<T: RmeFfOffsetParamsSerialize<U>, U>(
     req: &mut FwReq,
     node: &mut FwNode,
     config: &U,
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    let mut raw = T::serialize(config);
+    let mut raw = T::serialize_offsets(config);
 
     req.transaction_sync(
         node,
@@ -148,7 +148,7 @@ fn deserialize_clock_rate_optional(
 
 const LATTER_STATUS_SIZE: usize = 4;
 
-fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
+fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     req: &mut FwReq,
     node: &mut FwNode,
     status: &mut U,
@@ -163,7 +163,7 @@ fn read_status<T: RmeFfParamsDeserialize<U, u8>, U>(
         &mut raw,
         timeout_ms,
     )
-    .map(|_| T::deserialize(status, &raw))
+    .map(|_| T::deserialize_offsets(status, &raw))
 }
 
 /// The specification of latter model.
@@ -193,7 +193,7 @@ pub trait RmeFfLatterSpecification {
 ///
 /// Each value is between 0x'0000'0000'0000'0000 and 0x'3fff'ffff'ffff'ffff. 0x'0000'0000'0000'001f
 /// represents negative infinite.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterMeterState {
     /// The number of line inputs.
     pub line_inputs: Vec<i32>,
@@ -256,8 +256,8 @@ impl<O: RmeFfLatterSpecification> RmeFfLatterMeterSpecification for O {}
 //  0x66666666 - hardware inputs
 //
 //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
-impl<O: RmeFfLatterMeterSpecification> RmeFfParamsDeserialize<FfLatterMeterState, u8> for O {
-    fn deserialize(state: &mut FfLatterMeterState, raw: &[u8]) {
+impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMeterState> for O {
+    fn deserialize_offsets(state: &mut FfLatterMeterState, raw: &[u8]) {
         assert_eq!(raw.len(), METER_CHUNK_SIZE);
 
         let mut quadlet = [0; 4];
@@ -330,7 +330,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfParamsDeserialize<FfLatterMeterState
 
 impl<O> RmeFfCacheableParamsOperation<FfLatterMeterState> for O
 where
-    O: RmeFfParamsDeserialize<FfLatterMeterState, u8>,
+    O: RmeFfOffsetParamsDeserialize<FfLatterMeterState>,
 {
     fn cache_wholly(
         req: &mut FwReq,
@@ -348,7 +348,7 @@ where
                 &mut raw,
                 timeout_ms,
             )
-            .map(|_| Self::deserialize(state, &raw))
+            .map(|_| Self::deserialize_offsets(state, &raw))
         })
     }
 }
