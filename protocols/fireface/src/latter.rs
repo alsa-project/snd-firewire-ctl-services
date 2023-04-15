@@ -1983,11 +1983,10 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
     cmds
 }
 
-/// State of send effects (reverb and echo).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FfLatterFxState {
-    /// The state of echo effect.
-    pub echo: FfLatterFxEchoState,
+impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxEchoState> for O {
+    fn serialize_commands(params: &FfLatterFxEchoState) -> Vec<u32> {
+        echo_state_to_cmds(params)
+    }
 }
 
 /// The specification of FX.
@@ -2124,26 +2123,9 @@ pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
             adat_output_vols: vec![0; Self::ADAT_OUTPUT_COUNT],
         }
     }
-
-    /// Instantiate fx parameters.
-    fn create_fx_parameters() -> FfLatterFxState {
-        FfLatterFxState {
-            echo: Default::default(),
-        }
-    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
-
-impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxState> for O {
-    fn serialize_commands(state: &FfLatterFxState) -> Vec<u32> {
-        let mut cmds = Vec::new();
-
-        cmds.append(&mut echo_state_to_cmds(&state.echo));
-
-        cmds
-    }
-}
 
 #[cfg(test)]
 mod test {

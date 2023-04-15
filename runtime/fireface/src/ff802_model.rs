@@ -23,10 +23,10 @@ pub struct Ff802Model {
     output_dyn_ctl: LatterOutputDynamicsCtl<Ff802Protocol>,
     input_al_ctl: LatterInputAutolevelCtl<Ff802Protocol>,
     output_al_ctl: LatterOutputAutolevelCtl<Ff802Protocol>,
-    fx_ctl: LatterFxCtl<Ff802Protocol>,
     fx_source_ctl: LatterFxSourceCtl<Ff802Protocol>,
     fx_output_ctl: LatterFxOutputCtl<Ff802Protocol>,
     fx_reverb_ctl: LatterFxReverbCtl<Ff802Protocol>,
+    fx_echo_ctl: LatterFxEchoCtl<Ff802Protocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -47,10 +47,10 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         self.output_dyn_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_al_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.fx_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.fx_source_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.fx_output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.fx_reverb_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.fx_echo_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -70,10 +70,10 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         self.output_dyn_ctl.load(card_cntr)?;
         self.input_al_ctl.load(card_cntr)?;
         self.output_al_ctl.load(card_cntr)?;
-        self.fx_ctl.load(card_cntr)?;
         self.fx_source_ctl.load(card_cntr)?;
         self.fx_output_ctl.load(card_cntr)?;
         self.fx_reverb_ctl.load(card_cntr)?;
+        self.fx_echo_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -106,13 +106,13 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
             Ok(true)
         } else if self.output_al_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.fx_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.fx_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.fx_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.fx_reverb_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.fx_echo_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -186,11 +186,6 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
         {
             Ok(true)
         } else if self
-            .fx_ctl
-            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self
             .fx_source_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
@@ -202,6 +197,11 @@ impl CtlModel<(SndFireface, FwNode)> for Ff802Model {
             Ok(true)
         } else if self
             .fx_reverb_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .fx_echo_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
