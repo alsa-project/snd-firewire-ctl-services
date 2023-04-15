@@ -39,7 +39,7 @@ impl<'a> FfConfigRom for ConfigRom<'a> {
 }
 
 /// Nominal frequency of sampling clock.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkNominalRate {
     R32000,
     R44100,
@@ -59,7 +59,7 @@ impl Default for ClkNominalRate {
 }
 
 /// Format of S/PDIF signal.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SpdifFormat {
     Consumer,
     Professional,
@@ -72,7 +72,7 @@ impl Default for SpdifFormat {
 }
 
 /// Digital interface of S/PDIF signal.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SpdifIface {
     Coaxial,
     Optical,
@@ -85,7 +85,7 @@ impl Default for SpdifIface {
 }
 
 /// Configuration of S/PDIF input.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SpdifInput {
     /// The interface of S/PDIF signal.
     pub iface: SpdifIface,
@@ -94,7 +94,7 @@ pub struct SpdifInput {
 }
 
 /// Type of signal to optical output interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OpticalOutputSignal {
     Adat,
     Spdif,
@@ -107,7 +107,7 @@ impl Default for OpticalOutputSignal {
 }
 
 /// Nominal level of line outputs.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LineOutNominalLevel {
     High,
     /// -10 dBV.
