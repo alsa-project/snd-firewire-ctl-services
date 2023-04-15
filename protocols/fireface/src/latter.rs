@@ -353,12 +353,6 @@ where
     }
 }
 
-/// State of send effects (reverb and echo).
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterDspState {
-    pub fx: FfLatterFxState,
-}
-
 const VIRT_PORT_CMD_FLAG: u32 = 0x40000000;
 const ODD_PARITY_FLAG: u32 = 0x80000000;
 
@@ -490,24 +484,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
 
     const STREAM_OFFSET: u16 = 0x0020;
     const MIXER_STEP: u16 = Self::STREAM_OFFSET * 2;
-
-    fn create_dsp_state() -> FfLatterDspState {
-        FfLatterDspState {
-            fx: FfLatterFxState {
-                line_input_gains: vec![0; Self::LINE_INPUT_COUNT],
-                mic_input_gains: vec![0; Self::MIC_INPUT_COUNT],
-                spdif_input_gains: vec![0; Self::SPDIF_INPUT_COUNT],
-                adat_input_gains: vec![0; Self::ADAT_INPUT_COUNT],
-                stream_input_gains: vec![0; Self::STREAM_INPUT_COUNT],
-                line_output_vols: vec![0; Self::LINE_OUTPUT_COUNT],
-                hp_output_vols: vec![0; Self::HP_OUTPUT_COUNT],
-                spdif_output_vols: vec![0; Self::SPDIF_OUTPUT_COUNT],
-                adat_output_vols: vec![0; Self::ADAT_OUTPUT_COUNT],
-                reverb: Default::default(),
-                echo: Default::default(),
-            },
-        }
-    }
 }
 
 impl<O: RmeFfLatterSpecification> RmeFfLatterDspSpecification for O {}
@@ -1643,7 +1619,7 @@ where
 }
 
 /// Type of reverb effect.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterFxReverbType {
     SmallRoom,
     MediumRoom,
@@ -1668,30 +1644,28 @@ impl Default for FfLatterFxReverbType {
     }
 }
 
-impl From<FfLatterFxReverbType> for i16 {
-    fn from(reverb_type: FfLatterFxReverbType) -> Self {
-        match reverb_type {
-            FfLatterFxReverbType::SmallRoom => 0x0000,
-            FfLatterFxReverbType::MediumRoom => 0x0001,
-            FfLatterFxReverbType::LargeRoom => 0x0002,
-            FfLatterFxReverbType::Walls => 0x0003,
-            FfLatterFxReverbType::Shorty => 0x0004,
-            FfLatterFxReverbType::Attack => 0x0005,
-            FfLatterFxReverbType::Swagger => 0x0006,
-            FfLatterFxReverbType::OldSchool => 0x0007,
-            FfLatterFxReverbType::Echoistic => 0x0008,
-            FfLatterFxReverbType::EightPlusNine => 0x0009,
-            FfLatterFxReverbType::GrandWide => 0x000a,
-            FfLatterFxReverbType::Thicker => 0x000b,
-            FfLatterFxReverbType::Envelope => 0x000c,
-            FfLatterFxReverbType::Gated => 0x000d,
-            FfLatterFxReverbType::Space => 0x000e,
-        }
+fn deserialize_fx_reverb_type(reverb_type: &FfLatterFxReverbType) -> i16 {
+    match reverb_type {
+        FfLatterFxReverbType::SmallRoom => 0x0000,
+        FfLatterFxReverbType::MediumRoom => 0x0001,
+        FfLatterFxReverbType::LargeRoom => 0x0002,
+        FfLatterFxReverbType::Walls => 0x0003,
+        FfLatterFxReverbType::Shorty => 0x0004,
+        FfLatterFxReverbType::Attack => 0x0005,
+        FfLatterFxReverbType::Swagger => 0x0006,
+        FfLatterFxReverbType::OldSchool => 0x0007,
+        FfLatterFxReverbType::Echoistic => 0x0008,
+        FfLatterFxReverbType::EightPlusNine => 0x0009,
+        FfLatterFxReverbType::GrandWide => 0x000a,
+        FfLatterFxReverbType::Thicker => 0x000b,
+        FfLatterFxReverbType::Envelope => 0x000c,
+        FfLatterFxReverbType::Gated => 0x000d,
+        FfLatterFxReverbType::Space => 0x000e,
     }
 }
 
 /// Type of echo effect.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterFxEchoType {
     StereoEcho,
     StereoCross,
@@ -1704,18 +1678,16 @@ impl Default for FfLatterFxEchoType {
     }
 }
 
-impl From<FfLatterFxEchoType> for i16 {
-    fn from(echo_type: FfLatterFxEchoType) -> Self {
-        match echo_type {
-            FfLatterFxEchoType::StereoEcho => 0x0000,
-            FfLatterFxEchoType::StereoCross => 0x0001,
-            FfLatterFxEchoType::PongEcho => 0x0002,
-        }
+fn deserialize_fx_echo_type(echo_type: &FfLatterFxEchoType) -> i16 {
+    match echo_type {
+        FfLatterFxEchoType::StereoEcho => 0x0000,
+        FfLatterFxEchoType::StereoCross => 0x0001,
+        FfLatterFxEchoType::PongEcho => 0x0002,
     }
 }
 
 /// Frequency of low pass filter for echo effect.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterFxEchoLpfFreq {
     Off,
     H2000,
@@ -1731,21 +1703,19 @@ impl Default for FfLatterFxEchoLpfFreq {
     }
 }
 
-impl From<FfLatterFxEchoLpfFreq> for i16 {
-    fn from(lpf_freq: FfLatterFxEchoLpfFreq) -> Self {
-        match lpf_freq {
-            FfLatterFxEchoLpfFreq::Off => 0x0000,
-            FfLatterFxEchoLpfFreq::H2000 => 0x0005,
-            FfLatterFxEchoLpfFreq::H4000 => 0x0004,
-            FfLatterFxEchoLpfFreq::H8000 => 0x0003,
-            FfLatterFxEchoLpfFreq::H12000 => 0x0002,
-            FfLatterFxEchoLpfFreq::H16000 => 0x0001,
-        }
+fn deserialize_fx_echo_lpf_freq(freq: &FfLatterFxEchoLpfFreq) -> i16 {
+    match freq {
+        FfLatterFxEchoLpfFreq::Off => 0x0000,
+        FfLatterFxEchoLpfFreq::H2000 => 0x0005,
+        FfLatterFxEchoLpfFreq::H4000 => 0x0004,
+        FfLatterFxEchoLpfFreq::H8000 => 0x0003,
+        FfLatterFxEchoLpfFreq::H12000 => 0x0002,
+        FfLatterFxEchoLpfFreq::H16000 => 0x0001,
     }
 }
 
 /// State of reverb in send effect.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfLatterFxReverbState {
     /// Whether to activate reverb effect.
     pub activate: bool,
@@ -1790,7 +1760,7 @@ fn reverb_state_to_cmds(state: &FfLatterFxReverbState) -> Vec<u32> {
     cmds.push(create_phys_port_cmd(
         FX_CH,
         FX_REVERB_TYPE_CMD,
-        i16::from(state.reverb_type),
+        deserialize_fx_reverb_type(&state.reverb_type),
     ));
     cmds.push(create_phys_port_cmd(
         FX_CH,
@@ -1857,7 +1827,7 @@ fn reverb_state_to_cmds(state: &FfLatterFxReverbState) -> Vec<u32> {
 }
 
 /// State of echo in send effect.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FfLatterFxEchoState {
     /// Whether to activate echo effect.
     pub activate: bool,
@@ -1886,7 +1856,7 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
     cmds.push(create_phys_port_cmd(
         FX_CH,
         FX_ECHO_TYPE_CMD,
-        i16::from(state.echo_type),
+        deserialize_fx_echo_type(&state.echo_type),
     ));
     cmds.push(create_phys_port_cmd(
         FX_CH,
@@ -1901,7 +1871,7 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
     cmds.push(create_phys_port_cmd(
         FX_CH,
         FX_ECHO_LPF_FREQ_CMD,
-        i16::from(state.lpf),
+        deserialize_fx_echo_lpf_freq(&state.lpf),
     ));
     cmds.push(create_phys_port_cmd(
         FX_CH,
@@ -1918,7 +1888,7 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
 }
 
 /// State of send effects (reverb and echo).
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterFxState {
     /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
     pub line_input_gains: Vec<i16>,
@@ -1949,69 +1919,134 @@ const FX_MIXER_1: u16 = 0x1f;
 
 /// The specification of FX.
 pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
+    /// The minimum value for .
     const FX_PHYS_LEVEL_MIN: i32 = -650;
+    /// The maximum value for .
     const FX_PHYS_LEVEL_MAX: i32 = 0;
+    /// The step value for .
     const FX_PHYS_LEVEL_STEP: i32 = 1;
 
+    /// The minimum value for .
     const FX_VIRT_LEVEL_MIN: i32 = 0;
+    /// The maximum value for .
     const FX_VIRT_LEVEL_MAX: i32 = 35676;
+    /// The step value for .
     const FX_VIRT_LEVEL_STEP: i32 = 1;
 
+    /// The minimum value for pre delay.
     const REVERB_PRE_DELAY_MIN: i32 = 0;
+    /// The maximum value for pre delay.
     const REVERB_PRE_DELAY_MAX: i32 = 999;
+    /// The step value for pre delay.
     const REVERB_PRE_DELAY_STEP: i32 = 1;
 
+    /// The minimum value for attack.
     const REVERB_ATTACK_MIN: i32 = 5;
+    /// The maximum value for attack.
     const REVERB_ATTACK_MAX: i32 = 400;
+    /// The step value for attack.
     const REVERB_ATTACK_STEP: i32 = 1;
 
+    /// The minimum value for hold.
     const REVERB_HOLD_MIN: i32 = 5;
+    /// The maximum value for hold.
     const REVERB_HOLD_MAX: i32 = 400;
+    /// The step value for hold.
     const REVERB_HOLD_STEP: i32 = 1;
 
+    /// The minimum value for release.
     const REVERB_RELEASE_MIN: i32 = 5;
+    /// The maximum value for release.
     const REVERB_RELEASE_MAX: i32 = 500;
+    /// The step value for release.
     const REVERB_RELEASE_STEP: i32 = 1;
 
+    /// The minimum value for post low pass filter.
     const REVERB_POST_LPF_FREQ_MIN: i32 = 200;
+    /// The maximum value for post low pass filter.
     const REVERB_POST_LPF_FREQ_MAX: i32 = 20000;
+    /// The step value for post low pass filter.
     const REVERB_POST_LPF_FREQ_STEP: i32 = 1;
 
+    /// The minimum value for decay time.
     const REVERB_TIME_MIN: i32 = 1;
+    /// The maximum value for decay time.
     const REVERB_TIME_MAX: i32 = 49;
+    /// The step value for decay time.
     const REVERB_TIME_STEP: i32 = 1;
 
+    /// The minimum value for damping.
     const REVERB_DAMPING_MIN: i32 = 2000;
+    /// The maximum value for damping.
     const REVERB_DAMPING_MAX: i32 = 20000;
+    /// The step value for damping.
     const REVERB_DAMPING_STEP: i32 = 1;
 
+    /// The minimum value for smooth.
     const REVERB_SMOOTH_MIN: i32 = 0;
+    /// The maximum value for smooth.
     const REVERB_SMOOTH_MAX: i32 = 100;
+    /// The step value for smooth.
     const REVERB_SMOOTH_STEP: i32 = 1;
 
+    /// The minimum value for volume.
     const REVERB_VOL_MIN: i32 = -650;
+    /// The maximum value for volume.
     const REVERB_VOL_MAX: i32 = 60;
+    /// The step value for volume.
     const REVERB_VOL_STEP: i32 = 1;
 
+    /// The minimum value for stereo width.
     const REVERB_STEREO_WIDTH_MIN: i32 = 0;
+    /// The maximum value for stereo width.
     const REVERB_STEREO_WIDTH_MAX: i32 = 100;
+    /// The step value for stereo width.
     const REVERB_STEREO_WIDTH_STEP: i32 = 1;
 
+    /// The minimum value for echo delay.
     const ECHO_DELAY_MIN: i32 = 0;
+    /// The maximum value for echo delay.
     const ECHO_DELAY_MAX: i32 = 100;
+    /// The step value for echo delay.
     const ECHO_DELAY_STEP: i32 = 1;
 
+    /// The minimum value for echo feedback.
     const ECHO_FEEDBACK_MIN: i32 = 0;
+    /// The maximum value for echo feedback.
     const ECHO_FEEDBACK_MAX: i32 = 100;
+    /// The step value for echo feedback.
     const ECHO_FEEDBACK_STEP: i32 = 1;
 
+    /// The minimum value for echo volume.
     const ECHO_VOL_MIN: i32 = -650;
+    /// The maximum value for echo volume.
     const ECHO_VOL_MAX: i32 = 0;
+    /// The step value for echo volume.
     const ECHO_VOL_STEP: i32 = 1;
 
+    /// The minimum value for echo stereo width.
     const ECHO_STEREO_WIDTH_MIN: i32 = 0;
+    /// The maximum value for echo stereo width.
     const ECHO_STEREO_WIDTH_MAX: i32 = 100;
+    /// The step value for echo stereo width.
     const ECHO_STEREO_WIDTH_STEP: i32 = 1;
+
+    /// Instantiate fx parameters.
+    fn create_fx_parameters() -> FfLatterFxState {
+        FfLatterFxState {
+            line_input_gains: vec![0; Self::LINE_INPUT_COUNT],
+            mic_input_gains: vec![0; Self::MIC_INPUT_COUNT],
+            spdif_input_gains: vec![0; Self::SPDIF_INPUT_COUNT],
+            adat_input_gains: vec![0; Self::ADAT_INPUT_COUNT],
+            stream_input_gains: vec![0; Self::STREAM_INPUT_COUNT],
+            line_output_vols: vec![0; Self::LINE_OUTPUT_COUNT],
+            hp_output_vols: vec![0; Self::HP_OUTPUT_COUNT],
+            spdif_output_vols: vec![0; Self::SPDIF_OUTPUT_COUNT],
+            adat_output_vols: vec![0; Self::ADAT_OUTPUT_COUNT],
+            reverb: Default::default(),
+            echo: Default::default(),
+        }
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
