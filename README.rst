@@ -103,7 +103,7 @@ snd-fireworks-ctl-service
 snd-firewire-motu-ctl-service
     ``motu-runtime`` crate locates in ``runtime/motu``
 snd-oxfw-ctl-service
-    ``oxfw-runtime`` crate locates in ``runtime/oxfw``
+    ``snd-oxfw-ctl-service`` crate locates in ``runtime/oxfw``
 snd-bebob-ctl-service
     ``snd-bebob-ctl-service`` crate locates in ``runtime/bebob``
 snd-dice-ctl-service

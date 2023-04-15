@@ -1,11 +1,12 @@
 [package]
 edition = "2018"
-name = "oxfw-runtime"
+name = "snd-oxfw-ctl-service"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
 description = """
-Implementation of service runtime for models based on Oxford Semiconductor FW970/971 chipset.
+Runtime implementation to control audio and music unit in IEEE 1394 bus which ALSA oxfw driver
+(snd-oxfw) supports.
 """
 license = "GPL-3.0-or-later"
 publish = false

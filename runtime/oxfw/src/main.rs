@@ -12,8 +12,9 @@ mod common_ctl;
 
 use {
     alsactl::{prelude::*, *},
+    clap::Parser,
     common_ctl::*,
-    core::{card_cntr::*, dispatcher::*, *},
+    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_oxfw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -39,7 +40,7 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct OxfwRuntime {
+struct OxfwRuntime {
     unit: (SndUnit, FwNode),
     model: OxfwModel,
     card_cntr: CardCntr,
@@ -299,4 +300,27 @@ impl OxfwRuntime {
             self.timer = None;
         }
     }
+}
+
+struct OxfwServiceCmd;
+
+#[derive(Parser, Default)]
+#[clap(name = "snd-oxfw-ctl-service")]
+struct Arguments {
+    /// The numeric identifier of sound card in Linux sound subsystem.
+    card_id: u32,
+
+    /// The level to debug runtime, disabled as a default.
+    #[clap(long, short, arg_enum)]
+    log_level: Option<LogLevel>,
+}
+
+impl ServiceCmd<Arguments, u32, OxfwRuntime> for OxfwServiceCmd {
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, args.log_level)
+    }
+}
+
+fn main() {
+    OxfwServiceCmd::run()
 }
