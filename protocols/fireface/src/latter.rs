@@ -496,11 +496,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
             input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
-                hpf: FfLatterHpfState {
-                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    cut_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    roll_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                },
                 eq: FfLatterEqState {
                     activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                     low_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
@@ -533,11 +528,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
                 },
             }),
             output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState {
-                hpf: FfLatterHpfState {
-                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
-                    cut_offs: vec![Default::default(); Self::OUTPUT_COUNT],
-                    roll_offs: vec![Default::default(); Self::OUTPUT_COUNT],
-                },
                 eq: FfLatterEqState {
                     activates: vec![Default::default(); Self::OUTPUT_COUNT],
                     low_types: vec![Default::default(); Self::OUTPUT_COUNT],
@@ -713,6 +703,15 @@ pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
             mic_insts: vec![Default::default(); Self::MIC_INPUT_COUNT],
         }
     }
+
+    /// Instantiate input equalizer parameters.
+    fn create_input_hpf_parameters() -> FfLatterInputHpfParameters {
+        FfLatterInputHpfParameters(FfLatterHpfState {
+            activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            cut_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            roll_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+        })
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
@@ -836,6 +835,15 @@ pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
             invert_phases: vec![Default::default(); Self::OUTPUT_COUNT],
             line_levels: vec![Default::default(); Self::LINE_OUTPUT_COUNT],
         }
+    }
+
+    /// Instantiate output equalizer parameters.
+    fn create_output_hpf_parameters() -> FfLatterOutputHpfParameters {
+        FfLatterOutputHpfParameters(FfLatterHpfState {
+            activates: vec![Default::default(); Self::OUTPUT_COUNT],
+            cut_offs: vec![Default::default(); Self::OUTPUT_COUNT],
+            roll_offs: vec![Default::default(); Self::OUTPUT_COUNT],
+        })
     }
 }
 
@@ -984,7 +992,7 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixer
 }
 
 /// Level of roll off in high pass filter.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FfLatterHpfRollOffLevel {
     L6,
     L12,
@@ -998,19 +1006,17 @@ impl Default for FfLatterHpfRollOffLevel {
     }
 }
 
-impl From<FfLatterHpfRollOffLevel> for i16 {
-    fn from(freq: FfLatterHpfRollOffLevel) -> Self {
-        match freq {
-            FfLatterHpfRollOffLevel::L6 => 0,
-            FfLatterHpfRollOffLevel::L12 => 1,
-            FfLatterHpfRollOffLevel::L18 => 2,
-            FfLatterHpfRollOffLevel::L24 => 3,
-        }
+fn deserialize_hpf_roll_off_level(freq: &FfLatterHpfRollOffLevel) -> i16 {
+    match freq {
+        FfLatterHpfRollOffLevel::L6 => 0,
+        FfLatterHpfRollOffLevel::L12 => 1,
+        FfLatterHpfRollOffLevel::L18 => 2,
+        FfLatterHpfRollOffLevel::L24 => 3,
     }
 }
 
 /// State of high pass filter in channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterHpfState {
     /// Whether to activate high pass filter.
     pub activates: Vec<bool>,
@@ -1041,11 +1047,73 @@ fn hpf_state_to_cmds(state: &FfLatterHpfState, ch_offset: u8) -> Vec<u32> {
         cmds.push(create_phys_port_cmd(
             ch,
             HPF_ROLL_OFF_CMD,
-            i16::from(state.roll_offs[i]),
+            deserialize_hpf_roll_off_level(&state.roll_offs[i]),
         ));
     });
 
     cmds
+}
+
+/// Parameters of input high pass filter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterInputHpfParameters(pub FfLatterHpfState);
+
+impl AsRef<FfLatterHpfState> for FfLatterInputHpfParameters {
+    fn as_ref(&self) -> &FfLatterHpfState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterHpfState> for FfLatterInputHpfParameters {
+    fn as_mut(&mut self) -> &mut FfLatterHpfState {
+        &mut self.0
+    }
+}
+
+/// Parameters of output high pass filter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterOutputHpfParameters(pub FfLatterHpfState);
+
+impl AsRef<FfLatterHpfState> for FfLatterOutputHpfParameters {
+    fn as_ref(&self) -> &FfLatterHpfState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterHpfState> for FfLatterOutputHpfParameters {
+    fn as_mut(&mut self) -> &mut FfLatterHpfState {
+        &mut self.0
+    }
+}
+
+/// The trait for specification of high pass filter.
+pub trait RmeFfLatterHpfSpecification {
+    /// The minimum value of cut off.
+    const HPF_CUT_OFF_MIN: i32 = 20;
+    /// The maximum value of cut off.
+    const HPF_CUT_OFF_MAX: i32 = 500;
+    /// The step value of cut off.
+    const HPF_CUT_OFF_STEP: i32 = 1;
+}
+
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterHpfSpecification for O {}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterInputHpfParameters> for O
+where
+    O: RmeFfLatterHpfSpecification + RmeFfLatterInputSpecification,
+{
+    fn serialize_commands(params: &FfLatterInputHpfParameters) -> Vec<u32> {
+        hpf_state_to_cmds(&params.0, 0)
+    }
+}
+
+impl<O> RmeFfCommandParamsSerialize<FfLatterOutputHpfParameters> for O
+where
+    O: RmeFfLatterHpfSpecification + RmeFfLatterOutputSpecification,
+{
+    fn serialize_commands(params: &FfLatterOutputHpfParameters) -> Vec<u32> {
+        hpf_state_to_cmds(&params.0, Self::PHYS_INPUT_COUNT as u8)
+    }
 }
 
 /// Type of bandwidth equalizing.
@@ -1312,7 +1380,6 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
 /// State of channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterChStripState {
-    pub hpf: FfLatterHpfState,
     pub eq: FfLatterEqState,
     pub dynamics: FfLatterDynState,
     pub autolevel: FfLatterAutolevelState,
@@ -1322,10 +1389,6 @@ pub struct FfLatterChStripState {
 pub trait RmeFfLatterChStripSpecification<T>: RmeFfLatterDspSpecification {
     const CH_COUNT: usize;
     const CH_OFFSET: u8;
-
-    const HPF_CUT_OFF_MIN: i32 = 20;
-    const HPF_CUT_OFF_MAX: i32 = 500;
-    const HPF_CUT_OFF_STEP: i32 = 1;
 
     const EQ_GAIN_MIN: i32 = -20;
     const EQ_GAIN_MAX: i32 = 20;
@@ -1405,7 +1468,6 @@ where
 {
     fn serialize_commands(state: &FfLatterInputChStripState) -> Vec<u32> {
         [
-            hpf_state_to_cmds(&state.0.hpf, 0),
             eq_state_to_cmds(&state.0.eq, 0),
             dyn_state_to_cmds(&state.0.dynamics, 0),
             autolevel_state_to_cmds(&state.0.autolevel, 0),
@@ -1448,7 +1510,6 @@ impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChSt
             + Self::ADAT_INPUT_COUNT) as u8;
 
         [
-            hpf_state_to_cmds(&state.0.hpf, ch_offset),
             eq_state_to_cmds(&state.0.eq, ch_offset),
             dyn_state_to_cmds(&state.0.dynamics, ch_offset),
             autolevel_state_to_cmds(&state.0.autolevel, ch_offset),

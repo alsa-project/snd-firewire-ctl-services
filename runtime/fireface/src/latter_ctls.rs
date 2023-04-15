@@ -1024,14 +1024,278 @@ where
     }
 }
 
-fn hpf_roll_off_level_to_string(level: &FfLatterHpfRollOffLevel) -> String {
+fn hpf_roll_off_level_to_str(level: &FfLatterHpfRollOffLevel) -> &str {
     match level {
         FfLatterHpfRollOffLevel::L6 => "6dB/octave",
         FfLatterHpfRollOffLevel::L12 => "12dB/octave",
         FfLatterHpfRollOffLevel::L18 => "18dB/octave",
         FfLatterHpfRollOffLevel::L24 => "24dB/octave",
     }
-    .to_string()
+}
+
+pub trait FfLatterHpfCtlOperation<T, U>
+where
+    T: RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<U>
+        + RmeFfPartiallyCommandableParamsOperation<U>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterHpfState> + AsMut<FfLatterHpfState>,
+{
+    const HPF_ACTIVATE_NAME: &'static str;
+    const HPF_CUT_OFF_NAME: &'static str;
+    const HPF_ROLL_OFF_NAME: &'static str;
+
+    const HPF_ROLL_OFF_LEVELS: &'static [FfLatterHpfRollOffLevel] = &[
+        FfLatterHpfRollOffLevel::L6,
+        FfLatterHpfRollOffLevel::L12,
+        FfLatterHpfRollOffLevel::L18,
+        FfLatterHpfRollOffLevel::L24,
+    ];
+
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
+
+    const CH_COUNT: usize;
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, self.params_mut(), timeout_ms);
+        debug!(params = ?self.params(), ?res);
+        res
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_CUT_OFF_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::HPF_CUT_OFF_MIN,
+                T::HPF_CUT_OFF_MAX,
+                T::HPF_CUT_OFF_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let labels: Vec<&str> = Self::HPF_ROLL_OFF_LEVELS
+            .iter()
+            .map(|l| hpf_roll_off_level_to_str(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ROLL_OFF_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, Self::CH_COUNT, &labels, None, true)
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        self.elem_id_list_mut().append(&mut elem_id_list);
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::HPF_ACTIVATE_NAME {
+            let hpf = self.params().as_ref();
+            elem_value.set_bool(&hpf.activates);
+            Ok(true)
+        } else if n == Self::HPF_CUT_OFF_NAME {
+            let hpf = self.params().as_ref();
+            let vals: Vec<i32> = hpf.cut_offs.iter().map(|&cut_off| cut_off as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::HPF_ROLL_OFF_NAME {
+            let hpf = self.params().as_ref();
+            let vals: Vec<u32> = hpf
+                .roll_offs
+                .iter()
+                .map(|roll_off| {
+                    let pos = Self::HPF_ROLL_OFF_LEVELS
+                        .iter()
+                        .position(|l| roll_off.eq(l))
+                        .unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::HPF_ACTIVATE_NAME {
+            let mut params = self.params().clone();
+            let hpf = params.as_mut();
+            hpf.activates
+                .iter_mut()
+                .zip(elem_value.boolean())
+                .for_each(|(activate, val)| *activate = val);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::HPF_CUT_OFF_NAME {
+            let mut params = self.params().clone();
+            let hpf = params.as_mut();
+            hpf.cut_offs
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(dst, &val)| *dst = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::HPF_ROLL_OFF_NAME {
+            let mut params = self.params().clone();
+            let hpf = params.as_mut();
+            hpf.roll_offs
+                .iter_mut()
+                .zip(elem_value.enumerated())
+                .try_for_each(|(level, &val)| {
+                    let pos = val as usize;
+                    Self::HPF_ROLL_OFF_LEVELS
+                        .iter()
+                        .nth(pos)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of roll off levels: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&l| *level = l)
+                })?;
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LatterInputHpfCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputHpfParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterInputHpfParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterInputHpfCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputHpfParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_hpf_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterHpfCtlOperation<T, FfLatterInputHpfParameters> for LatterInputHpfCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputHpfParameters>,
+{
+    const HPF_ACTIVATE_NAME: &'static str = "input:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'static str = "input:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'static str = "input:hpf-roll-off";
+
+    fn params(&self) -> &FfLatterInputHpfParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterInputHpfParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::PHYS_INPUT_COUNT;
+}
+
+#[derive(Debug)]
+pub struct LatterOutputHpfCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputHpfParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterOutputHpfParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterOutputHpfCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputHpfParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_hpf_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterHpfCtlOperation<T, FfLatterOutputHpfParameters> for LatterOutputHpfCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterHpfSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputHpfParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputHpfParameters>,
+{
+    const HPF_ACTIVATE_NAME: &'static str = "output:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'static str = "output:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'static str = "output:hpf-roll-off";
+
+    fn params(&self) -> &FfLatterOutputHpfParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterOutputHpfParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::OUTPUT_COUNT;
 }
 
 fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
@@ -1050,10 +1314,6 @@ where
         + RmeFfPartiallyCommandableParamsOperation<U>,
     U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
 {
-    const HPF_ACTIVATE_NAME: &'static str;
-    const HPF_CUT_OFF_NAME: &'static str;
-    const HPF_ROLL_OFF_NAME: &'static str;
-
     const EQ_ACTIVATE_NAME: &'static str;
     const EQ_LOW_TYPE_NAME: &'static str;
     const EQ_LOW_GAIN_NAME: &'static str;
@@ -1081,13 +1341,6 @@ where
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
     const AUTOLEVEL_RISE_TIME_NAME: &'static str;
 
-    const HPF_ROLL_OFF_LEVELS: [FfLatterHpfRollOffLevel; 4] = [
-        FfLatterHpfRollOffLevel::L6,
-        FfLatterHpfRollOffLevel::L12,
-        FfLatterHpfRollOffLevel::L18,
-        FfLatterHpfRollOffLevel::L24,
-    ];
-
     const EQ_TYPES: [FfLatterChStripEqType; 3] = [
         FfLatterChStripEqType::Peak,
         FfLatterChStripEqType::Shelf,
@@ -1106,28 +1359,6 @@ where
     }
 
     fn load_ch_strip(card_cntr: &mut CardCntr, _: &U) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_CUT_OFF_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::HPF_CUT_OFF_MIN,
-            T::HPF_CUT_OFF_MAX,
-            T::HPF_CUT_OFF_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let labels: Vec<String> = Self::HPF_ROLL_OFF_LEVELS
-            .iter()
-            .map(|l| hpf_roll_off_level_to_string(l))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ROLL_OFF_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::CH_COUNT, &labels, None, true)?;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
@@ -1403,36 +1634,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::HPF_ACTIVATE_NAME {
-            elem_value.set_bool(&params.as_ref().hpf.activates);
-            Ok(true)
-        } else if n == Self::HPF_CUT_OFF_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .hpf
-                .cut_offs
-                .iter()
-                .map(|&cut_off| cut_off as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::HPF_ROLL_OFF_NAME {
-            let vals: Vec<u32> = params
-                .as_ref()
-                .hpf
-                .roll_offs
-                .iter()
-                .map(|roll_off| {
-                    let pos = Self::HPF_ROLL_OFF_LEVELS
-                        .iter()
-                        .position(|l| l.eq(roll_off))
-                        .unwrap();
-                    pos as u32
-                })
-                .collect();
-            elem_value.set_enum(&vals);
-            Ok(true)
-        } else if n == Self::EQ_ACTIVATE_NAME {
+        if n == Self::EQ_ACTIVATE_NAME {
             elem_value.set_bool(&params.as_ref().eq.activates);
             Ok(true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
@@ -1673,53 +1875,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::HPF_ACTIVATE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .hpf
-                .activates
-                .iter_mut()
-                .zip(elem_value.boolean())
-                .for_each(|(activate, val)| *activate = val);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().hpf, ?res);
-            res.map(|_| true)
-        } else if n == Self::HPF_CUT_OFF_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .hpf
-                .cut_offs
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(dst, &val)| *dst = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().hpf, ?res);
-            res.map(|_| true)
-        } else if n == Self::HPF_ROLL_OFF_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .hpf
-                .roll_offs
-                .iter_mut()
-                .zip(elem_value.enumerated())
-                .try_for_each(|(level, &val)| {
-                    let pos = val as usize;
-                    Self::HPF_ROLL_OFF_LEVELS
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of roll off levels: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&l| *level = l)
-                })?;
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().hpf, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_ACTIVATE_NAME {
+        if n == Self::EQ_ACTIVATE_NAME {
             let mut params = state.clone();
             params
                 .as_mut()
@@ -2037,10 +2193,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for LatterDspC
 where
     T: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
-    const HPF_ACTIVATE_NAME: &'static str = "input:hpf-activate";
-    const HPF_CUT_OFF_NAME: &'static str = "input:hpf-cut-off";
-    const HPF_ROLL_OFF_NAME: &'static str = "input:hpf-roll-off";
-
     const EQ_ACTIVATE_NAME: &'static str = "input:eq-activate";
     const EQ_LOW_TYPE_NAME: &'static str = "input:eq-low-type";
     const EQ_LOW_GAIN_NAME: &'static str = "input:eq-low-gain";
@@ -2073,10 +2225,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDsp
 where
     T: RmeFfLatterChStripSpecification<FfLatterOutputChStripState>,
 {
-    const HPF_ACTIVATE_NAME: &'static str = "output:hpf-activate";
-    const HPF_CUT_OFF_NAME: &'static str = "output:hpf-cut-off";
-    const HPF_ROLL_OFF_NAME: &'static str = "output:hpf-roll-off";
-
     const EQ_ACTIVATE_NAME: &'static str = "output:eq-activate";
     const EQ_LOW_TYPE_NAME: &'static str = "output:eq-low-type";
     const EQ_LOW_GAIN_NAME: &'static str = "output:eq-low-gain";
