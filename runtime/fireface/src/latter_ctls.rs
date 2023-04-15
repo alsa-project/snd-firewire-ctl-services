@@ -1834,12 +1834,12 @@ where
     }
 }
 
-pub trait FfLatterChStripCtlOperation<T, U>
+pub trait FfLatterDynamicsCtlOperation<T, U>
 where
-    T: RmeFfLatterChStripSpecification<U>
+    T: RmeFfLatterDynamicsSpecification
         + RmeFfWhollyCommandableParamsOperation<U>
         + RmeFfPartiallyCommandableParamsOperation<U>,
-    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterDynState> + AsMut<FfLatterDynState>,
 {
     const DYN_ACTIVATE_NAME: &'static str;
     const DYN_GAIN_NAME: &'static str;
@@ -1850,6 +1850,432 @@ where
     const DYN_EX_THRESHOLD_NAME: &'static str;
     const DYN_EX_RATIO_NAME: &'static str;
 
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
+
+    const CH_COUNT: usize;
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, &mut self.params_mut(), timeout_ms);
+        debug!(params = ?self.params(), ?res);
+        res
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ACTIVATE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_GAIN_MIN,
+                T::DYN_GAIN_MAX,
+                T::DYN_GAIN_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ATTACK_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_ATTACK_MIN,
+                T::DYN_ATTACK_MAX,
+                T::DYN_ATTACK_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_RELEASE_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_RELEASE_MIN,
+                T::DYN_RELEASE_MAX,
+                T::DYN_RELEASE_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_THRESHOLD_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_COMP_THRESHOLD_MIN,
+                T::DYN_COMP_THRESHOLD_MAX,
+                T::DYN_COMP_THRESHOLD_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_RATIO_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_RATIO_MIN,
+                T::DYN_RATIO_MAX,
+                T::DYN_RATIO_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_THRESHOLD_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_EX_THRESHOLD_MIN,
+                T::DYN_EX_THRESHOLD_MAX,
+                T::DYN_EX_THRESHOLD_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_RATIO_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::DYN_RATIO_MIN,
+                T::DYN_RATIO_MAX,
+                T::DYN_RATIO_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        self.elem_id_list_mut().append(&mut elem_id_list);
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::DYN_ACTIVATE_NAME {
+            let params = self.params().as_ref();
+            elem_value.set_bool(&params.activates);
+            Ok(true)
+        } else if n == Self::DYN_GAIN_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.gains.iter().map(|&gain| gain as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_ATTACK_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.attacks.iter().map(|&attack| attack as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_RELEASE_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .releases
+                .iter()
+                .map(|&release| release as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .compressor_thresholds
+                .iter()
+                .map(|&th| th as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_COMP_RATIO_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .compressor_ratios
+                .iter()
+                .map(|&ratio| ratio as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_EX_THRESHOLD_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .expander_thresholds
+                .iter()
+                .map(|&th| th as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_EX_RATIO_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .expander_ratios
+                .iter()
+                .map(|&ratio| ratio as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::DYN_ACTIVATE_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .activates
+                .iter_mut()
+                .zip(elem_value.boolean())
+                .for_each(|(activate, val)| *activate = val);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_GAIN_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .gains
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(gain, &val)| *gain = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_ATTACK_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .attacks
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(attack, &val)| *attack = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_RELEASE_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .releases
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(release, &val)| *release = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .compressor_thresholds
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(threshold, &val)| *threshold = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_COMP_RATIO_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .compressor_ratios
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(ratio, &val)| *ratio = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_EX_THRESHOLD_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .expander_thresholds
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(threshold, &val)| *threshold = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::DYN_EX_RATIO_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .expander_ratios
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(ratio, &val)| *ratio = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LatterInputDynamicsCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputDynamicsParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterInputDynamicsParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterInputDynamicsCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputDynamicsParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_dynamics_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterDynamicsCtlOperation<T, FfLatterInputDynamicsParameters>
+    for LatterInputDynamicsCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputDynamicsParameters>,
+{
+    const DYN_ACTIVATE_NAME: &'static str = "input:dyn-activate";
+    const DYN_GAIN_NAME: &'static str = "input:dyn-gain";
+    const DYN_ATTACK_NAME: &'static str = "input:dyn-attack";
+    const DYN_RELEASE_NAME: &'static str = "input:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'static str = "input:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'static str = "input:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'static str = "input:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'static str = "input:dyn-expander-ratio";
+
+    fn params(&self) -> &FfLatterInputDynamicsParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterInputDynamicsParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::PHYS_INPUT_COUNT;
+}
+
+#[derive(Debug)]
+pub struct LatterOutputDynamicsCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputDynamicsParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterOutputDynamicsParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterOutputDynamicsCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputDynamicsParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_dynamics_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterDynamicsCtlOperation<T, FfLatterOutputDynamicsParameters>
+    for LatterOutputDynamicsCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterDynamicsSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputDynamicsParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputDynamicsParameters>,
+{
+    const DYN_ACTIVATE_NAME: &'static str = "output:dyn-activate";
+    const DYN_GAIN_NAME: &'static str = "output:dyn-gain";
+    const DYN_ATTACK_NAME: &'static str = "output:dyn-attack";
+    const DYN_RELEASE_NAME: &'static str = "output:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'static str = "output:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'static str = "output:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'static str = "output:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'static str = "output:dyn-expander-ratio";
+
+    fn params(&self) -> &FfLatterOutputDynamicsParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterOutputDynamicsParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::OUTPUT_COUNT;
+}
+
+pub trait FfLatterChStripCtlOperation<T, U>
+where
+    T: RmeFfLatterChStripSpecification<U>
+        + RmeFfWhollyCommandableParamsOperation<U>
+        + RmeFfPartiallyCommandableParamsOperation<U>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+{
     const AUTOLEVEL_ACTIVATE_NAME: &'static str;
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str;
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
@@ -1867,95 +2293,6 @@ where
     }
 
     fn load_ch_strip(card_cntr: &mut CardCntr, _: &U) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_GAIN_MIN,
-            T::DYN_GAIN_MAX,
-            T::DYN_GAIN_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ATTACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_ATTACK_MIN,
-            T::DYN_ATTACK_MAX,
-            T::DYN_ATTACK_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_RELEASE_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_RELEASE_MIN,
-            T::DYN_RELEASE_MAX,
-            T::DYN_RELEASE_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_THRESHOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_COMP_THRESHOLD_MIN,
-            T::DYN_COMP_THRESHOLD_MAX,
-            T::DYN_COMP_THRESHOLD_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_RATIO_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_RATIO_MIN,
-            T::DYN_RATIO_MAX,
-            T::DYN_RATIO_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_THRESHOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_EX_THRESHOLD_MIN,
-            T::DYN_EX_THRESHOLD_MAX,
-            T::DYN_EX_THRESHOLD_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_RATIO_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::DYN_RATIO_MIN,
-            T::DYN_RATIO_MAX,
-            T::DYN_RATIO_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
@@ -2019,80 +2356,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::DYN_ACTIVATE_NAME {
-            elem_value.set_bool(&params.as_ref().dynamics.activates);
-            Ok(true)
-        } else if n == Self::DYN_GAIN_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .gains
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_ATTACK_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .attacks
-                .iter()
-                .map(|&attack| attack as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_RELEASE_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .releases
-                .iter()
-                .map(|&release| release as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .compressor_thresholds
-                .iter()
-                .map(|&th| th as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_COMP_RATIO_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .compressor_ratios
-                .iter()
-                .map(|&ratio| ratio as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .expander_thresholds
-                .iter()
-                .map(|&th| th as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_EX_RATIO_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .dynamics
-                .expander_ratios
-                .iter()
-                .map(|&ratio| ratio as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
+        if n == Self::AUTOLEVEL_ACTIVATE_NAME {
             let vals = params.as_ref().autolevel.activates.clone();
             elem_value.set_bool(&vals);
             Ok(true)
@@ -2141,103 +2405,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::DYN_ACTIVATE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .activates
-                .iter_mut()
-                .zip(elem_value.boolean())
-                .for_each(|(activate, val)| *activate = val);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_GAIN_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .gains
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_ATTACK_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .attacks
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(attack, &val)| *attack = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_RELEASE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .releases
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(release, &val)| *release = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .compressor_thresholds
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_COMP_RATIO_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .compressor_ratios
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .expander_thresholds
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(threshold, &val)| *threshold = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_EX_RATIO_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .dynamics
-                .expander_ratios
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(ratio, &val)| *ratio = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().dynamics, ?res);
-            res.map(|_| true)
-        } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
+        if n == Self::AUTOLEVEL_ACTIVATE_NAME {
             let mut params = state.clone();
             params
                 .as_mut()
@@ -2295,15 +2463,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for LatterDspC
 where
     T: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
-    const DYN_ACTIVATE_NAME: &'static str = "input:dyn-activate";
-    const DYN_GAIN_NAME: &'static str = "input:dyn-gain";
-    const DYN_ATTACK_NAME: &'static str = "input:dyn-attack";
-    const DYN_RELEASE_NAME: &'static str = "input:dyn-release";
-    const DYN_COMP_THRESHOLD_NAME: &'static str = "input:dyn-compressor-threshold";
-    const DYN_COMP_RATIO_NAME: &'static str = "input:dyn-compressor-ratio";
-    const DYN_EX_THRESHOLD_NAME: &'static str = "input:dyn-expander-threshold";
-    const DYN_EX_RATIO_NAME: &'static str = "input:dyn-expander-ratio";
-
     const AUTOLEVEL_ACTIVATE_NAME: &'static str = "input:autolevel-activate";
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "input:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "input:autolevel-head-room";
@@ -2314,15 +2473,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDsp
 where
     T: RmeFfLatterChStripSpecification<FfLatterOutputChStripState>,
 {
-    const DYN_ACTIVATE_NAME: &'static str = "output:dyn-activate";
-    const DYN_GAIN_NAME: &'static str = "output:dyn-gain";
-    const DYN_ATTACK_NAME: &'static str = "output:dyn-attack";
-    const DYN_RELEASE_NAME: &'static str = "output:dyn-release";
-    const DYN_COMP_THRESHOLD_NAME: &'static str = "output:dyn-compressor-threshold";
-    const DYN_COMP_RATIO_NAME: &'static str = "output:dyn-compressor-ratio";
-    const DYN_EX_THRESHOLD_NAME: &'static str = "output:dyn-expander-threshold";
-    const DYN_EX_RATIO_NAME: &'static str = "output:dyn-expander-ratio";
-
     const AUTOLEVEL_ACTIVATE_NAME: &'static str = "output:autolevel-activate";
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "output:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "output:autolevel-head-room";
