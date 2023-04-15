@@ -142,13 +142,12 @@ fn former_line_in_nominal_level_to_string(level: &FormerLineInNominalLevel) -> S
     .to_string()
 }
 
-fn line_out_nominal_level_to_string(level: &LineOutNominalLevel) -> String {
+fn line_out_nominal_level_to_str(level: &LineOutNominalLevel) -> &str {
     match level {
         LineOutNominalLevel::High => "High",
         LineOutNominalLevel::Consumer => "-10dBV",
         LineOutNominalLevel::Professional => "+4dBu",
     }
-    .to_string()
 }
 
 fn clk_nominal_rate_to_string(rate: &ClkNominalRate) -> String {
