@@ -356,8 +356,6 @@ where
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
-    pub input_ch_strip: FfLatterInputChStripState,
-    pub output_ch_strip: FfLatterOutputChStripState,
     pub fx: FfLatterFxState,
 }
 
@@ -495,22 +493,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
 
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
-            input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
-                autolevel: FfLatterAutolevelState {
-                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    max_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    headrooms: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                    rise_times: vec![Default::default(); Self::PHYS_INPUT_COUNT],
-                },
-            }),
-            output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState {
-                autolevel: FfLatterAutolevelState {
-                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
-                    max_gains: vec![Default::default(); Self::OUTPUT_COUNT],
-                    headrooms: vec![Default::default(); Self::OUTPUT_COUNT],
-                    rise_times: vec![Default::default(); Self::OUTPUT_COUNT],
-                },
-            }),
             fx: FfLatterFxState {
                 line_input_gains: vec![0; Self::LINE_INPUT_COUNT],
                 mic_input_gains: vec![0; Self::MIC_INPUT_COUNT],
@@ -696,6 +678,16 @@ pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
             expander_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
         })
     }
+
+    /// Instantiate input autolevel parameters.
+    fn create_input_autolevel_parameters() -> FfLatterInputAutolevelParameters {
+        FfLatterInputAutolevelParameters(FfLatterAutolevelState {
+            activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            max_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            headrooms: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+            rise_times: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+        })
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
@@ -859,6 +851,16 @@ pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
             compressor_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
             expander_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
             expander_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
+        })
+    }
+
+    /// Instantiate output autolevel parameters.
+    fn create_output_autolevel_parameters() -> FfLatterOutputAutolevelParameters {
+        FfLatterOutputAutolevelParameters(FfLatterAutolevelState {
+            activates: vec![Default::default(); Self::OUTPUT_COUNT],
+            max_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+            headrooms: vec![Default::default(); Self::OUTPUT_COUNT],
+            rise_times: vec![Default::default(); Self::OUTPUT_COUNT],
         })
     }
 }
@@ -1518,7 +1520,7 @@ where
 }
 
 /// State of autolevel in channel strip effects.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterAutolevelState {
     /// Whether to activate auto level.
     pub activates: Vec<bool>,
@@ -1564,125 +1566,79 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
     cmds
 }
 
-/// State of channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterChStripState {
-    pub autolevel: FfLatterAutolevelState,
+/// Parameters of input autolevel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterInputAutolevelParameters(pub FfLatterAutolevelState);
+
+impl AsRef<FfLatterAutolevelState> for FfLatterInputAutolevelParameters {
+    fn as_ref(&self) -> &FfLatterAutolevelState {
+        &self.0
+    }
 }
 
-/// The specification of channel strip.
-pub trait RmeFfLatterChStripSpecification<T>: RmeFfLatterDspSpecification {
-    const CH_COUNT: usize;
-    const CH_OFFSET: u8;
+impl AsMut<FfLatterAutolevelState> for FfLatterInputAutolevelParameters {
+    fn as_mut(&mut self) -> &mut FfLatterAutolevelState {
+        &mut self.0
+    }
+}
 
-    const DYN_GAIN_MIN: i32 = -300;
-    const DYN_GAIN_MAX: i32 = 300;
-    const DYN_GAIN_STEP: i32 = 1;
+/// Parameters of output autolevel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FfLatterOutputAutolevelParameters(pub FfLatterAutolevelState);
 
-    const DYN_ATTACK_MIN: i32 = 0;
-    const DYN_ATTACK_MAX: i32 = 200;
-    const DYN_ATTACK_STEP: i32 = 1;
+impl AsRef<FfLatterAutolevelState> for FfLatterOutputAutolevelParameters {
+    fn as_ref(&self) -> &FfLatterAutolevelState {
+        &self.0
+    }
+}
 
-    const DYN_RELEASE_MIN: i32 = 100;
-    const DYN_RELEASE_MAX: i32 = 999;
-    const DYN_RELEASE_STEP: i32 = 1;
+impl AsMut<FfLatterAutolevelState> for FfLatterOutputAutolevelParameters {
+    fn as_mut(&mut self) -> &mut FfLatterAutolevelState {
+        &mut self.0
+    }
+}
 
-    const DYN_COMP_THRESHOLD_MIN: i32 = -600;
-    const DYN_COMP_THRESHOLD_MAX: i32 = 0;
-    const DYN_COMP_THRESHOLD_STEP: i32 = 1;
-
-    const DYN_RATIO_MIN: i32 = 10;
-    const DYN_RATIO_MAX: i32 = 100;
-    const DYN_RATIO_STEP: i32 = 1;
-
-    const DYN_EX_THRESHOLD_MIN: i32 = -999;
-    const DYN_EX_THRESHOLD_MAX: i32 = -200;
-    const DYN_EX_THRESHOLD_STEP: i32 = 1;
-
+/// The specification of autolevel in channel strip effects.
+pub trait RmeFfLatterAutolevelSpecification {
+    /// The minimum value of max gain.
     const AUTOLEVEL_MAX_GAIN_MIN: i32 = 0;
+    /// The maximum value of max gain.
     const AUTOLEVEL_MAX_GAIN_MAX: i32 = 180;
+    /// The step value of max gain.
     const AUTOLEVEL_MAX_GAIN_STEP: i32 = 1;
 
+    /// The minimum value of head room.
     const AUTOLEVEL_HEAD_ROOM_MIN: i32 = 30;
+    /// The maximum value of head room.
     const AUTOLEVEL_HEAD_ROOM_MAX: i32 = 120;
+    /// The step value of head room.
     const AUTOLEVEL_HEAD_ROOM_STEP: i32 = 1;
 
+    /// The minimum value of rise time.
     const AUTOLEVEL_RISE_TIME_MIN: i32 = 1;
+    /// The maximum value of rise time.
     const AUTOLEVEL_RISE_TIME_MAX: i32 = 99;
+    /// The step value of rise time.
     const AUTOLEVEL_RISE_TIME_STEP: i32 = 1;
 }
 
-/// State of input channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterInputChStripState(pub FfLatterChStripState);
+impl<O: RmeFfLatterDspSpecification> RmeFfLatterAutolevelSpecification for O {}
 
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-    for O
-{
-    const CH_COUNT: usize = Self::PHYS_INPUT_COUNT;
-    const CH_OFFSET: u8 = 0x00;
-}
-
-impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
-    fn as_ref(&self) -> &FfLatterChStripState {
-        &self.0
-    }
-}
-
-impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
-    fn as_mut(&mut self) -> &mut FfLatterChStripState {
-        &mut self.0
-    }
-}
-
-impl<O> RmeFfCommandParamsSerialize<FfLatterInputChStripState> for O
+impl<O> RmeFfCommandParamsSerialize<FfLatterInputAutolevelParameters> for O
 where
-    O: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
+    O: RmeFfLatterAutolevelSpecification + RmeFfLatterInputSpecification,
 {
-    fn serialize_commands(state: &FfLatterInputChStripState) -> Vec<u32> {
-        [autolevel_state_to_cmds(&state.0.autolevel, 0)]
-            .iter()
-            .flatten()
-            .copied()
-            .collect()
+    fn serialize_commands(params: &FfLatterInputAutolevelParameters) -> Vec<u32> {
+        autolevel_state_to_cmds(&params.0, 0)
     }
 }
 
-/// State of output channel strip effect.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
-
-impl<O: RmeFfLatterDspSpecification> RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-    for O
+impl<O> RmeFfCommandParamsSerialize<FfLatterOutputAutolevelParameters> for O
+where
+    O: RmeFfLatterAutolevelSpecification + RmeFfLatterOutputSpecification,
 {
-    const CH_COUNT: usize = Self::OUTPUT_COUNT;
-    const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
-}
-
-impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
-    fn as_ref(&self) -> &FfLatterChStripState {
-        &self.0
-    }
-}
-
-impl AsMut<FfLatterChStripState> for FfLatterOutputChStripState {
-    fn as_mut(&mut self) -> &mut FfLatterChStripState {
-        &mut self.0
-    }
-}
-
-impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChStripState> for O {
-    fn serialize_commands(state: &FfLatterOutputChStripState) -> Vec<u32> {
-        let ch_offset: u8 = (Self::LINE_INPUT_COUNT
-            + Self::MIC_INPUT_COUNT
-            + Self::SPDIF_INPUT_COUNT
-            + Self::ADAT_INPUT_COUNT) as u8;
-
-        [autolevel_state_to_cmds(&state.0.autolevel, ch_offset)]
-            .iter()
-            .flatten()
-            .copied()
-            .collect()
+    fn serialize_commands(params: &FfLatterOutputAutolevelParameters) -> Vec<u32> {
+        autolevel_state_to_cmds(&params.0, Self::PHYS_INPUT_COUNT as u8)
     }
 }
 

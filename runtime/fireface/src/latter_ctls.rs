@@ -127,12 +127,6 @@ where
 pub struct LatterDspCtl<T>(FfLatterDspState, PhantomData<T>)
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>;
@@ -140,12 +134,6 @@ where
 impl<T> Default for LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
@@ -158,12 +146,6 @@ where
 impl<T> LatterDspCtl<T>
 where
     T: RmeFfLatterDspSpecification
-        + RmeFfLatterChStripSpecification<FfLatterInputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputChStripState>
-        + RmeFfLatterChStripSpecification<FfLatterOutputChStripState>
-        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputChStripState>
-        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputChStripState>
         + RmeFfLatterFxSpecification
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxState>,
@@ -174,25 +156,17 @@ where
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::cache_ch_strip(req, node, &mut self.0.input_ch_strip, timeout_ms)?;
-        Self::cache_ch_strip(req, node, &mut self.0.output_ch_strip, timeout_ms)?;
         Self::cache_fx(req, node, &mut self.0.fx, timeout_ms)?;
         Ok(())
     }
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        Self::load_ch_strip(card_cntr, &self.0.input_ch_strip)?;
-        Self::load_ch_strip(card_cntr, &self.0.output_ch_strip)?;
         Self::load_fx(card_cntr)?;
         Ok(())
     }
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if Self::read_ch_strip(elem_id, elem_value, &self.0.input_ch_strip)? {
-            Ok(true)
-        } else if Self::read_ch_strip(elem_id, elem_value, &self.0.output_ch_strip)? {
-            Ok(true)
-        } else if Self::read_fx(elem_id, elem_value, &self.0.fx)? {
+        if Self::read_fx(elem_id, elem_value, &self.0.fx)? {
             Ok(true)
         } else {
             Ok(false)
@@ -207,25 +181,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if Self::write_ch_strip(
-            req,
-            node,
-            elem_id,
-            elem_value,
-            &mut self.0.input_ch_strip,
-            timeout_ms,
-        )? {
-            Ok(true)
-        } else if Self::write_ch_strip(
-            req,
-            node,
-            elem_id,
-            elem_value,
-            &mut self.0.output_ch_strip,
-            timeout_ms,
-        )? {
-            Ok(true)
-        } else if Self::write_fx(req, node, elem_id, elem_value, &mut self.0.fx, timeout_ms)? {
+        if Self::write_fx(req, node, elem_id, elem_value, &mut self.0.fx, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -2269,46 +2225,54 @@ where
     const CH_COUNT: usize = T::OUTPUT_COUNT;
 }
 
-pub trait FfLatterChStripCtlOperation<T, U>
+pub trait FfLatterAutolevelCtlOperation<T, U>
 where
-    T: RmeFfLatterChStripSpecification<U>
+    T: RmeFfLatterAutolevelSpecification
         + RmeFfWhollyCommandableParamsOperation<U>
         + RmeFfPartiallyCommandableParamsOperation<U>,
-    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterAutolevelState> + AsMut<FfLatterAutolevelState>,
 {
     const AUTOLEVEL_ACTIVATE_NAME: &'static str;
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str;
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
     const AUTOLEVEL_RISE_TIME_NAME: &'static str;
 
-    fn cache_ch_strip(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut U,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let res = T::command_wholly(req, node, params, timeout_ms);
-        debug!(?params, ?res);
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
+
+    const CH_COUNT: usize;
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, self.params_mut(), timeout_ms);
+        debug!(params = ?self.params(), ?res);
         res
     }
 
-    fn load_ch_strip(card_cntr: &mut CardCntr, _: &U) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut elem_id_list = Vec::new();
+
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
+        card_cntr
+            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+            .map(|mut list| elem_id_list.append(&mut list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_MAX_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::AUTOLEVEL_MAX_GAIN_MIN,
-            T::AUTOLEVEL_MAX_GAIN_MAX,
-            T::AUTOLEVEL_MAX_GAIN_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::AUTOLEVEL_MAX_GAIN_MIN,
+                T::AUTOLEVEL_MAX_GAIN_MAX,
+                T::AUTOLEVEL_MAX_GAIN_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
 
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Mixer,
@@ -2317,16 +2281,18 @@ where
             Self::AUTOLEVEL_HEAD_ROOM_NAME,
             0,
         );
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::AUTOLEVEL_HEAD_ROOM_MIN,
-            T::AUTOLEVEL_HEAD_ROOM_MAX,
-            T::AUTOLEVEL_HEAD_ROOM_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::AUTOLEVEL_HEAD_ROOM_MIN,
+                T::AUTOLEVEL_HEAD_ROOM_MAX,
+                T::AUTOLEVEL_HEAD_ROOM_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
 
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Mixer,
@@ -2335,59 +2301,43 @@ where
             Self::AUTOLEVEL_RISE_TIME_NAME,
             0,
         );
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::AUTOLEVEL_RISE_TIME_MIN,
-            T::AUTOLEVEL_RISE_TIME_MAX,
-            T::AUTOLEVEL_RISE_TIME_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::AUTOLEVEL_RISE_TIME_MIN,
+                T::AUTOLEVEL_RISE_TIME_MAX,
+                T::AUTOLEVEL_RISE_TIME_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|mut list| elem_id_list.append(&mut list))?;
 
         Ok(())
     }
 
-    fn read_ch_strip(
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        params: &U,
-    ) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         let n = elem_id.name();
 
         if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let vals = params.as_ref().autolevel.activates.clone();
+            let params = self.params().as_ref();
+            let vals = params.activates.clone();
             elem_value.set_bool(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .autolevel
-                .max_gains
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.max_gains.iter().map(|&gain| gain as i32).collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .autolevel
-                .headrooms
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.headrooms.iter().map(|&gain| gain as i32).collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .autolevel
-                .rise_times
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.rise_times.iter().map(|&gain| gain as i32).collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else {
@@ -2395,63 +2345,59 @@ where
         }
     }
 
-    fn write_ch_strip(
+    fn write(
+        &mut self,
         req: &mut FwReq,
         node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
-        state: &mut U,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
         if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let mut params = state.clone();
+            let mut params = self.params().clone();
             params
                 .as_mut()
-                .autolevel
                 .activates
                 .iter_mut()
                 .zip(elem_value.boolean())
                 .for_each(|(activate, val)| *activate = val);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().autolevel, ?res);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let mut params = state.clone();
+            let mut params = self.params().clone();
             params
                 .as_mut()
-                .autolevel
                 .max_gains
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(gain, &val)| *gain = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().autolevel, ?res);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let mut params = state.clone();
+            let mut params = self.params().clone();
             params
                 .as_mut()
-                .autolevel
                 .headrooms
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(headroom, &val)| *headroom = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().autolevel, ?res);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let mut params = state.clone();
+            let mut params = self.params().clone();
             params
                 .as_mut()
-                .autolevel
                 .rise_times
                 .iter_mut()
                 .zip(elem_value.int())
                 .for_each(|(time, &val)| *time = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().autolevel, ?res);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
             res.map(|_| true)
         } else {
             Ok(false)
@@ -2459,24 +2405,118 @@ where
     }
 }
 
-impl<T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for LatterDspCtl<T>
+#[derive(Debug)]
+pub struct LatterInputAutolevelCtl<T>
 where
-    T: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputAutolevelParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterInputAutolevelParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterInputAutolevelCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputAutolevelParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_autolevel_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterAutolevelCtlOperation<T, FfLatterInputAutolevelParameters>
+    for LatterInputAutolevelCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputAutolevelParameters>,
 {
     const AUTOLEVEL_ACTIVATE_NAME: &'static str = "input:autolevel-activate";
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "input:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "input:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "input:autolevel-rise-time";
+
+    fn params(&self) -> &FfLatterInputAutolevelParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterInputAutolevelParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::PHYS_INPUT_COUNT;
 }
 
-impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDspCtl<T>
+#[derive(Debug)]
+pub struct LatterOutputAutolevelCtl<T>
 where
-    T: RmeFfLatterChStripSpecification<FfLatterOutputChStripState>,
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputAutolevelParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterOutputAutolevelParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterOutputAutolevelCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputAutolevelParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_autolevel_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterAutolevelCtlOperation<T, FfLatterOutputAutolevelParameters>
+    for LatterOutputAutolevelCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterAutolevelSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputAutolevelParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputAutolevelParameters>,
 {
     const AUTOLEVEL_ACTIVATE_NAME: &'static str = "output:autolevel-activate";
     const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "output:autolevel-max-gain";
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "output:autolevel-head-room";
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "output:autolevel-rise-time";
+
+    fn params(&self) -> &FfLatterOutputAutolevelParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterOutputAutolevelParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+
+    const CH_COUNT: usize = T::OUTPUT_COUNT;
 }
 
 fn fx_reverb_type_to_string(reverb_type: &FfLatterFxReverbType) -> String {
