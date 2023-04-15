@@ -15,7 +15,8 @@ mod latter_runtime;
 
 use {
     alsactl::{prelude::*, *},
-    core::{card_cntr::*, dispatcher::*, *},
+    clap::Parser,
+    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     ff400_runtime::*,
     ff800_runtime::*,
     firewire_fireface_protocols as protocols,
@@ -33,7 +34,7 @@ use {
     tracing::{debug, debug_span, Level},
 };
 
-pub enum FfRuntime {
+enum FfRuntime {
     Ff800(Ff800Runtime),
     Ff400(Ff400Runtime),
     FfUcx(FfUcxRuntime),
@@ -171,4 +172,27 @@ fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> String 
     } else {
         "not-detected".to_string()
     }
+}
+
+struct FfServiceCmd;
+
+#[derive(Parser, Default)]
+#[clap(name = "snd-fireface-ctl-service")]
+struct Arguments {
+    /// The numeric identifier of sound card in Linux sound subsystem.
+    card_id: u32,
+
+    /// The level to debug runtime, disabled as a default.
+    #[clap(long, short, arg_enum)]
+    log_level: Option<LogLevel>,
+}
+
+impl ServiceCmd<Arguments, u32, FfRuntime> for FfServiceCmd {
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, args.log_level)
+    }
+}
+
+fn main() {
+    FfServiceCmd::run()
 }

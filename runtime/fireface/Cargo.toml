@@ -1,11 +1,12 @@
 [package]
 edition = "2018"
-name = "fireface-runtime"
+name = "snd-fireface-ctl-service"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
 description = """
-Implementation of service runtime for models in RME Fireface series.
+Runtime implementation to control audio and music unit in IEEE 1394 bus which ALSA fireface driver
+(snd-fireface) supports.
 """
 license = "GPL-3.0-or-later"
 publish = false
