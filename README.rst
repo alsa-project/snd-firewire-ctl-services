@@ -12,8 +12,8 @@ This project is a sub project in Advanced Linux Sound Architecture a.k.a ALSA,
 to produce userspace service daemon for Audio and Music units on IEEE 1394 bus,
 supported by drivers in ALSA firewire stack.
 
-Executables
-=================================
+Executables (binary crates)
+===========================
 
 snd-firewire-digi00x-ctl-service
    For sound card bound to ALSA firewire-digi00x driver (snd-firewire-digi00x)
@@ -90,7 +90,7 @@ debugging. For further information, please refer to ``Runtime debugging`` clause
 
 Install executables ::
 
-    $ cargo install --path (path to runtime crate)
+    $ cargo install --path (path to binary crate)
 
 The runtime crates which provide the executables are listed below:
 
@@ -109,7 +109,7 @@ snd-bebob-ctl-service
 snd-dice-ctl-service
     ``snd-dice-ctl-service`` crate locates in ``runtime/dice``
 snd-fireface-ctl-service
-    ``fireface-runtime`` crate locates in ``runtime/fireface``
+    ``snd-fireface-ctl-service`` crate locates in ``runtime/fireface``
 
 The executable is usually installed under ``~/.cargo/bin``, while it's possible to choose the path.
 In detail, please refer to
