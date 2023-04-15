@@ -421,6 +421,62 @@ pub trait RmeFfCommandParamsDeserialize<T> {
     fn deserialize_commands(params: &mut T, raw: &[u32]);
 }
 
+/// Operation for parameters which can be updated wholly at once.
+pub trait RmeFfWhollyCommandableParamsOperation<T> {
+    /// Update registers for whole parameters.
+    fn command_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+impl<O, T> RmeFfWhollyCommandableParamsOperation<T> for O
+where
+    O: RmeFfCommandParamsSerialize<T>,
+{
+    fn command_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmds = Self::serialize_commands(params);
+        cmds.iter()
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
+    }
+}
+
+/// Operation for parameters which can be updated partially.
+pub trait RmeFfPartiallyCommandableParamsOperation<T> {
+    fn command_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}
+
+impl<O, T> RmeFfPartiallyCommandableParamsOperation<T> for O
+where
+    O: RmeFfCommandParamsSerialize<T>,
+{
+    fn command_partially(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut T,
+        update: T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old = Self::serialize_commands(params);
+        let new = Self::serialize_commands(&update);
+
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *params = update)
+    }
+}
+
 /// The specification of DSP.
 ///
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
@@ -742,40 +798,6 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
     }
 }
 
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterInputState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterInputState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterInputState,
-        update: FfLatterInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
-    }
-}
-
 impl From<LineOutNominalLevel> for i16 {
     fn from(level: LineOutNominalLevel) -> Self {
         match level {
@@ -886,40 +908,6 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
     }
 }
 
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterOutputState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterOutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterOutputState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterOutputState,
-        update: FfLatterOutputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
-    }
-}
-
 /// State of sources for mixer.
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
@@ -974,40 +962,6 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixer
                     .collect::<Vec<u32>>()
             })
             .collect()
-    }
-}
-
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterMixerState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterMixerState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterMixerState,
-        update: FfLatterMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
 }
 
@@ -1445,40 +1399,6 @@ where
     }
 }
 
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterInputChStripState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterInputChStripState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterInputChStripState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterInputChStripState,
-        update: FfLatterInputChStripState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
-    }
-}
-
 /// State of output channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
@@ -1519,40 +1439,6 @@ impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChSt
         .flatten()
         .copied()
         .collect()
-    }
-}
-
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterOutputChStripState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterOutputChStripState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterOutputChStripState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterOutputChStripState,
-        update: FfLatterOutputChStripState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
 }
 
@@ -1992,40 +1878,6 @@ impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxState>
         cmds.append(&mut echo_state_to_cmds(&state.echo));
 
         cmds
-    }
-}
-
-impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterFxState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterFxState>,
-{
-    fn update_wholly(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &FfLatterFxState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let cmds = Self::serialize_commands(params);
-        cmds.iter()
-            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
-}
-
-impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState> for O
-where
-    O: RmeFfCommandParamsSerialize<FfLatterFxState>,
-{
-    fn update_partially(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut FfLatterFxState,
-        update: FfLatterFxState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let old = Self::serialize_commands(state);
-        let new = Self::serialize_commands(&update);
-
-        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
 }
 
