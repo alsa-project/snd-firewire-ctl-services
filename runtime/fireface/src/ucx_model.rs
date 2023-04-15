@@ -15,6 +15,7 @@ pub struct UcxModel {
     status_ctl: StatusCtl,
     input_ctl: LatterInputCtl<FfUcxProtocol>,
     output_ctl: LatterOutputCtl<FfUcxProtocol>,
+    mixer_ctl: LatterMixerCtl<FfUcxProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -27,6 +28,7 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.status_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -38,6 +40,7 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.status_ctl.load(card_cntr)?;
         self.input_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -53,6 +56,8 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -82,6 +87,11 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
             Ok(true)
         } else if self
             .output_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)

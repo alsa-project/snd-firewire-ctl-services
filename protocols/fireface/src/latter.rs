@@ -356,7 +356,6 @@ where
 /// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
-    pub mixer: FfLatterMixerState,
     pub input_ch_strip: FfLatterInputChStripState,
     pub output_ch_strip: FfLatterOutputChStripState,
     pub fx: FfLatterFxState,
@@ -496,16 +495,6 @@ pub trait RmeFfLatterDspSpecification: RmeFfLatterSpecification {
 
     fn create_dsp_state() -> FfLatterDspState {
         FfLatterDspState {
-            mixer: FfLatterMixerState(vec![
-                FfLatterMixer {
-                    line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
-                    mic_gains: vec![Default::default(); Self::MIC_INPUT_COUNT],
-                    spdif_gains: vec![Default::default(); Self::SPDIF_INPUT_COUNT],
-                    adat_gains: vec![Default::default(); Self::ADAT_INPUT_COUNT],
-                    stream_gains: vec![Default::default(); Self::STREAM_INPUT_COUNT],
-                };
-                Self::OUTPUT_COUNT
-            ]),
             input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
                 hpf: FfLatterHpfState {
                     activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
@@ -924,7 +913,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
 /// through 0.00 dB.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterMixer {
     /// The gain of sources from line inputs.
     pub line_gains: Vec<u16>,
@@ -939,15 +928,32 @@ pub struct FfLatterMixer {
 }
 
 /// State of mixers.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterMixerState(pub Vec<FfLatterMixer>);
 
 /// The specification of mixer.
 pub trait RmeFfLatterMixerSpecification: RmeFfLatterDspSpecification {
+    /// The minimum value of gain for source of mixer.
     const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
+    /// The zero value of gain for source of mixer.
     const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
+    /// The maximum value of gain for source of mixer.
     const MIXER_INPUT_GAIN_MAX: i32 = 0xa000;
+    /// The step value of gain for source of mixer.
     const MIXER_INPUT_GAIN_STEP: i32 = 1;
+
+    fn create_mixer_parameters() -> FfLatterMixerState {
+        FfLatterMixerState(vec![
+            FfLatterMixer {
+                line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
+                mic_gains: vec![Default::default(); Self::MIC_INPUT_COUNT],
+                spdif_gains: vec![Default::default(); Self::SPDIF_INPUT_COUNT],
+                adat_gains: vec![Default::default(); Self::ADAT_INPUT_COUNT],
+                stream_gains: vec![Default::default(); Self::STREAM_INPUT_COUNT],
+            };
+            Self::OUTPUT_COUNT
+        ])
+    }
 }
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerSpecification for O {}
