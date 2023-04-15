@@ -18,6 +18,8 @@ pub struct UcxModel {
     mixer_ctl: LatterMixerCtl<FfUcxProtocol>,
     input_hpf_ctl: LatterInputHpfCtl<FfUcxProtocol>,
     output_hpf_ctl: LatterOutputHpfCtl<FfUcxProtocol>,
+    input_eq_ctl: LatterInputEqualizerCtl<FfUcxProtocol>,
+    output_eq_ctl: LatterOutputEqualizerCtl<FfUcxProtocol>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -33,6 +35,8 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.mixer_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.input_hpf_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.output_hpf_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.input_eq_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.output_eq_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -47,6 +51,8 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         self.mixer_ctl.load(card_cntr)?;
         self.input_hpf_ctl.load(card_cntr)?;
         self.output_hpf_ctl.load(card_cntr)?;
+        self.input_eq_ctl.load(card_cntr)?;
+        self.output_eq_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -68,6 +74,10 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
         } else if self.input_hpf_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_hpf_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_eq_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_eq_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -112,6 +122,16 @@ impl CtlModel<(SndFireface, FwNode)> for UcxModel {
             Ok(true)
         } else if self
             .output_hpf_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .input_eq_ctl
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .output_eq_ctl
             .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)

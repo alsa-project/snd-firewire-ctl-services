@@ -1298,21 +1298,20 @@ where
     const CH_COUNT: usize = T::OUTPUT_COUNT;
 }
 
-fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
+fn eq_type_to_str(eq_type: &FfLatterChStripEqType) -> &str {
     match eq_type {
         FfLatterChStripEqType::Peak => "Peak",
         FfLatterChStripEqType::Shelf => "Shelf",
         FfLatterChStripEqType::LowPass => "Lowpass",
     }
-    .to_string()
 }
 
-pub trait FfLatterChStripCtlOperation<T, U>
+pub trait FfLatterEqualizerCtlOperation<T, U>
 where
-    T: RmeFfLatterChStripSpecification<U>
+    T: RmeFfLatterEqualizerSpecification
         + RmeFfWhollyCommandableParamsOperation<U>
         + RmeFfPartiallyCommandableParamsOperation<U>,
-    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterEqState> + AsMut<FfLatterEqState>,
 {
     const EQ_ACTIVATE_NAME: &'static str;
     const EQ_LOW_TYPE_NAME: &'static str;
@@ -1327,6 +1326,521 @@ where
     const EQ_HIGH_FREQ_NAME: &'static str;
     const EQ_HIGH_QUALITY_NAME: &'static str;
 
+    fn params(&self) -> &U;
+    fn params_mut(&mut self) -> &mut U;
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId>;
+
+    const CH_COUNT: usize;
+
+    const EQ_TYPES: &'static [FfLatterChStripEqType] = &[
+        FfLatterChStripEqType::Peak,
+        FfLatterChStripEqType::Shelf,
+        FfLatterChStripEqType::LowPass,
+    ];
+
+    fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::command_wholly(req, node, self.params_mut(), timeout_ms);
+        debug!(params = ?self.params(), ?res);
+        res
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_ACTIVATE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+            .map(|mut list| elem_id_list.append(&mut list))?;
+
+        let labels: Vec<&str> = Self::EQ_TYPES.iter().map(|t| eq_type_to_str(t)).collect();
+
+        [Self::EQ_LOW_TYPE_NAME, Self::EQ_HIGH_TYPE_NAME]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr
+                    .add_enum_elems(&elem_id, 1, Self::CH_COUNT, &labels, None, true)
+                    .map(|mut list| elem_id_list.append(&mut list))
+            })?;
+
+        [
+            Self::EQ_LOW_GAIN_NAME,
+            Self::EQ_MIDDLE_GAIN_NAME,
+            Self::EQ_HIGH_GAIN_NAME,
+        ]
+        .iter()
+        .try_for_each(|name| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    T::EQ_GAIN_MIN,
+                    T::EQ_GAIN_MAX,
+                    T::EQ_GAIN_STEP,
+                    Self::CH_COUNT,
+                    None,
+                    true,
+                )
+                .map(|mut list| elem_id_list.append(&mut list))
+        })?;
+
+        [
+            Self::EQ_LOW_FREQ_NAME,
+            Self::EQ_MIDDLE_FREQ_NAME,
+            Self::EQ_HIGH_FREQ_NAME,
+        ]
+        .iter()
+        .try_for_each(|name| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    T::EQ_FREQ_MIN,
+                    T::EQ_FREQ_MAX,
+                    T::EQ_FREQ_STEP,
+                    Self::CH_COUNT,
+                    None,
+                    true,
+                )
+                .map(|mut list| elem_id_list.append(&mut list))
+        })?;
+
+        [
+            Self::EQ_LOW_QUALITY_NAME,
+            Self::EQ_MIDDLE_QUALITY_NAME,
+            Self::EQ_HIGH_QUALITY_NAME,
+        ]
+        .iter()
+        .try_for_each(|name| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    1,
+                    T::EQ_QUALITY_MIN,
+                    T::EQ_QUALITY_MAX,
+                    T::EQ_QUALITY_STEP,
+                    Self::CH_COUNT,
+                    None,
+                    true,
+                )
+                .map(|mut list| elem_id_list.append(&mut list))
+        })?;
+
+        self.elem_id_list_mut().append(&mut elem_id_list);
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::EQ_ACTIVATE_NAME {
+            let params = self.params().as_ref();
+            elem_value.set_bool(&params.activates);
+            Ok(true)
+        } else if n == Self::EQ_LOW_TYPE_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<u32> = params
+                .low_types
+                .iter()
+                .map(|eq_type| {
+                    let pos = Self::EQ_TYPES.iter().position(|t| t.eq(eq_type)).unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_TYPE_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<u32> = params
+                .high_types
+                .iter()
+                .map(|eq_type| {
+                    let pos = Self::EQ_TYPES.iter().position(|t| t.eq(eq_type)).unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_GAIN_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.low_gains.iter().map(|&gain| gain as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .middle_gains
+                .iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_GAIN_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.high_gains.iter().map(|&gain| gain as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_FREQ_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.low_freqs.iter().map(|&gain| gain as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .middle_freqs
+                .iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_FREQ_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params.high_freqs.iter().map(|&gain| gain as i32).collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_QUALITY_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .low_qualities
+                .iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .middle_qualities
+                .iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_QUALITY_NAME {
+            let params = self.params().as_ref();
+            let vals: Vec<i32> = params
+                .high_qualities
+                .iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let n = elem_id.name();
+
+        if n == Self::EQ_ACTIVATE_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .activates
+                .iter_mut()
+                .zip(elem_value.boolean())
+                .for_each(|(activate, val)| *activate = val);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_LOW_TYPE_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .low_types
+                .iter_mut()
+                .zip(elem_value.enumerated())
+                .try_for_each(|(eq_type, &val)| {
+                    let pos = val as usize;
+                    Self::EQ_TYPES
+                        .iter()
+                        .nth(pos)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of equalizer types: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&t| *eq_type = t)
+                })?;
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_HIGH_TYPE_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .high_types
+                .iter_mut()
+                .zip(elem_value.enumerated())
+                .try_for_each(|(eq_type, &val)| {
+                    let pos = val as usize;
+                    Self::EQ_TYPES
+                        .iter()
+                        .nth(pos)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of equalizer types: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&t| *eq_type = t)
+                })?;
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_LOW_GAIN_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .low_gains
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(gain, &val)| *gain = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .middle_gains
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(gain, &val)| *gain = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_HIGH_GAIN_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .high_gains
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(gain, &val)| *gain = val as i16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_LOW_FREQ_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .low_freqs
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(freq, &val)| *freq = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .middle_freqs
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(freq, &val)| *freq = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_HIGH_FREQ_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .high_freqs
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(freq, &val)| *freq = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_LOW_QUALITY_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .low_qualities
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(quality, &val)| *quality = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .middle_qualities
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(quality, &val)| *quality = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else if n == Self::EQ_HIGH_QUALITY_NAME {
+            let mut params = self.params().clone();
+            params
+                .as_mut()
+                .high_qualities
+                .iter_mut()
+                .zip(elem_value.int())
+                .for_each(|(quality, &val)| *quality = val as u16);
+            let res = T::command_partially(req, node, self.params_mut(), params, timeout_ms);
+            debug!(params = ?self.params(), ?res);
+            res.map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LatterInputEqualizerCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputEqualizerParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterInputEqualizerParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterInputEqualizerCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputEqualizerParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_input_equalizer_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterEqualizerCtlOperation<T, FfLatterInputEqualizerParameters>
+    for LatterInputEqualizerCtl<T>
+where
+    T: RmeFfLatterInputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterInputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterInputEqualizerParameters>,
+{
+    const EQ_ACTIVATE_NAME: &'static str = "input:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'static str = "input:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'static str = "input:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'static str = "input:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'static str = "input:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'static str = "input:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'static str = "input:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'static str = "input:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'static str = "input:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'static str = "input:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'static str = "input:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'static str = "input:eq-high-quality";
+
+    const CH_COUNT: usize = T::PHYS_INPUT_COUNT;
+
+    fn params(&self) -> &FfLatterInputEqualizerParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterInputEqualizerParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+}
+
+#[derive(Debug)]
+pub struct LatterOutputEqualizerCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputEqualizerParameters>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    params: FfLatterOutputEqualizerParameters,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for LatterOutputEqualizerCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputEqualizerParameters>,
+{
+    fn default() -> Self {
+        Self {
+            elem_id_list: Default::default(),
+            params: T::create_output_equalizer_parameters(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> FfLatterEqualizerCtlOperation<T, FfLatterOutputEqualizerParameters>
+    for LatterOutputEqualizerCtl<T>
+where
+    T: RmeFfLatterOutputSpecification
+        + RmeFfLatterEqualizerSpecification
+        + RmeFfWhollyCommandableParamsOperation<FfLatterOutputEqualizerParameters>
+        + RmeFfPartiallyCommandableParamsOperation<FfLatterOutputEqualizerParameters>,
+{
+    const EQ_ACTIVATE_NAME: &'static str = "output:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'static str = "output:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'static str = "output:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'static str = "output:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'static str = "output:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'static str = "output:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'static str = "output:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'static str = "output:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'static str = "output:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'static str = "output:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'static str = "output:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'static str = "output:eq-high-quality";
+
+    const CH_COUNT: usize = T::OUTPUT_COUNT;
+
+    fn params(&self) -> &FfLatterOutputEqualizerParameters {
+        &self.params
+    }
+
+    fn params_mut(&mut self) -> &mut FfLatterOutputEqualizerParameters {
+        &mut self.params
+    }
+
+    fn elem_id_list_mut(&mut self) -> &mut Vec<ElemId> {
+        &mut self.elem_id_list
+    }
+}
+
+pub trait FfLatterChStripCtlOperation<T, U>
+where
+    T: RmeFfLatterChStripSpecification<U>
+        + RmeFfWhollyCommandableParamsOperation<U>
+        + RmeFfPartiallyCommandableParamsOperation<U>,
+    U: std::fmt::Debug + Clone + AsRef<FfLatterChStripState> + AsMut<FfLatterChStripState>,
+{
     const DYN_ACTIVATE_NAME: &'static str;
     const DYN_GAIN_NAME: &'static str;
     const DYN_ATTACK_NAME: &'static str;
@@ -1341,12 +1855,6 @@ where
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
     const AUTOLEVEL_RISE_TIME_NAME: &'static str;
 
-    const EQ_TYPES: [FfLatterChStripEqType; 3] = [
-        FfLatterChStripEqType::Peak,
-        FfLatterChStripEqType::Shelf,
-        FfLatterChStripEqType::LowPass,
-    ];
-
     fn cache_ch_strip(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -1359,129 +1867,6 @@ where
     }
 
     fn load_ch_strip(card_cntr: &mut CardCntr, _: &U) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
-
-        let labels: Vec<String> = Self::EQ_TYPES
-            .iter()
-            .map(|t| eq_type_to_string(t))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::CH_COUNT, &labels, None, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::CH_COUNT, &labels, None, true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_GAIN_MIN,
-            T::EQ_GAIN_MAX,
-            T::EQ_GAIN_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_GAIN_MIN,
-            T::EQ_GAIN_MAX,
-            T::EQ_GAIN_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_GAIN_MIN,
-            T::EQ_GAIN_MAX,
-            T::EQ_GAIN_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_FREQ_MIN,
-            T::EQ_FREQ_MAX,
-            T::EQ_FREQ_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_FREQ_MIN,
-            T::EQ_FREQ_MAX,
-            T::EQ_FREQ_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_FREQ_MIN,
-            T::EQ_FREQ_MAX,
-            T::EQ_FREQ_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_QUALITY_MIN,
-            T::EQ_QUALITY_MAX,
-            T::EQ_QUALITY_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_QUALITY_MIN,
-            T::EQ_QUALITY_MAX,
-            T::EQ_QUALITY_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::EQ_QUALITY_MIN,
-            T::EQ_QUALITY_MAX,
-            T::EQ_QUALITY_STEP,
-            T::CH_COUNT,
-            None,
-            true,
-        )?;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
@@ -1634,126 +2019,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::EQ_ACTIVATE_NAME {
-            elem_value.set_bool(&params.as_ref().eq.activates);
-            Ok(true)
-        } else if n == Self::EQ_LOW_TYPE_NAME {
-            let vals: Vec<u32> = params
-                .as_ref()
-                .eq
-                .low_types
-                .iter()
-                .map(|eq_type| {
-                    let pos = Self::EQ_TYPES.iter().position(|t| t.eq(eq_type)).unwrap();
-                    pos as u32
-                })
-                .collect();
-            elem_value.set_enum(&vals);
-            Ok(true)
-        } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let vals: Vec<u32> = params
-                .as_ref()
-                .eq
-                .high_types
-                .iter()
-                .map(|eq_type| {
-                    let pos = Self::EQ_TYPES.iter().position(|t| t.eq(eq_type)).unwrap();
-                    pos as u32
-                })
-                .collect();
-            elem_value.set_enum(&vals);
-            Ok(true)
-        } else if n == Self::EQ_LOW_GAIN_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .low_gains
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .middle_gains
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .high_gains
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_LOW_FREQ_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .low_freqs
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .middle_freqs
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .high_freqs
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .low_qualities
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .middle_qualities
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let vals: Vec<i32> = params
-                .as_ref()
-                .eq
-                .high_qualities
-                .iter()
-                .map(|&gain| gain as i32)
-                .collect();
-            elem_value.set_int(&vals);
-            Ok(true)
-        } else if n == Self::DYN_ACTIVATE_NAME {
+        if n == Self::DYN_ACTIVATE_NAME {
             elem_value.set_bool(&params.as_ref().dynamics.activates);
             Ok(true)
         } else if n == Self::DYN_GAIN_NAME {
@@ -1875,171 +2141,7 @@ where
     ) -> Result<bool, Error> {
         let n = elem_id.name();
 
-        if n == Self::EQ_ACTIVATE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .activates
-                .iter_mut()
-                .zip(elem_value.boolean())
-                .for_each(|(activate, val)| *activate = val);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_LOW_TYPE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .low_types
-                .iter_mut()
-                .zip(elem_value.enumerated())
-                .try_for_each(|(eq_type, &val)| {
-                    let pos = val as usize;
-                    Self::EQ_TYPES
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of equalizer types: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&t| *eq_type = t)
-                })?;
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .high_types
-                .iter_mut()
-                .zip(elem_value.enumerated())
-                .try_for_each(|(eq_type, &val)| {
-                    let pos = val as usize;
-                    Self::EQ_TYPES
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of equalizer types: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&t| *eq_type = t)
-                })?;
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_LOW_GAIN_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .low_gains
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .middle_gains
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .high_gains
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(gain, &val)| *gain = val as i16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_LOW_FREQ_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .low_freqs
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .middle_freqs
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .high_freqs
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(freq, &val)| *freq = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .low_qualities
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .middle_qualities
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let mut params = state.clone();
-            params
-                .as_mut()
-                .eq
-                .high_qualities
-                .iter_mut()
-                .zip(elem_value.int())
-                .for_each(|(quality, &val)| *quality = val as u16);
-            let res = T::command_partially(req, node, state, params, timeout_ms);
-            debug!(params = ?state.as_ref().eq, ?res);
-            res.map(|_| true)
-        } else if n == Self::DYN_ACTIVATE_NAME {
+        if n == Self::DYN_ACTIVATE_NAME {
             let mut params = state.clone();
             params
                 .as_mut()
@@ -2193,19 +2295,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for LatterDspC
 where
     T: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
-    const EQ_ACTIVATE_NAME: &'static str = "input:eq-activate";
-    const EQ_LOW_TYPE_NAME: &'static str = "input:eq-low-type";
-    const EQ_LOW_GAIN_NAME: &'static str = "input:eq-low-gain";
-    const EQ_LOW_FREQ_NAME: &'static str = "input:eq-low-freq";
-    const EQ_LOW_QUALITY_NAME: &'static str = "input:eq-low-quality";
-    const EQ_MIDDLE_GAIN_NAME: &'static str = "input:eq-middle-gain";
-    const EQ_MIDDLE_FREQ_NAME: &'static str = "input:eq-middle-freq";
-    const EQ_MIDDLE_QUALITY_NAME: &'static str = "input:eq-middle-quality";
-    const EQ_HIGH_TYPE_NAME: &'static str = "input:eq-high-type";
-    const EQ_HIGH_GAIN_NAME: &'static str = "input:eq-high-gain";
-    const EQ_HIGH_FREQ_NAME: &'static str = "input:eq-high-freq";
-    const EQ_HIGH_QUALITY_NAME: &'static str = "input:eq-high-quality";
-
     const DYN_ACTIVATE_NAME: &'static str = "input:dyn-activate";
     const DYN_GAIN_NAME: &'static str = "input:dyn-gain";
     const DYN_ATTACK_NAME: &'static str = "input:dyn-attack";
@@ -2225,19 +2314,6 @@ impl<T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for LatterDsp
 where
     T: RmeFfLatterChStripSpecification<FfLatterOutputChStripState>,
 {
-    const EQ_ACTIVATE_NAME: &'static str = "output:eq-activate";
-    const EQ_LOW_TYPE_NAME: &'static str = "output:eq-low-type";
-    const EQ_LOW_GAIN_NAME: &'static str = "output:eq-low-gain";
-    const EQ_LOW_FREQ_NAME: &'static str = "output:eq-low-freq";
-    const EQ_LOW_QUALITY_NAME: &'static str = "output:eq-low-quality";
-    const EQ_MIDDLE_GAIN_NAME: &'static str = "output:eq-middle-gain";
-    const EQ_MIDDLE_FREQ_NAME: &'static str = "output:eq-middle-freq";
-    const EQ_MIDDLE_QUALITY_NAME: &'static str = "output:eq-middle-quality";
-    const EQ_HIGH_TYPE_NAME: &'static str = "output:eq-high-type";
-    const EQ_HIGH_GAIN_NAME: &'static str = "output:eq-high-gain";
-    const EQ_HIGH_FREQ_NAME: &'static str = "output:eq-high-freq";
-    const EQ_HIGH_QUALITY_NAME: &'static str = "output:eq-high-quality";
-
     const DYN_ACTIVATE_NAME: &'static str = "output:dyn-activate";
     const DYN_GAIN_NAME: &'static str = "output:dyn-gain";
     const DYN_ATTACK_NAME: &'static str = "output:dyn-attack";
