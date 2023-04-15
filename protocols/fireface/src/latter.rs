@@ -409,6 +409,18 @@ fn write_dsp_cmds(
         .try_for_each(|(&cmd, _)| write_dsp_cmd(req, node, cmd, timeout_ms))
 }
 
+/// Serialize commands for parameters.
+pub trait RmeFfCommandParamsSerialize<T> {
+    /// Serialize parameters into commands.
+    fn serialize_commands(params: &T) -> Vec<u32>;
+}
+
+/// Deserialize commands for parameters.
+pub trait RmeFfCommandParamsDeserialize<T> {
+    /// Derialize parameters from commands.
+    fn deserialize_commands(params: &mut T, raw: &[u32]);
+}
+
 /// The specification of DSP.
 ///
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
@@ -665,8 +677,8 @@ pub trait RmeFfLatterInputSpecification: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterInputSpecification for O {}
 
-impl<O: RmeFfLatterInputSpecification> RmeFfParamsSerialize<FfLatterInputState, u32> for O {
-    fn serialize(state: &FfLatterInputState) -> Vec<u32> {
+impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInputState> for O {
+    fn serialize_commands(state: &FfLatterInputState) -> Vec<u32> {
         assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
         assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
         assert_eq!(state.line_gains.len(), Self::LINE_INPUT_COUNT);
@@ -732,7 +744,7 @@ impl<O: RmeFfLatterInputSpecification> RmeFfParamsSerialize<FfLatterInputState, 
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterInputState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterInputState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -740,7 +752,7 @@ where
         params: &FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -748,7 +760,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterInputState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterInputState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -757,8 +769,8 @@ where
         update: FfLatterInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
@@ -806,8 +818,8 @@ pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterOutputSpecification for O {}
 
-impl<O: RmeFfLatterOutputSpecification> RmeFfParamsSerialize<FfLatterOutputState, u32> for O {
-    fn serialize(state: &FfLatterOutputState) -> Vec<u32> {
+impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutputState> for O {
+    fn serialize_commands(state: &FfLatterOutputState) -> Vec<u32> {
         assert_eq!(state.vols.len(), Self::OUTPUT_COUNT);
         assert_eq!(state.stereo_balance.len(), Self::OUTPUT_COUNT / 2);
         assert_eq!(state.stereo_links.len(), Self::OUTPUT_COUNT / 2);
@@ -876,7 +888,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfParamsSerialize<FfLatterOutputState
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterOutputState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterOutputState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -884,7 +896,7 @@ where
         params: &FfLatterOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -892,7 +904,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterOutputState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterOutputState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -901,8 +913,8 @@ where
         update: FfLatterOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
@@ -940,8 +952,8 @@ pub trait RmeFfLatterMixerSpecification: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterMixerSpecification for O {}
 
-impl<O: RmeFfLatterMixerSpecification> RmeFfParamsSerialize<FfLatterMixerState, u32> for O {
-    fn serialize(state: &FfLatterMixerState) -> Vec<u32> {
+impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixerState> for O {
+    fn serialize_commands(state: &FfLatterMixerState) -> Vec<u32> {
         state
             .0
             .iter()
@@ -967,7 +979,7 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfParamsSerialize<FfLatterMixerState, 
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterMixerState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterMixerState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterMixerState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -975,7 +987,7 @@ where
         params: &FfLatterMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -983,7 +995,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterMixerState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterMixerState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterMixerState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -992,8 +1004,8 @@ where
         update: FfLatterMixerState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
@@ -1415,11 +1427,11 @@ impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
     }
 }
 
-impl<O> RmeFfParamsSerialize<FfLatterInputChStripState, u32> for O
+impl<O> RmeFfCommandParamsSerialize<FfLatterInputChStripState> for O
 where
     O: RmeFfLatterChStripSpecification<FfLatterInputChStripState>,
 {
-    fn serialize(state: &FfLatterInputChStripState) -> Vec<u32> {
+    fn serialize_commands(state: &FfLatterInputChStripState) -> Vec<u32> {
         [
             hpf_state_to_cmds(&state.0.hpf, 0),
             eq_state_to_cmds(&state.0.eq, 0),
@@ -1435,7 +1447,7 @@ where
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterInputChStripState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterInputChStripState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterInputChStripState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -1443,7 +1455,7 @@ where
         params: &FfLatterInputChStripState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -1451,7 +1463,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterInputChStripState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterInputChStripState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterInputChStripState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -1460,8 +1472,8 @@ where
         update: FfLatterInputChStripState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
@@ -1490,8 +1502,8 @@ impl AsMut<FfLatterChStripState> for FfLatterOutputChStripState {
     }
 }
 
-impl<O: RmeFfLatterSpecification> RmeFfParamsSerialize<FfLatterOutputChStripState, u32> for O {
-    fn serialize(state: &FfLatterOutputChStripState) -> Vec<u32> {
+impl<O: RmeFfLatterSpecification> RmeFfCommandParamsSerialize<FfLatterOutputChStripState> for O {
+    fn serialize_commands(state: &FfLatterOutputChStripState) -> Vec<u32> {
         let ch_offset: u8 = (Self::LINE_INPUT_COUNT
             + Self::MIC_INPUT_COUNT
             + Self::SPDIF_INPUT_COUNT
@@ -1512,7 +1524,7 @@ impl<O: RmeFfLatterSpecification> RmeFfParamsSerialize<FfLatterOutputChStripStat
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterOutputChStripState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterOutputChStripState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterOutputChStripState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -1520,7 +1532,7 @@ where
         params: &FfLatterOutputChStripState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -1528,7 +1540,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterOutputChStripState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterOutputChStripState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterOutputChStripState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -1537,8 +1549,8 @@ where
         update: FfLatterOutputChStripState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
@@ -1918,8 +1930,8 @@ pub trait RmeFfLatterFxSpecification: RmeFfLatterDspSpecification {
 
 impl<O: RmeFfLatterDspSpecification> RmeFfLatterFxSpecification for O {}
 
-impl<O: RmeFfLatterFxSpecification> RmeFfParamsSerialize<FfLatterFxState, u32> for O {
-    fn serialize(state: &FfLatterFxState) -> Vec<u32> {
+impl<O: RmeFfLatterFxSpecification> RmeFfCommandParamsSerialize<FfLatterFxState> for O {
+    fn serialize_commands(state: &FfLatterFxState) -> Vec<u32> {
         assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
         assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
         assert_eq!(state.spdif_input_gains.len(), Self::SPDIF_INPUT_COUNT);
@@ -1985,7 +1997,7 @@ impl<O: RmeFfLatterFxSpecification> RmeFfParamsSerialize<FfLatterFxState, u32> f
 
 impl<O> RmeFfWhollyUpdatableParamsOperation<FfLatterFxState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterFxState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterFxState>,
 {
     fn update_wholly(
         req: &mut FwReq,
@@ -1993,7 +2005,7 @@ where
         params: &FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let cmds = Self::serialize(params);
+        let cmds = Self::serialize_commands(params);
         cmds.iter()
             .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
@@ -2001,7 +2013,7 @@ where
 
 impl<O> RmeFfPartiallyUpdatableParamsOperation<FfLatterFxState> for O
 where
-    O: RmeFfParamsSerialize<FfLatterFxState, u32>,
+    O: RmeFfCommandParamsSerialize<FfLatterFxState>,
 {
     fn update_partially(
         req: &mut FwReq,
@@ -2010,8 +2022,8 @@ where
         update: FfLatterFxState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let old = Self::serialize(state);
-        let new = Self::serialize(&update);
+        let old = Self::serialize_commands(state);
+        let new = Self::serialize_commands(&update);
 
         write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| *state = update)
     }
