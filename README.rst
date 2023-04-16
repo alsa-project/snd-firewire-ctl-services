@@ -101,7 +101,7 @@ snd-firewire-tascam-ctl-service
 snd-fireworks-ctl-service
     ``snd-fireworks-ctl-service`` crate locates in ``runtime/fireworks``
 snd-firewire-motu-ctl-service
-    ``motu-runtime`` crate locates in ``runtime/motu``
+    ``snd-firewire-motu-ctl-service`` crate locates in ``runtime/motu``
 snd-oxfw-ctl-service
     ``snd-oxfw-ctl-service`` crate locates in ``runtime/oxfw``
 snd-bebob-ctl-service
