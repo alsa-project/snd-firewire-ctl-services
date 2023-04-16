@@ -97,7 +97,7 @@ The runtime crates which provide the executables are listed below:
 snd-firewire-digi00x-ctl-service
     ``snd-firewire-digi00x-ctl-service`` crate locates in ``runtime/digi00x``
 snd-firewire-tascam-ctl-service
-    ``tascam-runtime`` crate locates in ``runtime/tascam``
+    ``snd-firewire-tascam-ctl-service`` crate locates in ``runtime/tascam``
 snd-fireworks-ctl-service
     ``snd-fireworks-ctl-service`` crate locates in ``runtime/fireworks``
 snd-firewire-motu-ctl-service
