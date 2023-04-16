@@ -1179,17 +1179,27 @@ impl AvcStatus for ExtendedSubunitInfo {
 //
 
 /// Format of compound AM824 stream.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoCompoundAm824StreamFormat {
+    /// For IEC 60958-3.
     Iec60958_3,
+    /// For IEC 61937-3.
     Iec61937_3,
+    /// For IEC 61937-4.
     Iec61937_4,
+    /// For IEC 61937-5.
     Iec61937_5,
+    /// For IEC 61937-6.
     Iec61937_6,
+    /// For IEC 61937-7.
     Iec61937_7,
+    /// For multi bit linear audio (raw).
     MultiBitLinearAudioRaw,
+    /// For multi bit linear audio (DVD-Audio).
     MultiBitLinearAudioDvd,
+    /// For high precision multi bit linear audio.
     HighPrecisionMultiBitLinearAudio,
+    /// For MIDI conformant (MMA/AMEI RP-027).
     MidiConformant,
     Reserved(u8),
 }
@@ -1246,9 +1256,11 @@ impl Default for BcoCompoundAm824StreamFormat {
 }
 
 /// Entry for compound AM824 stream.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoCompoundAm824StreamEntry {
+    /// The number of data channels.
     pub count: u8,
+    /// The format of data channel.
     pub format: BcoCompoundAm824StreamFormat,
 }
 
@@ -1281,11 +1293,13 @@ impl Default for BcoCompoundAm824StreamEntry {
 }
 
 /// Parameters for compound AM824 stream.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoCompoundAm824Stream {
+    /// The nominal frequency of media clock.
     pub freq: u32,
-    pub sync_src: bool,
+    /// Whether to atopt Command-based rate control defined in 1394 Trading Association.
     pub rate_ctl: bool,
+    /// The entries of available stream format.
     pub entries: Vec<BcoCompoundAm824StreamEntry>,
 }
 
@@ -1299,9 +1313,6 @@ impl BcoCompoundAm824Stream {
     const FREQ_CODE_176400: u8 = 0x06;
     const FREQ_CODE_192000: u8 = 0x07;
     const FREQ_CODE_88200: u8 = 0x0a;
-
-    const SYNC_SRC_MASK: u8 = 0x01;
-    const SYNC_SRC_SHIFT: usize = 2;
 
     const RATE_CTL_MASK: u8 = 0x03;
     const RATE_CTL_SHIFT: usize = 0;
@@ -1325,8 +1336,6 @@ impl BcoCompoundAm824Stream {
             Self::FREQ_CODE_88200 => 88200,
             _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
-        let sync_src_code = (raw[1] >> Self::SYNC_SRC_SHIFT) & Self::SYNC_SRC_MASK;
-        let sync_src = sync_src_code > 0;
         let rate_ctl_code = (raw[1] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == 0;
         let entry_count = raw[2] as usize;
@@ -1343,7 +1352,6 @@ impl BcoCompoundAm824Stream {
 
         Ok(Self {
             freq,
-            sync_src,
             rate_ctl,
             entries,
         })
@@ -1365,9 +1373,8 @@ impl BcoCompoundAm824Stream {
         };
         raw.push(freq_code);
 
-        let sync_src_code = ((self.sync_src as u8) & Self::SYNC_SRC_MASK) << Self::SYNC_SRC_SHIFT;
         let rate_ctl_code = ((self.rate_ctl as u8) & Self::RATE_CTL_MASK) << Self::RATE_CTL_SHIFT;
-        raw.push(sync_src_code | rate_ctl_code);
+        raw.push(rate_ctl_code);
 
         raw.push(self.entries.len() as u8);
         self.entries.iter().for_each(|entry| {
@@ -1382,7 +1389,6 @@ impl Default for BcoCompoundAm824Stream {
     fn default() -> Self {
         Self {
             freq: 44100,
-            sync_src: Default::default(),
             rate_ctl: Default::default(),
             entries: Default::default(),
         }
@@ -1390,9 +1396,11 @@ impl Default for BcoCompoundAm824Stream {
 }
 
 /// Format of isochronous packet stream for Audio and Music data transmission.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BcoAmStream {
+    /// For format compliant to AM824 stream.
     AmStream(AmStream),
+    /// For format compliant to Compound AM824 stream specific to BridgeCo.
     BcoStream(BcoCompoundAm824Stream),
 }
 
@@ -1440,10 +1448,11 @@ impl Default for BcoAmStream {
 }
 
 /// Format of isochronous packet stream.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BcoStreamFormat {
-    // Dvcr is not supported currently.
+    /// For Audio and music data stream.
     Am(BcoAmStream),
+    /// DVCR is not supported in the implementation..
     Reserved(Vec<u8>),
 }
 
@@ -1458,6 +1467,7 @@ impl BcoStreamFormat {
         }
     }
 
+    /// Parse for AM824 stream.
     pub fn as_am_stream(&self) -> Option<&AmStream> {
         if let BcoAmStream::AmStream(s) = self.as_bco_am_stream()? {
             Some(s)
@@ -1466,6 +1476,7 @@ impl BcoStreamFormat {
         }
     }
 
+    /// Parse for Compound AM824 stream specific to BridgeCo.
     pub fn as_bco_compound_am824_stream(&self) -> Option<&BcoCompoundAm824Stream> {
         if let BcoAmStream::BcoStream(s) = self.as_bco_am_stream()? {
             Some(s)
@@ -1509,7 +1520,8 @@ impl Default for BcoStreamFormat {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// The status to support the stream format.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoSupportStatus {
     /// The format is already set and stream is available.
     Active,
@@ -1554,7 +1566,7 @@ impl BcoSupportStatus {
 }
 
 /// AV/C command for extension of stream format.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct BcoExtendedStreamFormat {
     subfunc: u8,
     plug_addr: BcoPlugAddr,
@@ -1615,9 +1627,11 @@ impl AvcStatus for BcoExtendedStreamFormat {
 }
 
 /// AV/C command for single subfunction of extension of stream format.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedStreamFormatSingle {
+    /// The status to support the stream format.
     pub support_status: BcoSupportStatus,
+    /// The stream format.
     pub stream_format: BcoStreamFormat,
     op: BcoExtendedStreamFormat,
 }
@@ -1687,10 +1701,13 @@ impl AvcControl for ExtendedStreamFormatSingle {
 }
 
 /// AV/C command for list subfunction of extension of stream format.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedStreamFormatList {
+    /// The status to support the stream format.
     pub support_status: BcoSupportStatus,
+    /// The index of stream format.
     pub index: u8,
+    /// The stream format.
     pub stream_format: BcoStreamFormat,
     op: BcoExtendedStreamFormat,
 }
