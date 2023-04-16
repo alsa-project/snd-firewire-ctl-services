@@ -14,10 +14,13 @@ use super::*;
 //
 
 /// Type of address to plug for unit.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoPlugAddrUnitType {
+    /// Address to unit for isochronous input/output.
     Isoc,
+    /// Address to unit for external input/output.
     Ext,
+    /// Address to unit for asynchronous input/output.
     Async,
 }
 
@@ -52,9 +55,11 @@ impl Default for BcoPlugAddrUnitType {
 }
 
 /// Address to plug for unit.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BcoPlugAddrUnit {
+    /// The type of unit to address to.
     pub plug_type: BcoPlugAddrUnitType,
+    /// The numeric identifier of plug in the unit.
     pub plug_id: u8,
 }
 
@@ -87,8 +92,9 @@ impl Default for BcoPlugAddrUnit {
 }
 
 /// Address to plug for subunit.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BcoPlugAddrSubunit {
+    /// The numeric identifier of plug in the subunit.
     pub plug_id: u8,
 }
 
@@ -117,8 +123,11 @@ impl Default for BcoPlugAddrSubunit {
 /// Address to plug for function block.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrFuncBlk {
+    /// The numeric type of function block.
     pub func_blk_type: u8,
+    /// The numeric identifier of funtion block.
     pub func_blk_id: u8,
+    /// The numneric identifier of plug in the function block.
     pub plug_id: u8,
 }
 
@@ -153,10 +162,13 @@ impl Default for BcoPlugAddrFuncBlk {
 }
 
 /// Mode of address to plug.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoPlugAddrMode {
+    /// Address to unit.
     Unit(BcoPlugAddrUnit),
+    /// Address to subunit.
     Subunit(BcoPlugAddrSubunit),
+    /// Address to function block.
     FuncBlk(BcoPlugAddrFuncBlk),
 }
 
@@ -220,9 +232,11 @@ impl Default for BcoPlugAddrMode {
 }
 
 /// Direction of plug.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoPlugDirection {
+    /// For input plug.
     Input,
+    /// For output plug.
     Output,
 }
 
@@ -254,9 +268,11 @@ impl Default for BcoPlugDirection {
 }
 
 /// Address of plug.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct BcoPlugAddr {
+    /// The direction of plug.
     pub direction: BcoPlugDirection,
+    /// The mode to address for the plug.
     pub mode: BcoPlugAddrMode,
 }
 
@@ -320,10 +336,13 @@ impl BcoPlugAddr {
 }
 
 /// Mode to address to plug for input and output direction.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoIoPlugAddrMode {
+    /// Address to unit.
     Unit(BcoPlugAddrUnit),
+    /// Address to subunit.
     Subunit(AvcAddrSubunit, BcoPlugAddrSubunit),
+    /// Address to function block.
     FuncBlk(AvcAddrSubunit, BcoPlugAddrFuncBlk),
 }
 
@@ -395,9 +414,11 @@ impl Default for BcoIoPlugAddrMode {
 }
 
 /// Address to plug for input and output direction.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct BcoIoPlugAddr {
+    /// For direction of plug.
     pub direction: BcoPlugDirection,
+    /// The mode to address for the plug.
     pub mode: BcoIoPlugAddrMode,
 }
 
@@ -424,13 +445,19 @@ impl BcoIoPlugAddr {
 }
 
 /// The type of plug.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoPlugType {
+    /// For isochronous communication.
     Isoc,
+    /// For asynchronous communication.
     Async,
+    /// For MIDI messages.
     Midi,
+    /// For synchronization.
     Sync,
+    /// For analog signal.
     Analog,
+    /// For digital signal.
     Digital,
 }
 
@@ -474,7 +501,7 @@ impl Default for BcoPlugType {
 }
 
 /// Physical location of data channel for multi bit linear audio.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoLocation {
     LeftFront,
     RightFront,
@@ -564,9 +591,11 @@ impl Default for BcoLocation {
 }
 
 /// Information about data channel for multi bit linear audio.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BcoChannelInfo {
+    /// The position of channel in data frame.
     pos: u8,
+    /// The location of channel for playback or capture.
     loc: BcoLocation,
 }
 
@@ -602,8 +631,9 @@ impl Default for BcoChannelInfo {
 }
 
 /// Cluster with single or multiple data channels.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BcoCluster {
+    /// The entries of cluster.
     entries: Vec<BcoChannelInfo>,
 }
 
@@ -643,9 +673,11 @@ impl BcoCluster {
 }
 
 /// Name of data channel.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoChannelName {
+    /// The channel in data frame.
     pub ch: u8,
+    /// The name of channel.
     pub name: String,
 }
 
@@ -659,7 +691,7 @@ impl Default for BcoChannelName {
 }
 
 /// Type of physical port.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BcoPortType {
     Speaker,
     Headphone,
@@ -733,10 +765,13 @@ impl Default for BcoPortType {
 }
 
 /// Information about cluster of data channels.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoClusterInfo {
+    /// The index of cluster.
     pub index: u8,
+    /// The type of port for the cluster.
     pub port_type: BcoPortType,
+    /// The name of cluster.
     pub name: String,
 }
 
@@ -784,15 +819,23 @@ impl Default for BcoClusterInfo {
 }
 
 /// Type of information about plug.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BcoPlugInfo {
+    /// The type of plug.
     Type(BcoPlugType),
+    /// The name of plug.
     Name(String),
+    /// The number of channels in the plug.
     ChCount(u8),
+    /// The position of channels in each cluster in the plug.
     ChPositions(Vec<BcoCluster>),
+    /// The name of channel in the plug.
     ChName(BcoChannelName),
+    /// The plug information as signal source to the plug.
     Input(BcoIoPlugAddr),
+    /// The plug information as signal destination from the plug.
     Outputs(Vec<BcoIoPlugAddr>),
+    /// The data of each cluster in the plug.
     ClusterInfo(BcoClusterInfo),
     Reserved(Vec<u8>),
 }
@@ -936,7 +979,7 @@ impl Default for BcoPlugInfo {
 }
 
 /// AV/C command for extend plug information.
-#[derive(Default)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedPlugInfo {
     /// The address of plug.
     pub addr: BcoPlugAddr,
@@ -948,7 +991,6 @@ impl ExtendedPlugInfo {
     const SUBFUNC: u8 = 0xc0;
 
     /// Instantiate extended plug info structure with parameters.
-    #[allow(dead_code)]
     pub fn new(addr: &BcoPlugAddr, info: BcoPlugInfo) -> Self {
         Self { addr: *addr, info }
     }
