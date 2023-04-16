@@ -31,7 +31,8 @@ mod v3_ctls;
 
 use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
-    core::*,
+    clap::Parser,
+    core::{cmdline::*, LogLevel, *},
     firewire_motu_protocols as protocols,
     glib::{Error, FileError},
     hinawa::{
@@ -45,7 +46,7 @@ use {
     tracing::{debug, debug_span, Level},
 };
 
-pub enum MotuRuntime {
+enum MotuRuntime {
     F828(F828Runtime),
     F896(F896Runtime),
     F828mk2(F828mk2Runtime),
@@ -224,4 +225,27 @@ pub(crate) fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'stati
         NominalSignalLevel::Consumer => "-10dBu",
         NominalSignalLevel::Professional => "+4dBV",
     }
+}
+
+struct MotuServiceCmd;
+
+#[derive(Parser, Default)]
+#[clap(name = "snd-firewire-motu-ctl-service")]
+struct Arguments {
+    /// The numeric identifier of sound card in Linux sound subsystem.
+    card_id: u32,
+
+    /// The level to debug runtime, disabled as a default.
+    #[clap(long, short, arg_enum)]
+    log_level: Option<LogLevel>,
+}
+
+impl ServiceCmd<Arguments, u32, MotuRuntime> for MotuServiceCmd {
+    fn params(args: &Arguments) -> (u32, Option<LogLevel>) {
+        (args.card_id, args.log_level)
+    }
+}
+
+fn main() {
+    MotuServiceCmd::run()
 }
