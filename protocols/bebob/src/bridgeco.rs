@@ -1765,7 +1765,7 @@ impl AvcStatus for ExtendedStreamFormatList {
 }
 
 /// Information about firmware image.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoImageInformation {
     pub timestamp: glib::DateTime,
     pub id: u32,
@@ -1783,17 +1783,27 @@ impl Default for BcoImageInformation {
 }
 
 /// Information about boot loader.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BcoBootloaderInformation {
+    /// The version of supported protocol.
     pub protocol_version: u32,
+    /// The version of bootloader.
     pub bootloader_version: u32,
+    /// GUID of the device.
     pub guid: u64,
+    /// The numeric model identifier of the device.
     pub hardware_model_id: u32,
+    /// The revision of the device.
     pub hardware_revision: u32,
+    /// The information about installed software.
     pub software: BcoImageInformation,
+    /// The base address of software image.
     pub image_base_address: usize,
+    /// The maximum size of software image.
     pub image_maximum_size: usize,
+    /// The time stamp of bootloader.
     pub bootloader_timestamp: glib::DateTime,
+    /// The information about debugger.
     pub debugger: Option<BcoImageInformation>,
 }
 
@@ -1814,11 +1824,7 @@ impl Default for BcoBootloaderInformation {
     }
 }
 
-/// The protocol implementation of boot loader information.
-#[derive(Default, Debug)]
-pub struct BcoBootloaderProtocol;
-
-impl BcoBootloaderProtocol {
+impl BcoBootloaderInformation {
     const SIZE_WITHOUT_DEBUGGER: usize = 80;
     const SIZE_WITH_DEBUGGER: usize = Self::SIZE_WITHOUT_DEBUGGER + 24;
 
@@ -1833,88 +1839,92 @@ impl BcoBootloaderProtocol {
         0x6f, // 'o'
     ];
 
-    pub fn read_info(
+    fn deserialize(&mut self, raw: &[u8]) -> Result<(), Error> {
+        if &raw[..8] != &Self::INFO_MAGIC_BYTES {
+            let msg = format!("Unexpected magic bytes: {:?}", &raw[..8]);
+            Err(Error::new(FileError::Nxio, &msg))?;
+        }
+
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&raw[8..12]);
+        self.protocol_version = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&raw[12..16]);
+        self.bootloader_version = u32::from_le_bytes(quadlet);
+
+        let mut octlet = [0; 8];
+        octlet.copy_from_slice(&raw[16..24]);
+        self.guid = u64::from_le_bytes(octlet);
+
+        quadlet.copy_from_slice(&raw[24..28]);
+        self.hardware_model_id = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&raw[28..32]);
+        self.hardware_revision = u32::from_le_bytes(quadlet);
+
+        self.software.timestamp = parse_tstamp(&raw[32..48])?;
+
+        quadlet.copy_from_slice(&raw[48..52]);
+        self.software.id = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&raw[52..56]);
+        self.software.version = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&raw[56..60]);
+        self.image_base_address = u32::from_le_bytes(quadlet) as usize;
+
+        quadlet.copy_from_slice(&raw[60..64]);
+        self.image_maximum_size = u32::from_le_bytes(quadlet) as usize;
+
+        self.bootloader_timestamp = parse_tstamp(&raw[64..80])?;
+
+        if raw.len() >= Self::SIZE_WITH_DEBUGGER && &raw[80..96] != &[0; 16] {
+            let mut debugger = BcoImageInformation::default();
+
+            debugger.timestamp = parse_tstamp(&raw[80..96])?;
+
+            quadlet.copy_from_slice(&raw[96..100]);
+            debugger.id = u32::from_le_bytes(quadlet);
+
+            quadlet.copy_from_slice(&raw[100..104]);
+            debugger.version = u32::from_le_bytes(quadlet);
+
+            self.debugger = Some(debugger);
+        }
+
+        Ok(())
+    }
+}
+
+/// The operation of bootloader in BridgeCo ASICs.
+pub trait BcoBootloaderOperation {
+    fn read_info(
         req: &FwReq,
         node: &FwNode,
         info: &mut BcoBootloaderInformation,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut size = Self::SIZE_WITH_DEBUGGER;
-
-        let mut buf = vec![0; size];
+        let mut raw = vec![0; BcoBootloaderInformation::SIZE_WITH_DEBUGGER];
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
             DM_BCO_BOOTLOADER_INFO_OFFSET,
-            size,
-            &mut buf[..size],
+            raw.len(),
+            &mut raw,
             timeout_ms,
         )
         .or_else(|_| {
-            size = Self::SIZE_WITHOUT_DEBUGGER;
+            raw = vec![0; BcoBootloaderInformation::SIZE_WITHOUT_DEBUGGER];
             req.transaction_sync(
                 node,
                 FwTcode::ReadBlockRequest,
                 DM_BCO_BOOTLOADER_INFO_OFFSET,
-                size,
-                &mut buf[..size],
+                raw.len(),
+                &mut raw,
                 timeout_ms,
             )
-        })?;
-
-        if &buf[..8] != &Self::INFO_MAGIC_BYTES {
-            let msg = format!("Unexpected magic bytes: {:?}", &buf[..8]);
-            Err(Error::new(FileError::Nxio, &msg))?;
-        }
-
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&buf[8..12]);
-        info.protocol_version = u32::from_le_bytes(quadlet);
-
-        quadlet.copy_from_slice(&buf[12..16]);
-        info.bootloader_version = u32::from_le_bytes(quadlet);
-
-        let mut octlet = [0; 8];
-        octlet.copy_from_slice(&buf[16..24]);
-        info.guid = u64::from_le_bytes(octlet);
-
-        quadlet.copy_from_slice(&buf[24..28]);
-        info.hardware_model_id = u32::from_le_bytes(quadlet);
-
-        quadlet.copy_from_slice(&buf[28..32]);
-        info.hardware_revision = u32::from_le_bytes(quadlet);
-
-        info.software.timestamp = parse_tstamp(&buf[32..48])?;
-
-        quadlet.copy_from_slice(&buf[48..52]);
-        info.software.id = u32::from_le_bytes(quadlet);
-
-        quadlet.copy_from_slice(&buf[52..56]);
-        info.software.version = u32::from_le_bytes(quadlet);
-
-        quadlet.copy_from_slice(&buf[56..60]);
-        info.image_base_address = u32::from_le_bytes(quadlet) as usize;
-
-        quadlet.copy_from_slice(&buf[60..64]);
-        info.image_maximum_size = u32::from_le_bytes(quadlet) as usize;
-
-        info.bootloader_timestamp = parse_tstamp(&buf[64..80])?;
-
-        if size == Self::SIZE_WITH_DEBUGGER && &buf[80..96] != &[0; 16] {
-            let mut debugger = BcoImageInformation::default();
-
-            debugger.timestamp = parse_tstamp(&buf[80..96])?;
-
-            quadlet.copy_from_slice(&buf[96..100]);
-            debugger.id = u32::from_le_bytes(quadlet);
-
-            quadlet.copy_from_slice(&buf[100..104]);
-            debugger.version = u32::from_le_bytes(quadlet);
-
-            info.debugger = Some(debugger);
-        }
-
-        Ok(())
+        })
+        .and_then(|_| info.deserialize(&raw))
     }
 }
 

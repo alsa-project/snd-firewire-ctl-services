@@ -11,6 +11,10 @@ use {
 
 const TIMEOUT_MS: u32 = 20;
 
+struct Protocol;
+
+impl BcoBootloaderOperation for Protocol {}
+
 fn main() {
     let code = std::env::args().nth(1)
         .ok_or("At least one argument is required for path to special file of FireWire character device".to_string())
@@ -51,7 +55,7 @@ fn main() {
 
             let req = FwReq::new();
             let mut info = BcoBootloaderInformation::default();
-            let result = BcoBootloaderProtocol::read_info(&req, &node, &mut info, TIMEOUT_MS)
+            let result = Protocol::read_info(&req, &node, &mut info, TIMEOUT_MS)
                 .map(|_| print_info(&info))
                 .map_err(|err| err.to_string());
 
