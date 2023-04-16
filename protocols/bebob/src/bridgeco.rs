@@ -1049,12 +1049,17 @@ impl AvcStatus for ExtendedPlugInfo {
 //
 
 /// Entry for information about plugs in subunit.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtendedSubunitInfoEntry {
+    /// The type of function block.
     pub func_blk_type: u8,
+    /// The numeric identifier of function block.
     pub func_blk_id: u8,
+    /// The purpose of function block.
     pub func_blk_purpose: u8,
+    /// The number of input plugs.
     pub input_plugs: u8,
+    /// The number of output plugs.
     pub output_plugs: u8,
 }
 
@@ -1100,16 +1105,20 @@ impl Default for ExtendedSubunitInfoEntry {
 }
 
 /// AV/C command for extended subunit information.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedSubunitInfo {
+    /// The numeric identifier of page.
     pub page: u8,
+    /// The type of function block.
     pub func_blk_type: u8,
+    /// The entries for subunit information.
     pub entries: Vec<ExtendedSubunitInfoEntry>,
 }
 
 impl ExtendedSubunitInfo {
     const LENGTH: usize = 27;
 
+    /// Instantiate structure with the numeric identifier of page and the type of function block.
     pub fn new(page: u8, func_blk_type: u8) -> Self {
         Self {
             page,
