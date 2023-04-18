@@ -16,7 +16,7 @@ members = [
 #    "protocols/ta1394/audio",
 #    "protocols/ta1394/stream-format",
 #    "protocols/ta1394/ccm",
-    "protocols/digi00x",
+#    "protocols/digi00x",
     "protocols/tascam",
 #    "protocols/fireworks",
     "protocols/motu",
@@ -37,7 +37,7 @@ hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 #ta1394-avc-stream-format = { path = "protocols/ta1394/stream-format" }
 #ta1394-avc-ccm = { path = "protocols/ta1394/ccm" }
 #firewire-bebob-protocols = { path = "protocols/bebob" }
-firewire-digi00x-protocols = { path = "protocols/digi00x" }
+#firewire-digi00x-protocols = { path = "protocols/digi00x" }
 #firewire-dice-protocols = { path = "protocols/dice" }
 #firewire-fireworks-protocols = { path = "protocols/fireworks" }
 firewire-fireface-protocols = { path = "protocols/fireface" }
