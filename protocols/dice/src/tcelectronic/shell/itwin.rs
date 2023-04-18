@@ -441,6 +441,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinReverbState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
 }
 
+impl AsRef<ReverbState> for ItwinReverbState {
+    fn as_ref(&self) -> &ReverbState {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbState> for ItwinReverbState {
+    fn as_mut(&mut self) -> &mut ReverbState {
+        &mut self.0
+    }
+}
+
 /// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);

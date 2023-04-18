@@ -1418,6 +1418,18 @@ impl TcKonnektNotifiedSegmentOperation<StudioReverbState> for Studiok48Protocol 
     const NOTIFY_FLAG: u32 = STUDIO_REVERB_NOTIFY_CHANGE;
 }
 
+impl AsRef<ReverbState> for StudioReverbState {
+    fn as_ref(&self) -> &ReverbState {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbState> for StudioReverbState {
+    fn as_mut(&mut self) -> &mut ReverbState {
+        &mut self.0
+    }
+}
+
 /// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
