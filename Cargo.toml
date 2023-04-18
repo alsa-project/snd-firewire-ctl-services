@@ -18,7 +18,7 @@ members = [
 #    "protocols/ta1394/ccm",
     "protocols/digi00x",
     "protocols/tascam",
-    "protocols/fireworks",
+#    "protocols/fireworks",
     "protocols/motu",
     "protocols/oxfw",
 #    "protocols/bebob",
@@ -39,7 +39,7 @@ hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 #firewire-bebob-protocols = { path = "protocols/bebob" }
 firewire-digi00x-protocols = { path = "protocols/digi00x" }
 firewire-dice-protocols = { path = "protocols/dice" }
-firewire-fireworks-protocols = { path = "protocols/fireworks" }
+#firewire-fireworks-protocols = { path = "protocols/fireworks" }
 firewire-fireface-protocols = { path = "protocols/fireface" }
 firewire-motu-protocols = { path = "protocols/motu" }
 firewire-oxfw-protocols = { path = "protocols/oxfw" }
