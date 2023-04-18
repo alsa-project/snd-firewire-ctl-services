@@ -22,7 +22,7 @@ Add the following line to your Cargo.toml file:
 
 ```toml
 [dependencies]
-ta1394-avc-audio = "0.1"
+ta1394-avc-audio = "0.2"
 ```
 
 The crate consists of two parts; some AV/C commands and FDF format of A/M packet.
