@@ -1677,3 +1677,15 @@ impl TcKonnektSegmentSerdes<StudioChStripMeters> for Studiok48Protocol {
         deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }
+
+impl AsRef<[ChStripMeter]> for StudioChStripMeters {
+    fn as_ref(&self) -> &[ChStripMeter] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripMeter]> for StudioChStripMeters {
+    fn as_mut(&mut self) -> &mut [ChStripMeter] {
+        &mut self.0
+    }
+}

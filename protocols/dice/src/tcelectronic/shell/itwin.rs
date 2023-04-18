@@ -631,3 +631,15 @@ impl TcKonnektSegmentSerdes<ItwinChStripMeters> for ItwinProtocol {
         deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }
+
+impl AsRef<[ChStripMeter]> for ItwinChStripMeters {
+    fn as_ref(&self) -> &[ChStripMeter] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripMeter]> for ItwinChStripMeters {
+    fn as_mut(&mut self) -> &mut [ChStripMeter] {
+        &mut self.0
+    }
+}
