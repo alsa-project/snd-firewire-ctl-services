@@ -254,6 +254,18 @@ impl AsMut<ShellKnob0Target> for KliveKnob {
     }
 }
 
+impl AsRef<ShellKnob1Target> for KliveKnob {
+    fn as_ref(&self) -> &ShellKnob1Target {
+        &self.knob1_target
+    }
+}
+
+impl AsMut<ShellKnob1Target> for KliveKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob1Target {
+        &mut self.knob1_target
+    }
+}
+
 impl AsRef<TcKonnektLoadedProgram> for KliveKnob {
     fn as_ref(&self) -> &TcKonnektLoadedProgram {
         &self.prog

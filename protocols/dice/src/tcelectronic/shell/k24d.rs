@@ -202,6 +202,18 @@ impl AsMut<ShellKnob0Target> for K24dKnob {
     }
 }
 
+impl AsRef<ShellKnob1Target> for K24dKnob {
+    fn as_ref(&self) -> &ShellKnob1Target {
+        &self.knob1_target
+    }
+}
+
+impl AsMut<ShellKnob1Target> for K24dKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob1Target {
+        &mut self.knob1_target
+    }
+}
+
 impl AsRef<TcKonnektLoadedProgram> for K24dKnob {
     fn as_ref(&self) -> &TcKonnektLoadedProgram {
         &self.prog
