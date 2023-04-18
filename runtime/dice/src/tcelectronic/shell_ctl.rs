@@ -879,7 +879,9 @@ where
     }
 }
 
-fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSourcePair) -> &'static str {
+const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
+
+fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSourcePair) -> &str {
     match src {
         ShellMixerStreamSourcePair::Stream0_1 => "Stream-1/2",
         ShellMixerStreamSourcePair::Stream2_3 => "Stream-3/4",
@@ -891,88 +893,88 @@ fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSourcePair) -> &'static st
     }
 }
 
-const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
-
-pub trait ShellMixerStreamSrcCtlOperation<S, T>
+pub fn load_mixer_stream_src<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S>
-        + TcKonnektMutableSegmentOperation<S>
-        + ShellMixerStreamSourcePairSpecification,
+    T: ShellMixerStreamSourcePairSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerStreamSourcePair> + AsMut<ShellMixerStreamSourcePair>,
 {
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+    let labels: Vec<&str> = T::MIXER_STREAM_SOURCE_PAIRS
+        .iter()
+        .map(|s| mixer_stream_src_pair_to_str(s))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_NAME, 0);
+    card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+}
 
-    fn mixer_stream_src(params: &S) -> &ShellMixerStreamSourcePair;
-    fn mixer_stream_src_mut(params: &mut S) -> &mut ShellMixerStreamSourcePair;
-
-    fn load_mixer_stream_src(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::MIXER_STREAM_SOURCE_PAIRS
-            .iter()
-            .map(|s| mixer_stream_src_pair_to_str(s))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
-    }
-
-    fn read_mixer_stream_src(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_STREAM_SRC_NAME => {
-                let params = &self.segment().data;
-                let pair = Self::mixer_stream_src(&params);
-                let pos = T::MIXER_STREAM_SOURCE_PAIRS
-                    .iter()
-                    .position(|p| pair.eq(p))
-                    .ok_or_else(|| {
-                        let msg =
-                            format!("Unexpected value for mixer stream source pair: {:?}", pair);
-                        Error::new(FileError::Io, &msg)
-                    })?;
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_mixer_stream_src<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &mut ElemValue,
+) -> Result<bool, Error>
+where
+    T: ShellMixerStreamSourcePairSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerStreamSourcePair> + AsMut<ShellMixerStreamSourcePair>,
+{
+    match elem_id.name().as_str() {
+        MIXER_STREAM_SRC_NAME => {
+            let params = segment.data.as_ref();
+            let pos = T::MIXER_STREAM_SOURCE_PAIRS
+                .iter()
+                .position(|p| params.eq(p))
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Unexpected value for mixer stream source pair: {:?}",
+                        params
+                    );
+                    Error::new(FileError::Io, &msg)
+                })?;
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        _ => Ok(false),
     }
+}
 
-    fn write_mixer_stream_src(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_STREAM_SRC_NAME => {
-                let mut params = self.segment().data.clone();
-                let pair = Self::mixer_stream_src_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                T::MIXER_STREAM_SOURCE_PAIRS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!(
-                            "Invalid index {} of knob0, should be less than {}",
-                            pos,
-                            T::MIXER_STREAM_SOURCE_PAIRS.len()
-                        );
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&p| *pair = p)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+pub fn write_mixer_stream_src<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: ShellMixerStreamSourcePairSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerStreamSourcePair> + AsMut<ShellMixerStreamSourcePair>,
+{
+    match elem_id.name().as_str() {
+        MIXER_STREAM_SRC_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            T::MIXER_STREAM_SOURCE_PAIRS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Invalid index {} of knob0, should be less than {}",
+                        pos,
+                        T::MIXER_STREAM_SOURCE_PAIRS.len()
+                    );
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&pair| *params = pair)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
         }
+        _ => Ok(false),
     }
 }
 

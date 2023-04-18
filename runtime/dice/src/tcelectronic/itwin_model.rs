@@ -314,24 +314,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(ItwinConfigSegment, Vec<ElemId>);
 
-impl ShellMixerStreamSrcCtlOperation<ItwinConfig, ItwinProtocol> for ConfigCtl {
-    fn segment(&self) -> &ItwinConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut ItwinConfigSegment {
-        &mut self.0
-    }
-
-    fn mixer_stream_src(params: &ItwinConfig) -> &ShellMixerStreamSourcePair {
-        &params.mixer_stream_src_pair
-    }
-
-    fn mixer_stream_src_mut(params: &mut ItwinConfig) -> &mut ShellMixerStreamSourcePair {
-        &mut params.mixer_stream_src_pair
-    }
-}
-
 const OUT_SRC_NAME: &str = "output-source";
 
 fn itwin_phys_out_src_to_string(src: &ItwinOutputPairSrc) -> &'static str {
@@ -382,7 +364,7 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_mixer_stream_src(card_cntr)?;
+        load_mixer_stream_src::<ItwinProtocol, ItwinConfig>(card_cntr)?;
         load_standalone::<ItwinProtocol, ItwinConfig>(card_cntr)?;
 
         let labels: Vec<&str> = Self::OUT_SRCS
@@ -403,7 +385,7 @@ impl ConfigCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_mixer_stream_src(elem_id, elem_value)? {
+        if read_mixer_stream_src::<ItwinProtocol, ItwinConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if read_standalone::<ItwinProtocol, ItwinConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -435,7 +417,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_mixer_stream_src::<ItwinProtocol, ItwinConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_standalone::<ItwinProtocol, ItwinConfig>(
             &mut self.0,
