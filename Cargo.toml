@@ -17,7 +17,7 @@ members = [
 #    "protocols/ta1394/stream-format",
 #    "protocols/ta1394/ccm",
 #    "protocols/digi00x",
-    "protocols/tascam",
+#    "protocols/tascam",
 #    "protocols/fireworks",
     "protocols/motu",
 #    "protocols/oxfw",
@@ -43,4 +43,4 @@ hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 firewire-fireface-protocols = { path = "protocols/fireface" }
 firewire-motu-protocols = { path = "protocols/motu" }
 #firewire-oxfw-protocols = { path = "protocols/oxfw" }
-firewire-tascam-protocols = { path = "protocols/tascam" }
+#firewire-tascam-protocols = { path = "protocols/tascam" }
