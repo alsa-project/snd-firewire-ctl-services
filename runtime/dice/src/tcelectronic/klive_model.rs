@@ -391,24 +391,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(KliveConfigSegment, Vec<ElemId>);
 
-impl ShellCoaxIfaceCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn segment(&self) -> &KliveConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveConfigSegment {
-        &mut self.0
-    }
-
-    fn coax_out_src(params: &KliveConfig) -> &ShellCoaxOutPairSrc {
-        &params.coax_out_src
-    }
-
-    fn coax_out_src_mut(params: &mut KliveConfig) -> &mut ShellCoaxOutPairSrc {
-        &mut params.coax_out_src
-    }
-}
-
 impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
     fn segment(&self) -> &KliveConfigSegment {
         &self.0
@@ -439,7 +421,7 @@ impl ConfigCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_mixer_stream_src::<KliveProtocol, KliveConfig>(card_cntr)?;
-        self.load_coax_out_src(card_cntr)?;
+        load_coax_out_src::<KliveProtocol, KliveConfig>(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
         load_standalone::<KliveProtocol, KliveConfig>(card_cntr)?;
         load_midi_sender::<KliveProtocol, KliveConfig>(card_cntr)?;
@@ -460,7 +442,7 @@ impl ConfigCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_mixer_stream_src::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_coax_out_src(elem_id, elem_value)? {
+        } else if read_coax_out_src::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_opt_iface_config(elem_id, elem_value)? {
             Ok(true)
@@ -510,7 +492,14 @@ impl ConfigCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_coax_out_src::<KliveProtocol, KliveConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)

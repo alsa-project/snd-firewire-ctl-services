@@ -257,24 +257,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(K8ConfigSegment, Vec<ElemId>);
 
-impl ShellCoaxIfaceCtlOperation<K8Config, K8Protocol> for ConfigCtl {
-    fn segment(&self) -> &K8ConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8ConfigSegment {
-        &mut self.0
-    }
-
-    fn coax_out_src(params: &K8Config) -> &ShellCoaxOutPairSrc {
-        &params.coax_out_src
-    }
-
-    fn coax_out_src_mut(params: &mut K8Config) -> &mut ShellCoaxOutPairSrc {
-        &mut params.coax_out_src
-    }
-}
-
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -283,14 +265,14 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_coax_out_src(card_cntr)?;
+        load_coax_out_src::<K8Protocol, K8Config>(card_cntr)?;
         load_standalone::<K8Protocol, K8Config>(card_cntr)?;
 
         Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_coax_out_src(elem_id, elem_value)? {
+        if read_coax_out_src::<K8Protocol, K8Config>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if read_standalone::<K8Protocol, K8Config>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -307,7 +289,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_coax_out_src::<K8Protocol, K8Config>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_standalone::<K8Protocol, K8Config>(
             &mut self.0,

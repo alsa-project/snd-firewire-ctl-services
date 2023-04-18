@@ -996,72 +996,69 @@ pub const PHYS_OUT_SRCS: [ShellPhysOutSrc; 4] = [
 
 const COAX_OUT_SRC_NAME: &str = "coaxial-output-source";
 
-pub trait ShellCoaxIfaceCtlOperation<S, T>
+pub fn load_coax_out_src<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellCoaxOutPairSrc> + AsMut<ShellCoaxOutPairSrc>,
 {
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-    fn coax_out_src(params: &S) -> &ShellCoaxOutPairSrc;
-    fn coax_out_src_mut(params: &mut S) -> &mut ShellCoaxOutPairSrc;
+    let labels: Vec<&str> = PHYS_OUT_SRCS
+        .iter()
+        .map(|s| phys_out_src_to_str(s))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, COAX_OUT_SRC_NAME, 0);
+    card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+}
 
-    fn load_coax_out_src(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = PHYS_OUT_SRCS
-            .iter()
-            .map(|s| phys_out_src_to_str(s))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, COAX_OUT_SRC_NAME, 0);
-        card_cntr
-            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|_| ())
-    }
-
-    fn read_coax_out_src(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            COAX_OUT_SRC_NAME => {
-                let params = &self.segment().data;
-                let src = Self::coax_out_src(params);
-                let pos = PHYS_OUT_SRCS.iter().position(|s| src.0.eq(s)).unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_coax_out_src<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellCoaxOutPairSrc> + AsMut<ShellCoaxOutPairSrc>,
+{
+    match elem_id.name().as_str() {
+        COAX_OUT_SRC_NAME => {
+            let params = segment.data.as_ref();
+            let pos = PHYS_OUT_SRCS.iter().position(|s| params.0.eq(s)).unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        _ => Ok(false),
     }
+}
 
-    fn write_coax_out_src(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            COAX_OUT_SRC_NAME => {
-                let mut params = self.segment().data.clone();
-                let src = Self::coax_out_src_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                PHYS_OUT_SRCS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock rate: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&s| src.0 = s)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+pub fn write_coax_out_src<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellCoaxOutPairSrc> + AsMut<ShellCoaxOutPairSrc>,
+{
+    match elem_id.name().as_str() {
+        COAX_OUT_SRC_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            PHYS_OUT_SRCS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid value for index of clock rate: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&s| params.0 = s)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data);
+            res.map(|_| true)
         }
+        _ => Ok(false),
     }
 }
 
