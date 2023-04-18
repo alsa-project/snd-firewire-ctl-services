@@ -15,7 +15,7 @@ pub struct Studiok48Model {
     mixer_meter_ctl: MixerMeterCtl,
     phys_out_ctl: PhysOutCtl,
     ch_strip_state_ctl: ChStripStateCtl<Studiok48Protocol, StudioChStripStates>,
-    ch_strip_meter_ctl: ChStripMeterCtl,
+    ch_strip_meter_ctl: ChStripMeterCtl<Studiok48Protocol, StudioChStripMeters>,
     reverb_state_ctl: ReverbStateCtl<Studiok48Protocol, StudioReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<Studiok48Protocol, StudioReverbMeter>,
     hw_state_ctl: HwStateCtl,
@@ -69,11 +69,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
         self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl.load(card_cntr)?;
         self.ch_strip_state_ctl.load(card_cntr)?;
-        self.ch_strip_meter_ctl
-            .load(card_cntr)
-            .map(|measured_elem_id_list| {
-                self.ch_strip_meter_ctl.1 = measured_elem_id_list;
-            })?;
+        self.ch_strip_meter_ctl.load(card_cntr)?;
 
         self.hw_state_ctl.load(card_cntr)?;
 
@@ -227,7 +223,7 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.elem_id_list);
     }
 
     fn measure_states(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -2695,23 +2691,6 @@ impl PhysOutCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct ChStripMeterCtl(Studiok48ChStripMetersSegment, Vec<ElemId>);
-
-impl ChStripMeterCtlOperation<StudioChStripMeters, Studiok48Protocol> for ChStripMeterCtl {
-    fn meters(&self) -> &[ChStripMeter] {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<StudioChStripMeters> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<StudioChStripMeters> {
-        &mut self.0
     }
 }
 

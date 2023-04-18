@@ -720,6 +720,18 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub struct ChStripMeterCtl<T, U>
+where
+    T: TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<[ChStripMeter]> + AsMut<[ChStripMeter]>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    segment: TcKonnektSegment<U>,
+    _phantom: PhantomData<T>,
+}
+
 const LIMIT_METER_MIN: i32 = -12;
 const LIMIT_METER_MAX: i32 = 0;
 const LIMIT_METER_STEP: i32 = 1;
@@ -750,26 +762,20 @@ const GAIN_METER_TLV: DbInterval = DbInterval {
     mute_avail: false,
 };
 
-pub trait ChStripMeterCtlOperation<S, T>
+impl<T, U> ChStripMeterCtl<T, U>
 where
-    S: Debug,
-    T: TcKonnektSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<[ChStripMeter]> + AsMut<[ChStripMeter]>,
 {
-    fn meters(&self) -> &[ChStripMeter];
-
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
-        debug!(params = ?self.segment().data, ?res);
+    pub fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::cache_whole_segment(req, node, &mut self.segment, timeout_ms);
+        debug!(params = ?self.segment.data, ?res);
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut measured_elem_id_list = Vec::new();
-
-        let count = self.meters().len();
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let count = self.segment.data.as_ref().len();
 
         [
             (
@@ -815,35 +821,34 @@ where
                     Some(&Into::<Vec<u32>>::into(tlv)),
                     false,
                 )
-                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })
-        .map(|_| measured_elem_id_list)
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             INPUT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.input).collect();
+                let params = self.segment.data.as_ref();
+                let vals: Vec<i32> = params.iter().map(|param| param.input).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             LIMIT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.limit).collect();
+                let params = self.segment.data.as_ref();
+                let vals: Vec<i32> = params.iter().map(|param| param.limit).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUTPUT_METER_NAME => {
-                let meters = self.meters();
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.output).collect();
+                let params = self.segment.data.as_ref();
+                let vals: Vec<i32> = params.iter().map(|param| param.output).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             GAIN_METER_NAME => {
-                let meters = self.meters();
                 let idx = elem_id.index() as usize;
-                let vals: Vec<i32> = meters.iter().map(|meter| meter.gains[idx]).collect();
+                let params = self.segment.data.as_ref();
+                let vals: Vec<i32> = params.iter().map(|param| param.gains[idx]).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
