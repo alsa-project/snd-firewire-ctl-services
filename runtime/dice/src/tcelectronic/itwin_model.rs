@@ -3,7 +3,7 @@
 
 use {
     super::{shell_ctl::*, *},
-    protocols::tcelectronic::shell::{itwin::*, *},
+    protocols::tcelectronic::shell::itwin::*,
 };
 
 #[derive(Default, Debug)]
@@ -212,24 +212,6 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
 #[derive(Default, Debug)]
 struct KnobCtl(ItwinKnobSegment, Vec<ElemId>);
 
-impl ShellKnob0CtlOperation<ItwinKnob, ItwinProtocol> for KnobCtl {
-    fn segment(&self) -> &ItwinKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut ItwinKnobSegment {
-        &mut self.0
-    }
-
-    fn knob0_target(params: &ItwinKnob) -> &ShellKnob0Target {
-        &params.target
-    }
-
-    fn knob0_target_mut(params: &mut ItwinKnob) -> &mut ShellKnob0Target {
-        &mut params.target
-    }
-}
-
 const CLK_RECOVERY_NAME: &str = "clock-recovery";
 
 impl KnobCtl {
@@ -240,7 +222,7 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob0_target(card_cntr)
+        load_knob0_target::<ItwinProtocol, ItwinKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RECOVERY_NAME, 0);
@@ -250,17 +232,13 @@ impl KnobCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                CLK_RECOVERY_NAME => {
-                    let params = &self.0.data;
-                    elem_value.set_bool(&[params.clock_recovery]);
-                    Ok(true)
-                }
-                _ => Ok(false),
+        match elem_id.name().as_str() {
+            CLK_RECOVERY_NAME => {
+                let params = &self.0.data;
+                elem_value.set_bool(&[params.clock_recovery]);
+                Ok(true)
             }
+            _ => read_knob0_target::<ItwinProtocol, ItwinKnob>(&self.0, elem_id, elem_value),
         }
     }
 
@@ -272,25 +250,28 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                CLK_RECOVERY_NAME => {
-                    let mut params = self.0.data.clone();
-                    params.clock_recovery = elem_value.boolean()[0];
-                    let res = ItwinProtocol::update_partial_segment(
-                        req,
-                        node,
-                        &params,
-                        &mut self.0,
-                        timeout_ms,
-                    );
-                    debug!(params = ?self.0.data, ?res);
-                    res.map(|_| true)
-                }
-                _ => Ok(false),
+        match elem_id.name().as_str() {
+            CLK_RECOVERY_NAME => {
+                let mut params = self.0.data.clone();
+                params.clock_recovery = elem_value.boolean()[0];
+                let res = ItwinProtocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
+            _ => write_knob0_target::<ItwinProtocol, ItwinKnob>(
+                &mut self.0,
+                req,
+                node,
+                elem_id,
+                elem_value,
+                timeout_ms,
+            ),
         }
     }
 

@@ -158,24 +158,6 @@ impl MeasureModel<(SndDice, FwNode)> for K8Model {
 #[derive(Default, Debug)]
 struct KnobCtl(K8KnobSegment, Vec<ElemId>);
 
-impl ShellKnob0CtlOperation<K8Knob, K8Protocol> for KnobCtl {
-    fn segment(&self) -> &K8KnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8KnobSegment {
-        &mut self.0
-    }
-
-    fn knob0_target(params: &K8Knob) -> &ShellKnob0Target {
-        &params.knob0_target
-    }
-
-    fn knob0_target_mut(params: &mut K8Knob) -> &mut ShellKnob0Target {
-        &mut params.knob0_target
-    }
-}
-
 impl ShellKnob1CtlOperation<K8Knob, K8Protocol> for KnobCtl {
     fn segment(&self) -> &K8KnobSegment {
         &self.0
@@ -202,7 +184,7 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob0_target(card_cntr)
+        load_knob0_target::<K8Protocol, K8Knob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         self.load_knob1_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -211,7 +193,7 @@ impl KnobCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
+        if read_knob0_target::<K8Protocol, K8Knob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
@@ -228,7 +210,14 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_knob0_target::<K8Protocol, K8Knob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)

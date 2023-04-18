@@ -212,24 +212,6 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
 #[derive(Default, Debug)]
 struct KnobCtl(KliveKnobSegment, Vec<ElemId>);
 
-impl ShellKnob0CtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
-    fn segment(&self) -> &KliveKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveKnobSegment {
-        &mut self.0
-    }
-
-    fn knob0_target(params: &KliveKnob) -> &ShellKnob0Target {
-        &params.knob0_target
-    }
-
-    fn knob0_target_mut(params: &mut KliveKnob) -> &mut ShellKnob0Target {
-        &mut params.knob0_target
-    }
-}
-
 impl ShellKnob1CtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
     fn segment(&self) -> &KliveKnobSegment {
         &self.0
@@ -268,7 +250,7 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob0_target(card_cntr)
+        load_knob0_target::<KliveProtocol, KliveKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         self.load_knob1_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -286,7 +268,7 @@ impl KnobCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
+        if read_knob0_target::<KliveProtocol, KliveKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
@@ -324,7 +306,14 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_knob0_target::<KliveProtocol, KliveKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
