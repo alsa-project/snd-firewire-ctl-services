@@ -378,6 +378,18 @@ impl AsMut<TcKonnektMidiSender> for KliveConfig {
     }
 }
 
+impl AsRef<ShellMixerStreamSourcePair> for KliveConfig {
+    fn as_ref(&self) -> &ShellMixerStreamSourcePair {
+        &self.mixer_stream_src_pair
+    }
+}
+
+impl AsMut<ShellMixerStreamSourcePair> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellMixerStreamSourcePair {
+        &mut self.mixer_stream_src_pair
+    }
+}
+
 /// The source of channel strip effect.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChStripSrc {
