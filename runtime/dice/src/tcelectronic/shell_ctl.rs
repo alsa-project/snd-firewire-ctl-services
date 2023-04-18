@@ -1343,83 +1343,87 @@ fn knob1_target_to_str(target: &ShellKnob1Target) -> &'static str {
     }
 }
 
-pub trait ShellKnob1CtlOperation<S, T>
+pub fn load_knob1_target<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S>
-        + TcKonnektMutableSegmentOperation<S>
-        + TcKonnektNotifiedSegmentOperation<S>
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
+        + TcKonnektNotifiedSegmentOperation<U>
         + ShellKnob1TargetSpecification,
+    U: Debug + Clone + AsRef<ShellKnob1Target> + AsMut<ShellKnob1Target>,
 {
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+    let labels: Vec<&str> = T::KNOB1_TARGETS
+        .iter()
+        .map(|target| knob1_target_to_str(target))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB1_NAME, 0);
+    card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+}
 
-    fn knob1_target(params: &S) -> &ShellKnob1Target;
-    fn knob1_target_mut(params: &mut S) -> &mut ShellKnob1Target;
-
-    fn load_knob1_target(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let labels: Vec<&str> = T::KNOB1_TARGETS
-            .iter()
-            .map(|target| knob1_target_to_str(target))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB1_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-    }
-
-    fn read_knob1_target(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            KNOB1_NAME => {
-                let params = &self.segment().data;
-                let target = Self::knob1_target(&params);
-                let pos = T::KNOB1_TARGETS
-                    .iter()
-                    .position(|t| target.eq(t))
-                    .ok_or_else(|| {
-                        let msg = format!("Unexpected value for knob1: {:?}", target);
-                        Error::new(FileError::Io, &msg)
-                    })?;
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_knob1_target<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
+        + TcKonnektNotifiedSegmentOperation<U>
+        + ShellKnob1TargetSpecification,
+    U: Debug + Clone + AsRef<ShellKnob1Target> + AsMut<ShellKnob1Target>,
+{
+    match elem_id.name().as_str() {
+        KNOB1_NAME => {
+            let params = segment.data.as_ref();
+            let pos = T::KNOB1_TARGETS
+                .iter()
+                .position(|t| params.eq(t))
+                .ok_or_else(|| {
+                    let msg = format!("Unexpected value for knob1: {:?}", params);
+                    Error::new(FileError::Io, &msg)
+                })?;
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        _ => Ok(false),
     }
+}
 
-    fn write_knob1_target(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            KNOB1_NAME => {
-                let mut params = self.segment().data.clone();
-                let target = Self::knob1_target_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                T::KNOB1_TARGETS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!(
-                            "Invalid index {} of knob1, should be less than {}",
-                            pos,
-                            T::KNOB1_TARGETS.len()
-                        );
-                        Error::new(FileError::Io, &msg)
-                    })
-                    .map(|&t| *target = t)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+pub fn write_knob1_target<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
+        + TcKonnektNotifiedSegmentOperation<U>
+        + ShellKnob1TargetSpecification,
+    U: Debug + Clone + AsRef<ShellKnob1Target> + AsMut<ShellKnob1Target>,
+{
+    match elem_id.name().as_str() {
+        KNOB1_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            T::KNOB1_TARGETS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Invalid index {} of knob1, should be less than {}",
+                        pos,
+                        T::KNOB1_TARGETS.len()
+                    );
+                    Error::new(FileError::Io, &msg)
+                })
+                .map(|&t| *params = t)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data);
+            res.map(|_| true)
         }
+        _ => Ok(false),
     }
 }
