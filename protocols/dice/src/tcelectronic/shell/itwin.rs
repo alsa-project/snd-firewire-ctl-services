@@ -377,6 +377,18 @@ impl AsMut<TcKonnektStandaloneClockRate> for ItwinConfig {
     }
 }
 
+impl AsRef<ShellMixerStreamSourcePair> for ItwinConfig {
+    fn as_ref(&self) -> &ShellMixerStreamSourcePair {
+        &self.mixer_stream_src_pair
+    }
+}
+
+impl AsMut<ShellMixerStreamSourcePair> for ItwinConfig {
+    fn as_mut(&mut self) -> &mut ShellMixerStreamSourcePair {
+        &mut self.mixer_stream_src_pair
+    }
+}
+
 /// State of mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerState {
