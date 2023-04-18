@@ -346,6 +346,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dReverbState> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_REVERB_NOTIFY_FLAG;
 }
 
+impl AsRef<ReverbState> for K24dReverbState {
+    fn as_ref(&self) -> &ReverbState {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbState> for K24dReverbState {
+    fn as_mut(&mut self) -> &mut ReverbState {
+        &mut self.0
+    }
+}
+
 /// Configuration for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
