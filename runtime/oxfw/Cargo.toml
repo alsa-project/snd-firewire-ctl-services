@@ -20,7 +20,7 @@ alsactl = "0.4"
 ieee1212-config-rom = "0.1"
 ta1394-avc-general = "0.2"
 ta1394-avc-stream-format = "0.2"
-firewire-oxfw-protocols = "0.1"
+firewire-oxfw-protocols = "0.2"
 clap = { version = "3.2", features = ["derive"] }
 core = { path = "../core" }
 tracing = "0.1"
