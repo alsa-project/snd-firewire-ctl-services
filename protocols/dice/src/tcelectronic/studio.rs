@@ -637,6 +637,18 @@ impl TcKonnektNotifiedSegmentOperation<StudioConfig> for Studiok48Protocol {
     const NOTIFY_FLAG: u32 = STUDIO_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektStandaloneClockRate> for StudioConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClockRate> for StudioConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClockRate {
+        &mut self.standalone_rate
+    }
+}
+
 /// Entry of signal source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SrcEntry {
