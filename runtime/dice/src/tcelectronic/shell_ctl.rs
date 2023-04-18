@@ -1062,6 +1062,21 @@ where
     }
 }
 
+const OPT_IN_FMT_NAME: &str = "optical-input-format";
+const OPT_OUT_FMT_NAME: &str = "optical-output-format";
+const OPT_OUT_SRC_NAME: &str = "optical-output-source";
+
+const OPT_IN_FMTS: &[ShellOptInputIfaceFormat] = &[
+    ShellOptInputIfaceFormat::Adat0to7,
+    ShellOptInputIfaceFormat::Adat0to5Spdif01,
+    ShellOptInputIfaceFormat::Toslink01Spdif01,
+];
+
+const OPT_OUT_FMTS: &[ShellOptOutputIfaceFormat] = &[
+    ShellOptOutputIfaceFormat::Adat,
+    ShellOptOutputIfaceFormat::Spdif,
+];
+
 fn opt_in_fmt_to_str(fmt: &ShellOptInputIfaceFormat) -> &'static str {
     match fmt {
         ShellOptInputIfaceFormat::Adat0to7 => "ADAT-1:8",
@@ -1077,156 +1092,140 @@ fn opt_out_fmt_to_str(fmt: &ShellOptOutputIfaceFormat) -> &'static str {
     }
 }
 
-const OPT_IN_FMT_NAME: &str = "optical-input-format";
-const OPT_OUT_FMT_NAME: &str = "optical-output-format";
-const OPT_OUT_SRC_NAME: &str = "optical-output-source";
-
-pub trait ShellOptIfaceCtl<S, T>
+pub fn load_opt_iface_config<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellOptIfaceConfig> + AsMut<ShellOptIfaceConfig>,
 {
-    const IN_FMTS: [ShellOptInputIfaceFormat; 3] = [
-        ShellOptInputIfaceFormat::Adat0to7,
-        ShellOptInputIfaceFormat::Adat0to5Spdif01,
-        ShellOptInputIfaceFormat::Toslink01Spdif01,
-    ];
+    let mut elem_id_list = Vec::new();
 
-    const OUT_FMTS: [ShellOptOutputIfaceFormat; 2] = [
-        ShellOptOutputIfaceFormat::Adat,
-        ShellOptOutputIfaceFormat::Spdif,
-    ];
+    let labels: Vec<&str> = OPT_IN_FMTS.iter().map(|s| opt_in_fmt_to_str(s)).collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IN_FMT_NAME, 0);
+    card_cntr
+        .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+    let labels: Vec<&str> = OPT_OUT_FMTS.iter().map(|s| opt_out_fmt_to_str(s)).collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_FMT_NAME, 0);
+    card_cntr
+        .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn opt_iface_config(params: &S) -> &ShellOptIfaceConfig;
-    fn opt_iface_config_mut(params: &mut S) -> &mut ShellOptIfaceConfig;
+    let labels: Vec<&str> = PHYS_OUT_SRCS
+        .iter()
+        .map(|s| phys_out_src_to_str(s))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_SRC_NAME, 0);
+    card_cntr
+        .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn load_opt_iface_config(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::IN_FMTS.iter().map(|s| opt_in_fmt_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IN_FMT_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+    Ok(elem_id_list)
+}
 
-        let labels: Vec<&str> = Self::OUT_FMTS
-            .iter()
-            .map(|s| opt_out_fmt_to_str(s))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_FMT_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let labels: Vec<&str> = PHYS_OUT_SRCS
-            .iter()
-            .map(|s| phys_out_src_to_str(s))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
-    }
-
-    fn read_opt_iface_config(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OPT_IN_FMT_NAME => {
-                let params = &self.segment().data;
-                let config = Self::opt_iface_config(&params);
-                let pos = Self::IN_FMTS
-                    .iter()
-                    .position(|f| config.input_format.eq(f))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            OPT_OUT_FMT_NAME => {
-                let params = &self.segment().data;
-                let config = Self::opt_iface_config(&params);
-                let pos = Self::OUT_FMTS
-                    .iter()
-                    .position(|f| config.output_format.eq(f))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            OPT_OUT_SRC_NAME => {
-                let params = &self.segment().data;
-                let config = Self::opt_iface_config(&params);
-                let pos = PHYS_OUT_SRCS
-                    .iter()
-                    .position(|s| config.output_source.0.eq(s))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_opt_iface_config<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellOptIfaceConfig> + AsMut<ShellOptIfaceConfig>,
+{
+    match elem_id.name().as_str() {
+        OPT_IN_FMT_NAME => {
+            let params = segment.data.as_ref();
+            let pos = OPT_IN_FMTS
+                .iter()
+                .position(|f| params.input_format.eq(f))
+                .unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
-    }
-
-    fn write_opt_iface_config(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            OPT_IN_FMT_NAME => {
-                let mut params = self.segment().data.clone();
-                let config = Self::opt_iface_config_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                Self::IN_FMTS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of optical input format: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&f| config.input_format = f)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data);
-                res.map(|_| true)
-            }
-            OPT_OUT_FMT_NAME => {
-                let mut params = self.segment().data.clone();
-                let config = Self::opt_iface_config_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                Self::OUT_FMTS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of optical output format: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&f| config.output_format = f)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data);
-                res.map(|_| true)
-            }
-            OPT_OUT_SRC_NAME => {
-                let mut params = self.segment().data.clone();
-                let config = Self::opt_iface_config_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                PHYS_OUT_SRCS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of optical output source: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&s| config.output_source.0 = s)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+        OPT_OUT_FMT_NAME => {
+            let params = segment.data.as_ref();
+            let pos = OPT_OUT_FMTS
+                .iter()
+                .position(|f| params.output_format.eq(f))
+                .unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        OPT_OUT_SRC_NAME => {
+            let params = segment.data.as_ref();
+            let pos = PHYS_OUT_SRCS
+                .iter()
+                .position(|s| params.output_source.0.eq(s))
+                .unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+pub fn write_opt_iface_config<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Clone + Debug + AsRef<ShellOptIfaceConfig> + AsMut<ShellOptIfaceConfig>,
+{
+    match elem_id.name().as_str() {
+        OPT_IN_FMT_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            OPT_IN_FMTS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index of optical input format: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&f| params.input_format = f)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data);
+            res.map(|_| true)
+        }
+        OPT_OUT_FMT_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            OPT_OUT_FMTS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index of optical output format: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&f| params.output_format = f)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data);
+            res.map(|_| true)
+        }
+        OPT_OUT_SRC_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            PHYS_OUT_SRCS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index of optical output source: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&s| params.output_source.0 = s)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data);
+            res.map(|_| true)
+        }
+        _ => Ok(false),
     }
 }
 

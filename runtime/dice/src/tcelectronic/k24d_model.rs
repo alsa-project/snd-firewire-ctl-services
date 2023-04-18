@@ -327,24 +327,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(K24dConfigSegment, Vec<ElemId>);
 
-impl ShellOptIfaceCtl<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn segment(&self) -> &K24dConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dConfigSegment {
-        &mut self.0
-    }
-
-    fn opt_iface_config(params: &K24dConfig) -> &ShellOptIfaceConfig {
-        &params.opt
-    }
-
-    fn opt_iface_config_mut(params: &mut K24dConfig) -> &mut ShellOptIfaceConfig {
-        &mut params.opt
-    }
-}
-
 const OUT_23_SRC_NAME: &str = "output-3/4-source";
 
 impl ConfigCtl {
@@ -356,7 +338,7 @@ impl ConfigCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_coax_out_src::<K24dProtocol, K24dConfig>(card_cntr)?;
-        self.load_opt_iface_config(card_cntr)?;
+        load_opt_iface_config::<K24dProtocol, K24dConfig>(card_cntr)?;
         load_standalone::<K24dProtocol, K24dConfig>(card_cntr)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS
@@ -372,7 +354,7 @@ impl ConfigCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_coax_out_src::<K24dProtocol, K24dConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_opt_iface_config(elem_id, elem_value)? {
+        } else if read_opt_iface_config::<K24dProtocol, K24dConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if read_standalone::<K24dProtocol, K24dConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -408,7 +390,14 @@ impl ConfigCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_opt_iface_config::<K24dProtocol, K24dConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_standalone::<K24dProtocol, K24dConfig>(
             &mut self.0,

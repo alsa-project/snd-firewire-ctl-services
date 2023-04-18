@@ -391,24 +391,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(KliveConfigSegment, Vec<ElemId>);
 
-impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn segment(&self) -> &KliveConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveConfigSegment {
-        &mut self.0
-    }
-
-    fn opt_iface_config(params: &KliveConfig) -> &ShellOptIfaceConfig {
-        &params.opt
-    }
-
-    fn opt_iface_config_mut(params: &mut KliveConfig) -> &mut ShellOptIfaceConfig {
-        &mut params.opt
-    }
-}
-
 const OUT_01_SRC_NAME: &str = "output-1/2-source";
 const OUT_23_SRC_NAME: &str = "output-3/4-source";
 
@@ -422,7 +404,7 @@ impl ConfigCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_mixer_stream_src::<KliveProtocol, KliveConfig>(card_cntr)?;
         load_coax_out_src::<KliveProtocol, KliveConfig>(card_cntr)?;
-        self.load_opt_iface_config(card_cntr)?;
+        load_opt_iface_config::<KliveProtocol, KliveConfig>(card_cntr)?;
         load_standalone::<KliveProtocol, KliveConfig>(card_cntr)?;
         load_midi_sender::<KliveProtocol, KliveConfig>(card_cntr)?;
 
@@ -444,7 +426,8 @@ impl ConfigCtl {
             Ok(true)
         } else if read_coax_out_src::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_opt_iface_config(elem_id, elem_value)? {
+        } else if read_opt_iface_config::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)?
+        {
             Ok(true)
         } else if read_standalone::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -501,7 +484,14 @@ impl ConfigCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_opt_iface_config::<KliveProtocol, KliveConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_standalone::<KliveProtocol, KliveConfig>(
             &mut self.0,
