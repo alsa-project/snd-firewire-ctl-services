@@ -507,6 +507,18 @@ impl TcKonnektNotifiedSegmentOperation<StudioRemote> for Studiok48Protocol {
     const NOTIFY_FLAG: u32 = STUDIO_REMOTE_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektLoadedProgram> for StudioRemote {
+    fn as_ref(&self) -> &TcKonnektLoadedProgram {
+        &self.prog
+    }
+}
+
+impl AsMut<TcKonnektLoadedProgram> for StudioRemote {
+    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
+        &mut self.prog
+    }
+}
+
 /// Mode of optical interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OptIfaceMode {

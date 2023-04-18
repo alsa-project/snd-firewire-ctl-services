@@ -190,6 +190,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dKnob> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektLoadedProgram> for K24dKnob {
+    fn as_ref(&self) -> &TcKonnektLoadedProgram {
+        &self.prog
+    }
+}
+
+impl AsMut<TcKonnektLoadedProgram> for K24dKnob {
+    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
+        &mut self.prog
+    }
+}
+
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dConfig {
