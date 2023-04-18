@@ -395,24 +395,6 @@ impl LineoutCtl {
 #[derive(Default, Debug)]
 struct RemoteCtl(Studiok48RemoteSegment, Vec<ElemId>);
 
-impl ProgramCtlOperation<StudioRemote, Studiok48Protocol> for RemoteCtl {
-    fn segment(&self) -> &Studiok48RemoteSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48RemoteSegment {
-        &mut self.0
-    }
-
-    fn prog(params: &StudioRemote) -> &TcKonnektLoadedProgram {
-        &params.prog
-    }
-
-    fn prog_mut(params: &mut StudioRemote) -> &mut TcKonnektLoadedProgram {
-        &mut params.prog
-    }
-}
-
 const USER_ASSIGN_NAME: &str = "remote-user-assign";
 const EFFECT_BUTTON_MODE_NAME: &str = "remote-effect-button-mode";
 const FALLBACK_TO_MASTER_ENABLE_NAME: &str = "remote-fallback-to-master-enable";
@@ -450,7 +432,7 @@ impl RemoteCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_prog(card_cntr)
+        load_prog::<Studiok48Protocol, StudioRemote>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = MixerStateCtl::SRC_PAIR_ENTRIES
@@ -567,7 +549,7 @@ impl RemoteCtl {
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            _ => self.read_prog(elem_id, elem_value),
+            _ => read_prog::<Studiok48Protocol, StudioRemote>(&self.0, elem_id, elem_value),
         }
     }
 
@@ -676,7 +658,14 @@ impl RemoteCtl {
                 debug!(params = ?self.0.data, ?res);
                 res.map(|_| true)
             }
-            _ => self.write_prog(req, node, elem_id, elem_value, timeout_ms),
+            _ => write_prog::<Studiok48Protocol, StudioRemote>(
+                &mut self.0,
+                req,
+                node,
+                elem_id,
+                elem_value,
+                timeout_ms,
+            ),
         }
     }
 

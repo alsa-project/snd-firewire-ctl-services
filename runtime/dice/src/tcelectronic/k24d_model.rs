@@ -249,24 +249,6 @@ impl ShellKnob1CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
     }
 }
 
-impl ProgramCtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
-    fn segment(&self) -> &K24dKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dKnobSegment {
-        &mut self.0
-    }
-
-    fn prog(params: &K24dKnob) -> &TcKonnektLoadedProgram {
-        &params.prog
-    }
-
-    fn prog_mut(params: &mut K24dKnob) -> &mut TcKonnektLoadedProgram {
-        &mut params.prog
-    }
-}
-
 impl KnobCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K24dProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -281,7 +263,7 @@ impl KnobCtl {
         self.load_knob1_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.load_prog(card_cntr)
+        load_prog::<K24dProtocol, K24dKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
@@ -292,7 +274,7 @@ impl KnobCtl {
             Ok(true)
         } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_prog(elem_id, elem_value)? {
+        } else if read_prog::<K24dProtocol, K24dKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -311,7 +293,14 @@ impl KnobCtl {
             Ok(true)
         } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_prog(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_prog::<K24dProtocol, K24dKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             Ok(false)
