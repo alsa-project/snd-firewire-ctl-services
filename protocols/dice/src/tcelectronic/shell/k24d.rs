@@ -382,6 +382,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dChStripStates> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
+impl AsRef<[ChStripState]> for K24dChStripStates {
+    fn as_ref(&self) -> &[ChStripState] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripState]> for K24dChStripStates {
+    fn as_mut(&mut self) -> &mut [ChStripState] {
+        &mut self.0
+    }
+}
+
 /// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dHwState(pub ShellHwState);
