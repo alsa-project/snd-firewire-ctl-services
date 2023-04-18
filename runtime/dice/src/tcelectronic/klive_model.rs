@@ -19,7 +19,7 @@ pub struct KliveModel {
     reverb_state_ctl: ReverbStateCtl<KliveProtocol, KliveReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<KliveProtocol, KliveReverbMeter>,
     ch_strip_state_ctl: ChStripStateCtl<KliveProtocol, KliveChStripStates>,
-    ch_strip_meter_ctl: ChStripMeterCtl,
+    ch_strip_meter_ctl: ChStripMeterCtl<KliveProtocol, KliveChStripMeters>,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -61,11 +61,7 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
         self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl.load(card_cntr)?;
         self.ch_strip_state_ctl.load(card_cntr)?;
-        self.ch_strip_meter_ctl
-            .load(card_cntr)
-            .map(|measured_elem_id_list| {
-                self.ch_strip_meter_ctl.1 = measured_elem_id_list;
-            })?;
+        self.ch_strip_meter_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -196,7 +192,7 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
         elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.elem_id_list);
     }
 
     fn measure_states(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -1034,22 +1030,5 @@ impl HwStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct ChStripMeterCtl(KliveChStripMetersSegment, Vec<ElemId>);
-
-impl ChStripMeterCtlOperation<KliveChStripMeters, KliveProtocol> for ChStripMeterCtl {
-    fn meters(&self) -> &[ChStripMeter] {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<KliveChStripMeters> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<KliveChStripMeters> {
-        &mut self.0
     }
 }
