@@ -668,34 +668,6 @@ impl MixerStateCtl {
 #[derive(Default, Debug)]
 struct HwStateCtl(K24dHwStateSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<K24dHwState, K24dProtocol> for HwStateCtl {
-    fn segment(&self) -> &K24dHwStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dHwStateSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &K24dHwState) -> &FireWireLedState {
-        &params.0.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut K24dHwState) -> &mut FireWireLedState {
-        &mut params.0.firewire_led
-    }
-}
-
-impl ShellHwStateCtlOperation<K24dHwState, K24dProtocol> for HwStateCtl {
-    fn hw_state(&self) -> &ShellHwState {
-        &self.0.data.0
-    }
-
-    fn hw_state_mut(&mut self) -> &mut ShellHwState {
-        &mut self.0.data.0
-    }
-}
-
 impl HwStateCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K24dProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -704,33 +676,32 @@ impl HwStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_hw_state(card_cntr)
-            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
+        load_hw_state::<K24dProtocol, K24dHwState>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_hw_state(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        read_hw_state::<K24dProtocol, K24dHwState>(&self.0, elem_id, elem_value)
     }
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        write_hw_state::<K24dProtocol, K24dHwState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )
     }
 
     fn parse_notification(

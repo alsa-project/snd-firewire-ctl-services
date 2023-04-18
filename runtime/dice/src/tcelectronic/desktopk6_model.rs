@@ -1000,24 +1000,6 @@ impl MixerCtl {
 #[derive(Default, Debug)]
 struct PanelCtl(Desktopk6PanelSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<DesktopPanel, Desktopk6Protocol> for PanelCtl {
-    fn segment(&self) -> &Desktopk6PanelSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Desktopk6PanelSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &DesktopPanel) -> &FireWireLedState {
-        &params.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut DesktopPanel) -> &mut FireWireLedState {
-        &mut params.firewire_led
-    }
-}
-
 const PANEL_BUTTON_COUNT_NAME: &str = "panel-button-count";
 const MIXER_OUT_VOL: &str = "mixer-output-volume";
 const PHONE_KNOB_VALUE_NAME: &str = "phone-knob-value";
@@ -1041,7 +1023,7 @@ impl PanelCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_firewire_led(card_cntr)
+        load_firewire_led::<Desktopk6Protocol, DesktopPanel>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PANEL_BUTTON_COUNT_NAME, 0);
@@ -1114,7 +1096,7 @@ impl PanelCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_firewire_led(elem_id, elem_value)? {
+        if read_firewire_led::<Desktopk6Protocol, DesktopPanel>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -1159,13 +1141,20 @@ impl PanelCtl {
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_firewire_led::<Desktopk6Protocol, DesktopPanel>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

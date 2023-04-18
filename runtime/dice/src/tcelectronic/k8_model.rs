@@ -454,34 +454,6 @@ impl MixerStateCtl {
 #[derive(Default, Debug)]
 struct HwStateCtl(K8HwStateSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<K8HwState, K8Protocol> for HwStateCtl {
-    fn segment(&self) -> &K8HwStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8HwStateSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &K8HwState) -> &FireWireLedState {
-        &params.hw_state.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut K8HwState) -> &mut FireWireLedState {
-        &mut params.hw_state.firewire_led
-    }
-}
-
-impl ShellHwStateCtlOperation<K8HwState, K8Protocol> for HwStateCtl {
-    fn hw_state(&self) -> &ShellHwState {
-        &self.0.data.hw_state
-    }
-
-    fn hw_state_mut(&mut self) -> &mut ShellHwState {
-        &mut self.0.data.hw_state
-    }
-}
-
 const AUX_IN_ENABLED_NAME: &str = "aux-input-enable";
 
 impl HwStateCtl {
@@ -492,8 +464,8 @@ impl HwStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_hw_state(card_cntr)
-            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
+        load_hw_state::<K8Protocol, K8HwState>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_IN_ENABLED_NAME, 0);
         card_cntr
@@ -504,28 +476,31 @@ impl HwStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_hw_state(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                AUX_IN_ENABLED_NAME => {
-                    elem_value.set_bool(&[self.0.data.aux_input_enabled]);
-                    Ok(true)
-                }
-                _ => Ok(false),
+        match elem_id.name().as_str() {
+            AUX_IN_ENABLED_NAME => {
+                elem_value.set_bool(&[self.0.data.aux_input_enabled]);
+                Ok(true)
             }
+            _ => read_hw_state::<K8Protocol, K8HwState>(&self.0, elem_id, elem_value),
         }
     }
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)
+        write_hw_state::<K8Protocol, K8HwState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )
     }
 
     fn parse_notification(

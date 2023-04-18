@@ -925,34 +925,6 @@ impl MixerStateCtl {
 #[derive(Default, Debug)]
 struct HwStateCtl(KliveHwStateSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<KliveHwState, KliveProtocol> for HwStateCtl {
-    fn segment(&self) -> &KliveHwStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveHwStateSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &KliveHwState) -> &FireWireLedState {
-        &params.0.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut KliveHwState) -> &mut FireWireLedState {
-        &mut params.0.firewire_led
-    }
-}
-
-impl ShellHwStateCtlOperation<KliveHwState, KliveProtocol> for HwStateCtl {
-    fn hw_state(&self) -> &ShellHwState {
-        &self.0.data.0
-    }
-
-    fn hw_state_mut(&mut self) -> &mut ShellHwState {
-        &mut self.0.data.0
-    }
-}
-
 impl HwStateCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = KliveProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -961,25 +933,32 @@ impl HwStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_hw_state(card_cntr)
-            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
+        load_hw_state::<KliveProtocol, KliveHwState>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        self.read_hw_state(elem_id, elem_value)
+        read_hw_state::<KliveProtocol, KliveHwState>(&self.0, elem_id, elem_value)
     }
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)
+        write_hw_state::<KliveProtocol, KliveHwState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )
     }
 
     fn parse_notification(

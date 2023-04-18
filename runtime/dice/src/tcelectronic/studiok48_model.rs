@@ -2706,24 +2706,6 @@ fn analog_jack_state_to_str(state: &StudioAnalogJackState) -> &'static str {
 #[derive(Default, Debug)]
 struct HwStateCtl(Studiok48HwStateSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<StudioHwState, Studiok48Protocol> for HwStateCtl {
-    fn segment(&self) -> &Studiok48HwStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48HwStateSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &StudioHwState) -> &FireWireLedState {
-        &params.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut StudioHwState) -> &mut FireWireLedState {
-        &mut params.firewire_led
-    }
-}
-
 // TODO: For Jack detection in ALSA applications.
 const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 const HP_JACK_STATE_NAME: &str = "headphone-jack-state";
@@ -2744,7 +2726,7 @@ impl HwStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_firewire_led(card_cntr)?;
+        load_firewire_led::<Studiok48Protocol, StudioHwState>(card_cntr)?;
 
         let labels = Self::ANALOG_JACK_STATES
             .iter()
@@ -2776,7 +2758,7 @@ impl HwStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_firewire_led(elem_id, elem_value)? {
+        if read_firewire_led::<Studiok48Protocol, StudioHwState>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -2811,13 +2793,20 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)
+        write_firewire_led::<Studiok48Protocol, StudioHwState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )
     }
 
     fn parse_notification(
