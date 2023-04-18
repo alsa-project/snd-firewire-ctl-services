@@ -235,7 +235,7 @@ impl ShellMixerState {
 
 /// The type of monitor source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum ShellMixerMonitorSrcType {
+pub enum ShellMixerMonitorSrcType {
     /// Stream input.
     Stream,
     /// Analog input.
@@ -248,22 +248,35 @@ enum ShellMixerMonitorSrcType {
     AdatSpdif,
 }
 
-trait ShellMixerStateSpecification {
+/// The trait for specification of mixer.
+pub trait ShellMixerStateSpecification {
+    /// The sources of monitor.
     const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT];
 
-    fn create_mixer_state() -> ShellMixerState {
-        let analog_input_pair_count = Self::MONITOR_SRC_MAP
+    /// The number of analog input pairs.
+    fn analog_input_pair_count() -> usize {
+        Self::MONITOR_SRC_MAP
             .iter()
             .filter(|&&m| m == Some(ShellMixerMonitorSrcType::Analog))
-            .count();
-        let digital_input_pair_count = Self::MONITOR_SRC_MAP
+            .count()
+    }
+
+    /// The number of digital input pairs.
+    fn digital_input_pair_count() -> usize {
+        Self::MONITOR_SRC_MAP
             .iter()
             .filter(|&&m| {
                 m != Some(ShellMixerMonitorSrcType::Analog)
                     && m != Some(ShellMixerMonitorSrcType::Stream)
                     && m.is_some()
             })
-            .count();
+            .count()
+    }
+
+    /// Instantiate state of mixer.
+    fn create_mixer_state() -> ShellMixerState {
+        let analog_input_pair_count = Self::analog_input_pair_count();
+        let digital_input_pair_count = Self::digital_input_pair_count();
 
         ShellMixerState {
             stream: Default::default(),

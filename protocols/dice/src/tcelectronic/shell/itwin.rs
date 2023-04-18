@@ -417,6 +417,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinMixerState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellMixerState> for ItwinMixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for ItwinMixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
 /// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinReverbState(pub ReverbState);
