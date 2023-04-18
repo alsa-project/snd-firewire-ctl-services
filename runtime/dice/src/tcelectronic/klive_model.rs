@@ -445,24 +445,6 @@ impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
     }
 }
 
-impl MidiSendCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn segment(&self) -> &KliveConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveConfigSegment {
-        &mut self.0
-    }
-
-    fn midi_sender(params: &KliveConfig) -> &TcKonnektMidiSender {
-        &params.midi_sender
-    }
-
-    fn midi_sender_mut(params: &mut KliveConfig) -> &mut TcKonnektMidiSender {
-        &mut params.midi_sender
-    }
-}
-
 const OUT_01_SRC_NAME: &str = "output-1/2-source";
 const OUT_23_SRC_NAME: &str = "output-3/4-source";
 
@@ -478,7 +460,7 @@ impl ConfigCtl {
         self.load_coax_out_src(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
         load_standalone::<KliveProtocol, KliveConfig>(card_cntr)?;
-        self.load_midi_sender(card_cntr)?;
+        load_midi_sender::<KliveProtocol, KliveConfig>(card_cntr)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS
             .iter()
@@ -502,7 +484,7 @@ impl ConfigCtl {
             Ok(true)
         } else if read_standalone::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_midi_sender(elem_id, elem_value)? {
+        } else if read_midi_sender::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -552,7 +534,14 @@ impl ConfigCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_midi_sender(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_midi_sender::<KliveProtocol, KliveConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
