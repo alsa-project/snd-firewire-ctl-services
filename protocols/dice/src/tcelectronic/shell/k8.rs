@@ -145,6 +145,18 @@ impl AsMut<ShellKnob0Target> for K8Knob {
     }
 }
 
+impl AsRef<ShellKnob1Target> for K8Knob {
+    fn as_ref(&self) -> &ShellKnob1Target {
+        &self.knob1_target
+    }
+}
+
+impl AsMut<ShellKnob1Target> for K8Knob {
+    fn as_mut(&mut self) -> &mut ShellKnob1Target {
+        &mut self.knob1_target
+    }
+}
+
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Config {
