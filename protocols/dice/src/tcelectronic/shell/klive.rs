@@ -366,6 +366,18 @@ impl AsMut<TcKonnektStandaloneClockRate> for KliveConfig {
     }
 }
 
+impl AsRef<TcKonnektMidiSender> for KliveConfig {
+    fn as_ref(&self) -> &TcKonnektMidiSender {
+        &self.midi_sender
+    }
+}
+
+impl AsMut<TcKonnektMidiSender> for KliveConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektMidiSender {
+        &mut self.midi_sender
+    }
+}
+
 /// The source of channel strip effect.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChStripSrc {
