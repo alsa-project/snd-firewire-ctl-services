@@ -22,7 +22,7 @@ Add the following line to your Cargo.toml file:
 
 ```toml
 [dependencies]
-ta1394-avc-stream-format = "0.1"
+ta1394-avc-stream-format = "0.2"
 ```
 
 Some documented AV/C commands are available:
