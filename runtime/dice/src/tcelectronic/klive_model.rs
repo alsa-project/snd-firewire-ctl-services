@@ -391,24 +391,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(KliveConfigSegment, Vec<ElemId>);
 
-impl ShellMixerStreamSrcCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn segment(&self) -> &KliveConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveConfigSegment {
-        &mut self.0
-    }
-
-    fn mixer_stream_src(params: &KliveConfig) -> &ShellMixerStreamSourcePair {
-        &params.mixer_stream_src_pair
-    }
-
-    fn mixer_stream_src_mut(params: &mut KliveConfig) -> &mut ShellMixerStreamSourcePair {
-        &mut params.mixer_stream_src_pair
-    }
-}
-
 impl ShellCoaxIfaceCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
     fn segment(&self) -> &KliveConfigSegment {
         &self.0
@@ -456,7 +438,7 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_mixer_stream_src(card_cntr)?;
+        load_mixer_stream_src::<KliveProtocol, KliveConfig>(card_cntr)?;
         self.load_coax_out_src(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
         load_standalone::<KliveProtocol, KliveConfig>(card_cntr)?;
@@ -476,7 +458,7 @@ impl ConfigCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_mixer_stream_src(elem_id, elem_value)? {
+        if read_mixer_stream_src::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_coax_out_src(elem_id, elem_value)? {
             Ok(true)
@@ -519,7 +501,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_mixer_stream_src::<KliveProtocol, KliveConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
