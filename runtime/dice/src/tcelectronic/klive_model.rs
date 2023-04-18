@@ -248,24 +248,6 @@ impl ShellKnob1CtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
     }
 }
 
-impl ProgramCtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
-    fn segment(&self) -> &KliveKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveKnobSegment {
-        &mut self.0
-    }
-
-    fn prog(params: &KliveKnob) -> &TcKonnektLoadedProgram {
-        &params.prog
-    }
-
-    fn prog_mut(params: &mut KliveKnob) -> &mut TcKonnektLoadedProgram {
-        &mut params.prog
-    }
-}
-
 const OUTPUT_IMPEDANCE_NAME: &str = "output-impedance";
 
 fn impedance_to_str(impedance: &OutputImpedance) -> &'static str {
@@ -290,7 +272,7 @@ impl KnobCtl {
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         self.load_knob1_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-        self.load_prog(card_cntr)
+        load_prog::<KliveProtocol, KliveKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::OUTPUT_IMPEDANCES
@@ -308,7 +290,7 @@ impl KnobCtl {
             Ok(true)
         } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_prog(elem_id, elem_value)? {
+        } else if read_prog::<KliveProtocol, KliveKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -346,7 +328,14 @@ impl KnobCtl {
             Ok(true)
         } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_prog(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_prog::<KliveProtocol, KliveKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

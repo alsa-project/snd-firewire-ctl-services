@@ -5,6 +5,12 @@ use super::*;
 
 const LOADED_NAME: &str = "loaded-program";
 
+const LOADED_PROGRAMS: &[TcKonnektLoadedProgram] = &[
+    TcKonnektLoadedProgram::P0,
+    TcKonnektLoadedProgram::P1,
+    TcKonnektLoadedProgram::P2,
+];
+
 fn loaded_program_to_str(prog: &TcKonnektLoadedProgram) -> &str {
     match prog {
         TcKonnektLoadedProgram::P0 => "P1",
@@ -13,75 +19,68 @@ fn loaded_program_to_str(prog: &TcKonnektLoadedProgram) -> &str {
     }
 }
 
-pub trait ProgramCtlOperation<S, T>
+pub fn load_prog<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<TcKonnektLoadedProgram> + AsMut<TcKonnektLoadedProgram>,
 {
-    const LOADED_PROGRAMS: &'static [TcKonnektLoadedProgram] = &[
-        TcKonnektLoadedProgram::P0,
-        TcKonnektLoadedProgram::P1,
-        TcKonnektLoadedProgram::P2,
-    ];
+    let labels: Vec<&str> = LOADED_PROGRAMS
+        .iter()
+        .map(|p| loaded_program_to_str(p))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOADED_NAME, 0);
+    card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+}
 
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn prog(params: &S) -> &TcKonnektLoadedProgram;
-    fn prog_mut(params: &mut S) -> &mut TcKonnektLoadedProgram;
-
-    fn load_prog(&self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let labels: Vec<&str> = Self::LOADED_PROGRAMS
-            .iter()
-            .map(|p| loaded_program_to_str(p))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOADED_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-    }
-
-    fn read_prog(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            LOADED_NAME => {
-                let params = &self.segment().data;
-                let prog = Self::prog(&params);
-                let pos = Self::LOADED_PROGRAMS
-                    .iter()
-                    .position(|p| prog.eq(p))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_prog<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<TcKonnektLoadedProgram> + AsMut<TcKonnektLoadedProgram>,
+{
+    match elem_id.name().as_str() {
+        LOADED_NAME => {
+            let params = segment.data.as_ref();
+            let pos = LOADED_PROGRAMS.iter().position(|p| params.eq(p)).unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        _ => Ok(false),
     }
+}
 
-    fn write_prog(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            LOADED_NAME => {
-                let mut params = self.segment().data.clone();
-                let prog = Self::prog_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                Self::LOADED_PROGRAMS
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for loaded programs: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&p| *prog = p)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+pub fn write_prog<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<TcKonnektLoadedProgram> + AsMut<TcKonnektLoadedProgram>,
+{
+    match elem_id.name().as_str() {
+        LOADED_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            LOADED_PROGRAMS
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index for loaded programs: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&prog| *params = prog)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
         }
+        _ => Ok(false),
     }
 }
