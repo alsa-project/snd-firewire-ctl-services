@@ -650,6 +650,18 @@ impl TcKonnektSegmentSerdes<KliveReverbMeter> for KliveProtocol {
     }
 }
 
+impl AsRef<ReverbMeter> for KliveReverbMeter {
+    fn as_ref(&self) -> &ReverbMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbMeter> for KliveReverbMeter {
+    fn as_mut(&mut self) -> &mut ReverbMeter {
+        &mut self.0
+    }
+}
+
 /// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
