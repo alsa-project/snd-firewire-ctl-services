@@ -14,7 +14,7 @@ pub struct K24dModel {
     knob_ctl: KnobCtl,
     config_ctl: ConfigCtl,
     mixer_state_ctl: MixerStateCtl,
-    mixer_meter_ctl: MixerMeterCtl,
+    mixer_meter_ctl: MixerMeterCtl<K24dProtocol, K24dMixerMeter>,
     hw_state_ctl: HwStateCtl,
     reverb_state_ctl: ReverbStateCtl<K24dProtocol, K24dReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<K24dProtocol, K24dReverbMeter>,
@@ -191,7 +191,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
 impl MeasureModel<(SndDice, FwNode)> for K24dModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.elem_id_list);
     }
@@ -679,23 +679,6 @@ impl MixerStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerMeterCtl(K24dMixerMeterSegment, Vec<ElemId>);
-
-impl ShellMixerMeterCtlOperation<K24dMixerMeter, K24dProtocol> for MixerMeterCtl {
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<K24dMixerMeter> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<K24dMixerMeter> {
-        &mut self.0
     }
 }
 

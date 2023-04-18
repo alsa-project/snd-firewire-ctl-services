@@ -14,7 +14,7 @@ pub struct KliveModel {
     knob_ctl: KnobCtl,
     config_ctl: ConfigCtl,
     mixer_state_ctl: MixerStateCtl,
-    mixer_meter_ctl: MixerMeterCtl,
+    mixer_meter_ctl: MixerMeterCtl<KliveProtocol, KliveMixerMeter>,
     hw_state_ctl: HwStateCtl,
     reverb_state_ctl: ReverbStateCtl<KliveProtocol, KliveReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<KliveProtocol, KliveReverbMeter>,
@@ -190,7 +190,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
 impl MeasureModel<(SndDice, FwNode)> for KliveModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.elem_id_list);
     }
@@ -936,23 +936,6 @@ impl MixerStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerMeterCtl(KliveMixerMeterSegment, Vec<ElemId>);
-
-impl ShellMixerMeterCtlOperation<KliveMixerMeter, KliveProtocol> for MixerMeterCtl {
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<KliveMixerMeter> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<KliveMixerMeter> {
-        &mut self.0
     }
 }
 
