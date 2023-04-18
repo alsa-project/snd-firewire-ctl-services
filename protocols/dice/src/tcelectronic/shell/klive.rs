@@ -330,6 +330,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveConfig> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellStandaloneClockSource> for KliveConfig {
+    fn as_ref(&self) -> &ShellStandaloneClockSource {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClockSource> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClockSource {
+        &mut self.standalone_src
+    }
+}
+
 impl AsRef<TcKonnektStandaloneClockRate> for KliveConfig {
     fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
         &self.standalone_rate
