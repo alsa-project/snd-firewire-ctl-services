@@ -275,34 +275,6 @@ impl ShellCoaxIfaceCtlOperation<K8Config, K8Protocol> for ConfigCtl {
     }
 }
 
-impl StandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
-    fn segment(&self) -> &K8ConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8ConfigSegment {
-        &mut self.0
-    }
-
-    fn standalone_rate(params: &K8Config) -> &TcKonnektStandaloneClockRate {
-        &params.standalone_rate
-    }
-
-    fn standalone_rate_mut(params: &mut K8Config) -> &mut TcKonnektStandaloneClockRate {
-        &mut params.standalone_rate
-    }
-}
-
-impl ShellStandaloneCtlOperation<K8Config, K8Protocol> for ConfigCtl {
-    fn standalone_src(params: &K8Config) -> &ShellStandaloneClockSource {
-        &params.standalone_src
-    }
-
-    fn standalone_src_mut(params: &mut K8Config) -> &mut ShellStandaloneClockSource {
-        &mut params.standalone_src
-    }
-}
-
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -312,7 +284,7 @@ impl ConfigCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_coax_out_src(card_cntr)?;
-        self.load_standalone(card_cntr)?;
+        load_standalone::<K8Protocol, K8Config>(card_cntr)?;
 
         Ok(())
     }
@@ -320,7 +292,7 @@ impl ConfigCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.read_coax_out_src(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_standalone(elem_id, elem_value)? {
+        } else if read_standalone::<K8Protocol, K8Config>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -337,7 +309,14 @@ impl ConfigCtl {
     ) -> Result<bool, Error> {
         if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_standalone::<K8Protocol, K8Config>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             Ok(false)

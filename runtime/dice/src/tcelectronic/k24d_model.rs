@@ -374,34 +374,6 @@ impl ShellOptIfaceCtl<K24dConfig, K24dProtocol> for ConfigCtl {
     }
 }
 
-impl StandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn segment(&self) -> &K24dConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dConfigSegment {
-        &mut self.0
-    }
-
-    fn standalone_rate(params: &K24dConfig) -> &TcKonnektStandaloneClockRate {
-        &params.standalone_rate
-    }
-
-    fn standalone_rate_mut(params: &mut K24dConfig) -> &mut TcKonnektStandaloneClockRate {
-        &mut params.standalone_rate
-    }
-}
-
-impl ShellStandaloneCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn standalone_src(params: &K24dConfig) -> &ShellStandaloneClockSource {
-        &params.standalone_src
-    }
-
-    fn standalone_src_mut(params: &mut K24dConfig) -> &mut ShellStandaloneClockSource {
-        &mut params.standalone_src
-    }
-}
-
 const OUT_23_SRC_NAME: &str = "output-3/4-source";
 
 impl ConfigCtl {
@@ -414,7 +386,7 @@ impl ConfigCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.load_coax_out_src(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
-        self.load_standalone(card_cntr)?;
+        load_standalone::<K24dProtocol, K24dConfig>(card_cntr)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS
             .iter()
@@ -431,7 +403,7 @@ impl ConfigCtl {
             Ok(true)
         } else if self.read_opt_iface_config(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_standalone(elem_id, elem_value)? {
+        } else if read_standalone::<K24dProtocol, K24dConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -460,7 +432,14 @@ impl ConfigCtl {
             Ok(true)
         } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_standalone::<K24dProtocol, K24dConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
