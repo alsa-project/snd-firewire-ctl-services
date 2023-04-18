@@ -3,6 +3,20 @@
 
 use super::*;
 
+#[derive(Default, Debug)]
+pub struct ReverbStateCtl<T, U>
+where
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
+        + TcKonnektNotifiedSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<ReverbState> + AsMut<ReverbState>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    segment: TcKonnektSegment<U>,
+    _phantom: PhantomData<T>,
+}
+
 const REVERB_INPUT_LEVEL_NAME: &str = "reverb-input-level";
 const REVERB_BYPASS_NAME: &str = "reverb-bypass";
 const REVERB_KILL_WET: &str = "reverb-kill-wet";
@@ -22,7 +36,64 @@ const REVERB_ALGORITHM_NAME: &str = "reverb-algorithm";
 const REVERB_OUTPUT_METER_NAME: &str = "reverb-output-meter";
 const REVERB_INPUT_METER_NAME: &str = "reverb-input-meter";
 
-fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
+const INPUT_LEVEL_MIN: i32 = -240;
+const INPUT_LEVEL_MAX: i32 = 0;
+const INPUT_LEVEL_STEP: i32 = 1;
+const INPUT_LEVEL_TLV: DbInterval = DbInterval {
+    min: -2400,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+const OUTPUT_LEVEL_MIN: i32 = -240;
+const OUTPUT_LEVEL_MAX: i32 = 120;
+const OUTPUT_LEVEL_STEP: i32 = 1;
+const OUTPUT_LEVEL_TLV: DbInterval = DbInterval {
+    min: -2400,
+    max: 1200,
+    linear: false,
+    mute_avail: false,
+};
+
+const DECAY_MIN: i32 = 1;
+const DECAY_MAX: i32 = 290;
+const DECAY_STEP: i32 = 1;
+
+const PRE_DECAY_MIN: i32 = 0;
+const PRE_DECAY_MAX: i32 = 100;
+const PRE_DECAY_STEP: i32 = 1;
+
+const COLOR_MIN: i32 = -50;
+const COLOR_MAX: i32 = 50;
+const COLOR_STEP: i32 = 1;
+
+const FACTOR_MIN: i32 = -25;
+const FACTOR_MAX: i32 = 25;
+const FACTOR_STEP: i32 = 1;
+
+const LEVEL_MIN: i32 = -48;
+const LEVEL_MAX: i32 = 0;
+const LEVEL_STEP: i32 = 1;
+
+const ALGORITHMS: &[ReverbAlgorithm] = &[
+    ReverbAlgorithm::Live1,
+    ReverbAlgorithm::Hall,
+    ReverbAlgorithm::Plate,
+    ReverbAlgorithm::Club,
+    ReverbAlgorithm::ConcertHall,
+    ReverbAlgorithm::Cathedral,
+    ReverbAlgorithm::Church,
+    ReverbAlgorithm::Room,
+    ReverbAlgorithm::SmallRoom,
+    ReverbAlgorithm::Box,
+    ReverbAlgorithm::Ambient,
+    ReverbAlgorithm::Live2,
+    ReverbAlgorithm::Live3,
+    ReverbAlgorithm::Spring,
+];
+
+fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &str {
     match algo {
         ReverbAlgorithm::Live1 => "Live1",
         ReverbAlgorithm::Hall => "Hall",
@@ -41,364 +112,216 @@ fn reverb_algorithm_to_str(algo: &ReverbAlgorithm) -> &'static str {
     }
 }
 
-pub trait ReverbStateCtlOpreation<S, T, U>
+impl<T, U> ReverbStateCtl<T, U>
 where
-    S: Clone + Debug,
-    U: TcKonnektSegmentOperation<S>
-        + TcKonnektSegmentOperation<T>
-        + TcKonnektMutableSegmentOperation<S>
-        + TcKonnektNotifiedSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
+        + TcKonnektNotifiedSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<ReverbState> + AsMut<ReverbState>,
 {
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn state(params: &S) -> &ReverbState;
-    fn state_mut(params: &mut S) -> &mut ReverbState;
-
-    const INPUT_LEVEL_MIN: i32 = -240;
-    const INPUT_LEVEL_MAX: i32 = 0;
-    const INPUT_LEVEL_STEP: i32 = 1;
-    const INPUT_LEVEL_TLV: DbInterval = DbInterval {
-        min: -2400,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
-
-    const OUTPUT_LEVEL_MIN: i32 = -240;
-    const OUTPUT_LEVEL_MAX: i32 = 120;
-    const OUTPUT_LEVEL_STEP: i32 = 1;
-    const OUTPUT_LEVEL_TLV: DbInterval = DbInterval {
-        min: -2400,
-        max: 1200,
-        linear: false,
-        mute_avail: false,
-    };
-
-    const DECAY_MIN: i32 = 1;
-    const DECAY_MAX: i32 = 290;
-    const DECAY_STEP: i32 = 1;
-
-    const PRE_DECAY_MIN: i32 = 0;
-    const PRE_DECAY_MAX: i32 = 100;
-    const PRE_DECAY_STEP: i32 = 1;
-
-    const COLOR_MIN: i32 = -50;
-    const COLOR_MAX: i32 = 50;
-    const COLOR_STEP: i32 = 1;
-
-    const FACTOR_MIN: i32 = -25;
-    const FACTOR_MAX: i32 = 25;
-    const FACTOR_STEP: i32 = 1;
-
-    const LEVEL_MIN: i32 = -48;
-    const LEVEL_MAX: i32 = 0;
-    const LEVEL_STEP: i32 = 1;
-
-    const ALGORITHMS: [ReverbAlgorithm; 14] = [
-        ReverbAlgorithm::Live1,
-        ReverbAlgorithm::Hall,
-        ReverbAlgorithm::Plate,
-        ReverbAlgorithm::Club,
-        ReverbAlgorithm::ConcertHall,
-        ReverbAlgorithm::Cathedral,
-        ReverbAlgorithm::Church,
-        ReverbAlgorithm::Room,
-        ReverbAlgorithm::SmallRoom,
-        ReverbAlgorithm::Box,
-        ReverbAlgorithm::Ambient,
-        ReverbAlgorithm::Live2,
-        ReverbAlgorithm::Live3,
-        ReverbAlgorithm::Spring,
-    ];
-
-    fn is_bypassed(&self) -> bool {
-        Self::state(&self.segment().data).bypass
+    pub fn is_bypassed(&self) -> bool {
+        self.segment.data.as_ref().bypass
     }
 
-    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
-        debug!(params = ?self.segment().data, ?res);
+    pub fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::cache_whole_segment(req, node, &mut self.segment, timeout_ms);
+        debug!(params = ?self.segment.data, ?res);
         res
     }
 
-    fn load(&self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_INPUT_LEVEL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                INPUT_LEVEL_MIN,
+                INPUT_LEVEL_MAX,
+                INPUT_LEVEL_STEP,
+                1,
+                Some(&Into::<Vec<u32>>::into(INPUT_LEVEL_TLV)),
+                true,
+            )
+            .map(|mut list| self.elem_id_list.append(&mut list))?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_INPUT_LEVEL_NAME,
-            Self::INPUT_LEVEL_MIN,
-            Self::INPUT_LEVEL_MAX,
-            Self::INPUT_LEVEL_STEP,
-            1,
-            Some(&Into::<Vec<u32>>::into(Self::INPUT_LEVEL_TLV)),
-            true,
-        )?;
+        [REVERB_BYPASS_NAME, REVERB_KILL_WET, REVERB_KILL_DRY]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr
+                    .add_bool_elems(&elem_id, 1, 1, true)
+                    .map(|mut list| self.elem_id_list.append(&mut list))
+            })?;
 
-        state_add_bool_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_BYPASS_NAME,
-            1,
-            true,
-        )?;
-        state_add_bool_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_KILL_WET,
-            1,
-            true,
-        )?;
-        state_add_bool_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_KILL_DRY,
-            1,
-            true,
-        )?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TIME_DECAY_NAME, 0);
+        card_cntr
+            .add_int_elems(&elem_id, 1, DECAY_MIN, DECAY_MAX, DECAY_STEP, 1, None, true)
+            .map(|mut list| self.elem_id_list.append(&mut list))?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_OUTPUT_LEVEL_NAME,
-            Self::OUTPUT_LEVEL_MIN,
-            Self::OUTPUT_LEVEL_MAX,
-            Self::OUTPUT_LEVEL_STEP,
-            1,
-            Some(&Into::<Vec<u32>>::into(Self::OUTPUT_LEVEL_TLV)),
-            true,
-        )?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_OUTPUT_LEVEL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                OUTPUT_LEVEL_MIN,
+                OUTPUT_LEVEL_MAX,
+                OUTPUT_LEVEL_STEP,
+                1,
+                Some(&Into::<Vec<u32>>::into(OUTPUT_LEVEL_TLV)),
+                true,
+            )
+            .map(|mut list| self.elem_id_list.append(&mut list))?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_TIME_DECAY_NAME,
-            Self::DECAY_MIN,
-            Self::DECAY_MAX,
-            Self::DECAY_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_TIME_PRE_DECAY_NAME,
-            Self::PRE_DECAY_MIN,
-            Self::PRE_DECAY_MAX,
-            Self::PRE_DECAY_STEP,
-            1,
-            None,
-            true,
-        )?;
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TIME_PRE_DECAY_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                PRE_DECAY_MIN,
+                PRE_DECAY_MAX,
+                PRE_DECAY_STEP,
+                1,
+                None,
+                true,
+            )
+            .map(|mut list| self.elem_id_list.append(&mut list))?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_COLOR_LOW_NAME,
-            Self::COLOR_MIN,
-            Self::COLOR_MAX,
-            Self::COLOR_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_COLOR_HIGH_NAME,
-            Self::COLOR_MIN,
-            Self::COLOR_MAX,
-            Self::COLOR_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_COLOR_HIGH_FACTOR_NAME,
-            Self::FACTOR_MIN,
-            Self::FACTOR_MAX,
-            Self::FACTOR_STEP,
-            1,
-            None,
-            true,
-        )?;
+        [REVERB_COLOR_LOW_NAME, REVERB_COLOR_HIGH_NAME]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr
+                    .add_int_elems(&elem_id, 1, COLOR_MIN, COLOR_MAX, COLOR_STEP, 1, None, true)
+                    .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+            })?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_MOD_RATE_NAME,
-            Self::FACTOR_MIN,
-            Self::FACTOR_MAX,
-            Self::FACTOR_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_MOD_DEPTH_NAME,
-            Self::FACTOR_MIN,
-            Self::FACTOR_MAX,
-            Self::FACTOR_STEP,
-            1,
-            None,
-            true,
-        )?;
+        [REVERB_MOD_RATE_NAME, REVERB_MOD_DEPTH_NAME]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr
+                    .add_int_elems(
+                        &elem_id,
+                        1,
+                        FACTOR_MIN,
+                        FACTOR_MAX,
+                        FACTOR_STEP,
+                        1,
+                        None,
+                        true,
+                    )
+                    .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+            })?;
 
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
+        [
             REVERB_LEVEL_EARLY_NAME,
-            Self::LEVEL_MIN,
-            Self::LEVEL_MAX,
-            Self::LEVEL_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
             REVERB_LEVEL_REVERB_NAME,
-            Self::LEVEL_MIN,
-            Self::LEVEL_MAX,
-            Self::LEVEL_STEP,
-            1,
-            None,
-            true,
-        )?;
-        state_add_int_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
             REVERB_LEVEL_DRY_NAME,
-            Self::LEVEL_MIN,
-            Self::LEVEL_MAX,
-            Self::LEVEL_STEP,
-            1,
-            None,
-            true,
-        )?;
+        ]
+        .iter()
+        .try_for_each(|name| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(&elem_id, 1, LEVEL_MIN, LEVEL_MAX, LEVEL_STEP, 1, None, true)
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
+        })?;
 
-        let labels: Vec<&str> = Self::ALGORITHMS
+        let labels: Vec<&str> = ALGORITHMS
             .iter()
             .map(|algo| reverb_algorithm_to_str(algo))
             .collect();
-        state_add_enum_elem(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_ALGORITHM_NAME,
-            1,
-            &labels,
-            true,
-        )?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ALGORITHM_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(notified_elem_id_list)
+        Ok(())
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_INPUT_LEVEL_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.input_level]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.input_level]);
                 Ok(true)
             }
             REVERB_BYPASS_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_bool(&[state.bypass]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_bool(&[params.bypass]);
                 Ok(true)
             }
             REVERB_KILL_WET => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_bool(&[state.kill_wet]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_bool(&[params.kill_wet]);
                 Ok(true)
             }
             REVERB_KILL_DRY => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_bool(&[state.kill_dry]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_bool(&[params.kill_dry]);
                 Ok(true)
             }
             REVERB_OUTPUT_LEVEL_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.output_level]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.output_level]);
                 Ok(true)
             }
             REVERB_TIME_DECAY_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.time_decay]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.time_decay]);
                 Ok(true)
             }
             REVERB_TIME_PRE_DECAY_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.time_pre_decay]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.time_pre_decay]);
                 Ok(true)
             }
             REVERB_COLOR_LOW_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.color_low]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.color_low]);
                 Ok(true)
             }
             REVERB_COLOR_HIGH_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.color_high]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.color_high]);
                 Ok(true)
             }
             REVERB_COLOR_HIGH_FACTOR_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.color_high_factor]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.color_high_factor]);
                 Ok(true)
             }
             REVERB_MOD_RATE_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.mod_rate]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.mod_rate]);
                 Ok(true)
             }
             REVERB_MOD_DEPTH_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.mod_depth]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.mod_depth]);
                 Ok(true)
             }
             REVERB_LEVEL_EARLY_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.level_early]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.level_early]);
                 Ok(true)
             }
             REVERB_LEVEL_REVERB_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.level_reverb]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.level_reverb]);
                 Ok(true)
             }
             REVERB_LEVEL_DRY_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                elem_value.set_int(&[state.level_dry]);
+                let params = &self.segment.data.as_ref();
+                elem_value.set_int(&[params.level_dry]);
                 Ok(true)
             }
             REVERB_ALGORITHM_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(&params);
-                let pos = Self::ALGORITHMS
+                let params = &self.segment.data.as_ref();
+                let pos = ALGORITHMS
                     .iter()
-                    .position(|algo| state.algorithm.eq(algo))
+                    .position(|algo| params.algorithm.eq(algo))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -407,7 +330,7 @@ where
         }
     }
 
-    fn write(
+    pub fn write(
         &mut self,
         req: &FwReq,
         node: &FwNode,
@@ -417,220 +340,176 @@ where
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_INPUT_LEVEL_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.input_level = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.input_level = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_BYPASS_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.bypass = elem_value.boolean()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.bypass = elem_value.boolean()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_KILL_WET => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.kill_wet = elem_value.boolean()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.kill_wet = elem_value.boolean()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_KILL_DRY => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.kill_dry = elem_value.boolean()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.kill_dry = elem_value.boolean()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_OUTPUT_LEVEL_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.output_level = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.output_level = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_TIME_DECAY_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.time_decay = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.time_decay = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_TIME_PRE_DECAY_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.time_pre_decay = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.time_pre_decay = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_COLOR_LOW_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.color_low = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.color_low = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_COLOR_HIGH_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.color_high = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.color_high = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_COLOR_HIGH_FACTOR_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.color_high_factor = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.color_high_factor = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_MOD_RATE_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.mod_rate = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.mod_rate = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_MOD_DEPTH_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.mod_depth = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.mod_depth = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_LEVEL_EARLY_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.level_early = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.level_early = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_LEVEL_REVERB_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.level_reverb = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.level_reverb = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_LEVEL_DRY_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
-                state.level_dry = elem_value.int()[0];
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
+                params.level_dry = elem_value.int()[0];
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             REVERB_ALGORITHM_NAME => {
-                let mut params = self.segment().data.clone();
-                let mut state = Self::state_mut(&mut params);
+                let mut data = self.segment.data.clone();
+                let params = data.as_mut();
                 let pos = elem_value.enumerated()[0] as usize;
-                state.algorithm = Self::ALGORITHMS
+                ALGORITHMS
                     .iter()
                     .nth(pos)
                     .ok_or_else(|| {
                         let msg = format!("reverb algorithm not found for position {}", pos);
                         Error::new(FileError::Inval, &msg)
                     })
-                    .copied()?;
+                    .map(|&algo| params.algorithm = algo)?;
                 let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
+                    T::update_partial_segment(req, node, &data, &mut self.segment, timeout_ms);
+                debug!(params = ?self.segment.data, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    fn parse_notification(
+    pub fn parse_notification(
         &mut self,
         req: &FwReq,
         node: &FwNode,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if U::is_notified_segment(self.segment(), msg) {
-            let res = U::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
-            debug!(params = ?self.segment().data, ?res);
+        if T::is_notified_segment(&self.segment, msg) {
+            let res = T::cache_whole_segment(req, node, &mut self.segment, timeout_ms);
+            debug!(params = ?self.segment.data, ?res);
             res
         } else {
             Ok(())
         }
     }
-}
-
-fn state_add_int_elem(
-    card_cntr: &mut CardCntr,
-    notified_elem_id_list: &mut Vec<ElemId>,
-    name: &str,
-    min: i32,
-    max: i32,
-    step: i32,
-    value_count: usize,
-    tlv: Option<&[u32]>,
-    locked: bool,
-) -> Result<(), Error> {
-    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-    card_cntr
-        .add_int_elems(&elem_id, 1, min, max, step, value_count, tlv, locked)
-        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
-}
-
-fn state_add_enum_elem<T: AsRef<str>>(
-    card_cntr: &mut CardCntr,
-    notified_elem_id_list: &mut Vec<ElemId>,
-    name: &str,
-    value_count: usize,
-    labels: &[T],
-    locked: bool,
-) -> Result<(), Error> {
-    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-    card_cntr
-        .add_enum_elems(&elem_id, 1, value_count, labels, None, locked)
-        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
-}
-
-fn state_add_bool_elem(
-    card_cntr: &mut CardCntr,
-    notified_elem_id_list: &mut Vec<ElemId>,
-    name: &str,
-    value_count: usize,
-    locked: bool,
-) -> Result<(), Error> {
-    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-    card_cntr
-        .add_bool_elems(&elem_id, 1, value_count, locked)
-        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
 }
 
 const METER_OUTPUT_MIN: i32 = -1000;

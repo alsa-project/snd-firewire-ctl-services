@@ -24,4 +24,5 @@ use {
     self::standalone_ctl::*,
     super::*,
     protocols::tcelectronic::{ch_strip::*, reverb::*, *},
+    std::marker::PhantomData,
 };
