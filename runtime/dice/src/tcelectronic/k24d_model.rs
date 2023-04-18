@@ -327,24 +327,6 @@ impl KnobCtl {
 #[derive(Default, Debug)]
 struct ConfigCtl(K24dConfigSegment, Vec<ElemId>);
 
-impl ShellCoaxIfaceCtlOperation<K24dConfig, K24dProtocol> for ConfigCtl {
-    fn segment(&self) -> &K24dConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dConfigSegment {
-        &mut self.0
-    }
-
-    fn coax_out_src(params: &K24dConfig) -> &ShellCoaxOutPairSrc {
-        &params.coax_out_src
-    }
-
-    fn coax_out_src_mut(params: &mut K24dConfig) -> &mut ShellCoaxOutPairSrc {
-        &mut params.coax_out_src
-    }
-}
-
 impl ShellOptIfaceCtl<K24dConfig, K24dProtocol> for ConfigCtl {
     fn segment(&self) -> &K24dConfigSegment {
         &self.0
@@ -373,7 +355,7 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_coax_out_src(card_cntr)?;
+        load_coax_out_src::<K24dProtocol, K24dConfig>(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
         load_standalone::<K24dProtocol, K24dConfig>(card_cntr)?;
 
@@ -388,7 +370,7 @@ impl ConfigCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_coax_out_src(elem_id, elem_value)? {
+        if read_coax_out_src::<K24dProtocol, K24dConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_opt_iface_config(elem_id, elem_value)? {
             Ok(true)
@@ -417,7 +399,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_coax_out_src::<K24dProtocol, K24dConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
