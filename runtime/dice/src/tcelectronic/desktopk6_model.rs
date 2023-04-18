@@ -18,21 +18,21 @@ pub struct Desktopk6Model {
 const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
-    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    fn cache(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
         Desktopk6Protocol::read_general_sections(
-            &self.req,
-            &unit.1,
+            &mut self.req,
+            node,
             &mut self.sections,
             TIMEOUT_MS,
         )?;
 
         self.common_ctl
-            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.mixer_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.panel_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache_whole_params(&mut self.req, node, &mut self.sections, TIMEOUT_MS)?;
+        self.hw_state_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.config_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mixer_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.panel_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -69,14 +69,14 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        (unit, node): &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
-            &unit.0,
+            unit,
             &self.req,
-            &unit.1,
+            node,
             &mut self.sections,
             elem_id,
             elem_value,
@@ -85,22 +85,22 @@ impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .config_ctl
-            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .mixer_ctl
-            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .panel_ctl
-            .write(&self.req, &unit.1, elem_id, elem_value, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -118,22 +118,17 @@ impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        (_, node): &mut (SndDice, FwNode),
         &msg: &u32,
     ) -> Result<(), Error> {
-        self.common_ctl.parse_notification(
-            &self.req,
-            &unit.1,
-            &mut self.sections,
-            msg,
-            TIMEOUT_MS,
-        )?;
+        self.common_ctl
+            .parse_notification(&self.req, node, &mut self.sections, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.panel_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -145,10 +140,10 @@ impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    fn measure_states(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, node, &mut self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.cache(&self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
 }
