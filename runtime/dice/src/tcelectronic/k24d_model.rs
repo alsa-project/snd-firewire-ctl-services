@@ -213,24 +213,6 @@ impl MeasureModel<(SndDice, FwNode)> for K24dModel {
 #[derive(Default, Debug)]
 struct KnobCtl(K24dKnobSegment, Vec<ElemId>);
 
-impl ShellKnob0CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
-    fn segment(&self) -> &K24dKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dKnobSegment {
-        &mut self.0
-    }
-
-    fn knob0_target(params: &K24dKnob) -> &ShellKnob0Target {
-        &params.knob0_target
-    }
-
-    fn knob0_target_mut(params: &mut K24dKnob) -> &mut ShellKnob0Target {
-        &mut params.knob0_target
-    }
-}
-
 impl ShellKnob1CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
     fn segment(&self) -> &K24dKnobSegment {
         &self.0
@@ -257,7 +239,7 @@ impl KnobCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_knob0_target(card_cntr)
+        load_knob0_target::<K24dProtocol, K24dKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         self.load_knob1_target(card_cntr)
@@ -270,7 +252,7 @@ impl KnobCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_knob0_target(elem_id, elem_value)? {
+        if read_knob0_target::<K24dProtocol, K24dKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_knob1_target(elem_id, elem_value)? {
             Ok(true)
@@ -289,7 +271,14 @@ impl KnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob0_target(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_knob0_target::<K24dProtocol, K24dKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
