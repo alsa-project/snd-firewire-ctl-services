@@ -661,6 +661,18 @@ impl AsMut<TcKonnektStandaloneClockRate> for StudioConfig {
     }
 }
 
+impl AsRef<TcKonnektMidiSender> for StudioConfig {
+    fn as_ref(&self) -> &TcKonnektMidiSender {
+        &self.midi_send
+    }
+}
+
+impl AsMut<TcKonnektMidiSender> for StudioConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektMidiSender {
+        &mut self.midi_send
+    }
+}
+
 /// Entry of signal source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SrcEntry {
