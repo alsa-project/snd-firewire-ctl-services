@@ -13,7 +13,7 @@ members = [
 #    "protocols/alsa-ctl-tlv-codec",
 #    "protocols/ieee1212-config-rom",
 #    "protocols/ta1394/general",
-    "protocols/ta1394/audio",
+#    "protocols/ta1394/audio",
     "protocols/ta1394/stream-format",
     "protocols/ta1394/ccm",
     "protocols/digi00x",
@@ -33,7 +33,7 @@ hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 #alsa-ctl-tlv-codec = { path = "protocols/alsa-ctl-tlv-codec" }
 #ieee1212-config-rom = { path = "protocols/ieee1212-config-rom" }
 #ta1394-avc-general = { path = "protocols/ta1394/general" }
-ta1394-avc-audio = { path = "protocols/ta1394/audio" }
+#ta1394-avc-audio = { path = "protocols/ta1394/audio" }
 ta1394-avc-stream-format = { path = "protocols/ta1394/stream-format" }
 ta1394-avc-ccm = { path = "protocols/ta1394/ccm" }
 firewire-bebob-protocols = { path = "protocols/bebob" }
