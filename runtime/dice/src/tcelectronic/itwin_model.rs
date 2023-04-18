@@ -611,34 +611,6 @@ impl MixerStateCtl {
 #[derive(Default, Debug)]
 struct HwStateCtl(ItwinHwStateSegment, Vec<ElemId>);
 
-impl FirewireLedCtlOperation<ItwinHwState, ItwinProtocol> for HwStateCtl {
-    fn segment(&self) -> &ItwinHwStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut ItwinHwStateSegment {
-        &mut self.0
-    }
-
-    fn firewire_led(params: &ItwinHwState) -> &FireWireLedState {
-        &params.hw_state.firewire_led
-    }
-
-    fn firewire_led_mut(params: &mut ItwinHwState) -> &mut FireWireLedState {
-        &mut params.hw_state.firewire_led
-    }
-}
-
-impl ShellHwStateCtlOperation<ItwinHwState, ItwinProtocol> for HwStateCtl {
-    fn hw_state(&self) -> &ShellHwState {
-        &self.0.data.hw_state
-    }
-
-    fn hw_state_mut(&mut self) -> &mut ShellHwState {
-        &mut self.0.data.hw_state
-    }
-}
-
 const LISTENING_MODE_NAME: &str = "listening-mode";
 
 fn listening_mode_to_str(mode: &ListeningMode) -> &'static str {
@@ -663,8 +635,8 @@ impl HwStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_hw_state(card_cntr)
-            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
+        load_hw_state::<ItwinProtocol, ItwinHwState>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = Self::LISTENING_MODES
             .iter()
@@ -679,59 +651,58 @@ impl HwStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_hw_state(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                LISTENING_MODE_NAME => {
-                    let params = &self.0.data;
-                    let pos = Self::LISTENING_MODES
-                        .iter()
-                        .position(|m| params.listening_mode.eq(m))
-                        .unwrap();
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                }
-                _ => Ok(false),
+        match elem_id.name().as_str() {
+            LISTENING_MODE_NAME => {
+                let params = &self.0.data;
+                let pos = Self::LISTENING_MODES
+                    .iter()
+                    .position(|m| params.listening_mode.eq(m))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
             }
+            _ => read_hw_state::<ItwinProtocol, ItwinHwState>(&self.0, elem_id, elem_value),
         }
     }
 
     fn write(
         &mut self,
-        req: &FwReq,
-        node: &FwNode,
+        req: &mut FwReq,
+        node: &mut FwNode,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(req, node, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                LISTENING_MODE_NAME => {
-                    let mut params = self.0.data.clone();
-                    let pos = elem_value.enumerated()[0] as usize;
-                    Self::LISTENING_MODES
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of listening mode: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|&m| params.listening_mode = m)?;
-                    let res = ItwinProtocol::update_partial_segment(
-                        req,
-                        node,
-                        &params,
-                        &mut self.0,
-                        timeout_ms,
-                    );
-                    debug!(params = ?self.0.data, ?res);
-                    res.map(|_| true)
-                }
-                _ => Ok(false),
+        match elem_id.name().as_str() {
+            LISTENING_MODE_NAME => {
+                let mut params = self.0.data.clone();
+                let pos = elem_value.enumerated()[0] as usize;
+                Self::LISTENING_MODES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of listening mode: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|&m| params.listening_mode = m)?;
+                let res = ItwinProtocol::update_partial_segment(
+                    req,
+                    node,
+                    &params,
+                    &mut self.0,
+                    timeout_ms,
+                );
+                debug!(params = ?self.0.data, ?res);
+                res.map(|_| true)
             }
+            _ => write_hw_state::<ItwinProtocol, ItwinHwState>(
+                &mut self.0,
+                req,
+                node,
+                elem_id,
+                elem_value,
+                timeout_ms,
+            ),
         }
     }
 

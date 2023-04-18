@@ -3,6 +3,17 @@
 
 use {super::*, protocols::tcelectronic::shell::*};
 
+// TODO: For Jack detection in ALSA applications.
+const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
+
+const ANALOG_JACK_STATE_LABELS: &[ShellAnalogJackState] = &[
+    ShellAnalogJackState::FrontSelected,
+    ShellAnalogJackState::FrontInserted,
+    ShellAnalogJackState::FrontInsertedAttenuated,
+    ShellAnalogJackState::RearSelected,
+    ShellAnalogJackState::RearInserted,
+];
+
 fn analog_jack_state_to_str(state: &ShellAnalogJackState) -> &'static str {
     match state {
         ShellAnalogJackState::FrontSelected => "Front-selected",
@@ -13,90 +24,92 @@ fn analog_jack_state_to_str(state: &ShellAnalogJackState) -> &'static str {
     }
 }
 
-// TODO: For Jack detection in ALSA applications.
-const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
-
-pub trait ShellHwStateCtlOperation<S, T>: FirewireLedCtlOperation<S, T>
+pub fn load_hw_state<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug
+        + Clone
+        + AsRef<ShellHwState>
+        + AsMut<ShellHwState>
+        + AsRef<FireWireLedState>
+        + AsMut<FireWireLedState>,
 {
-    fn hw_state(&self) -> &ShellHwState;
-    fn hw_state_mut(&mut self) -> &mut ShellHwState;
+    let mut elem_id_list = Vec::new();
 
-    const ANALOG_JACK_STATE_LABELS: [ShellAnalogJackState; 5] = [
-        ShellAnalogJackState::FrontSelected,
-        ShellAnalogJackState::FrontInserted,
-        ShellAnalogJackState::FrontInsertedAttenuated,
-        ShellAnalogJackState::RearSelected,
-        ShellAnalogJackState::RearInserted,
-    ];
+    let labels: Vec<&str> = ANALOG_JACK_STATE_LABELS
+        .iter()
+        .map(|s| analog_jack_state_to_str(s))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_JACK_STATE_NAME, 0);
+    card_cntr
+        .add_enum_elems(
+            &elem_id,
+            1,
+            SHELL_ANALOG_JACK_STATE_COUNT,
+            &labels,
+            None,
+            false,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn load_hw_state(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
+    load_firewire_led::<T, U>(card_cntr).map(|mut list| elem_id_list.append(&mut list))?;
 
-        let labels = Self::ANALOG_JACK_STATE_LABELS
-            .iter()
-            .map(|s| analog_jack_state_to_str(s))
-            .collect::<Vec<_>>();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_JACK_STATE_NAME, 0);
-        card_cntr
-            .add_enum_elems(
-                &elem_id,
-                1,
-                SHELL_ANALOG_JACK_STATE_COUNT,
-                &labels,
-                None,
-                false,
-            )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+    Ok(elem_id_list)
+}
 
-        self.load_firewire_led(card_cntr)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(notified_elem_id_list)
-    }
-
-    fn read_hw_state(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.read_firewire_led(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            match elem_id.name().as_str() {
-                ANALOG_JACK_STATE_NAME => {
-                    let vals: Vec<u32> = self
-                        .hw_state()
-                        .analog_jack_states
+pub fn read_hw_state<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &mut ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug
+        + Clone
+        + AsRef<ShellHwState>
+        + AsMut<ShellHwState>
+        + AsRef<FireWireLedState>
+        + AsMut<FireWireLedState>,
+{
+    match elem_id.name().as_str() {
+        ANALOG_JACK_STATE_NAME => {
+            let params: &ShellHwState = segment.data.as_ref();
+            let vals: Vec<u32> = params
+                .analog_jack_states
+                .iter()
+                .map(|state| {
+                    let pos = ANALOG_JACK_STATE_LABELS
                         .iter()
-                        .map(|state| {
-                            let pos = Self::ANALOG_JACK_STATE_LABELS
-                                .iter()
-                                .position(|s| state.eq(s))
-                                .unwrap();
-                            pos as u32
-                        })
-                        .collect();
-                    elem_value.set_enum(&vals);
-                    Ok(true)
-                }
-                _ => Ok(false),
-            }
+                        .position(|s| state.eq(s))
+                        .unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
         }
+        _ => read_firewire_led::<T, U>(segment, elem_id, elem_value),
     }
+}
 
-    fn write_hw_state(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        self.write_firewire_led(req, node, elem_id, elem_value, timeout_ms)
-    }
+pub fn write_hw_state<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &mut FwReq,
+    node: &mut FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug
+        + Clone
+        + AsRef<ShellHwState>
+        + AsMut<ShellHwState>
+        + AsRef<FireWireLedState>
+        + AsMut<FireWireLedState>,
+{
+    write_firewire_led::<T, U>(segment, req, node, elem_id, elem_value, timeout_ms)
 }
 
 const MIXER_STREAM_SRC_PAIR_GAIN_NAME: &str = "mixer-stream-source-gain";
