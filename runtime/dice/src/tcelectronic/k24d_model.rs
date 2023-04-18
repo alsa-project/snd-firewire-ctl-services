@@ -3,7 +3,7 @@
 
 use {
     super::{shell_ctl::*, *},
-    protocols::tcelectronic::shell::{k24d::*, *},
+    protocols::tcelectronic::shell::k24d::*,
 };
 
 #[derive(Default, Debug)]
@@ -213,24 +213,6 @@ impl MeasureModel<(SndDice, FwNode)> for K24dModel {
 #[derive(Default, Debug)]
 struct KnobCtl(K24dKnobSegment, Vec<ElemId>);
 
-impl ShellKnob1CtlOperation<K24dKnob, K24dProtocol> for KnobCtl {
-    fn segment(&self) -> &K24dKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dKnobSegment {
-        &mut self.0
-    }
-
-    fn knob1_target(params: &K24dKnob) -> &ShellKnob1Target {
-        &params.knob1_target
-    }
-
-    fn knob1_target_mut(params: &mut K24dKnob) -> &mut ShellKnob1Target {
-        &mut params.knob1_target
-    }
-}
-
 impl KnobCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K24dProtocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -242,7 +224,7 @@ impl KnobCtl {
         load_knob0_target::<K24dProtocol, K24dKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.load_knob1_target(card_cntr)
+        load_knob1_target::<K24dProtocol, K24dKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         load_prog::<K24dProtocol, K24dKnob>(card_cntr)
@@ -254,7 +236,7 @@ impl KnobCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_knob0_target::<K24dProtocol, K24dKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
+        } else if read_knob1_target::<K24dProtocol, K24dKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if read_prog::<K24dProtocol, K24dKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -280,7 +262,14 @@ impl KnobCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_knob1_target::<K24dProtocol, K24dKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_prog::<K24dProtocol, K24dKnob>(
             &mut self.0,

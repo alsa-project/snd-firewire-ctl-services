@@ -3,7 +3,7 @@
 
 use {
     super::{shell_ctl::*, *},
-    protocols::tcelectronic::shell::{k8::*, *},
+    protocols::tcelectronic::shell::k8::*,
 };
 
 #[derive(Default, Debug)]
@@ -158,24 +158,6 @@ impl MeasureModel<(SndDice, FwNode)> for K8Model {
 #[derive(Default, Debug)]
 struct KnobCtl(K8KnobSegment, Vec<ElemId>);
 
-impl ShellKnob1CtlOperation<K8Knob, K8Protocol> for KnobCtl {
-    fn segment(&self) -> &K8KnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8KnobSegment {
-        &mut self.0
-    }
-
-    fn knob1_target(params: &K8Knob) -> &ShellKnob1Target {
-        &params.knob1_target
-    }
-
-    fn knob1_target_mut(params: &mut K8Knob) -> &mut ShellKnob1Target {
-        &mut params.knob1_target
-    }
-}
-
 impl KnobCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let res = K8Protocol::cache_whole_segment(req, node, &mut self.0, timeout_ms);
@@ -186,7 +168,7 @@ impl KnobCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_knob0_target::<K8Protocol, K8Knob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-        self.load_knob1_target(card_cntr)
+        load_knob1_target::<K8Protocol, K8Knob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
@@ -195,7 +177,7 @@ impl KnobCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_knob0_target::<K8Protocol, K8Knob>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
+        } else if read_knob1_target::<K8Protocol, K8Knob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -219,7 +201,14 @@ impl KnobCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_knob1_target::<K8Protocol, K8Knob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             Ok(false)

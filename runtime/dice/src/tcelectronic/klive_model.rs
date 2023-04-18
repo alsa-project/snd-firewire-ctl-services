@@ -3,7 +3,7 @@
 
 use {
     super::{shell_ctl::*, *},
-    protocols::tcelectronic::shell::{klive::*, *},
+    protocols::tcelectronic::shell::klive::*,
 };
 
 #[derive(Default, Debug)]
@@ -212,24 +212,6 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
 #[derive(Default, Debug)]
 struct KnobCtl(KliveKnobSegment, Vec<ElemId>);
 
-impl ShellKnob1CtlOperation<KliveKnob, KliveProtocol> for KnobCtl {
-    fn segment(&self) -> &KliveKnobSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveKnobSegment {
-        &mut self.0
-    }
-
-    fn knob1_target(params: &KliveKnob) -> &ShellKnob1Target {
-        &params.knob1_target
-    }
-
-    fn knob1_target_mut(params: &mut KliveKnob) -> &mut ShellKnob1Target {
-        &mut params.knob1_target
-    }
-}
-
 const OUTPUT_IMPEDANCE_NAME: &str = "output-impedance";
 
 fn impedance_to_str(impedance: &OutputImpedance) -> &'static str {
@@ -252,7 +234,7 @@ impl KnobCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_knob0_target::<KliveProtocol, KliveKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-        self.load_knob1_target(card_cntr)
+        load_knob1_target::<KliveProtocol, KliveKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         load_prog::<KliveProtocol, KliveKnob>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -270,7 +252,7 @@ impl KnobCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_knob0_target::<KliveProtocol, KliveKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_knob1_target(elem_id, elem_value)? {
+        } else if read_knob1_target::<KliveProtocol, KliveKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if read_prog::<KliveProtocol, KliveKnob>(&self.0, elem_id, elem_value)? {
             Ok(true)
@@ -315,7 +297,14 @@ impl KnobCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_knob1_target(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_knob1_target::<KliveProtocol, KliveKnob>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if write_prog::<KliveProtocol, KliveKnob>(
             &mut self.0,
