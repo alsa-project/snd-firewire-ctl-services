@@ -478,24 +478,6 @@ impl ConfigCtl {
 #[derive(Default, Debug)]
 struct MixerStateCtl(K24dMixerStateSegment, Vec<ElemId>);
 
-impl ShellReverbReturnCtlOperation<K24dMixerState, K24dProtocol> for MixerStateCtl {
-    fn segment(&self) -> &K24dMixerStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dMixerStateSegment {
-        &mut self.0
-    }
-
-    fn reverb_return(params: &K24dMixerState) -> &ShellReverbReturn {
-        &params.reverb_return
-    }
-
-    fn reverb_return_mut(params: &mut K24dMixerState) -> &mut ShellReverbReturn {
-        &mut params.reverb_return
-    }
-}
-
 const MIXER_ENABLE_NAME: &str = "mixer-enable";
 const USE_CH_STRIP_AS_PLUGIN_NAME: &str = "use-channel-strip-as-plugin";
 const USE_REVERB_AT_MID_RATE: &str = "use-reverb-at-mid-rate";
@@ -511,8 +493,8 @@ impl MixerStateCtl {
         load_mixer::<K24dProtocol, K24dMixerState>(&self.0, card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.load_reverb_return(card_cntr)
-            .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
+        load_reverb_return::<K24dProtocol, K24dMixerState>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -530,7 +512,8 @@ impl MixerStateCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_mixer::<K24dProtocol, K24dMixerState>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_reverb_return(elem_id, elem_value)? {
+        } else if read_reverb_return::<K24dProtocol, K24dMixerState>(&self.0, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -568,7 +551,14 @@ impl MixerStateCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_reverb_return(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_reverb_return::<K24dProtocol, K24dMixerState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
