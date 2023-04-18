@@ -370,6 +370,18 @@ impl AsMut<ShellMixerState> for K24dMixerState {
     }
 }
 
+impl AsRef<ShellReverbReturn> for K24dMixerState {
+    fn as_ref(&self) -> &ShellReverbReturn {
+        &self.reverb_return
+    }
+}
+
+impl AsMut<ShellReverbReturn> for K24dMixerState {
+    fn as_mut(&mut self) -> &mut ShellReverbReturn {
+        &mut self.reverb_return
+    }
+}
+
 /// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbState(pub ReverbState);
