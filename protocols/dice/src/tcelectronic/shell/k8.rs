@@ -237,6 +237,18 @@ impl TcKonnektNotifiedSegmentOperation<K8MixerState> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellMixerState> for K8MixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for K8MixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
 /// General state of hardware.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8HwState {

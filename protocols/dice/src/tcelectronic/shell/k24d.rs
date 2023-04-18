@@ -322,6 +322,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dMixerState> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellMixerState> for K24dMixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for K24dMixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
 /// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dReverbState(pub ReverbState);

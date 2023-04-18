@@ -516,6 +516,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveMixerState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellMixerState> for KliveMixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for KliveMixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
 /// Configuration for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbState(pub ReverbState);
