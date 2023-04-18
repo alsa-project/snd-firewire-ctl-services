@@ -33,8 +33,6 @@ const REVERB_LEVEL_EARLY_NAME: &str = "reverb-level-early";
 const REVERB_LEVEL_REVERB_NAME: &str = "reverb-level-reverb";
 const REVERB_LEVEL_DRY_NAME: &str = "reverb-level-dry";
 const REVERB_ALGORITHM_NAME: &str = "reverb-algorithm";
-const REVERB_OUTPUT_METER_NAME: &str = "reverb-output-meter";
-const REVERB_INPUT_METER_NAME: &str = "reverb-input-meter";
 
 const INPUT_LEVEL_MIN: i32 = -240;
 const INPUT_LEVEL_MAX: i32 = 0;
@@ -512,6 +510,21 @@ where
     }
 }
 
+#[derive(Default, Debug)]
+pub struct ReverbMeterCtl<T, U>
+where
+    T: TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<ReverbMeter> + AsMut<ReverbMeter>,
+{
+    pub elem_id_list: Vec<ElemId>,
+    segment: TcKonnektSegment<U>,
+    _phantom: PhantomData<T>,
+}
+
+const REVERB_OUTPUT_METER_NAME: &str = "reverb-output-meter";
+const REVERB_INPUT_METER_NAME: &str = "reverb-input-meter";
+
 const METER_OUTPUT_MIN: i32 = -1000;
 const METER_OUTPUT_MAX: i32 = 500;
 const METER_OUTPUT_STEP: i32 = 1;
@@ -532,25 +545,19 @@ const METER_INPUT_TLV: DbInterval = DbInterval {
     mute_avail: false,
 };
 
-pub trait ReverbMeterCtlOperation<S, T>
+impl<T, U> ReverbMeterCtl<T, U>
 where
-    S: Debug,
-    T: TcKonnektSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + Clone + AsRef<ReverbMeter> + AsMut<ReverbMeter>,
 {
-    fn meter(&self) -> &ReverbMeter;
-
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
-        debug!(params = ?self.segment().data, ?res);
+    pub fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::cache_whole_segment(req, node, &mut self.segment, timeout_ms);
+        debug!(params = ?self.segment.data, ?res);
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut measured_elem_id_list = Vec::new();
-
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (
                 REVERB_OUTPUT_METER_NAME,
@@ -581,21 +588,20 @@ where
                     Some(&Into::<Vec<u32>>::into(tlv)),
                     false,
                 )
-                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })
-        .map(|_| measured_elem_id_list)
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             REVERB_OUTPUT_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.outputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.outputs);
                 Ok(true)
             }
             REVERB_INPUT_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.inputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.inputs);
                 Ok(true)
             }
             _ => Ok(false),
