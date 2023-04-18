@@ -249,6 +249,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dConfig> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellStandaloneClockSource> for K24dConfig {
+    fn as_ref(&self) -> &ShellStandaloneClockSource {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClockSource> for K24dConfig {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClockSource {
+        &mut self.standalone_src
+    }
+}
+
 impl AsRef<TcKonnektStandaloneClockRate> for K24dConfig {
     fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
         &self.standalone_rate
