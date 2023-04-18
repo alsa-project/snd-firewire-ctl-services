@@ -657,121 +657,117 @@ const USE_AS_PLUGIN_NAME: &str = "use-reverb-as-plugin";
 const GAIN_NAME: &str = "reverb-return-gain";
 const MUTE_NAME: &str = "reverb-return-mute";
 
-pub trait ShellReverbReturnCtlOperation<S, T>
+const GAIN_MIN: i32 = -1000;
+const GAIN_MAX: i32 = 0;
+const GAIN_STEP: i32 = 1;
+const GAIN_TLV: DbInterval = DbInterval {
+    min: -7200,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+pub fn load_reverb_return<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S> + TcKonnektMutableSegmentOperation<S>,
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellReverbReturn> + AsMut<ShellReverbReturn>,
 {
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+    let mut elem_id_list = Vec::new();
 
-    fn reverb_return(params: &S) -> &ShellReverbReturn;
-    fn reverb_return_mut(params: &mut S) -> &mut ShellReverbReturn;
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_AS_PLUGIN_NAME, 0);
+    card_cntr
+        .add_bool_elems(&elem_id, 1, 1, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    const GAIN_MIN: i32 = -1000;
-    const GAIN_MAX: i32 = 0;
-    const GAIN_STEP: i32 = 1;
-    const GAIN_TLV: DbInterval = DbInterval {
-        min: -7200,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, GAIN_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
+            1,
+            GAIN_MIN,
+            GAIN_MAX,
+            GAIN_STEP,
+            1,
+            Some(&Vec::<u32>::from(GAIN_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn load_reverb_return(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut notified_elem_id_list = Vec::new();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
+    card_cntr
+        .add_bool_elems(&elem_id, 1, 1, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_AS_PLUGIN_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+    Ok(elem_id_list)
+}
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, GAIN_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                Self::GAIN_MIN,
-                Self::GAIN_MAX,
-                Self::GAIN_STEP,
-                1,
-                Some(&Vec::<u32>::from(Self::GAIN_TLV)),
-                true,
-            )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, 1, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(notified_elem_id_list)
-    }
-
-    fn read_reverb_return(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            USE_AS_PLUGIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::reverb_return(&params);
-                elem_value.set_bool(&[state.plugin_mode]);
-                Ok(true)
-            }
-            GAIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::reverb_return(&params);
-                elem_value.set_int(&[state.return_gain]);
-                Ok(true)
-            }
-            MUTE_NAME => {
-                let params = &self.segment().data;
-                let state = Self::reverb_return(&params);
-                elem_value.set_bool(&[state.return_mute]);
-                Ok(true)
-            }
-            _ => Ok(false),
+pub fn read_reverb_return<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &mut ElemValue,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellReverbReturn> + AsMut<ShellReverbReturn>,
+{
+    match elem_id.name().as_str() {
+        USE_AS_PLUGIN_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_bool(&[params.plugin_mode]);
+            Ok(true)
         }
-    }
-
-    fn write_reverb_return(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            USE_AS_PLUGIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::reverb_return_mut(&mut params);
-                state.plugin_mode = elem_value.boolean()[0];
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            GAIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::reverb_return_mut(&mut params);
-                state.return_gain = elem_value.int()[0];
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MUTE_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::reverb_return_mut(&mut params);
-                state.return_mute = elem_value.boolean()[0];
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+        GAIN_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.return_gain]);
+            Ok(true)
         }
+        MUTE_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_bool(&[params.return_mute]);
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+pub fn write_reverb_return<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: TcKonnektSegmentOperation<U> + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellReverbReturn> + AsMut<ShellReverbReturn>,
+{
+    match elem_id.name().as_str() {
+        USE_AS_PLUGIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.plugin_mode = elem_value.boolean()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        GAIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.return_gain = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MUTE_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.return_mute = elem_value.boolean()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        _ => Ok(false),
     }
 }
 
