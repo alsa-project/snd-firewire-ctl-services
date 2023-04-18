@@ -692,6 +692,18 @@ impl TcKonnektSegmentSerdes<KliveChStripMeters> for KliveProtocol {
     }
 }
 
+impl AsRef<[ChStripMeter]> for KliveChStripMeters {
+    fn as_ref(&self) -> &[ChStripMeter] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripMeter]> for KliveChStripMeters {
+    fn as_mut(&mut self) -> &mut [ChStripMeter] {
+        &mut self.0
+    }
+}
+
 /// Impedance of output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OutputImpedance {

@@ -497,3 +497,15 @@ impl TcKonnektSegmentSerdes<K24dChStripMeters> for K24dProtocol {
         deserialize_ch_strip_meters(&mut params.0, raw)
     }
 }
+
+impl AsRef<[ChStripMeter]> for K24dChStripMeters {
+    fn as_ref(&self) -> &[ChStripMeter] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripMeter]> for K24dChStripMeters {
+    fn as_mut(&mut self) -> &mut [ChStripMeter] {
+        &mut self.0
+    }
+}
