@@ -330,6 +330,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveConfig> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektStandaloneClockRate> for KliveConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClockRate> for KliveConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClockRate {
+        &mut self.standalone_rate
+    }
+}
+
 /// The source of channel strip effect.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChStripSrc {

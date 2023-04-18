@@ -253,6 +253,18 @@ impl TcKonnektNotifiedSegmentOperation<DesktopConfig> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektStandaloneClockRate> for DesktopConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClockRate> for DesktopConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClockRate {
+        &mut self.standalone_rate
+    }
+}
+
 /// Source of headphone.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DesktopHpSrc {

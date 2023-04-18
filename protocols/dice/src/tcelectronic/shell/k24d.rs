@@ -249,6 +249,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dConfig> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<TcKonnektStandaloneClockRate> for K24dConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClockRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClockRate> for K24dConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClockRate {
+        &mut self.standalone_rate
+    }
+}
+
 /// State of mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct K24dMixerState {
