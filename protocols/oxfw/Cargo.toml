@@ -20,7 +20,7 @@ features = ["dox"]
 [dependencies]
 glib = "0.15"
 hinawa = "0.7"
-ta1394-avc-general = "0.1"
+ta1394-avc-general = "0.2"
 ta1394-avc-audio = "0.1"
 ta1394-avc-ccm = "0.1"
 ta1394-avc-stream-format = "0.1"

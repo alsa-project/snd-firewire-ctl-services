@@ -17,4 +17,4 @@ readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
-ta1394-avc-general = "0.1"
+ta1394-avc-general = "0.2"

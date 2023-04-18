@@ -1,7 +1,7 @@
 [package]
 edition = "2018"
 name = "ta1394-avc-general"
-version = "0.1.0"
+version = "0.2.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
 categories = ["embedded", "hardware-support", "multimedia", "encoding"]
