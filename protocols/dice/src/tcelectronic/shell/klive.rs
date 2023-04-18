@@ -624,6 +624,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveHwState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellHwState> for KliveHwState {
+    fn as_ref(&self) -> &ShellHwState {
+        &self.0
+    }
+}
+
+impl AsMut<ShellHwState> for KliveHwState {
+    fn as_mut(&mut self) -> &mut ShellHwState {
+        &mut self.0
+    }
+}
+
 impl AsRef<FireWireLedState> for KliveHwState {
     fn as_ref(&self) -> &FireWireLedState {
         &self.0.firewire_led

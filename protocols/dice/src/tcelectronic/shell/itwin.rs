@@ -567,6 +567,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinHwState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellHwState> for ItwinHwState {
+    fn as_ref(&self) -> &ShellHwState {
+        &self.hw_state
+    }
+}
+
+impl AsMut<ShellHwState> for ItwinHwState {
+    fn as_mut(&mut self) -> &mut ShellHwState {
+        &mut self.hw_state
+    }
+}
+
 impl AsRef<FireWireLedState> for ItwinHwState {
     fn as_ref(&self) -> &FireWireLedState {
         &self.hw_state.firewire_led
