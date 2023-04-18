@@ -14,7 +14,7 @@ pub struct Studiok48Model {
     mixer_state_ctl: MixerStateCtl,
     mixer_meter_ctl: MixerMeterCtl,
     phys_out_ctl: PhysOutCtl,
-    ch_strip_state_ctl: ChStripStateCtl,
+    ch_strip_state_ctl: ChStripStateCtl<Studiok48Protocol, StudioChStripStates>,
     ch_strip_meter_ctl: ChStripMeterCtl,
     reverb_state_ctl: ReverbStateCtl<Studiok48Protocol, StudioReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<Studiok48Protocol, StudioReverbMeter>,
@@ -68,9 +68,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
 
         self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl.load(card_cntr)?;
-        self.ch_strip_state_ctl
-            .load(card_cntr)
-            .map(|notified_elem_id_list| self.ch_strip_state_ctl.1 = notified_elem_id_list)?;
+        self.ch_strip_state_ctl.load(card_cntr)?;
         self.ch_strip_meter_ctl
             .load(card_cntr)
             .map(|measured_elem_id_list| {
@@ -192,7 +190,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.mixer_state_ctl.1);
         elem_id_list.extend_from_slice(&self.phys_out_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_state_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.1);
+        elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
     }
 
@@ -2697,27 +2695,6 @@ impl PhysOutCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct ChStripStateCtl(Studiok48ChStripStatesSegment, Vec<ElemId>);
-
-impl ChStripStateCtlOperation<StudioChStripStates, Studiok48Protocol> for ChStripStateCtl {
-    fn segment(&self) -> &Studiok48ChStripStatesSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48ChStripStatesSegment {
-        &mut self.0
-    }
-
-    fn states(params: &StudioChStripStates) -> &[ChStripState] {
-        &params.0
-    }
-
-    fn states_mut(params: &mut StudioChStripStates) -> &mut [ChStripState] {
-        &mut params.0
     }
 }
 

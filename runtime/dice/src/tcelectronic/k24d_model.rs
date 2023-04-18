@@ -18,7 +18,7 @@ pub struct K24dModel {
     hw_state_ctl: HwStateCtl,
     reverb_state_ctl: ReverbStateCtl<K24dProtocol, K24dReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<K24dProtocol, K24dReverbMeter>,
-    ch_strip_state_ctl: ChStripStateCtl,
+    ch_strip_state_ctl: ChStripStateCtl<K24dProtocol, K24dChStripStates>,
     ch_strip_meter_ctl: ChStripMeterCtl,
 }
 
@@ -60,9 +60,7 @@ impl CtlModel<(SndDice, FwNode)> for K24dModel {
         self.hw_state_ctl.load(card_cntr)?;
         self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl.load(card_cntr)?;
-        self.ch_strip_state_ctl
-            .load(card_cntr)
-            .map(|notified_elem_id_list| self.ch_strip_state_ctl.1 = notified_elem_id_list)?;
+        self.ch_strip_state_ctl.load(card_cntr)?;
         self.ch_strip_meter_ctl
             .load(card_cntr)
             .map(|measured_elem_id_list| {
@@ -167,7 +165,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for K24dModel {
         elem_id_list.extend_from_slice(&self.mixer_state_ctl.1);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
         elem_id_list.extend_from_slice(&self.reverb_state_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.1);
+        elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.elem_id_list);
     }
 
     fn parse_notification(
@@ -787,27 +785,6 @@ impl HwStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct ChStripStateCtl(K24dChStripStatesSegment, Vec<ElemId>);
-
-impl ChStripStateCtlOperation<K24dChStripStates, K24dProtocol> for ChStripStateCtl {
-    fn segment(&self) -> &K24dChStripStatesSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dChStripStatesSegment {
-        &mut self.0
-    }
-
-    fn states(params: &K24dChStripStates) -> &[ChStripState] {
-        &params.0
-    }
-
-    fn states_mut(params: &mut K24dChStripStates) -> &mut [ChStripState] {
-        &mut params.0
     }
 }
 
