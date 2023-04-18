@@ -25,25 +25,27 @@ pub struct KliveModel {
 const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<(SndDice, FwNode)> for KliveModel {
-    fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        KliveProtocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+    fn cache(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
+        KliveProtocol::read_general_sections(&mut self.req, node, &mut self.sections, TIMEOUT_MS)?;
 
         self.common_ctl
-            .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+            .cache_whole_params(&mut self.req, node, &mut self.sections, TIMEOUT_MS)?;
 
-        self.knob_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.config_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.mixer_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
-        self.hw_state_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+        self.knob_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.config_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mixer_state_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.mixer_meter_ctl
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
+        self.hw_state_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.reverb_state_ctl
-            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.reverb_meter_ctl
-            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.ch_strip_state_ctl
-            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
         self.ch_strip_meter_ctl
-            .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache(&mut self.req, node, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -102,48 +104,57 @@ impl CtlModel<(SndDice, FwNode)> for KliveModel {
 
     fn write(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        (unit, node): &mut (SndDice, FwNode),
         elem_id: &ElemId,
-        new: &ElemValue,
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
-            &unit.0,
-            &self.req,
-            &unit.1,
+            unit,
+            &mut self.req,
+            node,
             &mut self.sections,
             elem_id,
-            new,
+            elem_value,
             TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self
             .knob_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .config_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mixer_state_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_state_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .reverb_state_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.reverb_state_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .ch_strip_state_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.ch_strip_state_ctl.write(
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .hw_state_ctl
-            .write(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
+            .write(&mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -165,28 +176,23 @@ impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
 
     fn parse_notification(
         &mut self,
-        unit: &mut (SndDice, FwNode),
+        (_, node): &mut (SndDice, FwNode),
         &msg: &u32,
     ) -> Result<(), Error> {
-        self.common_ctl.parse_notification(
-            &self.req,
-            &unit.1,
-            &mut self.sections,
-            msg,
-            TIMEOUT_MS,
-        )?;
+        self.common_ctl
+            .parse_notification(&self.req, node, &mut self.sections, msg, TIMEOUT_MS)?;
         self.knob_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.config_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.mixer_state_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.hw_state_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.reverb_state_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         self.ch_strip_state_ctl
-            .parse_notification(&self.req, &unit.1, msg, TIMEOUT_MS)?;
+            .parse_notification(&self.req, node, msg, TIMEOUT_MS)?;
         Ok(())
     }
 }
@@ -199,17 +205,15 @@ impl MeasureModel<(SndDice, FwNode)> for KliveModel {
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
+    fn measure_states(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
-        self.mixer_meter_ctl.cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            .cache_partial_params(&self.req, node, &mut self.sections, TIMEOUT_MS)?;
+        self.mixer_meter_ctl.cache(&self.req, node, TIMEOUT_MS)?;
         if !self.reverb_state_ctl.is_bypassed() {
-            self.reverb_meter_ctl
-                .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            self.reverb_meter_ctl.cache(&self.req, node, TIMEOUT_MS)?;
         }
         if !self.ch_strip_state_ctl.are_bypassed() {
-            self.ch_strip_meter_ctl
-                .cache(&self.req, &unit.1, TIMEOUT_MS)?;
+            self.ch_strip_meter_ctl.cache(&self.req, node, TIMEOUT_MS)?;
         }
         Ok(())
     }
