@@ -261,6 +261,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dConfig> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellOptIfaceConfig> for K24dConfig {
+    fn as_ref(&self) -> &ShellOptIfaceConfig {
+        &self.opt
+    }
+}
+
+impl AsMut<ShellOptIfaceConfig> for K24dConfig {
+    fn as_mut(&mut self) -> &mut ShellOptIfaceConfig {
+        &mut self.opt
+    }
+}
+
 impl AsRef<ShellCoaxOutPairSrc> for K24dConfig {
     fn as_ref(&self) -> &ShellCoaxOutPairSrc {
         &self.coax_out_src
