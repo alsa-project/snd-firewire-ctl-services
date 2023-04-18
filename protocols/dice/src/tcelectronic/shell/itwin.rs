@@ -590,6 +590,18 @@ impl TcKonnektSegmentSerdes<ItwinReverbMeter> for ItwinProtocol {
     }
 }
 
+impl AsRef<ReverbMeter> for ItwinReverbMeter {
+    fn as_ref(&self) -> &ReverbMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbMeter> for ItwinReverbMeter {
+    fn as_mut(&mut self) -> &mut ReverbMeter {
+        &mut self.0
+    }
+}
+
 /// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItwinChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);

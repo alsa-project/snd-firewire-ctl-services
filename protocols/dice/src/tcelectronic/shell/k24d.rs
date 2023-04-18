@@ -456,6 +456,18 @@ impl TcKonnektSegmentSerdes<K24dReverbMeter> for K24dProtocol {
     }
 }
 
+impl AsRef<ReverbMeter> for K24dReverbMeter {
+    fn as_ref(&self) -> &ReverbMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbMeter> for K24dReverbMeter {
+    fn as_mut(&mut self) -> &mut ReverbMeter {
+        &mut self.0
+    }
+}
+
 /// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K24dChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);

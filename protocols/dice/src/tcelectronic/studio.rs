@@ -1636,6 +1636,18 @@ impl TcKonnektSegmentSerdes<StudioReverbMeter> for Studiok48Protocol {
     }
 }
 
+impl AsRef<ReverbMeter> for StudioReverbMeter {
+    fn as_ref(&self) -> &ReverbMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ReverbMeter> for StudioReverbMeter {
+    fn as_mut(&mut self) -> &mut ReverbMeter {
+        &mut self.0
+    }
+}
+
 /// Hardware metering for channel strip effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioChStripMeters(pub [ChStripMeter; STUDIO_CH_STRIP_COUNT]);
