@@ -14,7 +14,7 @@ pub struct K8Model {
     knob_ctl: KnobCtl,
     config_ctl: ConfigCtl,
     mixer_state_ctl: MixerStateCtl,
-    mixer_meter_ctl: MixerMeterCtl,
+    mixer_meter_ctl: MixerMeterCtl<K8Protocol, K8MixerMeter>,
     hw_state_ctl: HwStateCtl,
 }
 
@@ -144,7 +144,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
 impl MeasureModel<(SndDice, FwNode)> for K8Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.elem_id_list);
     }
 
     fn measure_states(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -465,23 +465,6 @@ impl MixerStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerMeterCtl(K8MixerMeterSegment, Vec<ElemId>);
-
-impl ShellMixerMeterCtlOperation<K8MixerMeter, K8Protocol> for MixerMeterCtl {
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<K8MixerMeter> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<K8MixerMeter> {
-        &mut self.0
     }
 }
 

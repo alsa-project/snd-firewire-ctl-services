@@ -535,62 +535,50 @@ where
     }
 }
 
-pub trait ShellMixerMeterCtlOperation<S, T>
+#[derive(Default, Debug)]
+pub struct MixerMeterCtl<T, U>
 where
-    S: Debug,
-    T: TcKonnektSegmentOperation<S>,
+    T: ShellMixerMeterSpecification + TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + AsRef<ShellMixerMeter> + AsMut<ShellMixerMeter>,
 {
-    const LEVEL_MIN: i32 = -1000;
-    const LEVEL_MAX: i32 = 0;
-    const LEVEL_STEP: i32 = 1;
-    const LEVEL_TLV: DbInterval = DbInterval {
-        min: -9400,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
+    pub elem_id_list: Vec<ElemId>,
+    segment: TcKonnektSegment<U>,
+    _phantom: PhantomData<T>,
+}
 
-    const PAN_MIN: i32 = -50;
-    const PAN_MAX: i32 = 50;
-    const PAN_STEP: i32 = 1;
+const METER_MIN: i32 = -1000;
+const METER_MAX: i32 = 0;
+const METER_STEP: i32 = 1;
+const METER_TLV: DbInterval = DbInterval {
+    min: -9400,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
 
-    fn meter(&self) -> &ShellMixerMeter;
-
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = T::cache_whole_segment(req, node, self.segment_mut(), timeout_ms);
-        debug!(params = ?self.segment().data, ?res);
+impl<T, U> MixerMeterCtl<T, U>
+where
+    T: ShellMixerMeterSpecification + TcKonnektSegmentOperation<U>,
+    TcKonnektSegment<U>: Default,
+    U: Debug + AsRef<ShellMixerMeter> + AsMut<ShellMixerMeter>,
+{
+    pub fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let res = T::cache_whole_segment(req, node, &mut self.segment, timeout_ms);
+        debug!(params = ?self.segment.data, ?res);
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let mut measured_elem_id_list = Vec::new();
-
-        let meter = self.meter();
-
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
-            (
-                STREAM_IN_METER_NAME,
-                meter.stream_inputs.len(),
-                "stream-input",
-            ),
-            (
-                ANALOG_IN_METER_NAME,
-                meter.analog_inputs.len(),
-                "analog-input",
-            ),
+            (STREAM_IN_METER_NAME, T::STREAM_INPUT_COUNT, "stream-input"),
+            (ANALOG_IN_METER_NAME, T::ANALOG_INPUT_COUNT, "analog-input"),
             (
                 DIGITAL_IN_METER_NAME,
-                meter.digital_inputs.len(),
+                T::DIGITAL_INPUT_COUNT,
                 "digital-input",
             ),
-            (
-                MIXER_OUT_METER_NAME,
-                meter.main_outputs.len(),
-                "mixer-output",
-            ),
+            (MIXER_OUT_METER_NAME, T::MAIN_OUTPUT_COUNT, "mixer-output"),
         ]
         .iter()
         .try_for_each(|&(name, count, label)| {
@@ -601,38 +589,37 @@ where
                 .add_int_elems(
                     &elem_id,
                     1,
-                    Self::LEVEL_MIN,
-                    Self::LEVEL_MAX,
-                    Self::LEVEL_STEP,
+                    METER_MIN,
+                    METER_MAX,
+                    METER_STEP,
                     labels.len(),
-                    Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+                    Some(&Into::<Vec<u32>>::into(METER_TLV)),
                     false,
                 )
-                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+                .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))
         })
-        .map(|_| measured_elem_id_list)
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    pub fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             STREAM_IN_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.stream_inputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.stream_inputs);
                 Ok(true)
             }
             ANALOG_IN_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.analog_inputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.analog_inputs);
                 Ok(true)
             }
             DIGITAL_IN_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.digital_inputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.digital_inputs);
                 Ok(true)
             }
             MIXER_OUT_METER_NAME => {
-                let meter = self.meter();
-                elem_value.set_int(&meter.main_outputs);
+                let params = self.segment.data.as_ref();
+                elem_value.set_int(&params.main_outputs);
                 Ok(true)
             }
             _ => Ok(false),

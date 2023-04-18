@@ -14,7 +14,7 @@ pub struct ItwinModel {
     knob_ctl: KnobCtl,
     config_ctl: ConfigCtl,
     mixer_state_ctl: MixerStateCtl,
-    mixer_meter_ctl: MixerMeterCtl,
+    mixer_meter_ctl: MixerMeterCtl<ItwinProtocol, ItwinMixerMeter>,
     hw_state_ctl: HwStateCtl,
     reverb_state_ctl: ReverbStateCtl<ItwinProtocol, ItwinReverbState>,
     reverb_meter_ctl: ReverbMeterCtl<ItwinProtocol, ItwinReverbMeter>,
@@ -190,7 +190,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
 impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_id_list);
-        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.reverb_meter_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.ch_strip_meter_ctl.elem_id_list);
     }
@@ -624,23 +624,6 @@ impl MixerStateCtl {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct MixerMeterCtl(ItwinMixerMeterSegment, Vec<ElemId>);
-
-impl ShellMixerMeterCtlOperation<ItwinMixerMeter, ItwinProtocol> for MixerMeterCtl {
-    fn meter(&self) -> &ShellMixerMeter {
-        &self.0.data.0
-    }
-
-    fn segment(&self) -> &TcKonnektSegment<ItwinMixerMeter> {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<ItwinMixerMeter> {
-        &mut self.0
     }
 }
 
