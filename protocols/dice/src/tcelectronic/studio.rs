@@ -1583,6 +1583,18 @@ impl TcKonnektNotifiedSegmentOperation<StudioHwState> for Studiok48Protocol {
     const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for StudioHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for StudioHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.firewire_led
+    }
+}
+
 /// Hardware metering for mixer function.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StudioMixerMeter {
