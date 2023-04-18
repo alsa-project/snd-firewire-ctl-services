@@ -723,24 +723,6 @@ fn knob_push_mode_to_str(mode: &KnobPushMode) -> &'static str {
     }
 }
 
-impl MidiSendCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
-    fn segment(&self) -> &Studiok48ConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48ConfigSegment {
-        &mut self.0
-    }
-
-    fn midi_sender(params: &StudioConfig) -> &TcKonnektMidiSender {
-        &params.midi_send
-    }
-
-    fn midi_sender_mut(params: &mut StudioConfig) -> &mut TcKonnektMidiSender {
-        &mut params.midi_send
-    }
-}
-
 const OPT_IFACE_MODE_NAME: &str = "opt-iface-mode";
 const STANDALONE_CLK_SRC_NAME: &str = "standalone-clock-source";
 const CLOCK_RECOVERY_NAME: &str = "clock-recovery";
@@ -766,7 +748,7 @@ impl ConfigCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_standalone_rate::<Studiok48Protocol, StudioConfig>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
-        self.load_midi_sender(card_cntr)?;
+        load_midi_sender::<Studiok48Protocol, StudioConfig>(card_cntr)?;
 
         let labels: Vec<&str> = Self::OPT_IFACE_MODES
             .iter()
@@ -791,7 +773,8 @@ impl ConfigCtl {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if read_standalone_rate::<Studiok48Protocol, StudioConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_midi_sender(elem_id, elem_value)? {
+        } else if read_midi_sender::<Studiok48Protocol, StudioConfig>(&self.0, elem_id, elem_value)?
+        {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -840,7 +823,14 @@ impl ConfigCtl {
             timeout_ms,
         )? {
             Ok(true)
-        } else if self.write_midi_sender(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_midi_sender::<Studiok48Protocol, StudioConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
