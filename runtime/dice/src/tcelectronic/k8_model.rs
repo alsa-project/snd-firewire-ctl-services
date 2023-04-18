@@ -364,28 +364,6 @@ impl ConfigCtl {
 #[derive(Default, Debug)]
 struct MixerStateCtl(K8MixerStateSegment, Vec<ElemId>);
 
-impl ShellMixerStateCtlOperation<K8MixerState, K8MixerMeter, K8Protocol> for MixerStateCtl {
-    fn segment(&self) -> &K8MixerStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K8MixerStateSegment {
-        &mut self.0
-    }
-
-    fn state(params: &K8MixerState) -> &ShellMixerState {
-        &params.mixer
-    }
-
-    fn state_mut(params: &mut K8MixerState) -> &mut ShellMixerState {
-        &mut params.mixer
-    }
-
-    fn enabled(&self) -> bool {
-        self.0.data.enabled
-    }
-}
-
 const MIXER_ENABLE_NAME: &str = "mixer-enable";
 
 impl MixerStateCtl {
@@ -396,10 +374,8 @@ impl MixerStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_mixer(card_cntr)
-            .map(|(notified_elem_id_list, _)| {
-                self.1 = notified_elem_id_list;
-            })?;
+        load_mixer::<K8Protocol, K8MixerState>(&self.0, card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -408,7 +384,7 @@ impl MixerStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_mixer(elem_id, elem_value)? {
+        if read_mixer::<K8Protocol, K8MixerState>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {
@@ -429,7 +405,14 @@ impl MixerStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_mixer::<K8Protocol, K8MixerState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else {
             match elem_id.name().as_str() {

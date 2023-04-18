@@ -510,28 +510,6 @@ impl ConfigCtl {
 #[derive(Default, Debug)]
 struct MixerStateCtl(K24dMixerStateSegment, Vec<ElemId>);
 
-impl ShellMixerStateCtlOperation<K24dMixerState, K24dMixerMeter, K24dProtocol> for MixerStateCtl {
-    fn segment(&self) -> &K24dMixerStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut K24dMixerStateSegment {
-        &mut self.0
-    }
-
-    fn state(params: &K24dMixerState) -> &ShellMixerState {
-        &params.mixer
-    }
-
-    fn state_mut(params: &mut K24dMixerState) -> &mut ShellMixerState {
-        &mut params.mixer
-    }
-
-    fn enabled(&self) -> bool {
-        self.0.data.enabled
-    }
-}
-
 impl ShellReverbReturnCtlOperation<K24dMixerState, K24dProtocol> for MixerStateCtl {
     fn segment(&self) -> &K24dMixerStateSegment {
         &self.0
@@ -562,10 +540,8 @@ impl MixerStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_mixer(card_cntr)
-            .map(|(notified_elem_id_list, _)| {
-                self.1 = notified_elem_id_list;
-            })?;
+        load_mixer::<K24dProtocol, K24dMixerState>(&self.0, card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         self.load_reverb_return(card_cntr)
             .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
@@ -584,7 +560,7 @@ impl MixerStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_mixer(elem_id, elem_value)? {
+        if read_mixer::<K24dProtocol, K24dMixerState>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_reverb_return(elem_id, elem_value)? {
             Ok(true)
@@ -615,7 +591,14 @@ impl MixerStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_mixer::<K24dProtocol, K24dMixerState>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_reverb_return(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
