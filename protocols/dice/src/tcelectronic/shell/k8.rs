@@ -133,6 +133,18 @@ impl TcKonnektNotifiedSegmentOperation<K8Knob> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellKnob0Target> for K8Knob {
+    fn as_ref(&self) -> &ShellKnob0Target {
+        &self.knob0_target
+    }
+}
+
+impl AsMut<ShellKnob0Target> for K8Knob {
+    fn as_mut(&mut self) -> &mut ShellKnob0Target {
+        &mut self.knob0_target
+    }
+}
+
 /// Configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct K8Config {

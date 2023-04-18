@@ -242,6 +242,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveKnob> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellKnob0Target> for KliveKnob {
+    fn as_ref(&self) -> &ShellKnob0Target {
+        &self.knob0_target
+    }
+}
+
+impl AsMut<ShellKnob0Target> for KliveKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob0Target {
+        &mut self.knob0_target
+    }
+}
+
 impl AsRef<TcKonnektLoadedProgram> for KliveKnob {
     fn as_ref(&self) -> &TcKonnektLoadedProgram {
         &self.prog

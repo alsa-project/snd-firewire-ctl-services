@@ -191,6 +191,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinKnob> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
+impl AsRef<ShellKnob0Target> for ItwinKnob {
+    fn as_ref(&self) -> &ShellKnob0Target {
+        &self.target
+    }
+}
+
+impl AsMut<ShellKnob0Target> for ItwinKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob0Target {
+        &mut self.target
+    }
+}
+
 /// The number of pair for physical output.
 pub const ITWIN_PHYS_OUT_PAIR_COUNT: usize = 7;
 
