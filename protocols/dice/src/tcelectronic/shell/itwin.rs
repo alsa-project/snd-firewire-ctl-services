@@ -477,6 +477,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinChStripStates> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
+impl AsRef<[ChStripState]> for ItwinChStripStates {
+    fn as_ref(&self) -> &[ChStripState] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripState]> for ItwinChStripStates {
+    fn as_mut(&mut self) -> &mut [ChStripState] {
+        &mut self.0
+    }
+}
+
 /// The mode to listen for analog outputs.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ListeningMode {

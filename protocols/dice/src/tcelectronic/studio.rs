@@ -1454,6 +1454,18 @@ impl TcKonnektNotifiedSegmentOperation<StudioChStripStates> for Studiok48Protoco
     const NOTIFY_FLAG: u32 = STUDIO_CH_STRIP_NOTIFY_01_CHANGE | STUDIO_CH_STRIP_NOTIFY_23_CHANGE;
 }
 
+impl AsRef<[ChStripState]> for StudioChStripStates {
+    fn as_ref(&self) -> &[ChStripState] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripState]> for StudioChStripStates {
+    fn as_mut(&mut self) -> &mut [ChStripState] {
+        &mut self.0
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// State of jack sense for analog input.
 pub enum StudioAnalogJackState {

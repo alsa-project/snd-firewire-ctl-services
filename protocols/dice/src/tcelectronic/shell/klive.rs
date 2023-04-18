@@ -576,6 +576,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveChStripStates> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
 }
 
+impl AsRef<[ChStripState]> for KliveChStripStates {
+    fn as_ref(&self) -> &[ChStripState] {
+        &self.0
+    }
+}
+
+impl AsMut<[ChStripState]> for KliveChStripStates {
+    fn as_mut(&mut self) -> &mut [ChStripState] {
+        &mut self.0
+    }
+}
+
 /// Hardware state.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveHwState(pub ShellHwState);
