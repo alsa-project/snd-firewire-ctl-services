@@ -644,6 +644,18 @@ impl TcKonnektSegmentSerdes<KliveMixerMeter> for KliveProtocol {
     }
 }
 
+impl AsRef<ShellMixerMeter> for KliveMixerMeter {
+    fn as_ref(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ShellMixerMeter> for KliveMixerMeter {
+    fn as_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
+}
+
 /// Hardware metering for reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KliveReverbMeter(pub ReverbMeter);

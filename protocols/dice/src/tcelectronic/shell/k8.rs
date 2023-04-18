@@ -301,3 +301,15 @@ impl TcKonnektSegmentSerdes<K8MixerMeter> for K8Protocol {
         deserialize_mixer_meter::<K8Protocol>(&mut params.0, raw)
     }
 }
+
+impl AsRef<ShellMixerMeter> for K8MixerMeter {
+    fn as_ref(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ShellMixerMeter> for K8MixerMeter {
+    fn as_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
+}
