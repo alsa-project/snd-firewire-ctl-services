@@ -16,7 +16,7 @@ pub struct Studiok48Model {
     phys_out_ctl: PhysOutCtl,
     ch_strip_state_ctl: ChStripStateCtl,
     ch_strip_meter_ctl: ChStripMeterCtl,
-    reverb_state_ctl: ReverbStateCtl,
+    reverb_state_ctl: ReverbStateCtl<Studiok48Protocol, StudioReverbState>,
     reverb_meter_ctl: ReverbMeterCtl,
     hw_state_ctl: HwStateCtl,
 }
@@ -66,9 +66,7 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
         self.mixer_meter_ctl.load(card_cntr)?;
         self.phys_out_ctl.load(card_cntr)?;
 
-        self.reverb_state_ctl
-            .load(card_cntr)
-            .map(|notified_elem_id_list| self.reverb_state_ctl.1 = notified_elem_id_list)?;
+        self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl
             .load(card_cntr)
             .map(|measured_elem_id_list| self.reverb_meter_ctl.1 = measured_elem_id_list)?;
@@ -195,7 +193,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.config_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_state_ctl.1);
         elem_id_list.extend_from_slice(&self.phys_out_ctl.1);
-        elem_id_list.extend_from_slice(&self.reverb_state_ctl.1);
+        elem_id_list.extend_from_slice(&self.reverb_state_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.ch_strip_state_ctl.1);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
     }
@@ -2739,29 +2737,6 @@ impl ChStripMeterCtlOperation<StudioChStripMeters, Studiok48Protocol> for ChStri
 
     fn segment_mut(&mut self) -> &mut TcKonnektSegment<StudioChStripMeters> {
         &mut self.0
-    }
-}
-
-#[derive(Default, Debug)]
-struct ReverbStateCtl(Studiok48ReverbStateSegment, Vec<ElemId>);
-
-impl ReverbStateCtlOpreation<StudioReverbState, StudioReverbMeter, Studiok48Protocol>
-    for ReverbStateCtl
-{
-    fn segment(&self) -> &Studiok48ReverbStateSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48ReverbStateSegment {
-        &mut self.0
-    }
-
-    fn state(params: &StudioReverbState) -> &ReverbState {
-        &params.0
-    }
-
-    fn state_mut(params: &mut StudioReverbState) -> &mut ReverbState {
-        &mut params.0
     }
 }
 
