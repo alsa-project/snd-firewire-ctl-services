@@ -28,8 +28,6 @@ members = [
 
 # For development purpose.
 [patch.crates-io]
-hitaki-sys = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki-sys" }
-hitaki = { path = "/home/mocchi/git/alsa-project.org/hitaki-rs/hitaki" }
 #alsa-ctl-tlv-codec = { path = "protocols/alsa-ctl-tlv-codec" }
 #ieee1212-config-rom = { path = "protocols/ieee1212-config-rom" }
 #ta1394-avc-general = { path = "protocols/ta1394/general" }
