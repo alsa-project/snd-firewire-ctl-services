@@ -120,6 +120,20 @@ const ANALOG_IN_METER_NAME: &str = "analog-input-meters";
 const DIGITAL_IN_METER_NAME: &str = "digital-input-meters";
 const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
 
+const LEVEL_MIN: i32 = -1000;
+const LEVEL_MAX: i32 = 0;
+const LEVEL_STEP: i32 = 1;
+const LEVEL_TLV: DbInterval = DbInterval {
+    min: -9400,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+const PAN_MIN: i32 = -50;
+const PAN_MAX: i32 = 50;
+const PAN_STEP: i32 = 1;
+
 fn phys_src_pair_iter(state: &ShellMixerState) -> impl Iterator<Item = &ShellMonitorSrcPair> {
     state.analog.iter().chain(state.digital.iter())
 }
@@ -140,398 +154,397 @@ fn phys_src_params_iter_mut(
     phys_src_pair_iter_mut(state).flat_map(|pair| pair.params.iter_mut())
 }
 
-pub trait ShellMixerStateCtlOperation<S, T, U>
+pub fn load_mixer<T, U>(
+    _: &TcKonnektSegment<U>,
+    card_cntr: &mut CardCntr,
+) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    U: TcKonnektSegmentOperation<S>
-        + TcKonnektSegmentOperation<T>
-        + TcKonnektMutableSegmentOperation<S>
-        + TcKonnektNotifiedSegmentOperation<S>,
+    T: ShellMixerStateSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
 {
-    const LEVEL_MIN: i32 = -1000;
-    const LEVEL_MAX: i32 = 0;
-    const LEVEL_STEP: i32 = 1;
-    const LEVEL_TLV: DbInterval = DbInterval {
-        min: -9400,
-        max: 0,
-        linear: false,
-        mute_avail: false,
-    };
+    let mut elem_id_list = Vec::new();
 
-    const PAN_MIN: i32 = -50;
-    const PAN_MAX: i32 = 50;
-    const PAN_STEP: i32 = 1;
-
-    fn segment(&self) -> &TcKonnektSegment<S>;
-    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
-
-    fn state(params: &S) -> &ShellMixerState;
-    fn state_mut(params: &mut S) -> &mut ShellMixerState;
-
-    fn enabled(&self) -> bool;
-
-    fn load_mixer(
-        &mut self,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        let mut notified_elem_id_list = Vec::new();
-
-        // For stream source of mixer.
-        Self::state_add_elem_level(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_STREAM_SRC_PAIR_GAIN_NAME,
+    // For stream source.
+    let elem_id = ElemId::new_by_name(
+        ElemIfaceType::Mixer,
+        0,
+        0,
+        MIXER_STREAM_SRC_PAIR_GAIN_NAME,
+        0,
+    );
+    card_cntr
+        .add_int_elems(
+            &elem_id,
             1,
-        )?;
-        Self::state_add_elem_pan(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_STREAM_SRC_PAIR_PAN_NAME,
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
             1,
-        )?;
-        Self::state_add_elem_bool(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_STREAM_SRC_PAIR_MUTE_NAME,
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(
+        ElemIfaceType::Mixer,
+        0,
+        0,
+        MIXER_STREAM_SRC_PAIR_PAN_NAME,
+        0,
+    );
+    card_cntr
+        .add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, 1, None, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(
+        ElemIfaceType::Mixer,
+        0,
+        0,
+        MIXER_STREAM_SRC_PAIR_MUTE_NAME,
+        0,
+    );
+    card_cntr
+        .add_bool_elems(&elem_id, 1, 1, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(
+        ElemIfaceType::Mixer,
+        0,
+        0,
+        REVERB_STREAM_SRC_PAIR_GAIN_NAME,
+        0,
+    );
+    card_cntr
+        .add_int_elems(
+            &elem_id,
             1,
-        )?;
-        Self::state_add_elem_level(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_STREAM_SRC_PAIR_GAIN_NAME,
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
             1,
-        )?;
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-        // For physical sources of mixer.
-        let state = Self::state(&self.segment().data);
-        let labels: Vec<String> = (0..state.analog.len())
-            .map(|i| format!("Analog-{}/{}", i + 1, i + 2))
-            .chain((0..state.digital.len()).map(|i| format!("Digital-{}/{}", i + 1, i + 2)))
-            .collect();
-        Self::state_add_elem_bool(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_PHYS_SRC_STEREO_LINK_NAME,
-            labels.len(),
-        )?;
+    // For physical sources of mixer.
+    let labels: Vec<String> = (0..T::analog_input_pair_count())
+        .map(|i| format!("Analog-{}/{}", i + 1, i + 2))
+        .chain((0..T::digital_input_pair_count()).map(|i| format!("Digital-{}/{}", i + 1, i + 2)))
+        .collect();
+    let elem_id = ElemId::new_by_name(
+        ElemIfaceType::Mixer,
+        0,
+        0,
+        MIXER_PHYS_SRC_STEREO_LINK_NAME,
+        0,
+    );
+    card_cntr
+        .add_bool_elems(&elem_id, 1, labels.len(), true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-        let labels: Vec<String> = (0..(state.analog.len() * 2))
-            .map(|i| format!("Analog-{}", i + 1))
-            .chain((0..(state.digital.len() * 2)).map(|i| format!("Digital-{}", i + 1)))
-            .collect();
-        Self::state_add_elem_level(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_PHYS_SRC_GAIN_NAME,
-            labels.len(),
-        )?;
-        Self::state_add_elem_pan(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_PHYS_SRC_PAN_NAME,
-            labels.len(),
-        )?;
-        Self::state_add_elem_bool(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_PHYS_SRC_MUTE_NAME,
-            labels.len(),
-        )?;
-        Self::state_add_elem_level(
-            card_cntr,
-            &mut notified_elem_id_list,
-            REVERB_PHYS_SRC_GAIN_NAME,
-            labels.len(),
-        )?;
-
-        // For output of mixer.
-        Self::state_add_elem_bool(card_cntr, &mut notified_elem_id_list, MIXER_OUT_DIM_NAME, 1)?;
-        Self::state_add_elem_level(card_cntr, &mut notified_elem_id_list, MIXER_OUT_VOL_NAME, 1)?;
-        Self::state_add_elem_level(
-            card_cntr,
-            &mut notified_elem_id_list,
-            MIXER_OUT_DIM_VOL_NAME,
+    let labels: Vec<String> = (0..(T::analog_input_pair_count() * 2))
+        .map(|i| format!("Analog-{}", i + 1))
+        .chain((0..(T::digital_input_pair_count() * 2)).map(|i| format!("Digital-{}", i + 1)))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_PHYS_SRC_GAIN_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
             1,
-        )?;
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
+            1,
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-        Ok((notified_elem_id_list, Vec::new()))
-    }
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_PHYS_SRC_PAN_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
+            1,
+            PAN_MIN,
+            PAN_MAX,
+            PAN_STEP,
+            labels.len(),
+            None,
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-    fn read_mixer(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_int(&[state.stream.params[0].gain_to_mixer]);
-                Ok(true)
-            }
-            MIXER_STREAM_SRC_PAIR_PAN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_int(&[state.stream.params[0].pan_to_mixer]);
-                Ok(true)
-            }
-            MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_bool(&[state.mutes.stream]);
-                Ok(true)
-            }
-            REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_int(&[state.stream.params[0].gain_to_send]);
-                Ok(true)
-            }
-            MIXER_PHYS_SRC_STEREO_LINK_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                let vals: Vec<bool> = phys_src_pair_iter(state)
-                    .map(|pair| pair.stereo_link)
-                    .collect();
-                elem_value.set_bool(&vals);
-                Ok(true)
-            }
-            MIXER_PHYS_SRC_GAIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                let vals: Vec<i32> = phys_src_params_iter(state)
-                    .map(|params| params.gain_to_mixer)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            MIXER_PHYS_SRC_PAN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                let vals: Vec<i32> = phys_src_params_iter(state)
-                    .map(|params| params.pan_to_mixer)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            MIXER_PHYS_SRC_MUTE_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                let mut vals = state.mutes.analog.clone();
-                vals.extend_from_slice(&state.mutes.digital);
-                elem_value.set_bool(&vals);
-                Ok(true)
-            }
-            REVERB_PHYS_SRC_GAIN_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                let vals: Vec<i32> = phys_src_params_iter(state)
-                    .map(|params| params.gain_to_send)
-                    .collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            MIXER_OUT_DIM_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_bool(&[state.output_dim_enable]);
-                Ok(true)
-            }
-            MIXER_OUT_VOL_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_int(&[state.output_volume]);
-                Ok(true)
-            }
-            MIXER_OUT_DIM_VOL_NAME => {
-                let params = &self.segment().data;
-                let state = Self::state(params);
-                elem_value.set_int(&[state.output_dim_volume]);
-                Ok(true)
-            }
-            _ => Ok(false),
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_PHYS_SRC_MUTE_NAME, 0);
+    card_cntr
+        .add_bool_elems(&elem_id, 1, labels.len(), true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PHYS_SRC_GAIN_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
+            1,
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
+            labels.len(),
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    // For output of mixer.
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_DIM_NAME, 0);
+    card_cntr
+        .add_bool_elems(&elem_id, 1, 1, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_VOL_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
+            1,
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
+            1,
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_DIM_VOL_NAME, 0);
+    card_cntr
+        .add_int_elems(
+            &elem_id,
+            1,
+            LEVEL_MIN,
+            LEVEL_MAX,
+            LEVEL_STEP,
+            1,
+            Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+            true,
+        )
+        .map(|mut list| elem_id_list.append(&mut list))?;
+
+    Ok(elem_id_list)
+}
+
+pub fn read_mixer<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &mut ElemValue,
+) -> Result<bool, Error>
+where
+    T: ShellMixerStateSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
+{
+    match elem_id.name().as_str() {
+        MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.stream.params[0].gain_to_mixer]);
+            Ok(true)
         }
-    }
-
-    fn write_mixer(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.stream.params[0].gain_to_mixer = elem_value.int()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_STREAM_SRC_PAIR_PAN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.stream.params[0].pan_to_mixer = elem_value.int()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.mutes.stream = elem_value.boolean()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.stream.params[0].gain_to_send = elem_value.int()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_PHYS_SRC_STEREO_LINK_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                phys_src_pair_iter_mut(state)
-                    .zip(elem_value.boolean())
-                    .for_each(|(pair, val)| pair.stereo_link = val);
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_PHYS_SRC_GAIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                phys_src_params_iter_mut(state)
-                    .zip(elem_value.int())
-                    .for_each(|(p, &val)| p.gain_to_mixer = val);
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_PHYS_SRC_PAN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                phys_src_params_iter_mut(state)
-                    .zip(elem_value.int())
-                    .for_each(|(p, &val)| p.pan_to_mixer = val);
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_PHYS_SRC_MUTE_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                phys_src_pair_iter_mut(state)
-                    .zip(elem_value.boolean())
-                    .for_each(|(pair, val)| pair.stereo_link = val);
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            REVERB_PHYS_SRC_GAIN_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                phys_src_params_iter_mut(state)
-                    .zip(elem_value.int())
-                    .for_each(|(p, &val)| p.gain_to_send = val);
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_OUT_DIM_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.output_dim_enable = elem_value.boolean()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_OUT_VOL_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.output_volume = elem_value.int()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            MIXER_OUT_DIM_VOL_NAME => {
-                let mut params = self.segment().data.clone();
-                let state = Self::state_mut(&mut params);
-                state.output_dim_volume = elem_value.int()[0];
-                let res =
-                    U::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            _ => Ok(false),
+        MIXER_STREAM_SRC_PAIR_PAN_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.stream.params[0].pan_to_mixer]);
+            Ok(true)
         }
+        MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_bool(&[params.mutes.stream]);
+            Ok(true)
+        }
+        REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.stream.params[0].gain_to_send]);
+            Ok(true)
+        }
+        MIXER_PHYS_SRC_STEREO_LINK_NAME => {
+            let params = segment.data.as_ref();
+            let vals: Vec<bool> = phys_src_pair_iter(params)
+                .map(|pair| pair.stereo_link)
+                .collect();
+            elem_value.set_bool(&vals);
+            Ok(true)
+        }
+        MIXER_PHYS_SRC_GAIN_NAME => {
+            let params = segment.data.as_ref();
+            let vals: Vec<i32> = phys_src_params_iter(params)
+                .map(|params| params.gain_to_mixer)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        }
+        MIXER_PHYS_SRC_PAN_NAME => {
+            let params = segment.data.as_ref();
+            let vals: Vec<i32> = phys_src_params_iter(params)
+                .map(|params| params.pan_to_mixer)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        }
+        MIXER_PHYS_SRC_MUTE_NAME => {
+            let params = segment.data.as_ref();
+            let mut vals = params.mutes.analog.clone();
+            vals.extend_from_slice(&params.mutes.digital);
+            elem_value.set_bool(&vals);
+            Ok(true)
+        }
+        REVERB_PHYS_SRC_GAIN_NAME => {
+            let params = segment.data.as_ref();
+            let vals: Vec<i32> = phys_src_params_iter(params)
+                .map(|params| params.gain_to_send)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        }
+        MIXER_OUT_DIM_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_bool(&[params.output_dim_enable]);
+            Ok(true)
+        }
+        MIXER_OUT_VOL_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.output_volume]);
+            Ok(true)
+        }
+        MIXER_OUT_DIM_VOL_NAME => {
+            let params = segment.data.as_ref();
+            elem_value.set_int(&[params.output_dim_volume]);
+            Ok(true)
+        }
+        _ => Ok(false),
     }
+}
 
-    fn state_add_elem_level(
-        card_cntr: &mut CardCntr,
-        notified_elem_id_list: &mut Vec<ElemId>,
-        name: &str,
-        value_count: usize,
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                Self::LEVEL_MIN,
-                Self::LEVEL_MAX,
-                Self::LEVEL_STEP,
-                value_count,
-                Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
-                true,
-            )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
-    }
-
-    fn state_add_elem_pan(
-        card_cntr: &mut CardCntr,
-        notified_elem_id_list: &mut Vec<ElemId>,
-        name: &str,
-        value_count: usize,
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                Self::PAN_MIN,
-                Self::PAN_MAX,
-                Self::PAN_STEP,
-                value_count,
-                None,
-                true,
-            )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
-    }
-
-    fn state_add_elem_bool(
-        card_cntr: &mut CardCntr,
-        notified_elem_id_list: &mut Vec<ElemId>,
-        name: &str,
-        value_count: usize,
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, value_count, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+pub fn write_mixer<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: ShellMixerStateSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug + Clone + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
+{
+    match elem_id.name().as_str() {
+        MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.stream.params[0].gain_to_mixer = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_STREAM_SRC_PAIR_PAN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.stream.params[0].pan_to_mixer = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.mutes.stream = elem_value.boolean()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.stream.params[0].gain_to_send = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_PHYS_SRC_STEREO_LINK_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            phys_src_pair_iter_mut(params)
+                .zip(elem_value.boolean())
+                .for_each(|(pair, val)| pair.stereo_link = val);
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_PHYS_SRC_GAIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            phys_src_params_iter_mut(params)
+                .zip(elem_value.int())
+                .for_each(|(p, &val)| p.gain_to_mixer = val);
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_PHYS_SRC_PAN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            phys_src_params_iter_mut(params)
+                .zip(elem_value.int())
+                .for_each(|(p, &val)| p.pan_to_mixer = val);
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_PHYS_SRC_MUTE_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            phys_src_pair_iter_mut(params)
+                .zip(elem_value.boolean())
+                .for_each(|(pair, val)| pair.stereo_link = val);
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        REVERB_PHYS_SRC_GAIN_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            phys_src_params_iter_mut(params)
+                .zip(elem_value.int())
+                .for_each(|(p, &val)| p.gain_to_send = val);
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_OUT_DIM_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.output_dim_enable = elem_value.boolean()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_OUT_VOL_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.output_volume = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        MIXER_OUT_DIM_VOL_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            params.output_dim_volume = elem_value.int()[0];
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
+        }
+        _ => Ok(false),
     }
 }
 
