@@ -456,34 +456,6 @@ impl ShellOptIfaceCtl<KliveConfig, KliveProtocol> for ConfigCtl {
     }
 }
 
-impl StandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn segment(&self) -> &KliveConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut KliveConfigSegment {
-        &mut self.0
-    }
-
-    fn standalone_rate(params: &KliveConfig) -> &TcKonnektStandaloneClockRate {
-        &params.standalone_rate
-    }
-
-    fn standalone_rate_mut(params: &mut KliveConfig) -> &mut TcKonnektStandaloneClockRate {
-        &mut params.standalone_rate
-    }
-}
-
-impl ShellStandaloneCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
-    fn standalone_src(params: &KliveConfig) -> &ShellStandaloneClockSource {
-        &params.standalone_src
-    }
-
-    fn standalone_src_mut(params: &mut KliveConfig) -> &mut ShellStandaloneClockSource {
-        &mut params.standalone_src
-    }
-}
-
 impl MidiSendCtlOperation<KliveConfig, KliveProtocol> for ConfigCtl {
     fn segment(&self) -> &KliveConfigSegment {
         &self.0
@@ -516,7 +488,7 @@ impl ConfigCtl {
         self.load_mixer_stream_src(card_cntr)?;
         self.load_coax_out_src(card_cntr)?;
         self.load_opt_iface_config(card_cntr)?;
-        self.load_standalone(card_cntr)?;
+        load_standalone::<KliveProtocol, KliveConfig>(card_cntr)?;
         self.load_midi_sender(card_cntr)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS
@@ -539,7 +511,7 @@ impl ConfigCtl {
             Ok(true)
         } else if self.read_opt_iface_config(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_standalone(elem_id, elem_value)? {
+        } else if read_standalone::<KliveProtocol, KliveConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_midi_sender(elem_id, elem_value)? {
             Ok(true)
@@ -582,7 +554,14 @@ impl ConfigCtl {
             Ok(true)
         } else if self.write_opt_iface_config(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(req, node, elem_id, elem_value, timeout_ms)? {
+        } else if write_standalone::<KliveProtocol, KliveConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_midi_sender(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)

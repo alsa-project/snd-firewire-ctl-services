@@ -528,25 +528,7 @@ impl HwStateCtl {
 }
 
 #[derive(Default, Debug)]
-struct ConfigCtl(Desktopk6ConfigSegment);
-
-impl StandaloneCtlOperation<DesktopConfig, Desktopk6Protocol> for ConfigCtl {
-    fn segment(&self) -> &Desktopk6ConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Desktopk6ConfigSegment {
-        &mut self.0
-    }
-
-    fn standalone_rate(params: &DesktopConfig) -> &TcKonnektStandaloneClockRate {
-        &params.standalone_rate
-    }
-
-    fn standalone_rate_mut(params: &mut DesktopConfig) -> &mut TcKonnektStandaloneClockRate {
-        &mut params.standalone_rate
-    }
-}
+struct ConfigCtl(Desktopk6ConfigSegment, Vec<ElemId>);
 
 impl ConfigCtl {
     fn cache(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
@@ -556,13 +538,12 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_standalone_rate(card_cntr)?;
-
-        Ok(())
+        load_standalone_rate::<Desktopk6Protocol, DesktopConfig>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        self.read_standalone_rate(elem_id, elem_value)
+        read_standalone_rate::<Desktopk6Protocol, DesktopConfig>(&self.0, elem_id, elem_value)
     }
 
     fn write(
@@ -573,7 +554,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms)
+        write_standalone_rate::<Desktopk6Protocol, DesktopConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )
     }
 
     fn parse_notification(

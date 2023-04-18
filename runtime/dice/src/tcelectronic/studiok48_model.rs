@@ -734,24 +734,6 @@ fn knob_push_mode_to_str(mode: &KnobPushMode) -> &'static str {
     }
 }
 
-impl StandaloneCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
-    fn segment(&self) -> &Studiok48ConfigSegment {
-        &self.0
-    }
-
-    fn segment_mut(&mut self) -> &mut Studiok48ConfigSegment {
-        &mut self.0
-    }
-
-    fn standalone_rate(params: &StudioConfig) -> &TcKonnektStandaloneClockRate {
-        &params.standalone_rate
-    }
-
-    fn standalone_rate_mut(params: &mut StudioConfig) -> &mut TcKonnektStandaloneClockRate {
-        &mut params.standalone_rate
-    }
-}
-
 impl MidiSendCtlOperation<StudioConfig, Studiok48Protocol> for ConfigCtl {
     fn segment(&self) -> &Studiok48ConfigSegment {
         &self.0
@@ -793,7 +775,8 @@ impl ConfigCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.load_standalone_rate(card_cntr)?;
+        load_standalone_rate::<Studiok48Protocol, StudioConfig>(card_cntr)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         self.load_midi_sender(card_cntr)?;
 
         let labels: Vec<&str> = Self::OPT_IFACE_MODES
@@ -817,7 +800,7 @@ impl ConfigCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.read_standalone_rate(elem_id, elem_value)? {
+        if read_standalone_rate::<Studiok48Protocol, StudioConfig>(&self.0, elem_id, elem_value)? {
             Ok(true)
         } else if self.read_midi_sender(elem_id, elem_value)? {
             Ok(true)
@@ -859,7 +842,14 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms)? {
+        if write_standalone_rate::<Studiok48Protocol, StudioConfig>(
+            &mut self.0,
+            req,
+            node,
+            elem_id,
+            elem_value,
+            timeout_ms,
+        )? {
             Ok(true)
         } else if self.write_midi_sender(req, node, elem_id, elem_value, timeout_ms)? {
             Ok(true)

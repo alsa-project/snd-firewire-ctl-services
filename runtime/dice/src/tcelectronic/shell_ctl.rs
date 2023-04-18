@@ -775,6 +775,8 @@ where
     }
 }
 
+const SRC_NAME: &str = "standalone-clock-source";
+
 fn standalone_src_to_str(src: &ShellStandaloneClockSource) -> &'static str {
     match src {
         ShellStandaloneClockSource::Optical => "Optical",
@@ -783,75 +785,101 @@ fn standalone_src_to_str(src: &ShellStandaloneClockSource) -> &'static str {
     }
 }
 
-const SRC_NAME: &str = "standalone-clock-source";
-
-pub trait ShellStandaloneCtlOperation<S, T>: StandaloneCtlOperation<S, T>
+pub fn load_standalone<T, U>(card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
 where
-    S: Clone + Debug,
-    T: TcKonnektSegmentOperation<S>
-        + TcKonnektMutableSegmentOperation<S>
+    T: TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>
         + ShellStandaloneClockSpecification,
+    U: Debug
+        + Clone
+        + AsRef<ShellStandaloneClockSource>
+        + AsMut<ShellStandaloneClockSource>
+        + AsRef<TcKonnektStandaloneClockRate>
+        + AsMut<TcKonnektStandaloneClockRate>,
 {
-    fn standalone_src(params: &S) -> &ShellStandaloneClockSource;
-    fn standalone_src_mut(params: &mut S) -> &mut ShellStandaloneClockSource;
+    let mut elem_id_list = Vec::new();
 
-    fn load_standalone(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::STANDALONE_CLOCK_SOURCES
-            .iter()
-            .map(|r| standalone_src_to_str(r))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+    let labels: Vec<&str> = T::STANDALONE_CLOCK_SOURCES
+        .iter()
+        .map(|r| standalone_src_to_str(r))
+        .collect();
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
+    card_cntr
+        .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        .map(|mut list| elem_id_list.append(&mut list))?;
 
-        self.load_standalone_rate(card_cntr)?;
+    load_standalone_rate::<T, U>(card_cntr).map(|mut list| elem_id_list.append(&mut list))?;
 
-        Ok(())
-    }
+    Ok(elem_id_list)
+}
 
-    fn read_standalone(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            SRC_NAME => {
-                let params = &self.segment().data;
-                let src = Self::standalone_src(&params);
-                let pos = T::STANDALONE_CLOCK_SOURCES
-                    .iter()
-                    .position(|s| src.eq(s))
-                    .unwrap();
-                elem_value.set_enum(&[pos as u32]);
-                Ok(true)
-            }
-            _ => self.read_standalone_rate(elem_id, elem_value),
+pub fn read_standalone<T, U>(
+    segment: &TcKonnektSegment<U>,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+) -> Result<bool, Error>
+where
+    T: ShellStandaloneClockSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug
+        + Clone
+        + AsRef<ShellStandaloneClockSource>
+        + AsMut<ShellStandaloneClockSource>
+        + AsRef<TcKonnektStandaloneClockRate>
+        + AsMut<TcKonnektStandaloneClockRate>,
+{
+    match elem_id.name().as_str() {
+        SRC_NAME => {
+            let params: &ShellStandaloneClockSource = segment.data.as_ref();
+            let pos = T::STANDALONE_CLOCK_SOURCES
+                .iter()
+                .position(|s| params.eq(s))
+                .unwrap();
+            elem_value.set_enum(&[pos as u32]);
+            Ok(true)
         }
+        _ => read_standalone_rate::<T, U>(segment, elem_id, elem_value),
     }
+}
 
-    fn write_standalone(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.name().as_str() {
-            SRC_NAME => {
-                let mut params = self.segment().data.clone();
-                let src = Self::standalone_src_mut(&mut params);
-                let pos = elem_value.enumerated()[0] as usize;
-                T::STANDALONE_CLOCK_SOURCES
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock source: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
-                    .map(|&s| *src = s)?;
-                let res =
-                    T::update_partial_segment(req, node, &params, self.segment_mut(), timeout_ms);
-                debug!(params = ?self.segment().data, ?res);
-                res.map(|_| true)
-            }
-            _ => self.write_standalone_rate(req, node, elem_id, elem_value, timeout_ms),
+pub fn write_standalone<T, U>(
+    segment: &mut TcKonnektSegment<U>,
+    req: &FwReq,
+    node: &FwNode,
+    elem_id: &ElemId,
+    elem_value: &ElemValue,
+    timeout_ms: u32,
+) -> Result<bool, Error>
+where
+    T: ShellStandaloneClockSpecification
+        + TcKonnektSegmentOperation<U>
+        + TcKonnektMutableSegmentOperation<U>,
+    U: Debug
+        + Clone
+        + AsRef<ShellStandaloneClockSource>
+        + AsMut<ShellStandaloneClockSource>
+        + AsRef<TcKonnektStandaloneClockRate>
+        + AsMut<TcKonnektStandaloneClockRate>,
+{
+    match elem_id.name().as_str() {
+        SRC_NAME => {
+            let mut data = segment.data.clone();
+            let params = data.as_mut();
+            let pos = elem_value.enumerated()[0] as usize;
+            T::STANDALONE_CLOCK_SOURCES
+                .iter()
+                .nth(pos)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid value for index of clock source: {}", pos);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&src| *params = src)?;
+            let res = T::update_partial_segment(req, node, &data, segment, timeout_ms);
+            debug!(params = ?segment.data, ?res);
+            res.map(|_| true)
         }
+        _ => write_standalone_rate::<T, U>(segment, req, node, elem_id, elem_value, timeout_ms),
     }
 }
 
