@@ -624,6 +624,18 @@ impl TcKonnektNotifiedSegmentOperation<KliveHwState> for KliveProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for KliveHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.0.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for KliveHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.0.firewire_led
+    }
+}
+
 const KLIVE_METER_ANALOG_INPUT_COUNT: usize = 4;
 const KLIVE_METER_DIGITAL_INPUT_COUNT: usize = 8;
 

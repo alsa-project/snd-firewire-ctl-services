@@ -567,6 +567,18 @@ impl TcKonnektNotifiedSegmentOperation<ItwinHwState> for ItwinProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for ItwinHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.hw_state.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for ItwinHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.hw_state.firewire_led
+    }
+}
+
 /// Hardware metering for mixer function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItwinMixerMeter(pub ShellMixerMeter);

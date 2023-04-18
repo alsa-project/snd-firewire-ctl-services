@@ -433,6 +433,18 @@ impl TcKonnektNotifiedSegmentOperation<DesktopPanel> for Desktopk6Protocol {
     const NOTIFY_FLAG: u32 = DESKTOP_PANEL_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for DesktopPanel {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for DesktopPanel {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.firewire_led
+    }
+}
+
 /// Hardware metering.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DesktopMeter {

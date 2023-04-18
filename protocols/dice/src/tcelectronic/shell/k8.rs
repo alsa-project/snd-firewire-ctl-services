@@ -282,6 +282,18 @@ impl TcKonnektNotifiedSegmentOperation<K8HwState> for K8Protocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for K8HwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.hw_state.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for K8HwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.hw_state.firewire_led
+    }
+}
+
 const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K8_METER_DIGITAL_INPUT_COUNT: usize = 2;
 

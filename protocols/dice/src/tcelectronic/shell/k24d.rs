@@ -430,6 +430,18 @@ impl TcKonnektNotifiedSegmentOperation<K24dHwState> for K24dProtocol {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
+impl AsRef<FireWireLedState> for K24dHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.0.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for K24dHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.0.firewire_led
+    }
+}
+
 const K24D_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K24D_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
