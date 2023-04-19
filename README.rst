@@ -312,6 +312,9 @@ command line. In the most executables, the first positional argument is the nume
 sound card in Linux sound subsystem. For further information, please refer to ``Runtime debugging``
 clause.
 
+Once the service program runs, it remains to dispatch events until receiving SIGTERM signal (e.g.
+press Ctrl + C) or the device is disconnected.
+
 Install executables ::
 
     $ cargo install --path (path to binary crate)
