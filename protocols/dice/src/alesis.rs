@@ -437,7 +437,7 @@ pub trait AlesisOperation: TcatOperation {
     }
 }
 
-/// Operation to cache content of segment in TC Electronic Konnekt series.
+/// Operation for parameters to cache state of hardware.
 pub trait AlesisParametersOperation<T>: AlesisOperation + AlesisParametersSerdes<T> {
     /// Cache whole segment and deserialize for parameters.
     fn cache_whole_params(
