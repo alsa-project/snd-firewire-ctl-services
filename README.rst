@@ -243,6 +243,8 @@ However, we welcome any assistance that can enhance the project.
   * Sometimes, there may be an issue with initializing Command DSP models for communication. In such
     case, the workaround is to simply restart the service program.
   * 896 mk3 (FireWire only/Hybrid) is not supported since developer has no change to access to it..
+  * Due to hardware quirk of Audio Express, asynchronous communication often fails with
+    ``unsolicited response`` system message.
 
 * snd-fireface-ctl-service
 
@@ -313,7 +315,7 @@ sound card in Linux sound subsystem. For further information, please refer to ``
 clause.
 
 Once the service program runs, it remains to dispatch events until receiving SIGTERM signal (e.g.
-press Ctrl + C) or the device is disconnected.
+press Ctrl + C) or detecting disconnection of the device.
 
 Install executables ::
 
