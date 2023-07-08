@@ -39,7 +39,7 @@ implements own protocol based on simple asynchronous transaction.
 
 ## ALSA dice driver
 
-Linux sound subsystem, a.k.a ALSA, provides loadable kernel module (`snd-bebob`) as driver for
+Linux sound subsystem, a.k.a ALSA, provides loadable kernel module (`snd-dice`) as driver for
 the units. The driver maintains isochronous packet streams for audio frames and MIDI messages
 as well as notification mechanism by asynchronous transaction since the other internal functions
 of ASICs such as digital signal processing can be operated by user space application directly.
