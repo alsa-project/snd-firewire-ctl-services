@@ -15,6 +15,7 @@ mod focusrite;
 mod mbox3_model;
 mod pfire_model;
 mod tcd22xx_ctl;
+mod weiss_model;
 
 use {
     alsa_ctl_tlv_codec::DbInterval,
