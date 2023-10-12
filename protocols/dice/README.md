@@ -97,6 +97,12 @@ This is the list of models currently supported.
  * PreSonus FireStudio Project
  * PreSonus FireStudio Tube
  * PreSonus FireStudio Mobile
+ * Weiss Engineering ADC2
+ * Weiss Engineering Vesta
+ * Weiss Engineering DAC2, Minerva
+ * Weiss Engineering AFI1
+ * Weiss Engineering INT202, INT203, DAC1 FireWire option card
+ * Weiss Engineering DAC202, Maya
 
 For the other models, implementation for common and extension protocol is available without any
 care of vendor's customization.
