@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/04/19
+2023/11/05
 Takashi Sakamoto
 
 Introduction
@@ -13,7 +13,7 @@ user space service programs for Audio and Music units connected to IEEE 1394 bus
 drivers in ALSA firewire stack.
 
 The latest release is
-`version 0.1.0 <https://github.com/alsa-project/snd-firewire-ctl-services/releases/tag/snd-firewire-ctl-services%2Fv0.1.0>`_.
+`version 0.1.1 <https://github.com/alsa-project/snd-firewire-ctl-services/releases/tag/snd-firewire-ctl-services%2Fv0.1.1>`_.
 
 The service programs are designed to operate digital signal processing function in the audio and
 music units connected to IEEE 1394 bus. The service programs work as
