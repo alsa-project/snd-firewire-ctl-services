@@ -16,7 +16,6 @@ mod latter_runtime;
 use {
     alsactl::{prelude::*, *},
     clap::Parser,
-    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     ff400_runtime::*,
     ff800_runtime::*,
     firewire_fireface_protocols as protocols,
@@ -30,6 +29,7 @@ use {
     latter_runtime::*,
     nix::sys::signal,
     protocols::{former::*, latter::*, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::convert::TryFrom,
     tracing::{debug, debug_span, Level},
 };

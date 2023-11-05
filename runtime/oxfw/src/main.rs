@@ -14,7 +14,6 @@ use {
     alsactl::{prelude::*, *},
     clap::Parser,
     common_ctl::*,
-    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_oxfw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -26,6 +25,7 @@ use {
     model::*,
     nix::sys::signal,
     protocols::*,
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{convert::TryFrom, fmt::Debug, sync::mpsc},
     ta1394_avc_general::config_rom::*,
     tracing::{debug, debug_span, Level},

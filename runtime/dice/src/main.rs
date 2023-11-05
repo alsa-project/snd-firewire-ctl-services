@@ -21,7 +21,6 @@ use {
     alsactl::{prelude::*, *},
     clap::Parser,
     common_ctl::*,
-    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -32,6 +31,7 @@ use {
     model::*,
     nix::sys::signal,
     protocols::tcat::{global_section::*, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{fmt::Debug, sync::mpsc},
     tracing::{debug, debug_span, Level},
 };

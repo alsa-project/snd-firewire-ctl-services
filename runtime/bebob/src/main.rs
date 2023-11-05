@@ -22,7 +22,6 @@ use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
     clap::Parser,
-    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_bebob_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -33,6 +32,7 @@ use {
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{convert::TryFrom, sync::mpsc},
     ta1394_avc_general::config_rom::*,
     tracing::{debug, debug_span, Level},

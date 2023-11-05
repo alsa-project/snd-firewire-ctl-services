@@ -3,9 +3,9 @@
 
 use {
     super::{fe8_model::*, seq_cntr::*, *},
-    runtime_core::dispatcher::*,
     nix::sys::signal::Signal,
     protocols::asynch::{fe8::*, *},
+    runtime_core::dispatcher::*,
     std::marker::PhantomData,
     std::sync::mpsc,
 };

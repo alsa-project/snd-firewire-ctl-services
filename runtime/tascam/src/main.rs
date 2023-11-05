@@ -17,7 +17,6 @@ use {
     alsaseq::{prelude::*, *},
     asynch_runtime::*,
     clap::Parser,
-    runtime_core::{card_cntr::*, cmdline::*, LogLevel, *},
     firewire_tascam_protocols as protocols,
     glib::{source, Error, FileError, IsA},
     hinawa::{
@@ -29,6 +28,7 @@ use {
     isoch_console_runtime::*,
     isoch_rack_runtime::*,
     protocols::{config_rom::*, *},
+    runtime_core::{card_cntr::*, cmdline::*, LogLevel, *},
     seq_cntr::*,
     std::{convert::TryFrom, marker::PhantomData},
     tracing::{debug, debug_span, Level},

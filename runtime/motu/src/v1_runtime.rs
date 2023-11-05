@@ -7,7 +7,7 @@ pub(crate) use {
     runtime_core::card_cntr::*,
 };
 
-use {runtime_core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
+use {glib::source, nix::sys::signal::Signal, runtime_core::dispatcher::*, std::sync::mpsc};
 
 pub type F828Runtime = Version1Runtime<F828Model>;
 pub type F896Runtime = Version1Runtime<F896Model>;

@@ -7,15 +7,15 @@ pub(crate) use {
         ultralite_mk3_hybrid_model::*, ultralite_mk3_model::*, *,
     },
     alsactl::{prelude::*, *},
-    runtime_core::card_cntr::*,
     hinawa::{prelude::FwRespExtManual, FwRcode, FwResp, FwTcode},
     protocols::command_dsp::*,
+    runtime_core::card_cntr::*,
 };
 
 use {
-    runtime_core::dispatcher::*,
     glib::source,
     nix::sys::signal::Signal,
+    runtime_core::dispatcher::*,
     std::{
         sync::{mpsc, Arc, Mutex},
         thread,

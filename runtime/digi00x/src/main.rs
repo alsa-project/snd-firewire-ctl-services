@@ -5,7 +5,6 @@ mod model;
 use {
     alsactl::{prelude::*, *},
     clap::Parser,
-    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_digi00x_protocols as protocols,
     glib::{
         source, {Error, FileError},
@@ -18,6 +17,7 @@ use {
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{convert::TryFrom, sync::mpsc, thread},
     ta1394_avc_general::config_rom::Ta1394ConfigRom,
     tracing::{debug, debug_span, Level},

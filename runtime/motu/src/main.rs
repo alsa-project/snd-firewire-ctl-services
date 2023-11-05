@@ -32,7 +32,6 @@ mod v3_ctls;
 use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
     clap::Parser,
-    runtime_core::{cmdline::*, LogLevel, *},
     firewire_motu_protocols as protocols,
     glib::{Error, FileError},
     hinawa::{
@@ -42,6 +41,7 @@ use {
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     protocols::{config_rom::*, *},
+    runtime_core::{cmdline::*, LogLevel, *},
     std::{convert::TryFrom, marker::PhantomData},
     tracing::{debug, debug_span, Level},
 };

@@ -30,7 +30,6 @@ use {
     },
     alsactl::{prelude::*, *},
     clap::Parser,
-    runtime_core::{card_cntr::*, dispatcher::*, cmdline::*, LogLevel, *},
     firewire_fireworks_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
@@ -40,6 +39,7 @@ use {
     hitaki::{prelude::*, SndEfw},
     nix::sys::signal,
     protocols::{hw_ctl::*, hw_info::*, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{marker::PhantomData, sync::mpsc, thread, time},
     tracing::{debug, debug_span, Level},
 };
