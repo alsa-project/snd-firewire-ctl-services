@@ -13,7 +13,7 @@ publish = false
 
 [dependencies]
 glib = "0.15"
-nix = "0"
+nix = { version = ">=0.24", features = ["signal"] }
 alsactl = "0.4"
 hinawa = "0.7"
 hitaki = "0.3"

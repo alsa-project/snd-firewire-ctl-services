@@ -12,7 +12,7 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dependencies]
-nix = "0"
+nix = { version = ">=0.24", features = ["signal"] }
 glib = "0.15"
 hinawa = "0.7"
 hitaki = "0.3"
