@@ -22,7 +22,7 @@ use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
     clap::Parser,
-    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_bebob_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{

@@ -8,12 +8,12 @@ pub(crate) use {
     },
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
-    core::card_cntr::*,
+    runtime_core::card_cntr::*,
     hinawa::FwReq,
     protocols::register_dsp::*,
 };
 
-use {core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
+use {runtime_core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
 
 pub type F828mk2Runtime = RegisterDspRuntime<F828mk2Model>;
 pub type F896hdRuntime = RegisterDspRuntime<F896hdModel>;

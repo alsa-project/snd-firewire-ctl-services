@@ -3,7 +3,7 @@
 use {
     super::{fw1804_model::*, *},
     alsactl::{prelude::*, *},
-    core::dispatcher::*,
+    runtime_core::dispatcher::*,
     nix::sys::signal,
     std::{sync::mpsc, time::Duration},
 };

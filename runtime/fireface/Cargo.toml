@@ -21,6 +21,6 @@ alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 firewire-fireface-protocols = "0.2"
 clap = { version = "3.2", features = ["derive"] }
-core = { path = "../core" }
+runtime-core = { path = "../core" }
 tracing = "0.1"
 tracing-subscriber = "0.3"

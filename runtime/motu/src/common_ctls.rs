@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub(crate) use {super::*, alsactl::*, core::card_cntr::*, hinawa::FwReq};
+pub(crate) use {super::*, alsactl::*, runtime_core::card_cntr::*, hinawa::FwReq};
 
 #[derive(Default, Debug)]
 pub(crate) struct PhoneAssignCtl<T>

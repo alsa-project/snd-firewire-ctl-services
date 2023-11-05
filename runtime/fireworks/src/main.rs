@@ -30,7 +30,7 @@ use {
     },
     alsactl::{prelude::*, *},
     clap::Parser,
-    core::{card_cntr::*, dispatcher::*, cmdline::*, LogLevel, *},
+    runtime_core::{card_cntr::*, dispatcher::*, cmdline::*, LogLevel, *},
     firewire_fireworks_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{

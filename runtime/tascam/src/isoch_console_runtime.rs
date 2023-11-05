@@ -5,7 +5,7 @@ use {
     super::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *},
     alsactl::{prelude::*, *},
     alsaseq::{prelude::*, *},
-    core::dispatcher::*,
+    runtime_core::dispatcher::*,
     nix::sys::signal,
     protocols::isoch::{fw1082::*, fw1884::*},
     std::{marker::PhantomData, sync::mpsc, time::Duration},

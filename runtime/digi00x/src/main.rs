@@ -5,7 +5,7 @@ mod model;
 use {
     alsactl::{prelude::*, *},
     clap::Parser,
-    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_digi00x_protocols as protocols,
     glib::{
         source, {Error, FileError},

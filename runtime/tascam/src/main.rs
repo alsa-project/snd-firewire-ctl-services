@@ -17,7 +17,7 @@ use {
     alsaseq::{prelude::*, *},
     asynch_runtime::*,
     clap::Parser,
-    core::{card_cntr::*, cmdline::*, LogLevel, *},
+    runtime_core::{card_cntr::*, cmdline::*, LogLevel, *},
     firewire_tascam_protocols as protocols,
     glib::{source, Error, FileError, IsA},
     hinawa::{

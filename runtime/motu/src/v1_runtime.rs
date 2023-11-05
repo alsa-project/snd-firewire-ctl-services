@@ -4,10 +4,10 @@
 pub(crate) use {
     super::{f828_model::*, f896_model::*, *},
     alsactl::{prelude::*, *},
-    core::card_cntr::*,
+    runtime_core::card_cntr::*,
 };
 
-use {core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
+use {runtime_core::dispatcher::*, glib::source, nix::sys::signal::Signal, std::sync::mpsc};
 
 pub type F828Runtime = Version1Runtime<F828Model>;
 pub type F896Runtime = Version1Runtime<F896Model>;

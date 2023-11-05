@@ -3,7 +3,7 @@
 
 use {
     super::{fe8_model::*, seq_cntr::*, *},
-    core::dispatcher::*,
+    runtime_core::dispatcher::*,
     nix::sys::signal::Signal,
     protocols::asynch::{fe8::*, *},
     std::marker::PhantomData,

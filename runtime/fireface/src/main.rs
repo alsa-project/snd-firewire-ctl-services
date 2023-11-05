@@ -16,7 +16,7 @@ mod latter_runtime;
 use {
     alsactl::{prelude::*, *},
     clap::Parser,
-    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     ff400_runtime::*,
     ff800_runtime::*,
     firewire_fireface_protocols as protocols,

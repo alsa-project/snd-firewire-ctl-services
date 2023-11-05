@@ -32,7 +32,7 @@ mod v3_ctls;
 use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
     clap::Parser,
-    core::{cmdline::*, LogLevel, *},
+    runtime_core::{cmdline::*, LogLevel, *},
     firewire_motu_protocols as protocols,
     glib::{Error, FileError},
     hinawa::{

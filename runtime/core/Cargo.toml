@@ -1,6 +1,6 @@
 [package]
 edition = "2018"
-name = "core"
+name = "runtime-core"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]

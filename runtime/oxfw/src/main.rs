@@ -14,7 +14,7 @@ use {
     alsactl::{prelude::*, *},
     clap::Parser,
     common_ctl::*,
-    core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
+    runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     firewire_oxfw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
