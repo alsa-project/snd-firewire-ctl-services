@@ -457,7 +457,7 @@ fn deserialize_iec60958_params(
     quadlet.copy_from_slice(&raw[4..8]);
     let enables = u32::from_be_bytes(quadlet);
 
-    params.iter_mut().enumerate().for_each(|(i, mut param)| {
+    params.iter_mut().enumerate().for_each(|(i, param)| {
         param.cap = (1 << i) & caps > 0;
         param.enable = (1 << i) & enables > 0;
     });
