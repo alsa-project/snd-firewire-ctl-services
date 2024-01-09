@@ -300,10 +300,7 @@ impl EfwRuntime {
     }
 
     fn stop_interval_timer(&mut self) {
-        if let Some(dispatcher) = &self.timer {
-            drop(dispatcher);
-            self.timer = None;
-        }
+        self.timer = None;
     }
 }
 
