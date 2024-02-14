@@ -318,11 +318,29 @@ fn level_meters_aesebu_mode_to_string(mode: &LevelMetersAesebuMode) -> &'static 
     }
 }
 
-fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) -> &'static str {
+fn level_meters_programmable_mode_to_string(
+    mode: &LevelMetersProgrammableMode,
+    has_opt_b_iface: bool,
+) -> &'static str {
     match mode {
         LevelMetersProgrammableMode::AnalogOutput => "analog-output",
-        LevelMetersProgrammableMode::AdatInput => "ADAT-input",
-        LevelMetersProgrammableMode::AdatOutput => "ADAT-output",
+        LevelMetersProgrammableMode::AdatAInput => {
+            if has_opt_b_iface {
+                "ADAT-A-input"
+            } else {
+                "ADAT-input"
+            }
+        }
+        LevelMetersProgrammableMode::AdatAOutput => {
+            if has_opt_b_iface {
+                "ADAT-A-output"
+            } else {
+                "ADAT-output"
+            }
+        }
+        LevelMetersProgrammableMode::AdatBInput => "ADAT-B-input",
+        LevelMetersProgrammableMode::AdatBOutput => "ADAT-B-output",
+        LevelMetersProgrammableMode::AesEbuInputOutput => "AES/EBU-input/output",
     }
 }
 
@@ -372,9 +390,14 @@ where
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.elem_id_list.append(&mut elem_id_list))?;
 
+        let has_opt_b_iface = T::LEVEL_METERS_PROGRAMMABLE_MODES.iter().any(|&mode| {
+            mode == LevelMetersProgrammableMode::AdatBInput
+                || mode == LevelMetersProgrammableMode::AdatBOutput
+        });
+
         let labels: Vec<&str> = T::LEVEL_METERS_PROGRAMMABLE_MODES
             .iter()
-            .map(|l| level_meters_programmable_mode_to_string(&l))
+            .map(|l| level_meters_programmable_mode_to_string(&l, has_opt_b_iface))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PROGRAMMABLE_MODE_NAME, 0);
         card_cntr

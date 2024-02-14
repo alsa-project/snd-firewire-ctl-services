@@ -964,7 +964,13 @@ impl MotuAesebuRateConvertSpecification for F896hdProtocol {
     const AESEBU_RATE_CONVERT_SHIFT: usize = 8;
 }
 
-impl MotuLevelMetersSpecification for F896hdProtocol {}
+impl MotuLevelMetersSpecification for F896hdProtocol {
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] = &[
+        LevelMetersProgrammableMode::AnalogOutput,
+        LevelMetersProgrammableMode::AdatAInput,
+        LevelMetersProgrammableMode::AdatAOutput,
+    ];
+}
 
 impl MotuVersion2ClockSpecification for F896hdProtocol {
     const CLK_RATES: &'static [ClkRate] = &[

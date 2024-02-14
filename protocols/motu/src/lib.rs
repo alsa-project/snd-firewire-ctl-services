@@ -482,10 +482,16 @@ impl Default for LevelMetersHoldTimeMode {
 pub enum LevelMetersProgrammableMode {
     /// For analog outputs.
     AnalogOutput,
-    /// For ADAT inputs.
-    AdatInput,
-    /// For ADAT outputs.
-    AdatOutput,
+    /// For ADAT A inputs.
+    AdatAInput,
+    /// For ADAT A outputs.
+    AdatAOutput,
+    /// For ADAT B inputs.
+    AdatBInput,
+    /// For ADAT B outputs.
+    AdatBOutput,
+    /// For AES/EBU inputs and outputs.
+    AesEbuInputOutput,
 }
 
 impl Default for LevelMetersProgrammableMode {
@@ -539,7 +545,7 @@ const LEVEL_METERS_AESEBU_VALS: &[u8] = &[0x00, 0x01];
 
 const LEVEL_METERS_PROGRAMMABLE_MASK: u32 = 0x00000003;
 const LEVEL_METERS_PROGRAMMABLE_SHIFT: usize = 0;
-const LEVEL_METERS_PROGRAMMABLE_VALS: &[u8] = &[0x00, 0x01, 0x02];
+const LEVEL_METERS_PROGRAMMABLE_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
 
 const LEVEL_METERS_PEAK_HOLD_TIME_LABEL: &str = "level-meters-peak-hold-time";
 const LEVEL_METERS_CLIP_HOLD_TIME_LABEL: &str = "level-meters-clip-hold-time";
@@ -562,11 +568,7 @@ pub trait MotuLevelMetersSpecification {
     const LEVEL_METERS_AESEBU_MODES: &'static [LevelMetersAesebuMode] =
         &[LevelMetersAesebuMode::Output, LevelMetersAesebuMode::Input];
 
-    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] = &[
-        LevelMetersProgrammableMode::AnalogOutput,
-        LevelMetersProgrammableMode::AdatInput,
-        LevelMetersProgrammableMode::AdatOutput,
-    ];
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode];
 }
 
 impl<O> MotuWhollyCacheableParamsOperation<LevelMetersParameters> for O
