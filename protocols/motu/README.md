@@ -81,6 +81,8 @@ This is the list of models currently supported.
  * MOTU AudioExpress
  * MOTU 828mk3 (FireWire only)
  * MOTU 828mk3 (Hybrid)
+ * MOTU 896mk3 (FireWire only)
+ * MOTU 896mk3 (Hybrid)
  * MOTU UltraLite mk3 (FireWire only)
  * MOTU UltraLite mk3 (Hybrid)
  * MOTU Traveler mk3

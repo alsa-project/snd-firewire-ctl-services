@@ -892,6 +892,526 @@ impl MotuRegisterDspMeterSpecification for H4preProtocol {
     const OUTPUT_PORT_PAIR_POS: &'static [[usize; 2]] = &[[0, 1], [2, 3], [10, 11], [12, 13]];
 }
 
+const F896_MK3_ASSIGN_PORT_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair,      // = Stream-0/1
+    TargetPort::AnalogPair(0), // = Stream-2/3
+    TargetPort::AnalogPair(1), // = Stream-4/5
+    TargetPort::AnalogPair(2), // = Stream-6/7
+    TargetPort::AnalogPair(3), // = Stream-8/9
+    TargetPort::AesEbuPair,    // = Stream-10/11
+    TargetPort::SpdifPair,     // = Stream-12/13
+    TargetPort::PhonePair,     // = Stream-14/15
+    // = Stream-16/17 for dummy
+    TargetPort::OpticalAPair(0), // = Stream-18/19
+    TargetPort::OpticalAPair(1), // = Stream-20/21
+    TargetPort::OpticalAPair(2), // = Stream-22/23
+    TargetPort::OpticalAPair(3), // = Stream-24/25
+    TargetPort::OpticalBPair(0), // = Stream-26/27
+    TargetPort::OpticalBPair(1), // = Stream-28/29
+    TargetPort::OpticalBPair(2), // = Stream-30/31
+    TargetPort::OpticalBPair(3), // = Stream-32/33
+];
+
+const F896_MK3_ASSIGN_PORT_VALS: &[u8] = &[
+    0x00, // = Stream-0/1
+    0x01, // = Stream-2/3
+    0x02, // = Stream-4/5
+    0x03, // = Stream-6/7
+    0x04, // = Stream-8/9
+    0x05, // = Stream-10/11
+    0x06, // = Stream-12/13
+    0x07, // = Stream-14/15
+    0x08, // = Stream-18/19
+    0x09, // = Stream-20/21
+    0x0a, // = Stream-22/23
+    0x0b, // = Stream-24/25
+    0x0c, // = Stream-26/27
+    0x0d, // = Stream-28/29
+    0x0e, // = Stream-30/31
+    0x0f, // = Stream-32/33
+];
+
+const F896_MK3_CLOCK_RATES: &[ClkRate] = &[
+    ClkRate::R44100,
+    ClkRate::R48000,
+    ClkRate::R88200,
+    ClkRate::R96000,
+    ClkRate::R176400,
+    ClkRate::R192000,
+];
+
+const F896_MK3_CLOCK_RATE_VALS: &[u8] = &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+
+const F896_MK3_CLOCK_SRCS: &[V3ClkSrc] = &[
+    V3ClkSrc::Internal,
+    V3ClkSrc::WordClk,
+    V3ClkSrc::AesEbuXlr,
+    V3ClkSrc::SpdifCoax,
+    V3ClkSrc::SignalOptA,
+    V3ClkSrc::SignalOptB,
+];
+
+const F896_MK3_CLOCK_SRC_VALS: &[u8] = &[0x00, 0x01, 0x08, 0x10, 0x18, 0x19];
+
+const F896_MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::AesEbuPair,
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
+];
+
+const F896_MK3_MIXER_SOURCE_PORTS: &[TargetPort] = &[
+    TargetPort::Analog(0),
+    TargetPort::Analog(1),
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Analog(8),
+    TargetPort::Analog(9),
+    TargetPort::AesEbu(0),
+    TargetPort::AesEbu(1),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
+    TargetPort::OpticalA(0),
+    TargetPort::OpticalA(1),
+    TargetPort::OpticalA(2),
+    TargetPort::OpticalA(3),
+    TargetPort::OpticalA(4),
+    TargetPort::OpticalA(5),
+    TargetPort::OpticalA(6),
+    TargetPort::OpticalA(7),
+    TargetPort::OpticalB(0),
+    TargetPort::OpticalB(1),
+    TargetPort::OpticalB(2),
+    TargetPort::OpticalB(3),
+    TargetPort::OpticalB(4),
+    TargetPort::OpticalB(5),
+    TargetPort::OpticalB(6),
+    TargetPort::OpticalB(7),
+];
+
+const F896_MK3_MIXER_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Disabled,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::AesEbuPair,
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
+];
+
+const F896_MK3_INPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Analog(0),
+    TargetPort::Analog(1),
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Analog(8),
+    TargetPort::Analog(9),
+    TargetPort::AesEbu(0),
+    TargetPort::AesEbu(1),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
+    TargetPort::OpticalA(0),
+    TargetPort::OpticalA(1),
+    TargetPort::OpticalA(2),
+    TargetPort::OpticalA(3),
+    TargetPort::OpticalA(4),
+    TargetPort::OpticalA(5),
+    TargetPort::OpticalA(6),
+    TargetPort::OpticalA(7),
+    TargetPort::OpticalB(0),
+    TargetPort::OpticalB(1),
+    TargetPort::OpticalB(2),
+    TargetPort::OpticalB(3),
+    TargetPort::OpticalB(4),
+    TargetPort::OpticalB(5),
+    TargetPort::OpticalB(6),
+    TargetPort::OpticalB(7),
+];
+
+const F896_MK3_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::AesEbuPair,
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
+];
+
+const F896_MK3_METER_INPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Analog(0), 8),
+    (TargetPort::Analog(1), 9),
+    (TargetPort::Analog(2), 10),
+    (TargetPort::Analog(3), 11),
+    (TargetPort::Analog(4), 12),
+    (TargetPort::Analog(5), 13),
+    (TargetPort::Analog(6), 14),
+    (TargetPort::Analog(7), 15),
+    (TargetPort::AesEbu(0), 18),
+    (TargetPort::AesEbu(1), 19),
+    (TargetPort::Spdif(0), 16),
+    (TargetPort::Spdif(1), 17),
+    (TargetPort::OpticalA(0), 20),
+    (TargetPort::OpticalA(1), 21),
+    (TargetPort::OpticalA(2), 22),
+    (TargetPort::OpticalA(3), 23),
+    (TargetPort::OpticalA(4), 24),
+    (TargetPort::OpticalA(5), 25),
+    (TargetPort::OpticalA(6), 26),
+    (TargetPort::OpticalA(7), 27),
+    (TargetPort::OpticalB(0), 28),
+    (TargetPort::OpticalB(1), 29),
+    (TargetPort::OpticalB(2), 30),
+    (TargetPort::OpticalB(3), 31),
+    (TargetPort::OpticalB(4), 32),
+    (TargetPort::OpticalB(5), 33),
+    (TargetPort::OpticalB(6), 34),
+    (TargetPort::OpticalB(7), 35),
+];
+
+const F896_MK3_METER_OUTPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Main(0), 82),
+    (TargetPort::Main(1), 83),
+    (TargetPort::Analog(0), 84),
+    (TargetPort::Analog(1), 85),
+    (TargetPort::Analog(2), 86),
+    (TargetPort::Analog(3), 87),
+    (TargetPort::Analog(4), 88),
+    (TargetPort::Analog(5), 89),
+    (TargetPort::Analog(6), 90),
+    (TargetPort::Analog(7), 91),
+    (TargetPort::AesEbu(0), 92),
+    (TargetPort::AesEbu(1), 93),
+    (TargetPort::Spdif(0), 80),
+    (TargetPort::Spdif(1), 81),
+    (TargetPort::Phone(0), 94),
+    (TargetPort::Phone(1), 95),
+    (TargetPort::OpticalA(0), 96),
+    (TargetPort::OpticalA(1), 97),
+    (TargetPort::OpticalA(2), 98),
+    (TargetPort::OpticalA(3), 99),
+    (TargetPort::OpticalA(4), 100),
+    (TargetPort::OpticalA(5), 101),
+    (TargetPort::OpticalA(6), 102),
+    (TargetPort::OpticalA(7), 103),
+    (TargetPort::OpticalB(0), 104),
+    (TargetPort::OpticalB(1), 105),
+    (TargetPort::OpticalB(2), 106),
+    (TargetPort::OpticalB(3), 107),
+    (TargetPort::OpticalB(4), 108),
+    (TargetPort::OpticalB(5), 109),
+    (TargetPort::OpticalB(6), 110),
+    (TargetPort::OpticalB(7), 111),
+];
+
+const F896_MK3_LEVEL_METERS_PROGRAMMABLE_MODES: &[LevelMetersProgrammableMode] = &[
+    LevelMetersProgrammableMode::AnalogOutput,
+    LevelMetersProgrammableMode::AdatAInput,
+    LevelMetersProgrammableMode::AdatAOutput,
+    LevelMetersProgrammableMode::AdatBInput,
+    LevelMetersProgrammableMode::AdatBOutput,
+    LevelMetersProgrammableMode::AesEbuInputOutput,
+];
+
+const F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER: u32 = 0x0c90;
+
+const F896_MK3_NOTIFY_PORT_CHANGE_MASK: u32 = 0x40000000;
+
+const F896_MK3_NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+
+/// Mode of rate convert for AES/EBU input/output signals.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum F896mk3AesebuRateConvertMode {
+    /// Not available.
+    None,
+    /// The rate of input signal is converted to system rate.
+    InputToSystem,
+    /// The rate of output signal is slave to input, ignoring system rate.
+    OutputDependsInput,
+    /// The rate of output signal is at 44.1 kHz.
+    Output441,
+    /// The rate of output signal is at 48.0 kHz.
+    Output480,
+    /// The rate of output signal is at 88.2 kHz.
+    Output882,
+    /// The rate of output signal is at 96.0 kHz.
+    Output960,
+}
+
+impl Default for F896mk3AesebuRateConvertMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+/// The trait for specification of AES/EBU sampling rate converter in F896mk3.
+pub trait F896mk3AesebuRateConvertSpecification {}
+
+fn serialize_f896mk3_aes_ebu_rate_converter_mode(
+    mode: &mut F896mk3AesebuRateConvertMode,
+    quad: &u32,
+) {
+    *mode = match quad {
+        6 => F896mk3AesebuRateConvertMode::Output960,
+        5 => F896mk3AesebuRateConvertMode::Output882,
+        4 => F896mk3AesebuRateConvertMode::Output480,
+        3 => F896mk3AesebuRateConvertMode::Output441,
+        2 => F896mk3AesebuRateConvertMode::OutputDependsInput,
+        1 => F896mk3AesebuRateConvertMode::InputToSystem,
+        _ => F896mk3AesebuRateConvertMode::None,
+    }
+}
+
+fn deserialize_f896mk3_aes_ebu_rate_converter_mode(
+    mode: &F896mk3AesebuRateConvertMode,
+    quad: &mut u32,
+) {
+    *quad = match mode {
+        F896mk3AesebuRateConvertMode::Output960 => 6,
+        F896mk3AesebuRateConvertMode::Output882 => 5,
+        F896mk3AesebuRateConvertMode::Output480 => 4,
+        F896mk3AesebuRateConvertMode::Output441 => 3,
+        F896mk3AesebuRateConvertMode::OutputDependsInput => 2,
+        F896mk3AesebuRateConvertMode::InputToSystem => 1,
+        F896mk3AesebuRateConvertMode::None => 0,
+    };
+}
+
+impl<O> MotuWhollyCacheableParamsOperation<F896mk3AesebuRateConvertMode> for O
+where
+    O: F896mk3AesebuRateConvertSpecification,
+{
+    fn cache_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        mode: &mut F896mk3AesebuRateConvertMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let quad = read_quad(
+            req,
+            node,
+            F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER,
+            timeout_ms,
+        )?;
+        serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &quad);
+        Ok(())
+    }
+}
+
+impl<O> MotuWhollyUpdatableParamsOperation<F896mk3AesebuRateConvertMode> for O
+where
+    O: F896mk3AesebuRateConvertSpecification,
+{
+    fn update_wholly(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        mode: &F896mk3AesebuRateConvertMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quad = read_quad(
+            req,
+            node,
+            F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER,
+            timeout_ms,
+        )?;
+        deserialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
+        write_quad(
+            req,
+            node,
+            F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER,
+            quad,
+            timeout_ms,
+        )
+    }
+}
+
+/// The protocol implementation for 896 mk3 (FireWire only).
+#[derive(Default, Debug)]
+pub struct F896mk3Protocol;
+
+impl MotuPortAssignSpecification for F896mk3Protocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = F896_MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = F896_MK3_ASSIGN_PORT_VALS;
+}
+
+impl MotuWordClockOutputSpecification for F896mk3Protocol {}
+
+impl MotuClockNameDisplaySpecification for F896mk3Protocol {}
+
+impl MotuVersion3ClockSpecification for F896mk3Protocol {
+    const CLOCK_RATES: &'static [ClkRate] = F896_MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = F896_MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = F896_MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = F896_MK3_CLOCK_SRC_VALS;
+}
+
+impl MotuVersion3OpticalIfaceSpecification for F896mk3Protocol {
+    const OPT_IFACE_COUNT: usize = 2;
+}
+
+impl CommandDspOperation for F896mk3Protocol {}
+
+impl MotuCommandDspReverbSpecification for F896mk3Protocol {}
+
+impl MotuCommandDspMonitorSpecification for F896mk3Protocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F896_MK3_RETURN_ASSIGN_TARGETS;
+}
+
+impl MotuCommandDspMixerSpecification for F896mk3Protocol {
+    const SOURCE_PORTS: &'static [TargetPort] = F896_MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = F896_MK3_MIXER_OUTPUT_PORTS;
+}
+
+impl MotuCommandDspEqualizerSpecification for F896mk3Protocol {}
+
+impl MotuCommandDspDynamicsSpecification for F896mk3Protocol {}
+
+impl MotuCommandDspInputSpecification for F896mk3Protocol {
+    const INPUT_PORTS: &'static [TargetPort] = F896_MK3_INPUT_PORTS;
+    const MIC_COUNT: usize = 0;
+    const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl MotuCommandDspOutputSpecification for F896mk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = F896_MK3_OUTPUT_PORTS;
+}
+
+impl MotuCommandDspMeterSpecification for F896mk3Protocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = F896_MK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F896_MK3_METER_OUTPUT_PORTS;
+}
+
+impl MotuLevelMetersSpecification for F896mk3Protocol {
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] =
+        F896_MK3_LEVEL_METERS_PROGRAMMABLE_MODES;
+}
+
+impl F896mk3AesebuRateConvertSpecification for F896mk3Protocol {}
+
+impl F896mk3Protocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment, as well as
+    /// programmable level meter. The change of phone assignment is also notified in command
+    /// message.
+    pub const NOTIFY_PORT_CHANGE_MASK: u32 = F896_MK3_NOTIFY_PORT_CHANGE_MASK;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = F896_MK3_NOTIFY_FOOTSWITCH_MASK;
+}
+
+/// The protocol implementation for 896 mk3 (Hybrid).
+#[derive(Default, Debug)]
+pub struct F896mk3HybridProtocol;
+
+impl MotuPortAssignSpecification for F896mk3HybridProtocol {
+    const ASSIGN_PORT_TARGETS: &'static [TargetPort] = F896_MK3_ASSIGN_PORT_TARGETS;
+    const ASSIGN_PORT_VALS: &'static [u8] = F896_MK3_ASSIGN_PORT_VALS;
+}
+
+impl MotuWordClockOutputSpecification for F896mk3HybridProtocol {}
+
+impl MotuClockNameDisplaySpecification for F896mk3HybridProtocol {}
+
+impl MotuVersion3ClockSpecification for F896mk3HybridProtocol {
+    const CLOCK_RATES: &'static [ClkRate] = F896_MK3_CLOCK_RATES;
+    const CLOCK_RATE_VALS: &'static [u8] = F896_MK3_CLOCK_RATE_VALS;
+
+    const CLOCK_SRCS: &'static [V3ClkSrc] = F896_MK3_CLOCK_SRCS;
+    const CLOCK_SRC_VALS: &'static [u8] = F896_MK3_CLOCK_SRC_VALS;
+}
+
+impl MotuVersion3OpticalIfaceSpecification for F896mk3HybridProtocol {
+    const OPT_IFACE_COUNT: usize = 2;
+}
+
+impl CommandDspOperation for F896mk3HybridProtocol {}
+
+impl MotuCommandDspReverbSpecification for F896mk3HybridProtocol {}
+
+impl MotuCommandDspMonitorSpecification for F896mk3HybridProtocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F896_MK3_RETURN_ASSIGN_TARGETS;
+}
+
+impl MotuCommandDspMixerSpecification for F896mk3HybridProtocol {
+    const SOURCE_PORTS: &'static [TargetPort] = F896_MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = F896_MK3_MIXER_OUTPUT_PORTS;
+}
+
+impl MotuCommandDspEqualizerSpecification for F896mk3HybridProtocol {}
+
+impl MotuCommandDspDynamicsSpecification for F896mk3HybridProtocol {}
+
+impl MotuCommandDspInputSpecification for F896mk3HybridProtocol {
+    const INPUT_PORTS: &'static [TargetPort] = F896_MK3_INPUT_PORTS;
+    const MIC_COUNT: usize = 0;
+    const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl MotuCommandDspOutputSpecification for F896mk3HybridProtocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = F896_MK3_OUTPUT_PORTS;
+}
+
+impl MotuCommandDspMeterSpecification for F896mk3HybridProtocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = F896_MK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F896_MK3_METER_OUTPUT_PORTS;
+}
+
+impl MotuLevelMetersSpecification for F896mk3HybridProtocol {
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] =
+        F896_MK3_LEVEL_METERS_PROGRAMMABLE_MODES;
+}
+
+impl F896mk3AesebuRateConvertSpecification for F896mk3HybridProtocol {}
+
+impl F896mk3HybridProtocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment, as well as
+    /// programmable level meter. The change of phone assignment is also notified in command
+    /// message.
+    pub const NOTIFY_PORT_CHANGE_MASK: u32 = F896_MK3_NOTIFY_PORT_CHANGE_MASK;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = F896_MK3_NOTIFY_FOOTSWITCH_MASK;
+}
+
 /// The protocol implementation for Ultralite mk3 (FireWire only).
 #[derive(Default, Debug)]
 pub struct UltraliteMk3Protocol;
