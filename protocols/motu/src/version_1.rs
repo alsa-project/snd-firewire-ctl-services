@@ -741,7 +741,13 @@ impl MotuAesebuRateConvertSpecification for F896Protocol {
     const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
 }
 
-impl MotuLevelMetersSpecification for F896Protocol {}
+impl MotuLevelMetersSpecification for F896Protocol {
+    const LEVEL_METERS_PROGRAMMABLE_MODES: &'static [LevelMetersProgrammableMode] = &[
+        LevelMetersProgrammableMode::AnalogOutput,
+        LevelMetersProgrammableMode::AdatAInput,
+        LevelMetersProgrammableMode::AdatAOutput,
+    ];
+}
 
 #[cfg(test)]
 mod test {
