@@ -3,8 +3,9 @@
 
 pub(crate) use {
     super::{
-        f828mk3_hybrid_model::*, f828mk3_model::*, track16_model::*, traveler_mk3_model::*,
-        ultralite_mk3_hybrid_model::*, ultralite_mk3_model::*, *,
+        f828mk3_hybrid_model::*, f828mk3_model::*, f896mk3_hybrid_model::*, f896mk3_model::*,
+        track16_model::*, traveler_mk3_model::*, ultralite_mk3_hybrid_model::*,
+        ultralite_mk3_model::*, *,
     },
     alsactl::{prelude::*, *},
     hinawa::{prelude::FwRespExtManual, FwRcode, FwResp, FwTcode},
@@ -27,6 +28,8 @@ pub type UltraliteMk3Runtime = Version3Runtime<UltraliteMk3Model>;
 pub type UltraliteMk3HybridRuntime = Version3Runtime<UltraliteMk3HybridModel>;
 pub type F828mk3Runtime = Version3Runtime<F828mk3Model>;
 pub type F828mk3HybridRuntime = Version3Runtime<F828mk3HybridModel>;
+pub type F896mk3Runtime = Version3Runtime<F896mk3Model>;
+pub type F896mk3HybridRuntime = Version3Runtime<F896mk3HybridModel>;
 pub type TravelerMk3Runtime = Version3Runtime<TravelerMk3Model>;
 pub type Track16Runtime = Version3Runtime<Track16Model>;
 

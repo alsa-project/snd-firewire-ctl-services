@@ -16,6 +16,8 @@ mod ultralite_model;
 mod audioexpress_model;
 mod f828mk3_hybrid_model;
 mod f828mk3_model;
+mod f896mk3_hybrid_model;
+mod f896mk3_model;
 mod h4pre_model;
 mod track16_model;
 mod traveler_mk3_model;
@@ -60,6 +62,8 @@ enum MotuRuntime {
     AudioExpress(AudioExpressRuntime),
     F828mk3(F828mk3Runtime),
     F828mk3Hybrid(F828mk3HybridRuntime),
+    F896mk3(F896mk3Runtime),
+    F896mk3Hybrid(F896mk3HybridRuntime),
     Track16(Track16Runtime),
     H4pre(H4preRuntime),
 }
@@ -116,6 +120,9 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x000015 => Ok(Self::F828mk3(F828mk3Runtime::new(
                 unit, node, card_id, version,
             )?)),
+            0x000017 => Ok(Self::F896mk3(F896mk3Runtime::new(
+                unit, node, card_id, version,
+            )?)),
             0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(
                 unit, node, card_id, version,
             )?)),
@@ -129,6 +136,9 @@ impl RuntimeOperation<u32> for MotuRuntime {
                 unit, node, card_id, version,
             )?)),
             0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(
+                unit, node, card_id, version,
+            )?)),
+            0x000037 => Ok(Self::F896mk3Hybrid(F896mk3HybridRuntime::new(
                 unit, node, card_id, version,
             )?)),
             0x000039 => Ok(Self::Track16(Track16Runtime::new(
@@ -154,11 +164,13 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralite(runtime) => runtime.listen(),
             Self::F8pre(runtime) => runtime.listen(),
             Self::F828mk3(runtime) => runtime.listen(),
+            Self::F896mk3(runtime) => runtime.listen(),
             Self::Ultralitemk3(runtime) => runtime.listen(),
             Self::TravelerMk3(runtime) => runtime.listen(),
             Self::Ultralitemk3Hybrid(runtime) => runtime.listen(),
             Self::AudioExpress(runtime) => runtime.listen(),
             Self::F828mk3Hybrid(runtime) => runtime.listen(),
+            Self::F896mk3Hybrid(runtime) => runtime.listen(),
             Self::Track16(runtime) => runtime.listen(),
             Self::H4pre(runtime) => runtime.listen(),
         }
@@ -174,11 +186,13 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralite(runtime) => runtime.run(),
             Self::F8pre(runtime) => runtime.run(),
             Self::F828mk3(runtime) => runtime.run(),
+            Self::F896mk3(runtime) => runtime.run(),
             Self::Ultralitemk3(runtime) => runtime.run(),
             Self::TravelerMk3(runtime) => runtime.run(),
             Self::Ultralitemk3Hybrid(runtime) => runtime.run(),
             Self::AudioExpress(runtime) => runtime.run(),
             Self::F828mk3Hybrid(runtime) => runtime.run(),
+            Self::F896mk3Hybrid(runtime) => runtime.run(),
             Self::Track16(runtime) => runtime.run(),
             Self::H4pre(runtime) => runtime.run(),
         }

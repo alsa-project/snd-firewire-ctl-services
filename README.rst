@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2023/11/05
+2024/02/14
 Takashi Sakamoto
 
 Introduction
@@ -108,6 +108,8 @@ contact to developer.
 
     * MOTU 828mk3 (FireWire only)
     * MOTU 828mk3 (Hybrid)
+    * MOTU 896mk3 (FireWire only)
+    * MOTU 896mk3 (Hybrid)
     * MOTU UltraLite mk3 (FireWire only)
     * MOTU UltraLite mk3 (Hybrid)
     * MOTU Traveler mk3
@@ -231,20 +233,25 @@ However, we welcome any assistance that can enhance the project.
     event is converted to controller event with channel 0 which has the consecutive number as param
     and event value. At present, the consecutive number is fixed and not configurable.
 
-* snd-motu-ctl-service
+* snd-firewire-motu-ctl-service
 
+  * For Command DSP models, the monitor functions (the talkback switch, the listenback switch, the
+    talkback volume, the listenback volume, the channel focus, the return assignment) are not
+    operable yet. (The developer completely forgot to implement them.)
   * Due to hardware design, most controls, including hardware metering, are not synchronized to
     hardware expectedly for Register DSP models unless an ALSA PCM application initiates isochronous
     communication.
   * Due to hardware design, hardware metering may not work properly for Command DSP models unless an
     ALSA PCM application initiates isochronous communication.
-  * The channel positionss available in the hardware meter is not adequate in all Command DSP
+  * The channel positions available in the hardware meter is not adequate in all Command DSP
     models.
   * Sometimes, there may be an issue with initializing Command DSP models for communication. In such
     case, the workaround is to simply restart the service program.
-  * 896 mk3 (FireWire only/Hybrid) is not supported since developer has no change to access to it..
   * Due to hardware quirk of Audio Express, asynchronous communication often fails with
     ``unsolicited response`` system message.
+  * Due to asynchronous transaction failure (busy), for Command DSP models, the port assignments, the
+    phone assignments, the configuration for word clock output, and the configuration of programmable
+    level meter are not synchronized expectedly to any action in hardware surface.
 
 * snd-fireface-ctl-service
 
