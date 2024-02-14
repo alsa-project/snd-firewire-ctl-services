@@ -349,7 +349,7 @@ where
             .output_modes
             .iter()
             .enumerate()
-            .for_each(|(i, mode)| serialize_opt_iface_mode(mode, &mut quad, i > 0, false));
+            .for_each(|(i, mode)| serialize_opt_iface_mode(mode, &mut quad, i > 0, true));
 
         write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
     }
