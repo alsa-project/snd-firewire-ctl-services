@@ -2204,6 +2204,16 @@ mod test {
         );
 
         assert_eq!(
+            F896mk3Protocol::ASSIGN_PORT_TARGETS.len(),
+            F896mk3Protocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
+            F896mk3HybridProtocol::ASSIGN_PORT_TARGETS.len(),
+            F896mk3HybridProtocol::ASSIGN_PORT_VALS.len()
+        );
+
+        assert_eq!(
             H4preProtocol::ASSIGN_PORT_TARGETS.len(),
             H4preProtocol::ASSIGN_PORT_VALS.len()
         );
@@ -2252,6 +2262,24 @@ mod test {
         assert_eq!(
             F828mk3HybridProtocol::CLOCK_RATES.len(),
             F828mk3HybridProtocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            F828mk3HybridProtocol::CLOCK_SRCS.len(),
+            F828mk3HybridProtocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            F896mk3Protocol::CLOCK_RATES.len(),
+            F896mk3Protocol::CLOCK_RATE_VALS.len(),
+        );
+        assert_eq!(
+            F828mk3Protocol::CLOCK_SRCS.len(),
+            F828mk3Protocol::CLOCK_SRC_VALS.len(),
+        );
+
+        assert_eq!(
+            F896mk3HybridProtocol::CLOCK_RATES.len(),
+            F896mk3HybridProtocol::CLOCK_RATE_VALS.len(),
         );
         assert_eq!(
             F828mk3HybridProtocol::CLOCK_SRCS.len(),
