@@ -1187,21 +1187,6 @@ impl Default for F896mk3AesebuRateConvertMode {
 pub trait F896mk3AesebuRateConvertSpecification {}
 
 fn serialize_f896mk3_aes_ebu_rate_converter_mode(
-    mode: &mut F896mk3AesebuRateConvertMode,
-    quad: &u32,
-) {
-    *mode = match quad {
-        6 => F896mk3AesebuRateConvertMode::Output960,
-        5 => F896mk3AesebuRateConvertMode::Output882,
-        4 => F896mk3AesebuRateConvertMode::Output480,
-        3 => F896mk3AesebuRateConvertMode::Output441,
-        2 => F896mk3AesebuRateConvertMode::OutputDependsInput,
-        1 => F896mk3AesebuRateConvertMode::InputToSystem,
-        _ => F896mk3AesebuRateConvertMode::None,
-    }
-}
-
-fn deserialize_f896mk3_aes_ebu_rate_converter_mode(
     mode: &F896mk3AesebuRateConvertMode,
     quad: &mut u32,
 ) {
@@ -1214,6 +1199,21 @@ fn deserialize_f896mk3_aes_ebu_rate_converter_mode(
         F896mk3AesebuRateConvertMode::InputToSystem => 1,
         F896mk3AesebuRateConvertMode::None => 0,
     };
+}
+
+fn deserialize_f896mk3_aes_ebu_rate_converter_mode(
+    mode: &mut F896mk3AesebuRateConvertMode,
+    quad: &u32,
+) {
+    *mode = match quad {
+        6 => F896mk3AesebuRateConvertMode::Output960,
+        5 => F896mk3AesebuRateConvertMode::Output882,
+        4 => F896mk3AesebuRateConvertMode::Output480,
+        3 => F896mk3AesebuRateConvertMode::Output441,
+        2 => F896mk3AesebuRateConvertMode::OutputDependsInput,
+        1 => F896mk3AesebuRateConvertMode::InputToSystem,
+        _ => F896mk3AesebuRateConvertMode::None,
+    }
 }
 
 impl<O> MotuWhollyCacheableParamsOperation<F896mk3AesebuRateConvertMode> for O
@@ -1232,7 +1232,7 @@ where
             F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER,
             timeout_ms,
         )?;
-        serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &quad);
+        deserialize_f896mk3_aes_ebu_rate_converter_mode(mode, &quad);
         Ok(())
     }
 }
@@ -1253,7 +1253,7 @@ where
             F896_MK3_OFFSET_AES_EBU_RATE_CONVERTER,
             timeout_ms,
         )?;
-        deserialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
+        serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
         write_quad(
             req,
             node,
@@ -2166,6 +2166,29 @@ mod test {
             serialize_opt_iface_mode(&mode, &mut quad, is_b, is_out);
             assert_eq!(quad, val, "{:?},0x{:08x},{},{}", mode, val, is_b, is_out);
         });
+    }
+
+    #[test]
+    fn f896mk3_aesebu_rate_convert_mode_serdes() {
+        [
+         F896mk3AesebuRateConvertMode::None,
+         F896mk3AesebuRateConvertMode::InputToSystem,
+         F896mk3AesebuRateConvertMode::OutputDependsInput,
+         F896mk3AesebuRateConvertMode::Output441,
+         F896mk3AesebuRateConvertMode::Output480,
+         F896mk3AesebuRateConvertMode::Output882,
+         F896mk3AesebuRateConvertMode::Output960,
+        ]
+            .iter()
+            .for_each(|mode| {
+                let mut quad = 0;
+                serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
+
+                let mut target = F896mk3AesebuRateConvertMode::default();
+                deserialize_f896mk3_aes_ebu_rate_converter_mode(&mut target, &quad);
+
+                assert_eq!(&target, mode);
+            });
     }
 
     #[test]
