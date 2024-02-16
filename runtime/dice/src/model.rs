@@ -10,7 +10,7 @@ use {
         presonus::fstudiomobile_model::*, presonus::fstudioproject_model::*,
         presonus::fstudiotube_model::*, tcelectronic::desktopk6_model::*,
         tcelectronic::itwin_model::*, tcelectronic::k24d_model::*, tcelectronic::k8_model::*,
-        tcelectronic::klive_model::*, tcelectronic::studiok48_model::*, *,
+        tcelectronic::klive_model::*, tcelectronic::studiok48_model::*, weiss::normal::*, *,
     },
     ieee1212_config_rom::*,
     protocols::tcat::config_rom::*,
@@ -43,6 +43,12 @@ enum Model {
     PresonusFStudioProject(FStudioProjectModel),
     PresonusFStudioTube(FStudioTubeModel),
     PresonusFStudioMobile(FStudioMobileModel),
+    WeissAdc2Model(Adc2Model),
+    WeissVestaModel(VestaModel),
+    WeissDac2Model(Dac2Model),
+    WeissAfi1Model(Afi1Model),
+    WeissDac202Model(Dac202Model),
+    WeissInt203Model(Int203Model),
 }
 
 pub struct DiceModel {
@@ -99,6 +105,14 @@ impl DiceModel {
             (0x000a92, 0x00000b) => Model::PresonusFStudioProject(FStudioProjectModel::default()),
             (0x000a92, 0x00000c) => Model::PresonusFStudioTube(FStudioTubeModel::default()),
             (0x000a92, 0x000011) => Model::PresonusFStudioMobile(FStudioMobileModel::default()),
+            (0x001c6a, 0x000001) => Model::WeissAdc2Model(Default::default()),
+            (0x001c6a, 0x000002) => Model::WeissVestaModel(Default::default()),
+            (0x001c6a, 0x000003) => Model::WeissDac2Model(Default::default()),
+            (0x001c6a, 0x000004) => Model::WeissAfi1Model(Default::default()),
+            (0x001c6a, 0x000007) |
+            (0x001c6a, 0x000008) => Model::WeissDac202Model(Default::default()),
+            (0x001c6a, 0x000006) |
+            (0x001c6a, 0x00000a) => Model::WeissInt203Model(Default::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             (0x000595, 0x000000) |  // Alesis MultiMix 8/12/16 FireWire.
             (0x000595, 0x000002) |  // Alesis MasterControl.
@@ -156,6 +170,12 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => m.cache(unit),
             Model::PresonusFStudioTube(m) => m.cache(unit),
             Model::PresonusFStudioMobile(m) => m.cache(unit),
+            Model::WeissAdc2Model(m) => m.cache(unit),
+            Model::WeissVestaModel(m) => m.cache(unit),
+            Model::WeissDac2Model(m) => m.cache(unit),
+            Model::WeissAfi1Model(m) => m.cache(unit),
+            Model::WeissDac202Model(m) => m.cache(unit),
+            Model::WeissInt203Model(m) => m.cache(unit),
         }
     }
 
@@ -186,6 +206,12 @@ impl DiceModel {
             Model::PresonusFStudioProject(m) => m.load(card_cntr),
             Model::PresonusFStudioTube(m) => m.load(card_cntr),
             Model::PresonusFStudioMobile(m) => m.load(card_cntr),
+            Model::WeissAdc2Model(m) => m.load(card_cntr),
+            Model::WeissVestaModel(m) => m.load(card_cntr),
+            Model::WeissDac2Model(m) => m.load(card_cntr),
+            Model::WeissAfi1Model(m) => m.load(card_cntr),
+            Model::WeissDac202Model(m) => m.load(card_cntr),
+            Model::WeissInt203Model(m) => m.load(card_cntr),
         }?;
 
         match &mut self.model {
@@ -218,6 +244,12 @@ impl DiceModel {
             Model::PresonusFStudioMobile(m) => {
                 m.get_notified_elem_list(&mut self.notified_elem_list)
             }
+            Model::WeissAdc2Model(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::WeissVestaModel(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::WeissDac2Model(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::WeissAfi1Model(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::WeissDac202Model(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::WeissInt203Model(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         match &mut self.model {
@@ -250,6 +282,12 @@ impl DiceModel {
             Model::PresonusFStudioMobile(m) => {
                 m.get_measure_elem_list(&mut self.measured_elem_list)
             }
+            Model::WeissAdc2Model(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::WeissVestaModel(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::WeissDac2Model(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::WeissAfi1Model(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::WeissDac202Model(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::WeissInt203Model(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
         Ok(())
@@ -298,6 +336,12 @@ impl DiceModel {
             Model::PresonusFStudioMobile(m) => {
                 card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
+            Model::WeissAdc2Model(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::WeissVestaModel(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::WeissDac2Model(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::WeissAfi1Model(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::WeissDac202Model(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::WeissInt203Model(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -383,6 +427,24 @@ impl DiceModel {
             Model::PresonusFStudioMobile(m) => {
                 card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
+            Model::WeissAdc2Model(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::WeissVestaModel(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::WeissDac2Model(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::WeissAfi1Model(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::WeissDac202Model(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
+            Model::WeissInt203Model(m) => {
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
+            }
         }
     }
 
@@ -425,6 +487,16 @@ impl DiceModel {
                 card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
             Model::PresonusFStudioMobile(m) => {
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
+            }
+            Model::WeissAdc2Model(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::WeissVestaModel(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::WeissDac2Model(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::WeissAfi1Model(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::WeissDac202Model(m) => {
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
+            }
+            Model::WeissInt203Model(m) => {
                 card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
         }
