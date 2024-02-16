@@ -88,13 +88,18 @@ fn main() {
                 println!("  product_name:   '{}'", root.product_name);
             });
 
-            config_rom.get_unit_data().map(|unit| {
-                println!("Unit:");
-                println!("  model_id:       0x{:06x}", unit.model_id);
-                println!("  model_name:     '{}'", unit.model_name);
-                println!("  specifier_id:   0x{:06x}", unit.specifier_id);
-                println!("  version:        0x{:06x}", unit.version);
-            });
+            let units = config_rom.get_unit_data();
+            if units.len() > 0 {
+                println!("Units:");
+
+                units.iter().enumerate().for_each(|(i, unit)| {
+                    println!("  {}:", i);
+                    println!("    model_id:     0x{:06x}", unit.model_id);
+                    println!("    model_name:   '{}'", unit.model_name);
+                    println!("    specifier_id: 0x{:06x}", unit.specifier_id);
+                    println!("    version:      0x{:06x}", unit.version);
+                });
+            }
 
             Ok(())
         })
