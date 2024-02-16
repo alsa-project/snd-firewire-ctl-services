@@ -12,6 +12,7 @@ pub mod maudio;
 pub mod presonus;
 pub mod tcat;
 pub mod tcelectronic;
+pub mod weiss;
 
 use {
     glib::Error,
