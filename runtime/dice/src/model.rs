@@ -67,8 +67,12 @@ impl DiceModel {
         let data = config_rom
             .get_root_data()
             .and_then(|root| {
+                // Use the first unit to detect model, ignoring protocols specified by specifier_i
+                // and version fields in each unit directory.
                 config_rom
                     .get_unit_data()
+                    .iter()
+                    .nth(0)
                     .map(|unit| (root.vendor_id, unit.model_id))
             })
             .ok_or_else(|| {

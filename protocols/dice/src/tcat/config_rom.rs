@@ -65,7 +65,7 @@ pub trait DiceConfigRom<'a> {
     /// Get data in root directory.
     fn get_root_data(&'a self) -> Option<RootData<'a>>;
     /// Get data in unit directory.
-    fn get_unit_data(&'a self) -> Option<UnitData<'a>>;
+    fn get_unit_data(&'a self) -> Vec<UnitData<'a>>;
 }
 
 impl<'a> DiceConfigRom<'a> for ConfigRom<'a> {
@@ -95,42 +95,38 @@ impl<'a> DiceConfigRom<'a> for ConfigRom<'a> {
     }
 
     fn get_root_data(&'a self) -> Option<RootData<'a>> {
-        detect_desc_text(&self.root, KeyType::Vendor).and_then(|(vendor_id, vendor_name)| {
-            detect_desc_text(&self.root, KeyType::Model).map(|(product_id, product_name)| {
-                RootData {
-                    vendor_id,
-                    vendor_name,
-                    product_id,
-                    product_name,
-                }
-            })
-        })
+        let (vendor_id, vendor_name) = detect_desc_text(&self.root, KeyType::Vendor)?;
+        let (product_id, product_name) = detect_desc_text(&self.root, KeyType::Model)?;
+        let data = RootData {
+            vendor_id,
+            vendor_name,
+            product_id,
+            product_name,
+        };
+        Some(data)
     }
 
-    fn get_unit_data(&'a self) -> Option<UnitData<'a>> {
+    fn get_unit_data(&'a self) -> Vec<UnitData<'a>> {
         self.root
             .iter()
-            .find_map(|entry| EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit))
-            .and_then(|entries| {
-                entries
+            .filter_map(|entry| {
+                let entries = EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)?;
+                let specifier_id = entries
                     .iter()
-                    .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId))
-                    .and_then(|specifier_id| {
-                        entries
-                            .iter()
-                            .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::Version))
-                            .and_then(|version| {
-                                detect_desc_text(entries, KeyType::Model).map(
-                                    |(model_id, model_name)| UnitData {
-                                        model_id,
-                                        model_name,
-                                        specifier_id,
-                                        version,
-                                    },
-                                )
-                            })
-                    })
+                    .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId))?;
+                let version = entries
+                    .iter()
+                    .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::Version))?;
+                let (model_id, model_name) = detect_desc_text(entries, KeyType::Model)?;
+                let data = UnitData {
+                    model_id,
+                    model_name,
+                    specifier_id,
+                    version,
+                };
+                Some(data)
             })
+            .collect()
     }
 }
 
