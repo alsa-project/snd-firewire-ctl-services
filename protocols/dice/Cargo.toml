@@ -22,6 +22,7 @@ features = ["dox"]
 glib = "0.15"
 hinawa = "0.7"
 ieee1212-config-rom = "0.1"
+ta1394-avc-general = "0.2"
 
 [[bin]]
 name = "tcat-general-parser"
