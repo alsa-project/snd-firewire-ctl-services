@@ -182,6 +182,12 @@ contact to developer.
   * PreSonus FireStudio Project
   * PreSonus FireStudio Tube
   * PreSonus FireStudio Mobile
+  * Weiss Engineering ADC2
+  * Weiss Engineering Vesta
+  * Weiss Engineering DAC2, Minerva
+  * Weiss Engineering AFI1
+  * Weiss Engineering INT202, INT203, DAC1 FireWire option card
+  * Weiss Engineering DAC202, Maya
   * For the others, common controls are available. If supported, control extension is also available.
 
 * snd-fireface-ctl-service
