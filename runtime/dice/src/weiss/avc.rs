@@ -10,6 +10,7 @@ pub struct WeissMan301Model {
     sections: GeneralSections,
     common_ctl: CommonCtl<WeissMan301Protocol>,
     analog_output_ctls: AnalogOutputCtls,
+    digital_output_ctls: DigitalOutputCtls,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -30,6 +31,7 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
         self.avc.bind(node)?;
 
         self.analog_output_ctls.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.digital_output_ctls.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -38,6 +40,7 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
         self.common_ctl.load(card_cntr)?;
 
         self.analog_output_ctls.load(card_cntr)?;
+        self.digital_output_ctls.load(card_cntr)?;
 
         Ok(())
     }
@@ -46,6 +49,8 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
         if self.common_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.analog_output_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.digital_output_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -70,6 +75,11 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
             Ok(true)
         } else if self
             .analog_output_ctls
+            .write(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .digital_output_ctls
             .write(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
@@ -282,6 +292,118 @@ impl AnalogOutputCtls {
                 let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
                     .map(|_| self.level = param);
                 debug!(param = ?self.level, ?res);
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct DigitalOutputCtls {
+    mode: WeissAvcDigitalOutputMode,
+    word_clock_half_rate: WeissAvcWordClockOutputHalfRate,
+    aesebu_xlr_mute: WeissAvcAesebuXlrOutputMute,
+    spdif_coaxial_mute: WeissAvcSpdifCoaxialOutputMute,
+}
+
+const DIGITAL_OUTPUT_MODE_NAME: &str = "Dual Wire Mode Switch";
+const WORD_CLOCK_OUTPUT_HALF_RATE_NAME: &str = "Dual Wire Word Clock Half Rate Switch";
+const AESEBU_XLR_OUTPUT_UNMUTE_NAME: &str = "XLR::XLR Output Playback Switch";
+const SPDIF_COAXIAL_OUTPUT_UNMUTE_NAME: &str = "RCA::DCA Output Playback Switch";
+
+impl DigitalOutputCtls {
+    fn cache(&mut self, avc: &WeissAvc, timeout_ms: u32) -> Result<(), Error> {
+        let res = WeissMan301Protocol::cache_param(avc, &mut self.mode, timeout_ms);
+        debug!(param = ?self.mode, ?res);
+        res?;
+        let res = WeissMan301Protocol::cache_param(avc, &mut self.word_clock_half_rate, timeout_ms);
+        debug!(param = ?self.word_clock_half_rate, ?res);
+        res?;
+        let res = WeissMan301Protocol::cache_param(avc, &mut self.aesebu_xlr_mute, timeout_ms);
+        debug!(param = ?self.aesebu_xlr_mute, ?res);
+        res?;
+        let res = WeissMan301Protocol::cache_param(avc, &mut self.spdif_coaxial_mute, timeout_ms);
+        debug!(param = ?self.spdif_coaxial_mute, ?res);
+        res?;
+
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        [
+            (ElemIfaceType::Card, DIGITAL_OUTPUT_MODE_NAME),
+            (ElemIfaceType::Card, WORD_CLOCK_OUTPUT_HALF_RATE_NAME),
+            (ElemIfaceType::Mixer, AESEBU_XLR_OUTPUT_UNMUTE_NAME),
+            (ElemIfaceType::Mixer, SPDIF_COAXIAL_OUTPUT_UNMUTE_NAME),
+        ]
+        .iter()
+        .try_for_each(|&(iface, name)| {
+            let elem_id = ElemId::new_by_name(iface, 0, 0, name, 0);
+            card_cntr.add_bool_elems(&elem_id, 1, 1, true).map(|_| ())
+        })
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            DIGITAL_OUTPUT_MODE_NAME => {
+                elem_value.set_bool(&[self.mode.0]);
+                Ok(true)
+            }
+            WORD_CLOCK_OUTPUT_HALF_RATE_NAME => {
+                elem_value.set_bool(&[self.word_clock_half_rate.0]);
+                Ok(true)
+            }
+            AESEBU_XLR_OUTPUT_UNMUTE_NAME => {
+                elem_value.set_bool(&[!self.aesebu_xlr_mute.0]);
+                Ok(true)
+            }
+            SPDIF_COAXIAL_OUTPUT_UNMUTE_NAME => {
+                elem_value.set_bool(&[!self.spdif_coaxial_mute.0]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        avc: &WeissAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            DIGITAL_OUTPUT_MODE_NAME => {
+                let mut param = self.mode.clone();
+                param.0 = elem_value.boolean()[0];
+                let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
+                    .map(|_| self.mode = param);
+                debug!(param = ?self.mode, ?res);
+                res.map(|_| true)
+            }
+            WORD_CLOCK_OUTPUT_HALF_RATE_NAME => {
+                let mut param = self.word_clock_half_rate.clone();
+                param.0 = elem_value.boolean()[0];
+                let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
+                    .map(|_| self.word_clock_half_rate = param);
+                debug!(param = ?self.word_clock_half_rate, ?res);
+                res.map(|_| true)
+            }
+            AESEBU_XLR_OUTPUT_UNMUTE_NAME => {
+                let mut param = self.aesebu_xlr_mute.clone();
+                param.0 = !elem_value.boolean()[0];
+                let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
+                    .map(|_| self.aesebu_xlr_mute = param);
+                debug!(param = ?self.aesebu_xlr_mute, ?res);
+                res.map(|_| true)
+            }
+            SPDIF_COAXIAL_OUTPUT_UNMUTE_NAME => {
+                let mut param = self.spdif_coaxial_mute.clone();
+                param.0 = !elem_value.boolean()[0];
+                let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
+                    .map(|_| self.spdif_coaxial_mute = param);
+                debug!(param = ?self.spdif_coaxial_mute, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
