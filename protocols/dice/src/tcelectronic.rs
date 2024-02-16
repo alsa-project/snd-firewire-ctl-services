@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-//! Protocol specific to TC Electronic Konnekt series.
+//! Protocol defined by TC Electronic.
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
-//! defined by TC Electronic for Konnekt series.
+//! defined by TC Electronic.
 //!
 //! In Konnekt series, the accessible memory space is separated to several segments.
 
@@ -15,11 +15,16 @@ pub mod studio;
 pub mod ch_strip;
 pub mod reverb;
 
-use super::{tcat::*, *};
+use {
+    super::{tcat::*, *},
+    ta1394_avc_general::{general::*, *},
+};
 
+// The base offset to operate functions in Konnekt series.
 const BASE_OFFSET: usize = 0x00a01000;
 
-/// The generic structure for segment.
+/// The generic structure for segment. In Konnekt series, the accessible memory space is separated
+/// to several segments. This structure expresses them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TcKonnektSegment<U> {
     /// Intermediate structured data for parameters.
@@ -178,7 +183,7 @@ fn deserialize_position<T: Copy + Eq + std::fmt::Debug>(
         .map(|&e| *entry = e)
 }
 
-/// The state of FireWire LED.
+/// The state of FireWire LED in TC Konnekt Protocol.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FireWireLedState {
     /// Off.
@@ -214,7 +219,7 @@ fn deserialize_fw_led_state(state: &mut FireWireLedState, raw: &[u8]) -> Result<
     deserialize_position(FW_LED_STATES, state, raw, FW_LED_STATE_LABEL)
 }
 
-/// Available rate for sampling clock in standalone mode.
+/// Available rate for sampling clock in standalone mode in TC Konnekt protocol.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TcKonnektStandaloneClockRate {
     /// At 44.1 kHz.
@@ -274,7 +279,7 @@ fn deserialize_standalone_clock_rate(
     Ok(())
 }
 
-/// Channel and control code of MIDI event.
+/// Channel and control code of MIDI event in TC Konnekt protocol.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TcKonnektMidiMsgParams {
     /// The channel for MIDI message.
@@ -283,7 +288,7 @@ pub struct TcKonnektMidiMsgParams {
     pub cc: u8,
 }
 
-/// MIDI sender.
+/// MIDI sender settings in TC Konnekt protocol.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TcKonnektMidiSender {
     /// The parameter of MIDI message generated normally.
@@ -326,7 +331,7 @@ fn deserialize_midi_sender(sender: &mut TcKonnektMidiSender, raw: &[u8]) -> Resu
     Ok(())
 }
 
-/// Loaded program.
+/// Loaded program in TC Konnekt series.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TcKonnektLoadedProgram {
     /// Program 1.
@@ -357,4 +362,130 @@ fn serialize_loaded_program(prog: &TcKonnektLoadedProgram, raw: &mut [u8]) -> Re
 
 fn deserialize_loaded_program(prog: &mut TcKonnektLoadedProgram, raw: &[u8]) -> Result<(), String> {
     deserialize_position(LOADED_PROGRAMS, prog, raw, LOADED_PROGRAM_LABEL)
+}
+
+/// AV/C operation defined by TC Electronic. This is not used in TC Konnekt series.
+#[derive(Default, Debug)]
+pub struct TcAvcCmd {
+    pub class_id: u8,
+    pub sequence_id: u8,
+    pub command_id: u16,
+    pub arguments: Vec<u8>,
+    op: VendorDependent,
+}
+
+// From open source by Weiss engineering for ALSA dice driver.
+// class_id: 0 -> common
+//   command_id: 6 -> squawk
+//   command_id: 7 -> self identify
+//   command_id: 8 -> codeload
+// class_id: 1 -> general
+//   command_id: 1 -> program identify
+//   command_id: 2 -> tuner frequency
+//   command_id: 3 -> tuner preset
+//   command_id: 4 -> tuner scan mode
+//   command_id: 5 -> tuner tuner output
+//   command_id: 10 -> tuner raw serial
+
+fn tc_avc_cmd_prepare_vendor_dependent_data(cmd: &mut TcAvcCmd) {
+    cmd.op.data.resize(4 + cmd.arguments.len(), 0);
+
+    cmd.op.data[0] = cmd.class_id;
+    cmd.op.data[1] = 0xff;
+    cmd.op.data[2] = (0xff & (cmd.command_id >> 8)) as u8;
+    cmd.op.data[3] = (0xff & cmd.command_id) as u8;
+    cmd.op.data[4..].copy_from_slice(&cmd.arguments);
+}
+
+fn tc_avc_cmd_parse_vendor_dependent_data(cmd: &mut TcAvcCmd) {
+    cmd.class_id = cmd.op.data[0];
+    cmd.sequence_id = cmd.op.data[1];
+    cmd.command_id = ((cmd.op.data[2] as u16) << 8) | (cmd.op.data[3] as u16);
+    cmd.arguments = cmd.op.data[4..].to_owned();
+}
+
+impl TcAvcCmd {
+    pub fn new(company_id: &[u8; 3]) -> Self {
+        Self {
+            class_id: Default::default(),
+            sequence_id: Default::default(),
+            command_id: Default::default(),
+            arguments: Default::default(),
+            op: VendorDependent {
+                company_id: company_id.clone(),
+                // 4 elements at least.
+                data: vec![0; 4],
+            },
+        }
+    }
+}
+
+impl AvcOp for TcAvcCmd {
+    const OPCODE: u8 = VendorDependent::OPCODE;
+}
+
+impl AvcStatus for TcAvcCmd {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        tc_avc_cmd_prepare_vendor_dependent_data(self);
+        AvcStatus::build_operands(&mut self.op, addr)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        AvcStatus::parse_operands(&mut self.op, addr, operands)
+            .map(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
+    }
+}
+
+impl AvcControl for TcAvcCmd {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        tc_avc_cmd_prepare_vendor_dependent_data(self);
+        AvcControl::build_operands(&mut self.op, addr)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        AvcControl::parse_operands(&mut self.op, addr, operands)
+            .map(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn tc_avc_operation_operands() {
+        let company_id = [0xfe, 0xdc, 0xba];
+        let operands = [0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10];
+        let mut op = TcAvcCmd::new(&company_id);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.op.company_id, company_id);
+        assert_eq!(op.class_id, operands[3]);
+        assert_eq!(op.sequence_id, operands[4]);
+        assert_eq!(
+            op.command_id,
+            ((operands[5] as u16) << 8) | (operands[6] as u16)
+        );
+        assert_eq!(op.arguments, operands[7..]);
+
+        let target = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&target[..4], &operands[..4]);
+        // The value of sequence_id field is never matched.
+        assert_eq!(&target[5..], &operands[5..]);
+
+        let target = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&target[..4], &operands[..4]);
+        // The value of sequence_id field is never matched.
+        assert_eq!(&target[5..], &operands[5..]);
+
+        let mut op = TcAvcCmd::new(&company_id);
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.op.company_id, company_id);
+        assert_eq!(op.class_id, operands[3]);
+        assert_eq!(op.sequence_id, operands[4]);
+        assert_eq!(
+            op.command_id,
+            ((operands[5] as u16) << 8) | (operands[6] as u16)
+        );
+        assert_eq!(op.arguments, operands[7..]);
+    }
 }
