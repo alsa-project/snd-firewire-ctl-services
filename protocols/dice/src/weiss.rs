@@ -10,3 +10,5 @@ pub mod avc;
 pub mod normal;
 
 use super::tcat::{global_section::*, *};
+
+const WEISS_OUI: [u8; 3] = [0x00, 0x1c, 0x6a];
