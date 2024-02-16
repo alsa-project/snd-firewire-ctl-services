@@ -6,6 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Weiss Engineering.
 
+pub mod avc;
 pub mod normal;
 
 use super::tcat::{global_section::*, *};
