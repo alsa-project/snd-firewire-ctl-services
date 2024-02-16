@@ -11,6 +11,7 @@ pub struct WeissMan301Model {
     common_ctl: CommonCtl<WeissMan301Protocol>,
     analog_output_ctls: AnalogOutputCtls,
     digital_output_ctls: DigitalOutputCtls,
+    router_ctls: RouterCtls,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -32,6 +33,7 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
 
         self.analog_output_ctls.cache(&self.avc, FCP_TIMEOUT_MS)?;
         self.digital_output_ctls.cache(&self.avc, FCP_TIMEOUT_MS)?;
+        self.router_ctls.cache(&self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -41,6 +43,7 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
 
         self.analog_output_ctls.load(card_cntr)?;
         self.digital_output_ctls.load(card_cntr)?;
+        self.router_ctls.load(card_cntr)?;
 
         Ok(())
     }
@@ -51,6 +54,8 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
         } else if self.analog_output_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.digital_output_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.router_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -80,6 +85,11 @@ impl CtlModel<(SndDice, FwNode)> for WeissMan301Model {
             Ok(true)
         } else if self
             .digital_output_ctls
+            .write(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .router_ctls
             .write(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
         {
             Ok(true)
@@ -404,6 +414,89 @@ impl DigitalOutputCtls {
                 let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
                     .map(|_| self.spdif_coaxial_mute = param);
                 debug!(param = ?self.spdif_coaxial_mute, ?res);
+                res.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct RouterCtls {
+    digital_capture_source: WeissAvcDigitalCaptureSource,
+}
+
+const DIGITAL_CAPTURE_SOURCE_NAME: &str = "Digital Input Capture Route";
+
+fn digital_capture_source_to_str(src: &WeissAvcDigitalCaptureSource) -> &str {
+    match src {
+        WeissAvcDigitalCaptureSource::AesebuXlr => "AES/EBU (XLR)",
+        WeissAvcDigitalCaptureSource::SpdifCoaxial => "S/PDIF (RCA)",
+        WeissAvcDigitalCaptureSource::SpdifOptical => "S/PDIF (TOS)",
+    }
+}
+
+const DIGITAL_CAPTURE_SOURCES: &[WeissAvcDigitalCaptureSource] = &[
+    WeissAvcDigitalCaptureSource::AesebuXlr,
+    WeissAvcDigitalCaptureSource::SpdifCoaxial,
+    WeissAvcDigitalCaptureSource::SpdifOptical,
+];
+
+impl RouterCtls {
+    fn cache(&mut self, avc: &WeissAvc, timeout_ms: u32) -> Result<(), Error> {
+        let res =
+            WeissMan301Protocol::cache_param(avc, &mut self.digital_capture_source, timeout_ms);
+        debug!(params = ?self.digital_capture_source);
+        res
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = DIGITAL_CAPTURE_SOURCES
+            .iter()
+            .map(|t| digital_capture_source_to_str(t))
+            .collect();
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIGITAL_CAPTURE_SOURCE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            DIGITAL_CAPTURE_SOURCE_NAME => {
+                let pos = DIGITAL_CAPTURE_SOURCES
+                    .iter()
+                    .position(|src| self.digital_capture_source.eq(src))
+                    .unwrap() as u32;
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        avc: &WeissAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            DIGITAL_CAPTURE_SOURCE_NAME => {
+                let pos = elem_value.enumerated()[0] as usize;
+                let mut param = DIGITAL_CAPTURE_SOURCES
+                    .iter()
+                    .nth(pos)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of digital input capture source: {}", pos);
+                        Error::new(FileError::Inval, &msg)
+                    })
+                    .map(|src| *src)?;
+                let res = WeissMan301Protocol::update_param(avc, &mut param, timeout_ms)
+                    .map(|_| self.digital_capture_source = param);
+                debug!(params = ?self.digital_capture_source, ?res);
                 res.map(|_| true)
             }
             _ => Ok(false),
