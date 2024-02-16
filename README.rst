@@ -188,6 +188,7 @@ contact to developer.
   * Weiss Engineering AFI1
   * Weiss Engineering INT202, INT203, DAC1 FireWire option card
   * Weiss Engineering DAC202, Maya
+  * Weiss Engineering MAN301
   * For the others, common controls are available. If supported, control extension is also available.
 
 * snd-fireface-ctl-service
