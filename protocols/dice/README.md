@@ -103,6 +103,7 @@ This is the list of models currently supported.
  * Weiss Engineering AFI1
  * Weiss Engineering INT202, INT203, DAC1 FireWire option card
  * Weiss Engineering DAC202, Maya
+ * Weiss Engineering MAN301
 
 For the other models, implementation for common and extension protocol is available without any
 care of vendor's customization.
