@@ -2171,24 +2171,24 @@ mod test {
     #[test]
     fn f896mk3_aesebu_rate_convert_mode_serdes() {
         [
-         F896mk3AesebuRateConvertMode::None,
-         F896mk3AesebuRateConvertMode::InputToSystem,
-         F896mk3AesebuRateConvertMode::OutputDependsInput,
-         F896mk3AesebuRateConvertMode::Output441,
-         F896mk3AesebuRateConvertMode::Output480,
-         F896mk3AesebuRateConvertMode::Output882,
-         F896mk3AesebuRateConvertMode::Output960,
+            F896mk3AesebuRateConvertMode::None,
+            F896mk3AesebuRateConvertMode::InputToSystem,
+            F896mk3AesebuRateConvertMode::OutputDependsInput,
+            F896mk3AesebuRateConvertMode::Output441,
+            F896mk3AesebuRateConvertMode::Output480,
+            F896mk3AesebuRateConvertMode::Output882,
+            F896mk3AesebuRateConvertMode::Output960,
         ]
-            .iter()
-            .for_each(|mode| {
-                let mut quad = 0;
-                serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
+        .iter()
+        .for_each(|mode| {
+            let mut quad = 0;
+            serialize_f896mk3_aes_ebu_rate_converter_mode(mode, &mut quad);
 
-                let mut target = F896mk3AesebuRateConvertMode::default();
-                deserialize_f896mk3_aes_ebu_rate_converter_mode(&mut target, &quad);
+            let mut target = F896mk3AesebuRateConvertMode::default();
+            deserialize_f896mk3_aes_ebu_rate_converter_mode(&mut target, &quad);
 
-                assert_eq!(&target, mode);
-            });
+            assert_eq!(&target, mode);
+        });
     }
 
     #[test]

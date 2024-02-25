@@ -87,9 +87,6 @@ This is the list of models currently supported.
  * MOTU UltraLite mk3 (Hybrid)
  * MOTU Traveler mk3
  * MOTU Track 16
-
-Any help is welcome for:
-
  * MOTU 896 mk3 (FireWire only)
  * MOTU 896 mk3 (Hybrid)
 

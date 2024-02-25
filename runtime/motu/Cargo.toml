@@ -19,7 +19,7 @@ hitaki = "0.3"
 alsactl = "0.4"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
-firewire-motu-protocols = "0.2"
+firewire-motu-protocols = "0.3"
 clap = { version = "3.2", features = ["derive"] }
 runtime-core = { path = "../core" }
 tracing = "0.1"
