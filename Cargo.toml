@@ -19,7 +19,7 @@ members = [
 #    "protocols/digi00x",
 #    "protocols/tascam",
 #    "protocols/fireworks",
-    "protocols/motu",
+#    "protocols/motu",
 #    "protocols/oxfw",
 #    "protocols/bebob",
     "protocols/dice",
@@ -39,6 +39,6 @@ members = [
 firewire-dice-protocols = { path = "protocols/dice" }
 #firewire-fireworks-protocols = { path = "protocols/fireworks" }
 #firewire-fireface-protocols = { path = "protocols/fireface" }
-firewire-motu-protocols = { path = "protocols/motu" }
+#firewire-motu-protocols = { path = "protocols/motu" }
 #firewire-oxfw-protocols = { path = "protocols/oxfw" }
 #firewire-tascam-protocols = { path = "protocols/tascam" }
