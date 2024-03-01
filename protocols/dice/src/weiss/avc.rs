@@ -12,9 +12,9 @@
 //! ```text
 //! spdif-opt-input-1/2  ---+
 //! spdif-coax-input-1/2 --(or)--> digital-input-1/2 -----------------> stream-output-1/2
-//! aesebu-xlr-input-1/2 ---+             |
-//!                                       v
-//! stream-input-1/2 --------------------(or)--+----------------------> spdif-coax-output-1/2
+//! aesebu-xlr-input-1/2 ---+
+//!
+//! stream-input-1/2 --------------------------+----------------------> spdif-coax-output-1/2
 //!                                            +----------------------> aesebu-xlr-output-1/2
 //!                                            +--analog-output-1/2 --> analog-xlr-output-1/2
 //!                                                       +-----------> analog-coax-output-1/2
