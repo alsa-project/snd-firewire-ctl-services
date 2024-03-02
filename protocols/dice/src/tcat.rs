@@ -214,7 +214,7 @@ pub trait TcatOperation {
                 FwTcode::ReadBlockRequest
             };
 
-            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            req.transaction(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];
@@ -241,7 +241,7 @@ pub trait TcatOperation {
                 FwTcode::WriteBlockRequest
             };
 
-            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            req.transaction(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];

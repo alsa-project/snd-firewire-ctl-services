@@ -292,7 +292,7 @@ impl CommandDspModel for Track16Model {
         handler: F,
     ) -> Result<(), Error>
     where
-        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
         Track16Protocol::register_message_destination_address(
             &mut self.resp,
@@ -300,7 +300,7 @@ impl CommandDspModel for Track16Model {
             &mut unit.1,
             TIMEOUT_MS,
         )?;
-        self.resp.connect_requested2(handler);
+        self.resp.connect_requested(handler);
         Ok(())
     }
 

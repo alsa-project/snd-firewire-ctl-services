@@ -20,7 +20,7 @@ fn main() {
         })?;
 
         let mut node = FwNode::default();
-        node.open(&path).map_err(|e| {
+        node.open(&path, 0).map_err(|e| {
             let cause = if let Some(error) = e.kind::<FileError>() {
                 match error {
                     FileError::Isdir => "is directory",

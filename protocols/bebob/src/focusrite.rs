@@ -467,7 +467,7 @@ pub fn saffire_read_quadlets(
                 FwTcode::ReadBlockRequest
             };
 
-            req.transaction_sync(
+            req.transaction(
                 node,
                 tcode,
                 READ_OFFSET + offsets[begin_idx] as u64,
@@ -506,7 +506,7 @@ pub fn saffire_write_quadlet(
     assert_eq!(buf.len(), 4);
 
     let mut frame = buf.to_vec();
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         WRITE_OFFSET + offset as u64,
@@ -532,7 +532,7 @@ pub fn saffire_write_quadlets(
 
     let mut frame = build_frame_for_write(offsets, buf);
 
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteBlockRequest,
         WRITE_OFFSET,

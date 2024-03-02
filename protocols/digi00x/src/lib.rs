@@ -38,7 +38,7 @@ fn read_quadlet(
     timeout_ms: u32,
 ) -> Result<u32, Error> {
     let mut quadlet = [0; 4];
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::ReadQuadletRequest,
         BASE_OFFSET + offset,
@@ -58,7 +58,7 @@ fn write_quadlet(
 ) -> Result<(), Error> {
     let mut quadlet = [0; 4];
     quadlet.copy_from_slice(&val.to_be_bytes());
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         BASE_OFFSET + offset,

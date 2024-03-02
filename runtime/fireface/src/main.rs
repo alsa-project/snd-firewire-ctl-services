@@ -56,7 +56,7 @@ impl RuntimeOperation<u32> for FfRuntime {
 
         let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
-        node.open(&cdev)?;
+        node.open(&cdev, 0)?;
 
         let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;

@@ -322,7 +322,7 @@ impl CommandDspModel for F896mk3HybridModel {
         handler: F,
     ) -> Result<(), Error>
     where
-        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
         F896mk3HybridProtocol::register_message_destination_address(
             &mut self.resp,
@@ -330,7 +330,7 @@ impl CommandDspModel for F896mk3HybridModel {
             &mut unit.1,
             TIMEOUT_MS,
         )?;
-        self.resp.connect_requested2(handler);
+        self.resp.connect_requested(handler);
         Ok(())
     }
 

@@ -175,7 +175,7 @@ impl PflMeterProtocol {
     ) -> Result<(), Error> {
         let frame = &mut meter.cache;
 
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             DM_APPL_METER_OFFSET,
@@ -249,7 +249,7 @@ impl PflInputParametersProtocol {
         let val = params.force_smux as u32;
         cache[20..24].copy_from_slice(&val.to_be_bytes());
 
-        req.transaction_sync(
+        req.transaction(
             node,
             hinawa::FwTcode::WriteBlockRequest,
             DM_APPL_PARAM_OFFSET,

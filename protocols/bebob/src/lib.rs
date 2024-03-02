@@ -50,10 +50,7 @@ impl Ta1394Avc<Error> for BebobAvc {
         let mut resp = vec![0; Self::FRAME_SIZE];
         self.0
             .avc_transaction(&command_frame, &mut resp, timeout_ms)
-            .map(|len| {
-                resp.truncate(len);
-                resp
-            })
+            .map(|_| resp)
     }
 
     fn control<O: AvcOp + AvcControl>(

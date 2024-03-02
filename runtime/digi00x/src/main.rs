@@ -89,7 +89,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
-        node.open(&cdev)?;
+        node.open(&cdev, 0)?;
         let rom = node.config_rom()?;
         let config_rom = ConfigRom::try_from(rom).map_err(|e| {
             let label = format!("Malformed configuration ROM detected: {}", e);

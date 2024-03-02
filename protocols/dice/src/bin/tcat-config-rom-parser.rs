@@ -38,7 +38,7 @@ fn main() {
                 Ok(data)
             } else {
                 let node = FwNode::new();
-                node.open(&path).map_err(|e| {
+                node.open(&path, 0).map_err(|e| {
                     let cause = if let Some(error) = e.kind::<FileError>() {
                         match error {
                             FileError::Isdir => "is directory",

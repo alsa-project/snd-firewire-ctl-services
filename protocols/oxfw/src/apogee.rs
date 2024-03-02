@@ -110,7 +110,7 @@ pub trait DuetFwMeterOperation<T>: DuetFwMeterSpecification<T> {
     ) -> Result<(), Error> {
         let mut raw = vec![0u8; Self::SIZE];
 
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             (METER_OFFSET_BASE + Self::OFFSET) as u64,

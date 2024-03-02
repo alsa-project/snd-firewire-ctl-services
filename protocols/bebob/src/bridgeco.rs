@@ -1905,7 +1905,7 @@ pub trait BcoBootloaderOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = vec![0; BcoBootloaderInformation::SIZE_WITH_DEBUGGER];
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             DM_BCO_BOOTLOADER_INFO_OFFSET,
@@ -1915,7 +1915,7 @@ pub trait BcoBootloaderOperation {
         )
         .or_else(|_| {
             raw = vec![0; BcoBootloaderInformation::SIZE_WITHOUT_DEBUGGER];
-            req.transaction_sync(
+            req.transaction(
                 node,
                 FwTcode::ReadBlockRequest,
                 DM_BCO_BOOTLOADER_INFO_OFFSET,

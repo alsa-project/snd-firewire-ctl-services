@@ -328,7 +328,7 @@ fn main() {
         .ok_or("At least one argument is required for path to special file of firewire character device".to_string())
         .and_then(|path| {
             let node = FwNode::new();
-            node.open(&path)
+            node.open(&path, 0)
                 .map_err(|e| {
                     let cause = if let Some(error) = e.kind::<FileError>() {
                         match error {

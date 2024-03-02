@@ -181,7 +181,7 @@ impl<O: RmeFfFormerMeterSpecification + RmeFfOffsetParamsDeserialize<FormerMeter
         let length = 8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2)
             + 4 * (Self::PHYS_INPUT_COUNT + Self::STREAM_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT);
         let mut raw = vec![0; length];
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             Self::METER_OFFSET,
@@ -387,7 +387,7 @@ where
 
         (0..(raw.len() / mixer_length)).try_for_each(|i| {
             let pos = i * mixer_length;
-            req.transaction_sync(
+            req.transaction(
                 node,
                 FwTcode::WriteBlockRequest,
                 Self::MIXER_OFFSET + pos as u64,
@@ -419,7 +419,7 @@ where
             .try_for_each(|i| {
                 let pos = i * mixer_length;
                 if new[pos..(pos + mixer_length)] != old[pos..(pos + mixer_length)] {
-                    req.transaction_sync(
+                    req.transaction(
                         node,
                         FwTcode::WriteBlockRequest,
                         Self::MIXER_OFFSET + pos as u64,
@@ -446,7 +446,7 @@ fn write_config<T: RmeFfOffsetParamsSerialize<U>, U>(
 ) -> Result<(), Error> {
     let mut raw = T::serialize_offsets(config);
 
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteBlockRequest,
         offset,
@@ -466,7 +466,7 @@ fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     timeout_ms: u32,
 ) -> Result<(), Error> {
     let mut raw = [0; FORMER_STATUS_SIZE];
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::ReadBlockRequest,
         offset,

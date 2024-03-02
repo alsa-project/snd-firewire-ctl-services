@@ -25,7 +25,7 @@ pub trait OxfordOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quadlet = [0; 4];
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadQuadletRequest,
             CSR_REGISTER_BASE + FIRMWARE_ID_OFFSET,
@@ -44,7 +44,7 @@ pub trait OxfordOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quadlet = [0; 4];
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadQuadletRequest,
             CSR_REGISTER_BASE + HARDWARE_ID_OFFSET,

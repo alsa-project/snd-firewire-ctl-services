@@ -14,7 +14,7 @@ publish = false
 [dependencies]
 nix = { version = ">=0.24", features = ["signal"] }
 glib = "0.15"
-hinawa = "0.7"
+hinawa = "0.9"
 hitaki = "0.3"
 alsactl = "0.4"
 alsa-ctl-tlv-codec = "0.1"

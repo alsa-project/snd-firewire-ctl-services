@@ -46,7 +46,7 @@ impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Proto
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = Self::serialize_offsets(params);
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::WriteBlockRequest,
             OUTPUT_OFFSET,
@@ -72,7 +72,7 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff800Pr
             .try_for_each(|i| {
                 let pos = i * 4;
                 if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                    req.transaction_sync(
+                    req.transaction(
                         node,
                         FwTcode::WriteBlockRequest,
                         OUTPUT_OFFSET + pos as u64,

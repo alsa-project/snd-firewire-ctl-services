@@ -94,7 +94,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 
         let node = FwNode::new();
-        node.open(&format!("/dev/{}", unit.node_device().unwrap()))?;
+        node.open(&format!("/dev/{}", unit.node_device().unwrap()), 0)?;
         let data = node.config_rom()?;
         let model = EfwModel::new(&data)?;
 

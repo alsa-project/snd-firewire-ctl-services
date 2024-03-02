@@ -93,7 +93,7 @@ impl Mbox2proIoProtocol {
     pub fn init(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let mut frame = [0; 12];
         frame[0] = 1;
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::WriteBlockRequest,
             DM_APPL_PARAM_OFFSET,

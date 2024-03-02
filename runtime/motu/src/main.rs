@@ -83,7 +83,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
 
         let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
-        node.open(&cdev)?;
+        node.open(&cdev, 0)?;
 
         let data = node.config_rom()?;
         let unit_data = ConfigRom::try_from(data)

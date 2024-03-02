@@ -68,7 +68,7 @@ fn write_config<T: RmeFfOffsetParamsSerialize<U>, U>(
 ) -> Result<(), Error> {
     let mut raw = T::serialize_offsets(config);
 
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         CFG_OFFSET,
@@ -155,7 +155,7 @@ fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     timeout_ms: u32,
 ) -> Result<(), Error> {
     let mut raw = [0; 4];
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::ReadQuadletRequest,
         DSP_OFFSET as u64,
@@ -340,7 +340,7 @@ where
     ) -> Result<(), Error> {
         (0..METER_CHUNK_COUNT).try_for_each(|_| {
             let mut raw = vec![0; METER_CHUNK_SIZE];
-            req.transaction_sync(
+            req.transaction(
                 node,
                 FwTcode::ReadBlockRequest,
                 METER_OFFSET as u64,
@@ -375,7 +375,7 @@ fn write_dsp_cmd(
         cmd |= ODD_PARITY_FLAG;
     }
     let mut raw = cmd.to_le_bytes();
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         DSP_OFFSET as u64,

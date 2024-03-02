@@ -305,7 +305,7 @@ impl CommandDspModel for F828mk3Model {
         handler: F,
     ) -> Result<(), Error>
     where
-        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
         F828mk3Protocol::register_message_destination_address(
             &mut self.resp,
@@ -313,7 +313,7 @@ impl CommandDspModel for F828mk3Model {
             &mut unit.1,
             TIMEOUT_MS,
         )?;
-        self.resp.connect_requested2(handler);
+        self.resp.connect_requested(handler);
         Ok(())
     }
 

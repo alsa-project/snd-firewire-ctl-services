@@ -32,10 +32,7 @@ impl Ta1394Avc<Error> for OxfwAvc {
         let mut resp = vec![0; Self::FRAME_SIZE];
         self.0
             .avc_transaction(&command_frame, &mut resp, timeout_ms)
-            .map(|len| {
-                resp.truncate(len);
-                resp
-            })
+            .map(|_| resp)
     }
 }
 
