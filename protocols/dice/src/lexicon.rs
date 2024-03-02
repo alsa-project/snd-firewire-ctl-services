@@ -407,7 +407,7 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMeter> for O {
                         let pos = 4 + (entry.src.ch - 8) as usize;
                         params.analog_inputs[pos] = entry.peak;
                     }
-                    (DstBlkId::MixerTx1, 0..=2, SrcBlkId::Ins0, 10..=11) => {
+                    (DstBlkId::MixerTx1, 0..=1, SrcBlkId::Ins0, 10..=11) => {
                         let pos = 6 + (entry.src.ch - 10) as usize;
                         params.analog_inputs[pos] = entry.peak;
                     }
@@ -419,7 +419,7 @@ impl<O: LexiconOperation> LexiconParametersSerdes<IonixMeter> for O {
                         let pos = 4 + (entry.src.ch - 4) as usize;
                         params.bus_outputs[pos] = entry.peak;
                     }
-                    (DstBlkId::Ins1, 0..=2, SrcBlkId::Mixer, 10..=11) => {
+                    (DstBlkId::Ins1, 0..=1, SrcBlkId::Mixer, 10..=11) => {
                         let pos = (entry.src.ch - 10) as usize;
                         params.main_outputs[pos] = entry.peak;
                     }
