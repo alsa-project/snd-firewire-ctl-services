@@ -990,7 +990,7 @@ where
         + MotuRegisterDspImageOperation<RegisterDspLineInputState, SndMotuRegisterDspParameter>
         + MotuRegisterDspEventOperation<RegisterDspLineInputState>,
 {
-    const NOMINAL_LEVELS: &[NominalSignalLevel] = &[
+    const NOMINAL_LEVELS: &'static [NominalSignalLevel] = &[
         NominalSignalLevel::Consumer,
         NominalSignalLevel::Professional,
     ];
