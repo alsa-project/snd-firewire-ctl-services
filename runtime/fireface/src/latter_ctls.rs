@@ -3354,13 +3354,13 @@ where
         + RmeFfWhollyCommandableParamsOperation<FfLatterFxEchoState>
         + RmeFfPartiallyCommandableParamsOperation<FfLatterFxEchoState>,
 {
-    const ECHO_TYPES: &[FfLatterFxEchoType] = &[
+    const ECHO_TYPES: &'static [FfLatterFxEchoType] = &[
         FfLatterFxEchoType::StereoEcho,
         FfLatterFxEchoType::StereoCross,
         FfLatterFxEchoType::PongEcho,
     ];
 
-    const ECHO_LPF_FREQS: &[FfLatterFxEchoLpfFreq] = &[
+    const ECHO_LPF_FREQS: &'static [FfLatterFxEchoLpfFreq] = &[
         FfLatterFxEchoLpfFreq::Off,
         FfLatterFxEchoLpfFreq::H2000,
         FfLatterFxEchoLpfFreq::H4000,
