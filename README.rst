@@ -312,6 +312,27 @@ Dependencies
 * The library crates enumerated in `License` section are downloaded from `<crates.io>`_ when
   building by configurations of `Cargo.toml`.
 
+In Debian and its derived distributions such as Ubuntu
+--------------------------------------------------------
+
+In Debian 13.0 (trixie) or later, some packages are available instead of the manual installation
+of dependent libraries.
+
+* `libhinawa source package <https://tracker.debian.org/pkg/libhinawa>`_
+
+  * `libhinawa4`
+  * `libhinawa-dev`
+  * `gir1.2-hinawa-4.0`
+
+* `libhitaki source package <https://tracker.debian.org/pkg/libhitaki>`_
+
+  * `libhitaki0`
+  * `libhitaki-dev`
+  * `gir1.2-hitaki-0.0`
+
+In Ubuntu 24.04 LTS (Noble Numbat) or later, the packages are also available by Debian import
+mechanism.
+
 How to build
 ============
 
