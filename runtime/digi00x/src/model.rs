@@ -383,7 +383,7 @@ fn optical_interface_mode_to_str(mode: &OpticalInterfaceMode) -> &'static str {
 const OPT_IFACE_NAME: &str = "optical-interface";
 
 impl OpticalIfaceCtl {
-    const OPTICAL_INTERFACE_MODES: &[OpticalInterfaceMode] =
+    const OPTICAL_INTERFACE_MODES: &'static [OpticalInterfaceMode] =
         &[OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
@@ -480,7 +480,7 @@ where
     T: Dg00xHardwareSpecification
         + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
 {
-    const OPTIONAL_CLOCK_RATES: &[Option<ClockRate>] = &[
+    const OPTIONAL_CLOCK_RATES: &'static [Option<ClockRate>] = &[
         None,
         Some(ClockRate::R44100),
         Some(ClockRate::R48000),
