@@ -49,7 +49,7 @@ fn write_amp_cmd(
     let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
     let mut raw = [0; 4];
     raw.copy_from_slice(&cmd.to_le_bytes());
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         AMP_OFFSET,
@@ -324,7 +324,7 @@ impl RmeFfWhollyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Proto
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = Self::serialize_offsets(params);
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::WriteBlockRequest,
             OUTPUT_OFFSET,
@@ -355,7 +355,7 @@ impl RmeFfPartiallyUpdatableParamsOperation<FormerOutputVolumeState> for Ff400Pr
             .try_for_each(|i| {
                 let pos = i * 4;
                 if new[pos..(pos + 4)] != old[pos..(pos + 4)] {
-                    req.transaction_sync(
+                    req.transaction(
                         node,
                         FwTcode::WriteBlockRequest,
                         OUTPUT_OFFSET + pos as u64,

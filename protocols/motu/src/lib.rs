@@ -60,7 +60,7 @@ const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
 fn read_quad(req: &FwReq, node: &mut FwNode, offset: u32, timeout_ms: u32) -> Result<u32, Error> {
     let mut frame = [0; 4];
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::ReadQuadletRequest,
         BASE_OFFSET + offset as u64,
@@ -84,7 +84,7 @@ fn write_quad(
 ) -> Result<(), Error> {
     let mut frame = [0; 4];
     frame.copy_from_slice(&quad.to_be_bytes());
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         BASE_OFFSET + offset as u64,
@@ -95,7 +95,7 @@ fn write_quad(
     .or_else(|err| {
         // For prevention of RCODE_BUSY.
         thread::sleep(time::Duration::from_millis(BUSY_DURATION));
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::WriteQuadletRequest,
             BASE_OFFSET + offset as u64,

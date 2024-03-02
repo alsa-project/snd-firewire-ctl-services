@@ -19,7 +19,7 @@ features = ["dox"]
 
 [dependencies]
 glib = "0.15"
-hinawa = "0.7"
+hinawa = "0.9"
 
 [features]
 # To suppress discovering C library when generating documentation in docs.rs.

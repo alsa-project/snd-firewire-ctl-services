@@ -85,7 +85,7 @@ impl RuntimeOperation<u32> for OxfwRuntime {
 
         let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
-        node.open(&cdev)?;
+        node.open(&cdev, 0)?;
 
         let raw = node.config_rom()?;
         let config_rom = ConfigRom::try_from(raw).map_err(|e| {

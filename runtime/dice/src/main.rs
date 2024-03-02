@@ -71,7 +71,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
 
         let path = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
-        node.open(&path)?;
+        node.open(&path, 0)?;
 
         let model = DiceModel::new(&node)?;
 

@@ -142,7 +142,7 @@ where
         let peer_node_id = self.unit.1.node_id();
         self.model.prepare_message_handler(
             &mut self.unit,
-            move |_, tcode, _, src, _, _, _, frame| {
+            move |_, tcode, _, src, _, _, _, _, frame| {
                 if src != peer_node_id {
                     FwRcode::AddressError
                 } else if tcode != FwTcode::WriteQuadletRequest
@@ -385,7 +385,7 @@ pub trait CommandDspModel: NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> {
         handler: F,
     ) -> Result<(), Error>
     where
-        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;
     fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
     fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
 }

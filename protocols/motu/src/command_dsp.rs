@@ -1739,7 +1739,7 @@ fn send_message(
             frame.push(0x00);
         }
 
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::WriteBlockRequest,
             DSP_CMD_OFFSET,

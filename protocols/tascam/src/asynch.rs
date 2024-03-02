@@ -201,7 +201,7 @@ mod imp {
     }
 
     impl FwRespImpl for TascamExpanderPrivate {
-        fn requested2(
+        fn requested(
             &self,
             resp: &Self::Type,
             tcode: FwTcode,
@@ -210,6 +210,7 @@ mod imp {
             _dst: u32,
             _card: u32,
             _generation: u32,
+            _tstamp: u32,
             frame: &[u8],
         ) -> FwRcode {
             if !resp.is_reserved() {

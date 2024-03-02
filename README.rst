@@ -305,7 +305,7 @@ Dependencies
 * Rust programming language <https://www.rust-lang.org/> v1.65 or later.
 * Cargo
 * glib `<https://developer.gnome.org/glib/>`_
-* libhinawa v2.5 or later `<https://github.com/alsa-project/libhinawa>`_
+* libhinawa v4.0 or later `<https://git.kernel.org/pub/scm/libs/ieee1394/libhinawa.git/>`_
 * libhitaki v0.2 or later `<https://github.com/alsa-project/libhitaki>`_
 * alsa-gobject v0.3 or later `<https://github.com/alsa-project/alsa-gobject/>`_
 

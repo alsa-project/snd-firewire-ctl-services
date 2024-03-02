@@ -180,7 +180,7 @@ impl Inspire1394MeterProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let frame = &mut meter.frame;
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             DM_APPL_METER_OFFSET,

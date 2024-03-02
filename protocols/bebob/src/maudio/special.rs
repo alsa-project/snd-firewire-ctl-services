@@ -245,7 +245,7 @@ impl MaudioSpecialMeterProtocol {
         let mut bitmap1 = [0; 4];
         bitmap1.copy_from_slice(&frame[(METER_SIZE - 4)..]);
 
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             DM_APPL_METER_OFFSET,
@@ -1035,7 +1035,7 @@ pub trait MaudioSpecialParameterProtocol<T: Copy>: SpecialParametersSerdes<T> {
                     FwTcode::WriteBlockRequest
                 };
 
-                req.transaction_sync(
+                req.transaction(
                     node,
                     FwTcode::WriteQuadletRequest,
                     DM_APPL_PARAM_OFFSET + begin_offset as u64,
@@ -1076,7 +1076,7 @@ pub trait MaudioSpecialParameterProtocol<T: Copy>: SpecialParametersSerdes<T> {
                         FwTcode::WriteBlockRequest
                     };
 
-                    req.transaction_sync(
+                    req.transaction(
                         node,
                         FwTcode::WriteQuadletRequest,
                         DM_APPL_PARAM_OFFSET + range.start as u64,

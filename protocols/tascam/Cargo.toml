@@ -19,7 +19,7 @@ features = ["dox"]
 
 [dependencies]
 glib = "0.15"
-hinawa = "0.7"
+hinawa = "0.9"
 hitaki = "0.3"
 ieee1212-config-rom = "0.1"
 

@@ -64,7 +64,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
                 let devnode = format!("/dev/{}", unit.node_device().unwrap());
                 let node = FwNode::new();
-                node.open(&devnode)?;
+                node.open(&devnode, 0)?;
 
                 let data = node.config_rom()?;
                 let config_rom = ConfigRom::try_from(data).map_err(|e| {
@@ -92,7 +92,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
             "fw" => {
                 let node = FwNode::new();
                 let devnode = format!("/dev/fw{}", sysnum);
-                node.open(&devnode)?;
+                node.open(&devnode, 0)?;
 
                 let data = node.config_rom()?;
                 let config_rom = ConfigRom::try_from(data).map_err(|e| {

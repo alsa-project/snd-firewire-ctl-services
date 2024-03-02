@@ -82,7 +82,7 @@ fn read_quadlet(
     frames: &mut [u8],
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::ReadQuadletRequest,
         BASE_OFFSET + offset,
@@ -99,7 +99,7 @@ fn write_quadlet(
     frames: &mut [u8],
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    req.transaction_sync(
+    req.transaction(
         node,
         FwTcode::WriteQuadletRequest,
         BASE_OFFSET + offset,

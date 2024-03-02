@@ -869,7 +869,7 @@ pub trait MaudioNormalMeterProtocol {
         let pos = frame.len() - 4;
         bitmap.copy_from_slice(&frame[pos..]);
 
-        req.transaction_sync(
+        req.transaction(
             node,
             FwTcode::ReadBlockRequest,
             DM_APPL_METER_OFFSET,
