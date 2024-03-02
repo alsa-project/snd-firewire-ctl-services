@@ -19,7 +19,7 @@ use {
     ff400_runtime::*,
     ff800_runtime::*,
     firewire_fireface_protocols as protocols,
-    glib::{source, Error, FileError},
+    glib::{Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
         FwNode, FwReq,

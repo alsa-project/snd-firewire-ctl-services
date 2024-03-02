@@ -5,7 +5,7 @@ use {
     super::*,
     alsactl::{prelude::CardExt, Card},
     alsaseq::{prelude::UserClientExt, UserClient},
-    glib::{source, IsA, MainContext, MainLoop, Source},
+    glib::{source, ControlFlow, IsA, MainContext, MainLoop, Source},
     hinawa::{prelude::FwNodeExt, FwNode},
     hitaki::{prelude::AlsaFirewireExt, AlsaFirewire},
     nix::sys::signal,
@@ -67,10 +67,10 @@ impl Dispatcher {
 
     pub fn attach_signal_handler<F>(&mut self, signum: signal::Signal, cb: F)
     where
-        F: FnMut() -> source::Continue + Send + 'static,
+        F: FnMut() -> ControlFlow + Send + 'static,
     {
         let src =
-            source::unix_signal_source_new(signum as i32, None, source::PRIORITY_DEFAULT_IDLE, cb);
+            source::unix_signal_source_new(signum as i32, None, source::Priority::DEFAULT_IDLE, cb);
 
         self.attach_src_to_ctx(&src);
     }
@@ -128,10 +128,10 @@ impl Dispatcher {
 
     pub fn attach_interval_handler<F>(&mut self, interval_msec: std::time::Duration, cb: F)
     where
-        F: FnMut() -> source::Continue + Send + 'static,
+        F: FnMut() -> ControlFlow + Send + 'static,
     {
         let src =
-            source::timeout_source_new(interval_msec, None, source::PRIORITY_DEFAULT_IDLE, cb);
+            source::timeout_source_new(interval_msec, None, source::Priority::DEFAULT_IDLE, cb);
 
         self.attach_src_to_ctx(&src);
     }

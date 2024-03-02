@@ -13,7 +13,7 @@ pub(crate) use {
     runtime_core::card_cntr::*,
 };
 
-use {glib::source, nix::sys::signal::Signal, runtime_core::dispatcher::*, std::sync::mpsc};
+use {nix::sys::signal::Signal, runtime_core::dispatcher::*, std::sync::mpsc};
 
 pub type F828mk2Runtime = RegisterDspRuntime<F828mk2Model>;
 pub type F896hdRuntime = RegisterDspRuntime<F896hdModel>;
@@ -245,7 +245,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);
-            source::Continue(true)
+            glib::ControlFlow::Continue
         });
 
         self.timer = Some(dispatcher);
@@ -293,7 +293,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();

@@ -169,7 +169,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(Signal::SIGINT, move || {
             let _ = tx.send(AsyncUnitEvent::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();

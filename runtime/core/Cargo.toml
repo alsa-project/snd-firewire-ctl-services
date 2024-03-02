@@ -13,10 +13,10 @@ publish = false
 [dependencies]
 libc = "0.2"
 nix = { version = ">=0.24", features = ["signal"] }
-glib = "0.15"
-hinawa = "0.9"
-hitaki = "0.3"
-alsactl = "0.4"
-alsaseq = "0.4"
+glib = "0.18"
+hinawa = "0.10"
+hitaki = "0.4"
+alsactl = "0.5"
+alsaseq = "0.5"
 clap = { version = "3.2", features = ["derive"] }
 tracing = "0.1"

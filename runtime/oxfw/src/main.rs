@@ -15,7 +15,7 @@ use {
     clap::Parser,
     common_ctl::*,
     firewire_oxfw_protocols as protocols,
-    glib::{source, Error, FileError},
+    glib::{Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
         FwNode, FwReq,
@@ -265,7 +265,7 @@ impl OxfwRuntime {
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();
@@ -286,7 +286,7 @@ impl OxfwRuntime {
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);
-            source::Continue(true)
+            glib::ControlFlow::Continue
         });
 
         self.timer = Some(dispatcher);

@@ -197,7 +197,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
             let _ = tx.send(RackUnitEvent::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();
@@ -218,7 +218,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(RackUnitEvent::Timer);
-            source::Continue(true)
+            glib::ControlFlow::Continue
         });
 
         self.timer = Some(dispatcher);

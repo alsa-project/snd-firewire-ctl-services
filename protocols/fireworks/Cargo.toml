@@ -18,10 +18,6 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 features = ["dox"]
 
 [dependencies]
-glib = "0.15"
-hinawa = "0.9"
-hitaki = "0.3"
-
-[features]
-# To suppress discovering C library when generating documentation in docs.rs.
-dox = ["glib/dox", "hinawa/dox", "hitaki/dox"]
+glib = "0.18"
+hinawa = "0.10"
+hitaki = "0.4"
