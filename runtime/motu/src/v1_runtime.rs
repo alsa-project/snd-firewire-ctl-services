@@ -7,7 +7,7 @@ pub(crate) use {
     runtime_core::card_cntr::*,
 };
 
-use {glib::source, nix::sys::signal::Signal, runtime_core::dispatcher::*, std::sync::mpsc};
+use {nix::sys::signal::Signal, runtime_core::dispatcher::*, std::sync::mpsc};
 
 pub type F828Runtime = Version1Runtime<F828Model>;
 pub type F896Runtime = Version1Runtime<F896Model>;
@@ -182,7 +182,7 @@ where
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();

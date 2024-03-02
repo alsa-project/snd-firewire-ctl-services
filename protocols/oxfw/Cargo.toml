@@ -18,8 +18,8 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 features = ["dox"]
 
 [dependencies]
-glib = "0.15"
-hinawa = "0.9"
+glib = "0.18"
+hinawa = "0.10"
 ta1394-avc-general = "0.2"
 ta1394-avc-audio = "0.2"
 ta1394-avc-ccm = "0.2"
@@ -28,7 +28,3 @@ ta1394-avc-stream-format = "0.2"
 [[bin]]
 name = "oxfw-info"
 doc = false
-
-[features]
-# To suppress discovering C library when generating documentation in docs.rs.
-dox = ["glib/dox", "hinawa/dox"]

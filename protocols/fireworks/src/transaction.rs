@@ -9,8 +9,8 @@
 
 use {
     glib::{
-        subclass::{object::*, types::*},
-        *,
+        subclass::{object::*, prelude::*},
+        Properties, *,
     },
     hinawa::{prelude::*, subclass::prelude::*, *},
     hitaki::{prelude::*, subclass::prelude::*, *},
@@ -26,7 +26,7 @@ glib::wrapper! {
 
 impl EfwTransaction {
     pub fn new() -> Self {
-        Object::new(&[]).expect("Failed to create EfwTransaction")
+        object::Object::new()
     }
 
     pub fn bind(&self, node: &FwNode) -> Result<(), Error> {
@@ -45,14 +45,20 @@ impl EfwTransaction {
 }
 
 mod imp {
-    use {super::*, once_cell::sync::Lazy};
+    use super::*;
 
     pub const COMMAND_OFFSET: u64 = 0xecc000000000;
     pub const RESPONSE_OFFSET: u64 = 0xecc080000000;
     pub const MAX_FRAME_SIZE: usize = 0x200;
 
-    #[derive(Default)]
-    pub struct EfwTransactionPrivate(RefCell<u32>, RefCell<Option<FwNode>>);
+    #[derive(Default, Properties)]
+    #[properties(wrapper_type = super::EfwTransaction)]
+    pub struct EfwTransactionPrivate {
+        #[property(set)]
+        node_id: RefCell<u32>,
+        #[property(set)]
+        seqnum: RefCell<Option<FwNode>>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for EfwTransactionPrivate {
@@ -66,40 +72,8 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for EfwTransactionPrivate {
-        fn properties() -> &'static [ParamSpec] {
-            static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
-                vec![ParamSpecObject::new(
-                    "node",
-                    "node",
-                    "An instance of FwNode",
-                    FwNode::static_type(),
-                    ParamFlags::READWRITE,
-                )]
-            });
-
-            PROPERTIES.as_ref()
-        }
-
-        fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
-            match pspec.name() {
-                "node" => self.1.borrow().as_ref().unwrap().to_value(),
-                _ => unimplemented!(),
-            }
-        }
-
-        fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
-            match pspec.name() {
-                "node" => {
-                    let node = value
-                        .get()
-                        .expect("type conformity checked by `Object::set_property`");
-                    *self.1.borrow_mut() = node;
-                }
-                _ => unimplemented!(),
-            }
-        }
-    }
+    #[glib::derived_properties]
+    impl ObjectImpl for EfwTransactionPrivate {}
 
     impl FwRespImpl for EfwTransactionPrivate {
         fn requested(
@@ -114,7 +88,7 @@ mod imp {
             _tstamp: u32,
             frame: &[u8],
         ) -> FwRcode {
-            if let Some(node) = self.1.borrow().as_ref() {
+            if let Some(node) = self.seqnum.borrow().as_ref() {
                 if tcode != FwTcode::WriteBlockRequest {
                     FwRcode::TypeError
                 } else if src != node.node_id() || offset != RESPONSE_OFFSET {
@@ -136,7 +110,7 @@ mod imp {
 
     impl EfwProtocolImpl for EfwTransactionPrivate {
         fn transmit_request(&self, _: &Self::Type, buffer: &[u8]) -> Result<(), Error> {
-            if let Some(node) = self.1.borrow().as_ref() {
+            if let Some(node) = self.seqnum.borrow().as_ref() {
                 let req = FwReq::new();
                 let mut frame = buffer.to_owned();
                 req.transaction(
@@ -155,9 +129,9 @@ mod imp {
         }
 
         fn get_seqnum(&self, _: &Self::Type) -> u32 {
-            let seqnum = *self.0.borrow();
+            let seqnum = *self.node_id.borrow();
             let next_seqnum = seqnum + 2;
-            *self.0.borrow_mut() = if next_seqnum < (u16::MAX - 1) as u32 {
+            *self.node_id.borrow_mut() = if next_seqnum < (u16::MAX - 1) as u32 {
                 next_seqnum
             } else {
                 0

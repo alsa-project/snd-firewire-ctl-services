@@ -18,9 +18,9 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 features = ["dox"]
 
 [dependencies]
-glib = "0.15"
-hinawa = "0.9"
-hitaki = "0.3"
+glib = "0.18"
+hinawa = "0.10"
+hitaki = "0.4"
 ieee1212-config-rom = "0.1"
 
 [[bin]]
@@ -30,7 +30,3 @@ doc = false
 [[bin]]
 name = "tascam-hardware-info"
 doc = false
-
-[features]
-# To suppress discovering C library when generating documentation in docs.rs.
-dox = ["glib/dox", "hinawa/dox", "hitaki/dox"]

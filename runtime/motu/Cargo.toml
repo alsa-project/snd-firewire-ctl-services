@@ -13,10 +13,10 @@ publish = false
 
 [dependencies]
 nix = { version = ">=0.24", features = ["signal"] }
-glib = "0.15"
-hinawa = "0.9"
-hitaki = "0.3"
-alsactl = "0.4"
+glib = "0.18"
+hinawa = "0.10"
+hitaki = "0.4"
+alsactl = "0.5"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 firewire-motu-protocols = "0.3"

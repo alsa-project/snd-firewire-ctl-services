@@ -33,7 +33,7 @@ impl TascamExpander {
     pub const QUADLET_COUNT: usize = imp::RESPONSE_FRAME_SIZE / 4;
 
     pub fn new() -> Self {
-        Object::new(&[]).expect("Failed to create TascamExpander")
+        object::Object::new()
     }
 
     fn node(&self) -> FwNode {
@@ -107,13 +107,13 @@ impl TascamExpander {
             100,
         );
 
-        let private = imp::TascamExpanderPrivate::from_instance(self);
-        *private.0.borrow_mut() = None;
+        let private = imp::TascamExpanderPrivate::from_obj(self);
+        *private.node_id.borrow_mut() = None;
     }
 }
 
 mod imp {
-    use {super::*, once_cell::sync::Lazy};
+    use super::*;
 
     pub const RESPONSE_REGION_START: u64 = 0xffffe0000000;
     pub const RESPONSE_REGION_END: u64 = 0xfffff0000000;
@@ -123,11 +123,13 @@ mod imp {
     pub const ADDR_HIGH_OFFSET: u64 = 0x0314;
     pub const ADDR_LOW_OFFSET: u64 = 0x0318;
 
-    #[derive(Default)]
-    pub struct TascamExpanderPrivate(
-        pub RefCell<Option<FwNode>>,
-        RefCell<Mutex<[u32; super::TascamExpander::QUADLET_COUNT]>>,
-    );
+    #[derive(Default, Properties)]
+    #[properties(wrapper_type = super::TascamExpander)]
+    pub struct TascamExpanderPrivate {
+        #[property(get)]
+        pub(crate) node_id: RefCell<Option<FwNode>>,
+        image: RefCell<Mutex<[u32; super::TascamExpander::QUADLET_COUNT]>>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for TascamExpanderPrivate {
@@ -141,40 +143,8 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for TascamExpanderPrivate {
-        fn properties() -> &'static [ParamSpec] {
-            static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
-                vec![ParamSpecObject::new(
-                    "node",
-                    "node",
-                    "An instance of FwNode",
-                    FwNode::static_type(),
-                    ParamFlags::READWRITE,
-                )]
-            });
-
-            PROPERTIES.as_ref()
-        }
-
-        fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
-            match pspec.name() {
-                "node" => self.0.borrow().as_ref().unwrap().to_value(),
-                _ => unimplemented!(),
-            }
-        }
-
-        fn set_property(&self, _unit: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
-            match pspec.name() {
-                "node" => {
-                    let node = value
-                        .get()
-                        .expect("type conformity checked by `Object::set_property`");
-                    *self.0.borrow_mut() = node;
-                }
-                _ => unimplemented!(),
-            }
-        }
-    }
+    #[glib::derived_properties]
+    impl ObjectImpl for TascamExpanderPrivate {}
 
     fn parse_notification(
         image: &mut [u32],
@@ -222,7 +192,7 @@ mod imp {
                 None => return FwRcode::DataError,
             };
 
-            match self.0.borrow().as_ref() {
+            match self.node_id.borrow().as_ref() {
                 Some(node) => {
                     if src != node.node_id() || offset != resp.offset() {
                         return FwRcode::AddressError;
@@ -234,7 +204,7 @@ mod imp {
             let mut events = Vec::<(u32, u32, u32)>::new();
 
             let rcode = self
-                .1
+                .image
                 .borrow_mut()
                 .lock()
                 .map(|mut image| {
@@ -260,7 +230,7 @@ mod imp {
                 );
                 Err(Error::new(FileError::Inval, &msg))
             } else {
-                self.1
+                self.image
                     .borrow()
                     .lock()
                     .map(|image| {

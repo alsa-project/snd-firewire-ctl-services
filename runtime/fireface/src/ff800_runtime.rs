@@ -178,7 +178,7 @@ impl Ff800Runtime {
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
-            source::Continue(false)
+            glib::ControlFlow::Break
         });
 
         let tx = self.tx.clone();
@@ -200,7 +200,7 @@ impl Ff800Runtime {
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);
-            source::Continue(true)
+            glib::ControlFlow::Continue
         });
 
         self.timer = Some(dispatcher);
