@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2024/02/25
+2024/03/03
 Takashi Sakamoto
 
 Introduction
@@ -302,7 +302,7 @@ License
 Dependencies
 ============
 
-* Rust programming language <https://www.rust-lang.org/> v1.65 or later.
+* Rust programming language `<https://www.rust-lang.org/>`_ v1.65 or later.
 * Cargo
 * glib `<https://developer.gnome.org/glib/>`_
 * libhinawa v4.0 or later `<https://git.kernel.org/pub/scm/libs/ieee1394/libhinawa.git/>`_
@@ -315,8 +315,8 @@ Dependencies
 In Debian and its derived distributions such as Ubuntu
 --------------------------------------------------------
 
-In Debian 13.0 (trixie) or later, some packages are available instead of the manual installation
-of dependent libraries.
+In Debian 13.0 (trixie) or later, some packages are available in the repositories instead of the
+manual installation of dependent libraries.
 
 * `libhinawa source package <https://tracker.debian.org/pkg/libhinawa>`_
 
