@@ -481,7 +481,7 @@ const CONF_828_OPT_IN_IFACE_LABEL: &str = "opt-in-iface-v1";
 
 impl F828Protocol {
     /// The available modes of optical interface.
-    pub const OPT_IFACE_MODES: &[V1OptIfaceMode] = &[V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
+    pub const OPT_IFACE_MODES: &'static [V1OptIfaceMode] = &[V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
 }
 
 impl MotuWhollyCacheableParamsOperation<F828OpticalIfaceParameters> for F828Protocol {
