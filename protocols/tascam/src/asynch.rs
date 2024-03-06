@@ -11,6 +11,7 @@ pub mod fe8;
 use {
     super::*,
     glib::{
+        object::{Cast, ObjectExt},
         subclass::{object::*, types::*},
         *,
     },

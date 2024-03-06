@@ -11,7 +11,7 @@ pub mod oxford;
 pub mod tascam;
 
 use {
-    glib::{Error, FileError, IsA},
+    glib::{prelude::IsA, Error, FileError},
     hinawa::{
         prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,

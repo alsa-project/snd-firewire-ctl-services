@@ -9,6 +9,7 @@
 
 use {
     glib::{
+        object::{Cast, ObjectExt},
         subclass::{object::*, prelude::*},
         Properties, *,
     },

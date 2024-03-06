@@ -5,7 +5,7 @@ use {
     super::*,
     alsactl::{prelude::CardExt, Card},
     alsaseq::{prelude::UserClientExt, UserClient},
-    glib::{source, ControlFlow, IsA, MainContext, MainLoop, Source},
+    glib::{prelude::IsA, source, ControlFlow, MainContext, MainLoop, Source},
     hinawa::{prelude::FwNodeExt, FwNode},
     hitaki::{prelude::AlsaFirewireExt, AlsaFirewire},
     nix::sys::signal,

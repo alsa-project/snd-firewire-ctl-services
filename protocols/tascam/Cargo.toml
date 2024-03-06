@@ -18,9 +18,9 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 features = ["dox"]
 
 [dependencies]
-glib = "0.18"
-hinawa = "0.10"
-hitaki = "0.4"
+glib = "0.19"
+hinawa = "0.11"
+hitaki = "0.5"
 ieee1212-config-rom = "0.1"
 
 [[bin]]
