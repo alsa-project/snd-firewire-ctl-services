@@ -23,7 +23,7 @@
 use {
     super::*,
     crate::{tcelectronic::*, *},
-    glib::{Error, FileError, IsA},
+    glib::{prelude::IsA, Error, FileError},
     hinawa::{
         prelude::{FwFcpExt, FwFcpExtManual},
         FwFcp, FwNode,

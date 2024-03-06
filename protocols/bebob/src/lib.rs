@@ -20,7 +20,7 @@ pub mod yamaha_terratec;
 
 use {
     self::bridgeco::{ExtendedStreamFormatSingle, *},
-    glib::{Error, FileError, IsA},
+    glib::{prelude::IsA, Error, FileError},
     hinawa::{
         prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,

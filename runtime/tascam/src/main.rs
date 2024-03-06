@@ -18,7 +18,7 @@ use {
     asynch_runtime::*,
     clap::Parser,
     firewire_tascam_protocols as protocols,
-    glib::{Error, FileError, IsA},
+    glib::{prelude::IsA, Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
         FwNode, FwReq,
