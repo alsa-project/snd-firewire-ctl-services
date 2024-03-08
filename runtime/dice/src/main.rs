@@ -330,7 +330,7 @@ struct Arguments {
     card_id: u32,
 
     /// The level to debug runtime, disabled as a default.
-    #[clap(long, short, arg_enum)]
+    #[clap(long, short, value_enum)]
     log_level: Option<LogLevel>,
 }
 

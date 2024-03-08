@@ -4,10 +4,10 @@ pub mod card_cntr;
 pub mod cmdline;
 pub mod dispatcher;
 
-use {clap::ArgEnum, glib::Error};
+use {clap::ValueEnum, glib::Error};
 
 /// The level to debug runtime.
-#[derive(ArgEnum, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(ValueEnum, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LogLevel {
     Debug,
 }
