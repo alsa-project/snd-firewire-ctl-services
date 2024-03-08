@@ -1119,6 +1119,8 @@ where
     ) -> Result<bool, Error> {
         let mut params = self.0.clone();
 
+        // NOTE: many devices have the default state that `Reserved(0xff)` is used for invalid
+        // router entries. The following lines follow to it instead of using `Mute`.
         dsts.iter()
             .zip(elem_value.enumerated())
             .for_each(|(dst, &val)| {
