@@ -12,11 +12,11 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dependencies]
-glib = "0.19"
+glib = "0.20"
 nix = { version = ">=0.24", features = ["signal"] }
-hinawa = "0.11"
-hitaki = "0.5"
-alsactl = "0.6"
+hinawa = "0.12"
+hitaki = "0.6"
+alsactl = "0.7"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 firewire-fireface-protocols = "0.2"

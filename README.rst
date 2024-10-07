@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2024/03/03
+2024/10/07
 Takashi Sakamoto
 
 Introduction
@@ -302,7 +302,7 @@ License
 Dependencies
 ============
 
-* Rust programming language `<https://www.rust-lang.org/>`_ v1.65 or later.
+* Rust programming language `<https://www.rust-lang.org/>`_ v1.70 or later.
 * Cargo
 * glib `<https://developer.gnome.org/glib/>`_
 * libhinawa v4.0 or later `<https://git.kernel.org/pub/scm/libs/ieee1394/libhinawa.git/>`_
