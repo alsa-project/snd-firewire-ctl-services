@@ -1216,6 +1216,13 @@ where
     const EQ_HIGH_FREQ_NAME: &'static str;
     const EQ_HIGH_QUALITY_NAME: &'static str;
 
+    const EQ_GAIN_TLV: DbInterval = DbInterval {
+        min: -2000,
+        max: 2000,
+        linear: false,
+        mute_avail: false,
+    };
+
     fn params(&self) -> &U;
     fn params_mut(&mut self) -> &mut U;
 
@@ -1270,7 +1277,7 @@ where
                     T::EQ_GAIN_MAX,
                     T::EQ_GAIN_STEP,
                     Self::CH_COUNT,
-                    None,
+                    Some(&Vec::<u32>::from(&Self::EQ_GAIN_TLV)),
                     true,
                 )
                 .map(|mut list| elem_id_list.append(&mut list))

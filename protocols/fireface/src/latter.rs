@@ -1278,9 +1278,9 @@ impl AsMut<FfLatterEqState> for FfLatterOutputEqualizerParameters {
 /// The trait for specification of equalizer.
 pub trait RmeFfLatterEqualizerSpecification {
     /// The minimum value of gain.
-    const EQ_GAIN_MIN: i32 = -20;
+    const EQ_GAIN_MIN: i32 = -200;
     /// The maximum value of gain.
-    const EQ_GAIN_MAX: i32 = 20;
+    const EQ_GAIN_MAX: i32 = 200;
     /// The step value of gain.
     const EQ_GAIN_STEP: i32 = 1;
 
