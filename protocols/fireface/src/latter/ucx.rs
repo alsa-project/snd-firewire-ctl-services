@@ -356,6 +356,7 @@ impl RmeFfLatterSpecification for FfUcxProtocol {
     const SPDIF_INPUT_COUNT: usize = 2;
     const ADAT_INPUT_COUNT: usize = 8;
     const STREAM_INPUT_COUNT: usize = 18;
+    const FX_RETURN_COUNT: usize = 2;
 
     const LINE_OUTPUT_COUNT: usize = 6;
     const HP_OUTPUT_COUNT: usize = 2;

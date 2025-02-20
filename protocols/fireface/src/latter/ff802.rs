@@ -397,6 +397,7 @@ impl RmeFfLatterSpecification for Ff802Protocol {
     const SPDIF_INPUT_COUNT: usize = 2;
     const ADAT_INPUT_COUNT: usize = 16;
     const STREAM_INPUT_COUNT: usize = 30;
+    const FX_RETURN_COUNT: usize = 2;
 
     const LINE_OUTPUT_COUNT: usize = 8;
     const HP_OUTPUT_COUNT: usize = 4;

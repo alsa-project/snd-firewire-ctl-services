@@ -178,6 +178,8 @@ pub trait RmeFfLatterSpecification {
     const ADAT_INPUT_COUNT: usize;
     /// The number of stream inputs.
     const STREAM_INPUT_COUNT: usize;
+    /// The number of fx returns.
+    const FX_RETURN_COUNT: usize;
 
     /// The number of line outputs.
     const LINE_OUTPUT_COUNT: usize;
@@ -927,6 +929,8 @@ pub struct FfLatterMixer {
     pub adat_gains: Vec<u16>,
     /// The gain of sources from stream inputs.
     pub stream_gains: Vec<u16>,
+    /// The gain of sources from fx return
+    pub fx_return_gains: Vec<u16>,
 }
 
 /// State of mixers.
@@ -951,6 +955,7 @@ pub trait RmeFfLatterMixerSpecification: RmeFfLatterDspSpecification {
                 mic_gains: vec![Default::default(); Self::MIC_INPUT_COUNT],
                 spdif_gains: vec![Default::default(); Self::SPDIF_INPUT_COUNT],
                 adat_gains: vec![Default::default(); Self::ADAT_INPUT_COUNT],
+                fx_return_gains: vec![Default::default(); Self::FX_RETURN_COUNT],
                 stream_gains: vec![Default::default(); Self::STREAM_INPUT_COUNT],
             };
             Self::OUTPUT_COUNT
@@ -974,6 +979,8 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixer
                     .chain(&mixer.mic_gains)
                     .chain(&mixer.spdif_gains)
                     .chain(&mixer.adat_gains)
+                    .chain(&mixer.fx_return_gains)
+                    .chain(&mixer.stream_gains)
                     .enumerate()
                     .map(|(j, &gain)| {
                         let ch = j as u16;
