@@ -33,9 +33,9 @@ where
     T: RmeFfLatterMeterSpecification + RmeFfCacheableParamsOperation<FfLatterMeterState>,
 {
     const LEVEL_TLV: DbInterval = DbInterval {
-        min: -9003,
-        max: 600,
-        linear: false,
+        min: -13800,
+        max: 0,
+        linear: true,
         mute_avail: false,
     };
 
