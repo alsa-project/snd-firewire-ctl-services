@@ -915,7 +915,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
 
 /// State of sources for mixer.
 ///
-/// Each value is between 0x8000 and 0xa000 through 0x9000 to represent -78.00 dB and 6.00 dB
+/// Each value is between 0x8000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
 /// through 0.00 dB.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterMixer {
