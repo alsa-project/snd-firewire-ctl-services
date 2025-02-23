@@ -763,6 +763,8 @@ pub struct FfLatterOutputState {
 pub trait RmeFfLatterOutputSpecification: RmeFfLatterDspSpecification {
     /// The minimum value for volume of physical output.
     const PHYS_OUTPUT_VOL_MIN: i32 = -650;
+    /// The default value for volume of physical output.
+    const PHYS_OUTPUT_VOL_ZERO: i32 = 0;
     /// The maximum value for volume of physical output.
     const PHYS_OUTPUT_VOL_MAX: i32 = 60;
     /// The step value of for volume physical output.
