@@ -915,7 +915,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
 
 /// State of sources for mixer.
 ///
-/// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
+/// Each value is between 0x8000 and 0xa000 through 0x9000 to represent -78.00 dB and 6.00 dB
 /// through 0.00 dB.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfLatterMixer {
@@ -940,7 +940,7 @@ pub struct FfLatterMixerState(pub Vec<FfLatterMixer>);
 /// The specification of mixer.
 pub trait RmeFfLatterMixerSpecification: RmeFfLatterDspSpecification {
     /// The minimum value of gain for source of mixer.
-    const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
+    const MIXER_INPUT_GAIN_MIN: i32 = 0x8000;
     /// The zero value of gain for source of mixer.
     const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
     /// The maximum value of gain for source of mixer.
