@@ -672,9 +672,9 @@ where
         + RmeFfPartiallyCommandableParamsOperation<FfLatterMixerState>,
 {
     const SRC_GAIN_TLV: DbInterval = DbInterval {
-        min: -6500,
+        min: -7800,
         max: 600,
-        linear: false,
+        linear: true,
         mute_avail: false,
     };
 
