@@ -407,7 +407,7 @@ where
         params
             .vols
             .iter_mut()
-            .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_MAX as i16);
+            .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_ZERO as i16);
 
         Self {
             elem_id_list: Default::default(),
