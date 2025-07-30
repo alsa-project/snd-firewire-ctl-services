@@ -868,7 +868,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
             .iter()
             .enumerate()
             .for_each(|(i, &balance)| {
-                let ch = ch_offset + i as u8;
+                let ch = ch_offset + (i * 2) as u8;
                 cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
             });
 
@@ -877,7 +877,7 @@ impl<O: RmeFfLatterOutputSpecification> RmeFfCommandParamsSerialize<FfLatterOutp
             .iter()
             .enumerate()
             .for_each(|(i, &link)| {
-                let ch = ch_offset + i as u8;
+                let ch = ch_offset + (i * 2) as u8;
                 cmds.push(create_phys_port_cmd(
                     ch,
                     OUTPUT_STEREO_LINK_CMD,
