@@ -12,6 +12,7 @@ pub mod spro24;
 pub mod spro24dsp;
 pub mod spro26;
 pub mod spro40;
+pub mod spro40d3;
 
 use super::{
     tcat::{extension::*, *},
