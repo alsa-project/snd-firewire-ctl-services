@@ -7,6 +7,7 @@ pub mod spro24_model;
 pub mod spro24dsp_model;
 pub mod spro26_model;
 pub mod spro40_model;
+pub mod spro40d3_model;
 
 use {
     super::{tcd22xx_ctl::*, *},
