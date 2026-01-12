@@ -10,7 +10,7 @@ use {
     super::*,
     hinawa::{
         prelude::{FwReqExtManual, FwRespExt, FwRespExtManual},
-        FwTcode, FwResp, FwRcode,
+        FwRcode, FwResp, FwTcode,
     },
     std::{sync::mpsc, time::Duration},
 };
@@ -62,13 +62,10 @@ fn serialize_get_meter(pos: u8, len: u8, frame: &mut [u8]) {
 }
 
 fn deserialize_meter(meter: &mut [i32], frame: &[u8]) {
-    meter
-        .iter_mut()
-        .enumerate()
-        .for_each(|(i, m)| {
-            let pos = 16 + i * 4;
-            deserialize_i32(m, &frame[pos..(pos + 4)]);
-        });
+    meter.iter_mut().enumerate().for_each(|(i, m)| {
+        let pos = 16 + i * 4;
+        deserialize_i32(m, &frame[pos..(pos + 4)]);
+    });
 }
 
 fn serialize_route(from: u32, to: u32, raw: &mut [u8]) {
@@ -100,7 +97,8 @@ fn serialize_routing_low_rate(
     // to stream, fixed
     for i in 0..18 {
         serialize_route(
-            1 + i as u32, STREAM + i as u32,
+            1 + i as u32,
+            STREAM + i as u32,
             &mut frame[20 + i * 4..][..4],
         );
     }
@@ -118,14 +116,8 @@ fn serialize_routing_low_rate(
             &mut frame[96 + i * 8..][..4],
         );
     }
-    serialize_route(
-        router_out_src[10],
-        SPDIF, &mut frame[132..136],
-    );
-    serialize_route(
-        router_out_src[11],
-        SPDIF + 1, &mut frame[136..140],
-    );
+    serialize_route(router_out_src[10], SPDIF, &mut frame[132..136]);
+    serialize_route(router_out_src[11], SPDIF + 1, &mut frame[136..140]);
 
     for i in 0..8 {
         serialize_route(
@@ -135,14 +127,8 @@ fn serialize_routing_low_rate(
         );
     }
     // loopback
-    serialize_route(
-        router_out_src[20],
-        STREAM + 18, &mut frame[172..176],
-    );
-    serialize_route(
-        router_out_src[21],
-        STREAM + 19, &mut frame[176..180],
-    );
+    serialize_route(router_out_src[20], STREAM + 18, &mut frame[172..176]);
+    serialize_route(router_out_src[21], STREAM + 19, &mut frame[176..180]);
 
     // to mixer
     for i in 0..8 {
@@ -159,14 +145,8 @@ fn serialize_routing_low_rate(
             &mut frame[212 + i * 4..][..4],
         );
     }
-    serialize_route(
-        router_mixer_src[16],
-        MIXER + 16, &mut frame[244..248],
-    );
-    serialize_route(
-        router_mixer_src[17],
-        MIXER + 17, &mut frame[248..252],
-    );
+    serialize_route(router_mixer_src[16], MIXER + 16, &mut frame[244..248]);
+    serialize_route(router_mixer_src[17], MIXER + 17, &mut frame[248..252]);
 
     // master meter
     serialize_route(router_meter_src[0], 0x0, &mut frame[252..256]);
@@ -185,7 +165,8 @@ fn serialize_routing_high_rate(
     // to stream, fixed
     for i in 0..14 {
         serialize_route(
-            1 + i as u32, STREAM + i as u32,
+            1 + i as u32,
+            STREAM + i as u32,
             &mut frame[20 + i * 4..][..4],
         );
     }
@@ -203,14 +184,8 @@ fn serialize_routing_high_rate(
             &mut frame[80 + i * 8..][..4],
         );
     }
-    serialize_route(
-        router_out_src[10],
-        SPDIF, &mut frame[116..120],
-    );
-    serialize_route(
-        router_out_src[11],
-        SPDIF + 1, &mut frame[120..124],
-    );
+    serialize_route(router_out_src[10], SPDIF, &mut frame[116..120]);
+    serialize_route(router_out_src[11], SPDIF + 1, &mut frame[120..124]);
 
     for i in 0..4 {
         serialize_route(
@@ -220,14 +195,8 @@ fn serialize_routing_high_rate(
         );
     }
     // loopback
-    serialize_route(
-        router_out_src[20],
-        STREAM + 14, &mut frame[140..144],
-    );
-    serialize_route(
-        router_out_src[21],
-        STREAM + 15, &mut frame[144..148],
-    );
+    serialize_route(router_out_src[20], STREAM + 14, &mut frame[140..144]);
+    serialize_route(router_out_src[21], STREAM + 15, &mut frame[144..148]);
 
     // to mixer
     for i in 0..8 {
@@ -244,20 +213,13 @@ fn serialize_routing_high_rate(
             &mut frame[180 + i * 4..][..4],
         );
     }
-    serialize_route(
-        router_mixer_src[16],
-        MIXER + 16, &mut frame[212..216],
-    );
-    serialize_route(
-        router_mixer_src[17],
-        MIXER + 17, &mut frame[216..220],
-    );
+    serialize_route(router_mixer_src[16], MIXER + 16, &mut frame[212..216]);
+    serialize_route(router_mixer_src[17], MIXER + 17, &mut frame[216..220]);
 
     // master meter
     serialize_route(router_meter_src[0], 0x0, &mut frame[220..224]);
     serialize_route(router_meter_src[1], 0x0, &mut frame[224..228]);
 }
-
 
 impl SPro40D3Protocol {
     pub fn init_communication(&mut self, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
@@ -279,33 +241,27 @@ impl SPro40D3Protocol {
 
         let (tx, rx) = mpsc::channel();
         self.rx = Some(rx);
-        self.resp.connect_requested(
-            move |_, _tcode, _, _src, _, _, _, _, frame| {
+        self.resp
+            .connect_requested(move |_, _tcode, _, _src, _, _, _, _, frame| {
                 let rlen = ((frame[6] as u16) << 8) | (frame[7] as u16);
                 let mut rstatus = 0u32;
                 deserialize_u32(&mut rstatus, &frame[8..12]);
                 let _ = tx.send((rstatus, rlen));
 
                 FwRcode::Complete
-            },
-        );
+            });
 
-        self.resp.reserve_within_region(node, 0, 0x1000000000000, 16)?;
+        self.resp
+            .reserve_within_region(node, 0, 0x1000000000000, 16)?;
         let new_notification_address = self.resp.offset();
 
         if new_notification_address != notification_address {
             let mut data = vec![0u8; 16];
 
             serialize_u32(&(notification_address as u32), &mut data[0..]);
-            serialize_u32(
-                &((notification_address >> 32) as u32),
-                &mut data[4..],
-            );
+            serialize_u32(&((notification_address >> 32) as u32), &mut data[4..]);
             serialize_u32(&(new_notification_address as u32), &mut data[8..]);
-            serialize_u32(
-                &((new_notification_address >> 32) as u32),
-                &mut data[12..],
-            );
+            serialize_u32(&((new_notification_address >> 32) as u32), &mut data[12..]);
 
             self.req.transaction(
                 node,
@@ -343,7 +299,10 @@ impl SPro40D3Protocol {
             timeout_ms,
         )?;
 
-        let (rstatus,rlen) = self.rx.as_ref().unwrap()
+        let (rstatus, rlen) = self
+            .rx
+            .as_ref()
+            .unwrap()
             .recv_timeout(Duration::from_millis(timeout_ms.into()))
             .map_err(|cause| Error::new(ProtocolExtensionError::Appl, &cause.to_string()))?;
 
@@ -399,7 +358,7 @@ impl SPro40D3Protocol {
     ) -> Result<(), Error> {
         let mut frame = vec![0; 24];
         serialize_get_meter(
-            if current_rate > 48000 {0x32} else {0x3a},
+            if current_rate > 48000 { 0x32 } else { 0x3a },
             2,
             &mut frame,
         );
@@ -416,7 +375,7 @@ impl SPro40D3Protocol {
     ) -> Result<(), Error> {
         let mut frame = vec![0; 88];
         serialize_get_meter(
-            if current_rate > 48000 {0x20} else {0x28},
+            if current_rate > 48000 { 0x20 } else { 0x28 },
             18,
             &mut frame,
         );
@@ -547,9 +506,7 @@ mod test {
             0x00, 0x00, 0x04, 0x56,
         ];
 
-        let target = &[
-            0x123, 0x456,
-        ];
+        let target = &[0x123, 0x456];
 
         let mut meter = vec![0; 2];
         deserialize_meter(&mut meter, frame);
@@ -659,12 +616,7 @@ mod test {
         ];
 
         let mut raw = vec![0; 316];
-        serialize_routing_low_rate(
-            router_out_src,
-            router_mixer_src,
-            router_meter_src,
-            &mut raw,
-        );
+        serialize_routing_low_rate(router_out_src, router_mixer_src, router_meter_src, &mut raw);
         println!("{:02x?}", raw);
         assert!(target.iter().eq(raw.iter()))
     }
@@ -764,12 +716,7 @@ mod test {
         ];
 
         let mut raw = vec![0; 284];
-        serialize_routing_high_rate(
-            router_out_src,
-            router_mixer_src,
-            router_meter_src,
-            &mut raw,
-        );
+        serialize_routing_high_rate(router_out_src, router_mixer_src, router_meter_src, &mut raw);
         println!("{:02x?}", raw);
         assert!(target.iter().eq(raw.iter()))
     }
