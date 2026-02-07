@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Andreas Persson
 
-use {
-    super::*,
-    protocols::focusrite::spro40d3::*,
-    alsa_ctl_tlv_codec::CTL_VALUE_MUTE,
-};
+use {super::*, alsa_ctl_tlv_codec::CTL_VALUE_MUTE, protocols::focusrite::spro40d3::*};
 
 #[derive(Default)]
 pub struct SPro40D3Model {
@@ -22,7 +18,7 @@ pub struct SPro40D3Model {
 }
 
 const TIMEOUT_MS: u32 = 20;
-    
+
 const COEF_MIN: i32 = 0;
 const COEF_MAX: i32 = 0x7fff;
 const COEF_STEP: i32 = 1;
@@ -36,7 +32,12 @@ const COEF_TLV: DbInterval = DbInterval {
 
 impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
     fn cache(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
-        SPro40D3Protocol::read_general_sections(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
+        SPro40D3Protocol::read_general_sections(
+            &self.req,
+            &unit.1,
+            &mut self.sections,
+            TIMEOUT_MS,
+        )?;
 
         self.common_ctl
             .cache_whole_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
@@ -52,20 +53,21 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut notified_elem_id_list = Vec::new();
         let mut measured_elem_id_list = Vec::new();
-        
+
         self.common_ctl.load(card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            18,
-            COEF_MIN,
-            COEF_MAX,
-            COEF_STEP,
-            16,
-            Some(&Into::<Vec<u32>>::into(COEF_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                18,
+                COEF_MIN,
+                COEF_MAX,
+                COEF_STEP,
+                16,
+                Some(&Into::<Vec<u32>>::into(COEF_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         for elem_id in &notified_elem_id_list {
@@ -73,92 +75,111 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
             card_cntr.card.read_elem_value(elem_id, &mut v)?;
             self.gain_values.push(v);
         }
-        
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            0,
-            0xfff,
-            1,
-            2,
-            None,
-            false,
-        )
+        card_cntr
+            .add_int_elems(&elem_id, 1, 0, 0xfff, 1, 2, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_INPUT_METER_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            0,
-            0xfff,
-            1,
-            18,
-            None,
-            false,
-        )
+        card_cntr
+            .add_int_elems(&elem_id, 1, 0, 0xfff, 1, 18, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_OUT_SRC_NAME, 0);
         let supported_source_labels = vec![
             "None",
-            "Analog-1", "Analog-2", "Analog-3", "Analog-4",
-            "Analog-5", "Analog-6", "Analog-7", "Analog-8",
-            "S/PDIF-1", "S/PDIF-2",
-            "ADAT-1", "ADAT-2", "ADAT-3", "ADAT-4",
-            "ADAT-5", "ADAT-6", "ADAT-7", "ADAT-8",
-            "Stream-1", "Stream-2", "Stream-3", "Stream-4",
-            "Stream-5", "Stream-6", "Stream-7", "Stream-8",
-            "Stream-9", "Stream-10", "Stream-11", "Stream-12",
-            "Stream-13", "Stream-14", "Stream-15", "Stream-16",
-            "Stream-17", "Stream-18", "Stream-19", "Stream-20",
-            "Mixer-1", "Mixer-2", "Mixer-3", "Mixer-4",
-            "Mixer-5", "Mixer-6", "Mixer-7", "Mixer-8",
-            "Mixer-9", "Mixer-10", "Mixer-11", "Mixer-12",
-            "Mixer-13", "Mixer-14", "Mixer-15", "Mixer-16"
+            "Analog-1",
+            "Analog-2",
+            "Analog-3",
+            "Analog-4",
+            "Analog-5",
+            "Analog-6",
+            "Analog-7",
+            "Analog-8",
+            "S/PDIF-1",
+            "S/PDIF-2",
+            "ADAT-1",
+            "ADAT-2",
+            "ADAT-3",
+            "ADAT-4",
+            "ADAT-5",
+            "ADAT-6",
+            "ADAT-7",
+            "ADAT-8",
+            "Stream-1",
+            "Stream-2",
+            "Stream-3",
+            "Stream-4",
+            "Stream-5",
+            "Stream-6",
+            "Stream-7",
+            "Stream-8",
+            "Stream-9",
+            "Stream-10",
+            "Stream-11",
+            "Stream-12",
+            "Stream-13",
+            "Stream-14",
+            "Stream-15",
+            "Stream-16",
+            "Stream-17",
+            "Stream-18",
+            "Stream-19",
+            "Stream-20",
+            "Mixer-1",
+            "Mixer-2",
+            "Mixer-3",
+            "Mixer-4",
+            "Mixer-5",
+            "Mixer-6",
+            "Mixer-7",
+            "Mixer-8",
+            "Mixer-9",
+            "Mixer-10",
+            "Mixer-11",
+            "Mixer-12",
+            "Mixer-13",
+            "Mixer-14",
+            "Mixer-15",
+            "Mixer-16",
         ];
-        card_cntr.add_enum_elems(
-            &elem_id,
-            1,
-            22,
-            &supported_source_labels,
-            None,
-            true,
-        )
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 22, &supported_source_labels, None, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        card_cntr.card.read_elem_value(&elem_id, &mut self.router_out_src)?;
-        
+        card_cntr
+            .card
+            .read_elem_value(&elem_id, &mut self.router_out_src)?;
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_MIXER_SRC_NAME, 0);
-        card_cntr.add_enum_elems(
-            &elem_id,
-            1,
-            18,
-            &supported_source_labels[..39], // all, except the mixes
-            None,
-            true,
-        )
+        card_cntr
+            .add_enum_elems(
+                &elem_id,
+                1,
+                18,
+                &supported_source_labels[..39], // all, except the mixes
+                None,
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        card_cntr.card.read_elem_value(&elem_id, &mut self.router_mixer_src)?;
-        
+        card_cntr
+            .card
+            .read_elem_value(&elem_id, &mut self.router_mixer_src)?;
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_METER_SRC_NAME, 0);
-        card_cntr.add_enum_elems(
-            &elem_id,
-            1,
-            2,
-            &supported_source_labels,
-            None,
-            true,
-        )
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 2, &supported_source_labels, None, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        card_cntr.card.read_elem_value(&elem_id, &mut self.router_meter_src)?;
-        
+        card_cntr
+            .card
+            .read_elem_value(&elem_id, &mut self.router_meter_src)?;
+
         self.notified_elem_id_list = notified_elem_id_list;
         self.measured_elem_id_list = measured_elem_id_list;
-        
+
         Ok(())
     }
 
@@ -205,7 +226,8 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
                     let old_value = old_values[i];
                     let new_value = new_values[i];
                     if new_value != old_value {
-                        self.protocol.set_volume(&unit.1, dst_ch, i, new_value, TIMEOUT_MS)?;
+                        self.protocol
+                            .set_volume(&unit.1, dst_ch, i, new_value, TIMEOUT_MS)?;
                     }
                 }
                 self.gain_values[dst_ch].set_int(new_values);
@@ -274,8 +296,16 @@ impl MeasureModel<(SndDice, FwNode)> for SPro40D3Model {
         self.common_ctl
             .cache_partial_params(&self.req, &unit.1, &mut self.sections, TIMEOUT_MS)?;
 
-        self.protocol.get_master_meter(&unit.1, self.common_ctl.global_params.current_rate, TIMEOUT_MS)?;
-        self.protocol.get_mixer_meter(&unit.1, self.common_ctl.global_params.current_rate, TIMEOUT_MS)
+        self.protocol.get_master_meter(
+            &unit.1,
+            self.common_ctl.global_params.current_rate,
+            TIMEOUT_MS,
+        )?;
+        self.protocol.get_mixer_meter(
+            &unit.1,
+            self.common_ctl.global_params.current_rate,
+            TIMEOUT_MS,
+        )
     }
 }
 

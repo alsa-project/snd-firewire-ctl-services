@@ -459,6 +459,7 @@ mod test {
         let mix = 2;
         let volume = 0x1abc;
 
+        #[rustfmt::skip]
         let target = &[
             0x80, 0x00, 0x20, 0x02,
             0x00, 0x00, 0x00, 0x00,
@@ -478,6 +479,7 @@ mod test {
         let pos = 0x3a;
         let len = 2;
 
+        #[rustfmt::skip]
         let target = &[
             0x80, 0x00, 0x10, 0x01,
             0x00, 0x00, 0x00, 0x00,
@@ -496,6 +498,7 @@ mod test {
 
     #[test]
     fn meter_deserialize() {
+        #[rustfmt::skip]
         let frame = &[
             0x80, 0x00, 0x10, 0x01,
             0x00, 0x00, 0x00, 0x00,
@@ -516,20 +519,24 @@ mod test {
 
     #[test]
     fn routing_low_rate_serialize() {
+        #[rustfmt::skip]
         let router_out_src = &[
             39, 40, 39, 40, 39, 40, 39, 40, 39, 40,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0,
         ];
+        #[rustfmt::skip]
         let router_mixer_src = &[
             1, 2, 3, 4, 5, 6, 7, 8,
             0, 0, 0, 0, 0, 0, 0, 0,
             19, 20,
         ];
+        #[rustfmt::skip]
         let router_meter_src = &[
             39, 40,
         ];
 
+        #[rustfmt::skip]
         let target = &[
             // header
             0x80, 0x00, 0x30, 0x02,
@@ -623,20 +630,24 @@ mod test {
 
     #[test]
     fn routing_high_rate_serialize() {
+        #[rustfmt::skip]
         let router_out_src = &[
             39, 40, 39, 40, 39, 40, 39, 40, 39, 40,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0,
         ];
+        #[rustfmt::skip]
         let router_mixer_src = &[
             1, 2, 3, 4, 5, 6, 7, 8,
             0, 0, 0, 0, 0, 0, 0, 0,
             19, 20,
         ];
+        #[rustfmt::skip]
         let router_meter_src = &[
             39, 40,
         ];
 
+        #[rustfmt::skip]
         let target = &[
             // header
             0x80, 0x00, 0x30, 0x02,
