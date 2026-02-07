@@ -11,10 +11,10 @@ pub struct SPro40D3Model {
     notified_elem_id_list: Vec<ElemId>,
     measured_elem_id_list: Vec<ElemId>,
     protocol: SPro40D3Protocol,
-    gain_values: Vec<ElemValue>,
-    router_out_src: ElemValue,
-    router_mixer_src: ElemValue,
-    router_meter_src: ElemValue,
+    gain_values: Vec<[i32; MIX_COUNT]>,
+    router_out_src: Vec<u32>,
+    router_mixer_src: Vec<u32>,
+    router_meter_src: [u32; MASTER_METER_COUNT],
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -44,10 +44,39 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
 
         self.protocol.init_communication(&unit.1, TIMEOUT_MS)?;
 
-        // There is not much to cache here, as I don't know any way to
-        // read the current settings from the card.
+        self.gain_values
+            .resize_with(CHANNEL_COUNT, Default::default);
+        self.router_out_src
+            .resize_with(OUTPUT_COUNT, Default::default);
+        self.router_mixer_src
+            .resize_with(CHANNEL_COUNT, Default::default);
 
-        Ok(())
+        // There doesn't seem to be a way to read the current mixer
+        // levels and routing tables from the card, so we instead
+        // initialize the hardware and the cache with some default
+        // values. This ensures the alsa values will be in sync with
+        // the hardware.
+
+        for mix in 0..MIX_COUNT {
+            for channel in 0..CHANNEL_COUNT {
+                let volume = if mix < 2 && channel < 8 {
+                    0x12f3
+                } else if (channel == 16 && mix == 0) || (channel == 17 && mix == 1) {
+                    0x1ff6
+                } else {
+                    0
+                };
+                self.gain_values[channel][mix] = volume;
+                self.protocol
+                    .set_volume(&unit.1, channel, mix, volume, TIMEOUT_MS)?;
+            }
+        }
+        self.router_out_src[0..10].copy_from_slice(&[39, 40, 39, 40, 39, 40, 39, 40, 39, 40]);
+        self.router_mixer_src
+            .copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 19, 20]);
+        self.router_meter_src.copy_from_slice(&[39, 40]);
+
+        self.set_routing(&unit.1)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -60,21 +89,15 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
         card_cntr
             .add_int_elems(
                 &elem_id,
-                18,
+                CHANNEL_COUNT,
                 COEF_MIN,
                 COEF_MAX,
                 COEF_STEP,
-                16,
+                MIX_COUNT,
                 Some(&Into::<Vec<u32>>::into(COEF_TLV)),
                 true,
             )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        for elem_id in &notified_elem_id_list {
-            let mut v = ElemValue::new();
-            card_cntr.card.read_elem_value(elem_id, &mut v)?;
-            self.gain_values.push(v);
-        }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
         card_cntr
@@ -83,7 +106,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_INPUT_METER_NAME, 0);
         card_cntr
-            .add_int_elems(&elem_id, 1, 0, 0xfff, 1, 18, None, false)
+            .add_int_elems(&elem_id, 1, 0, 0xfff, 1, CHANNEL_COUNT, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_OUT_SRC_NAME, 0);
@@ -145,37 +168,39 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
             "Mixer-16",
         ];
         card_cntr
-            .add_enum_elems(&elem_id, 1, 22, &supported_source_labels, None, true)
+            .add_enum_elems(
+                &elem_id,
+                1,
+                OUTPUT_COUNT,
+                &supported_source_labels,
+                None,
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        card_cntr
-            .card
-            .read_elem_value(&elem_id, &mut self.router_out_src)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_MIXER_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(
                 &elem_id,
                 1,
-                18,
+                CHANNEL_COUNT,
                 &supported_source_labels[..39], // all, except the mixes
                 None,
                 true,
             )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        card_cntr
-            .card
-            .read_elem_value(&elem_id, &mut self.router_mixer_src)?;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ROUTER_METER_SRC_NAME, 0);
         card_cntr
-            .add_enum_elems(&elem_id, 1, 2, &supported_source_labels, None, true)
+            .add_enum_elems(
+                &elem_id,
+                1,
+                MASTER_METER_COUNT,
+                &supported_source_labels,
+                None,
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        card_cntr
-            .card
-            .read_elem_value(&elem_id, &mut self.router_meter_src)?;
 
         self.notified_elem_id_list = notified_elem_id_list;
         self.measured_elem_id_list = measured_elem_id_list;
@@ -196,6 +221,22 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
                     elem_value.set_int(&self.protocol.mixer_meter);
                     Ok(true)
                 }
+                MIXER_SRC_GAIN_NAME => {
+                    elem_value.set_int(&self.gain_values[elem_id.index() as usize]);
+                    Ok(true)
+                }
+                ROUTER_OUT_SRC_NAME => {
+                    elem_value.set_enum(&self.router_out_src);
+                    Ok(true)
+                }
+                ROUTER_MIXER_SRC_NAME => {
+                    elem_value.set_enum(&self.router_mixer_src);
+                    Ok(true)
+                }
+                ROUTER_METER_SRC_NAME => {
+                    elem_value.set_enum(&self.router_meter_src);
+                    Ok(true)
+                }
                 _ => Ok(false),
             }
         }
@@ -207,7 +248,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
         elem_id: &ElemId,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        self.common_ctl.write(
+        if self.common_ctl.write(
             &unit.0,
             &self.req,
             &unit.1,
@@ -215,61 +256,46 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
             elem_id,
             new,
             TIMEOUT_MS,
-        )?;
+        )? {
+            Ok(true)
+        } else {
+            match elem_id.name().as_str() {
+                MIXER_SRC_GAIN_NAME => {
+                    let dst_ch = elem_id.index() as usize;
+                    let old_values = &mut self.gain_values[dst_ch];
+                    let new_values = new.int();
 
-        let dst_ch = elem_id.index() as usize;
-        match elem_id.name().as_str() {
-            MIXER_SRC_GAIN_NAME => {
-                let old_values = self.gain_values[dst_ch].int();
-                let new_values = new.int();
-                for i in 0..16 {
-                    let old_value = old_values[i];
-                    let new_value = new_values[i];
-                    if new_value != old_value {
-                        self.protocol
-                            .set_volume(&unit.1, dst_ch, i, new_value, TIMEOUT_MS)?;
+                    for i in 0..MIX_COUNT {
+                        let old_value = old_values[i];
+                        let new_value = new_values[i];
+                        if new_value != old_value {
+                            self.protocol
+                                .set_volume(&unit.1, dst_ch, i, new_value, TIMEOUT_MS)?;
+                            old_values[i] = new_value;
+                        }
                     }
+                    Ok(true)
                 }
-                self.gain_values[dst_ch].set_int(new_values);
-                Ok(true)
+                ROUTER_OUT_SRC_NAME => {
+                    self.router_out_src
+                        .copy_from_slice(&new.enumerated()[0..OUTPUT_COUNT]);
+                    self.set_routing(&unit.1)?;
+                    Ok(true)
+                }
+                ROUTER_MIXER_SRC_NAME => {
+                    self.router_mixer_src
+                        .copy_from_slice(&new.enumerated()[0..CHANNEL_COUNT]);
+                    self.set_routing(&unit.1)?;
+                    Ok(true)
+                }
+                ROUTER_METER_SRC_NAME => {
+                    self.router_meter_src
+                        .copy_from_slice(&new.enumerated()[0..MASTER_METER_COUNT]);
+                    self.set_routing(&unit.1)?;
+                    Ok(true)
+                }
+                _ => Ok(false),
             }
-            ROUTER_OUT_SRC_NAME => {
-                let new_values = new.enumerated();
-                self.router_out_src.set_enum(new_values);
-                self.protocol.set_routing(
-                    &unit.1,
-                    new_values,
-                    self.router_mixer_src.enumerated(),
-                    self.router_meter_src.enumerated(),
-                    TIMEOUT_MS,
-                )?;
-                Ok(true)
-            }
-            ROUTER_MIXER_SRC_NAME => {
-                let new_values = new.enumerated();
-                self.router_mixer_src.set_enum(new_values);
-                self.protocol.set_routing(
-                    &unit.1,
-                    self.router_out_src.enumerated(),
-                    new_values,
-                    self.router_meter_src.enumerated(),
-                    TIMEOUT_MS,
-                )?;
-                Ok(true)
-            }
-            ROUTER_METER_SRC_NAME => {
-                let new_values = new.enumerated();
-                self.router_meter_src.set_enum(new_values);
-                self.protocol.set_routing(
-                    &unit.1,
-                    self.router_out_src.enumerated(),
-                    self.router_mixer_src.enumerated(),
-                    new_values,
-                    TIMEOUT_MS,
-                )?;
-                Ok(true)
-            }
-            _ => Ok(false),
         }
     }
 }
@@ -304,6 +330,18 @@ impl MeasureModel<(SndDice, FwNode)> for SPro40D3Model {
         self.protocol.get_mixer_meter(
             &unit.1,
             self.common_ctl.global_params.current_rate,
+            TIMEOUT_MS,
+        )
+    }
+}
+
+impl SPro40D3Model {
+    fn set_routing(&mut self, node: &FwNode) -> Result<(), Error> {
+        self.protocol.set_routing(
+            node,
+            &self.router_out_src,
+            &self.router_mixer_src,
+            &self.router_meter_src,
             TIMEOUT_MS,
         )
     }

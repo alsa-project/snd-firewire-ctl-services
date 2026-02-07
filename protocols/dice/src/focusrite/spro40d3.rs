@@ -24,9 +24,14 @@ pub struct SPro40D3Protocol {
     read_address: u64,
     rx: Option<mpsc::Receiver<(u32, u16)>>,
     counter: u16,
-    pub master_meter: [i32; 2],
-    pub mixer_meter: [i32; 18],
+    pub master_meter: [i32; MASTER_METER_COUNT],
+    pub mixer_meter: [i32; CHANNEL_COUNT],
 }
+
+pub const MIX_COUNT: usize = 16;
+pub const OUTPUT_COUNT: usize = 22;
+pub const CHANNEL_COUNT: usize = 18;
+pub const MASTER_METER_COUNT: usize = 2;
 
 const NONE: u32 = 0;
 const ANALOG: u32 = 0x80;
@@ -356,10 +361,10 @@ impl SPro40D3Protocol {
         current_rate: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut frame = vec![0; 24];
+        let mut frame = vec![0; 16 + MASTER_METER_COUNT * 4];
         serialize_get_meter(
             if current_rate > 48000 { 0x32 } else { 0x3a },
-            2,
+            MASTER_METER_COUNT as u8,
             &mut frame,
         );
         self.send_command(node, 24, &mut frame, timeout_ms)?;
@@ -373,10 +378,10 @@ impl SPro40D3Protocol {
         current_rate: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut frame = vec![0; 88];
+        let mut frame = vec![0; 16 + CHANNEL_COUNT * 4];
         serialize_get_meter(
             if current_rate > 48000 { 0x20 } else { 0x28 },
-            18,
+            CHANNEL_COUNT as u8,
             &mut frame,
         );
         self.send_command(node, 24, &mut frame, timeout_ms)?;
