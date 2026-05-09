@@ -349,6 +349,277 @@ impl MeterCtls {
 }
 
 #[derive(Default)]
+struct OutGroupCtl {
+    state: OutGroupState,
+}
+
+impl OutGroupCtl {
+    const LEVEL_MIN: i32 = 0;
+    const LEVEL_MAX: i32 = i8::MAX as i32;
+    const LEVEL_STEP: i32 = 0x01;
+
+    fn cache(
+        &mut self,
+        protocol: &mut SPro40D3Protocol,
+        node: &FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        protocol.cache_output_group(node, &mut self.state, timeout_ms)
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                10,
+                None,
+                true,
+            )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 10, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_TARGET_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 10, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_TARGET_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 10, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_TARGET_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 10, true)?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        let params = &self.state;
+        match elem_id.name().as_str() {
+            VOL_NAME => {
+                let vals: Vec<i32> = params.vols.iter().map(|&vol| vol as i32).collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            VOL_MUTE_NAME => {
+                elem_value.set_bool(&params.vol_mutes);
+                Ok(true)
+            }
+            VOL_TARGET_NAME => {
+                elem_value.set_bool(&params.vol_hwctls);
+                Ok(true)
+            }
+            MUTE_NAME => {
+                elem_value.set_bool(&[params.mute_enabled]);
+                Ok(true)
+            }
+            MUTE_TARGET_NAME => {
+                elem_value.set_bool(&params.mute_hwctls);
+                Ok(true)
+            }
+            DIM_NAME => {
+                elem_value.set_bool(&[params.dim_enabled]);
+                Ok(true)
+            }
+            DIM_TARGET_NAME => {
+                elem_value.set_bool(&params.dim_hwctls);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        protocol: &mut SPro40D3Protocol,
+        node: &FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            VOL_NAME => {
+                let mut params = self.state.clone();
+                params
+                    .vols
+                    .iter_mut()
+                    .zip(elem_value.int())
+                    .for_each(|(vol, &val)| *vol = val as i8);
+
+                protocol.set_output_vol(node, &params, &mut self.state, timeout_ms)?;
+                Ok(true)
+            }
+            VOL_MUTE_NAME => {
+                let mut params = self.state.clone();
+                params
+                    .vol_mutes
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(vol_mute, val)| *vol_mute = val);
+
+                protocol.set_vol_hwctl_mute(node, &params, &mut self.state, timeout_ms)?;
+                Ok(true)
+            }
+            VOL_TARGET_NAME => {
+                let mut params = self.state.clone();
+                params
+                    .vol_hwctls
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(vol_hwctl, val)| *vol_hwctl = val);
+
+                protocol.set_vol_hwctl_mute(node, &params, &mut self.state, timeout_ms)?;
+                Ok(true)
+            }
+            MUTE_NAME => {
+                self.state.mute_enabled = elem_value.boolean()[0];
+                protocol.set_mute(node, self.state.mute_enabled as u32, timeout_ms)?;
+                Ok(true)
+            }
+            MUTE_TARGET_NAME => {
+                let params = &mut self.state;
+                params
+                    .mute_hwctls
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(mute_hwctl, val)| *mute_hwctl = val);
+                protocol.set_dim_mute_hwctl(node, params, timeout_ms)?;
+                Ok(true)
+            }
+            DIM_NAME => {
+                self.state.dim_enabled = elem_value.boolean()[0];
+                protocol.set_dim(node, self.state.dim_enabled as u32, timeout_ms)?;
+                Ok(true)
+            }
+            DIM_TARGET_NAME => {
+                let params = &mut self.state;
+                params
+                    .dim_hwctls
+                    .iter_mut()
+                    .zip(elem_value.boolean())
+                    .for_each(|(dim_hwctl, val)| *dim_hwctl = val);
+                protocol.set_dim_mute_hwctl(node, params, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn parse_notification(
+        &mut self,
+        protocol: &mut SPro40D3Protocol,
+        node: &FwNode,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if msg & NOTIFY_DIM_MUTE_CHANGE != 0 {
+            protocol.cache_dim_mute(&mut self.state, node, timeout_ms)?;
+        }
+        if msg & NOTIFY_VOL_CHANGE != 0 {
+            self.state.hw_knob_value = protocol.get_monitor_volume(node, timeout_ms)? as i8;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct IoParamsCtl {
+    params: SaffireproIoParams,
+}
+
+impl IoParamsCtl {
+    fn cache(
+        &mut self,
+        protocol: &mut SPro40D3Protocol,
+        node: &FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.params.opt_out_iface_mode = match protocol.get_use_adat_as_spdif(node, timeout_ms)? {
+            1 => OpticalOutIfaceMode::Spdif,
+            _ => OpticalOutIfaceMode::Adat,
+        };
+        self.params.analog_out_0_1_pad = protocol.get_active_monitor_pad(node, timeout_ms)? != 0;
+        Ok(())
+    }
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_OUT_0_1_PAD_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let optical_out_iface_modes = ["ADAT", "S/PDIF"];
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPTICAL_OUT_IFACE_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &optical_out_iface_modes, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ANALOG_OUT_0_1_PAD_NAME => {
+                elem_value.set_bool(&[self.params.analog_out_0_1_pad]);
+                Ok(true)
+            }
+            OPTICAL_OUT_IFACE_MODE_NAME => {
+                let mode = match self.params.opt_out_iface_mode {
+                    OpticalOutIfaceMode::Spdif => 1,
+                    _ => 0,
+                };
+                elem_value.set_enum(&[mode]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        protocol: &mut SPro40D3Protocol,
+        node: &FwNode,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.name().as_str() {
+            ANALOG_OUT_0_1_PAD_NAME => {
+                protocol.set_active_monitor_pad(
+                    node,
+                    elem_value.boolean()[0] as u32,
+                    timeout_ms,
+                )?;
+                Ok(true)
+            }
+            OPTICAL_OUT_IFACE_MODE_NAME => {
+                let value = elem_value.enumerated()[0];
+                self.params.opt_out_iface_mode = match value {
+                    1 => OpticalOutIfaceMode::Spdif,
+                    _ => OpticalOutIfaceMode::Adat,
+                };
+                protocol.set_use_adat_as_spdif(node, value, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct SPro40D3Model {
     req: FwReq,
     sections: GeneralSections,
@@ -359,6 +630,8 @@ pub struct SPro40D3Model {
     mixer_ctls: MixerCtls,
     router_ctls: RouterCtls,
     meter_ctls: MeterCtls,
+    out_grp_ctl: OutGroupCtl,
+    io_params_ctl: IoParamsCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -374,7 +647,12 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
 
         self.mixer_ctls
             .cache(&mut self.protocol, node, TIMEOUT_MS)?;
-        self.router_ctls.cache(&mut self.protocol, node, TIMEOUT_MS)
+        self.router_ctls
+            .cache(&mut self.protocol, node, TIMEOUT_MS)?;
+        self.out_grp_ctl
+            .cache(&mut self.protocol, node, TIMEOUT_MS)?;
+        self.io_params_ctl
+            .cache(&mut self.protocol, node, TIMEOUT_MS)
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -395,6 +673,12 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
             .load(card_cntr)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
+        self.out_grp_ctl
+            .load(card_cntr)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        self.io_params_ctl.load(card_cntr)?;
+
         self.notified_elem_id_list = notified_elem_id_list;
         self.measured_elem_id_list = measured_elem_id_list;
 
@@ -405,7 +689,9 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
         let res = self.common_ctl.read(elem_id, elem_value)?
             || self.mixer_ctls.read(elem_id, elem_value)?
             || self.router_ctls.read(elem_id, elem_value)?
-            || self.meter_ctls.read(elem_id, elem_value)?;
+            || self.meter_ctls.read(elem_id, elem_value)?
+            || self.out_grp_ctl.read(elem_id, elem_value)?
+            || self.io_params_ctl.read(elem_id, elem_value)?;
         Ok(res)
     }
 
@@ -435,6 +721,18 @@ impl CtlModel<(SndDice, FwNode)> for SPro40D3Model {
             elem_id,
             elem_value,
             TIMEOUT_MS,
+        )? || self.out_grp_ctl.write(
+            &mut self.protocol,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? || self.io_params_ctl.write(
+            &mut self.protocol,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
         )?;
         Ok(res)
     }
@@ -451,8 +749,15 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro40D3Model {
         (_, node): &mut (SndDice, FwNode),
         msg: &u32,
     ) -> Result<(), Error> {
-        self.common_ctl
-            .parse_notification(&self.req, node, &mut self.sections, *msg, TIMEOUT_MS)
+        self.common_ctl.parse_notification(
+            &self.req,
+            node,
+            &mut self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
+        self.out_grp_ctl
+            .parse_notification(&mut self.protocol, node, *msg, TIMEOUT_MS)
     }
 }
 
@@ -483,3 +788,6 @@ const ROUTER_MIXER_SRC_NAME: &str = "mixer-source";
 const ROUTER_METER_SRC_NAME: &str = "meter-source";
 
 const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
+
+const NOTIFY_DIM_MUTE_CHANGE: u32 = 0x00200000;
+const NOTIFY_VOL_CHANGE: u32 = 0x00400000;

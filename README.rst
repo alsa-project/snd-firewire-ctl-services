@@ -224,8 +224,8 @@ However, we welcome any assistance that can enhance the project.
   * The most of monitor parameters may not work for Alesis iO 14/26 FireWire. This may come from
     firmware version.
   * The channel strip dynamics, equalizer, and reverb are not available for Lexicon I-ONIX 810s.
-  * Late versions of Focusrite Saffire Pro 40 (using TCD3070 ASIC) are only partial supported.
-    Mixer levels, metering and routing are supported.
+  * Late versions of Focusrite Saffire Pro 40 (using TCD3070 ASIC) are supported, but support
+    for saving and loading settings for standalone mode is missing.
   * No control is available for Solid State Logic Duende Classic and Mini.
 
 * snd-firewire-digi00x-ctl-service
