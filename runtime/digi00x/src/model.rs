@@ -11,6 +11,7 @@ pub struct Digi002Model {
     common_ctl: CommonCtl<Digi002Protocol>,
     meter_ctl: MeterCtl<Digi002Protocol>,
     monitor_ctl: MonitorCtl<Digi002Protocol>,
+    opt_iface_ctl: OpticalIfaceCtl<Digi003Protocol>,
 }
 
 impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
@@ -19,6 +20,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.monitor_ctl
             .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
+        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -26,6 +28,7 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         self.common_ctl.load(card_cntr)?;
         self.meter_ctl.load(card_cntr)?;
         self.monitor_ctl.load(card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -35,6 +38,8 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -53,6 +58,15 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
         {
             Ok(true)
         } else if self.monitor_ctl.write(
+            unit,
+            &mut self.req,
+            node,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
+            Ok(true)
+        } else if self.opt_iface_ctl.write(
             unit,
             &mut self.req,
             node,
@@ -103,7 +117,7 @@ pub struct Digi003Model {
     common_ctl: CommonCtl<Digi003Protocol>,
     meter_ctl: MeterCtl<Digi003Protocol>,
     monitor_ctl: MonitorCtl<Digi003Protocol>,
-    opt_iface_ctl: OpticalIfaceCtl,
+    opt_iface_ctl: OpticalIfaceCtl<Digi003Protocol>,
 }
 
 impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
@@ -368,9 +382,15 @@ where
 }
 
 #[derive(Default, Debug)]
-struct OpticalIfaceCtl {
+struct OpticalIfaceCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode>
+        + Dg00xWhollyUpdatableParamsOperation<OpticalInterfaceMode>,
+{
     elem_id_list: Vec<ElemId>,
     opt_iface_mode: OpticalInterfaceMode,
+    _phantom: PhantomData<T>,
 }
 
 fn optical_interface_mode_to_str(mode: &OpticalInterfaceMode) -> &'static str {
@@ -382,12 +402,17 @@ fn optical_interface_mode_to_str(mode: &OpticalInterfaceMode) -> &'static str {
 
 const OPT_IFACE_NAME: &str = "optical-interface";
 
-impl OpticalIfaceCtl {
+impl<T> OpticalIfaceCtl<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode>
+        + Dg00xWhollyUpdatableParamsOperation<OpticalInterfaceMode>,
+{
     const OPTICAL_INTERFACE_MODES: &'static [OpticalInterfaceMode] =
         &[OpticalInterfaceMode::Adat, OpticalInterfaceMode::Spdif];
 
     fn cache(&mut self, req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let res = Digi003Protocol::cache_wholly(req, node, &mut self.opt_iface_mode, timeout_ms);
+        let res = T::cache_wholly(req, node, &mut self.opt_iface_mode, timeout_ms);
         debug!(params = ?self.opt_iface_mode, ?res);
         res
     }
@@ -444,7 +469,7 @@ impl OpticalIfaceCtl {
                         Error::new(FileError::Inval, &msg)
                     })
                     .copied()?;
-                let res = Digi003Protocol::update_wholly(req, node, &params, timeout_ms)
+                let res = T::update_wholly(req, node, &params, timeout_ms)
                     .map(|_| self.opt_iface_mode = params);
                 debug!(params = ?self.opt_iface_mode, ?res);
                 res.map(|_| true)
