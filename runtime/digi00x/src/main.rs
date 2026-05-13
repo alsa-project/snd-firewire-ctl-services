@@ -15,6 +15,7 @@ use {
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
+    protocols::{Digi002Protocol, Digi003Protocol},
     runtime_core::{card_cntr::*, cmdline::*, dispatcher::*, LogLevel, *},
     std::{convert::TryFrom, sync::mpsc, thread},
     ta1394_avc_general::config_rom::Ta1394ConfigRom,
@@ -31,8 +32,8 @@ enum Event {
 }
 
 enum Model {
-    Digi002(Digi002Model),
-    Digi003(Digi003Model),
+    Digi002(Digi00xModel<Digi002Protocol>),
+    Digi003(Digi00xModel<Digi003Protocol>),
 }
 
 struct Dg00xRuntime {

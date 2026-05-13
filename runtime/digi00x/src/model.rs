@@ -6,15 +6,35 @@ use {super::*, alsa_ctl_tlv_codec::DbInterval, protocols::*, std::marker::Phanto
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-pub struct Digi002Model {
+pub struct Digi00xModel<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
     req: FwReq,
-    common_ctl: CommonCtl<Digi002Protocol>,
-    meter_ctl: MeterCtl<Digi002Protocol>,
-    monitor_ctl: MonitorCtl<Digi002Protocol>,
-    opt_iface_ctl: OpticalIfaceCtl<Digi003Protocol>,
+    common_ctl: CommonCtl<T>,
+    meter_ctl: MeterCtl<T>,
+    monitor_ctl: MonitorCtl<T>,
+    opt_iface_ctl: OpticalIfaceCtl<T>,
 }
 
-impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
+impl<T> CtlModel<(SndDigi00x, FwNode)> for Digi00xModel<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
     fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
         self.common_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
         self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
@@ -81,7 +101,17 @@ impl CtlModel<(SndDigi00x, FwNode)> for Digi002Model {
     }
 }
 
-impl MeasureModel<(SndDigi00x, FwNode)> for Digi002Model {
+impl<T> MeasureModel<(SndDigi00x, FwNode)> for Digi00xModel<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
     }
@@ -91,113 +121,17 @@ impl MeasureModel<(SndDigi00x, FwNode)> for Digi002Model {
     }
 }
 
-impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi002Model {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.elem_id_list);
-        elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
-    }
-
-    fn parse_notification(
-        &mut self,
-        (unit, node): &mut (SndDigi00x, FwNode),
-        &locked: &bool,
-    ) -> Result<(), Error> {
-        if locked {
-            self.common_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        }
-        self.monitor_ctl
-            .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
-        Ok(())
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct Digi003Model {
-    req: FwReq,
-    common_ctl: CommonCtl<Digi003Protocol>,
-    meter_ctl: MeterCtl<Digi003Protocol>,
-    monitor_ctl: MonitorCtl<Digi003Protocol>,
-    opt_iface_ctl: OpticalIfaceCtl<Digi003Protocol>,
-}
-
-impl CtlModel<(SndDigi00x, FwNode)> for Digi003Model {
-    fn cache(&mut self, (unit, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
-        self.common_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        self.monitor_ctl
-            .cache(unit, &mut self.req, node, TIMEOUT_MS)?;
-        self.opt_iface_ctl.cache(&mut self.req, node, TIMEOUT_MS)?;
-        Ok(())
-    }
-
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr)?;
-        self.meter_ctl.load(card_cntr)?;
-        self.monitor_ctl.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr)?;
-        Ok(())
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.common_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write(
-        &mut self,
-        (unit, node): &mut (SndDigi00x, FwNode),
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
-        if self
-            .common_ctl
-            .write(unit, &mut self.req, node, elem_id, elem_value, TIMEOUT_MS)?
-        {
-            Ok(true)
-        } else if self.monitor_ctl.write(
-            unit,
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else if self.opt_iface_ctl.write(
-            unit,
-            &mut self.req,
-            node,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl MeasureModel<(SndDigi00x, FwNode)> for Digi003Model {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.elem_id_list);
-    }
-
-    fn measure_states(&mut self, (_, node): &mut (SndDigi00x, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.cache(&mut self.req, node, TIMEOUT_MS)
-    }
-}
-
-impl NotifyModel<(SndDigi00x, FwNode), bool> for Digi003Model {
+impl<T> NotifyModel<(SndDigi00x, FwNode), bool> for Digi00xModel<T>
+where
+    T: Dg00xHardwareSpecification
+        + Dg00xWhollyCachableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xSamplingClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyUpdatableParamsOperation<Dg00xMediaClockParameters>
+        + Dg00xWhollyCachableParamsOperation<Dg00xMonitorState>
+        + Dg00xPartiallyUpdatableParamsOperation<Dg00xMonitorState>
+        + Dg00xWhollyCachableParamsOperation<Dg00xExternalClockParameters>,
+{
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.elem_id_list);
         elem_id_list.extend_from_slice(&self.monitor_ctl.elem_id_list);
