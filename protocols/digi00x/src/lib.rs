@@ -277,7 +277,10 @@ impl Default for OpticalInterfaceMode {
     }
 }
 
-impl Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode> for Digi003Protocol {
+impl<O> Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode> for O
+where
+    O: Dg00xHardwareSpecification,
+{
     fn cache_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -294,7 +297,10 @@ impl Dg00xWhollyCachableParamsOperation<OpticalInterfaceMode> for Digi003Protoco
     }
 }
 
-impl Dg00xWhollyUpdatableParamsOperation<OpticalInterfaceMode> for Digi003Protocol {
+impl<O> Dg00xWhollyUpdatableParamsOperation<OpticalInterfaceMode> for O
+where
+    O: Dg00xHardwareSpecification,
+{
     fn update_wholly(
         req: &mut FwReq,
         node: &mut FwNode,
