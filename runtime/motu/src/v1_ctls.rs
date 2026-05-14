@@ -26,7 +26,7 @@ fn clk_src_to_str(src: &V1ClkSrc) -> &'static str {
     }
 }
 
-const RATE_NAME: &str = "sampling- rate";
+const RATE_NAME: &str = "sampling-rate";
 const SRC_NAME: &str = "clock-source";
 
 impl<T> V1ClkCtl<T>
