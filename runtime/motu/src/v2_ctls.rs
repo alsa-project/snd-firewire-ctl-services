@@ -15,7 +15,7 @@ where
     _phantom: PhantomData<T>,
 }
 
-const RATE_NAME: &str = "sampling- rate";
+const RATE_NAME: &str = "sampling-rate";
 const SRC_NAME: &str = "clock-source";
 
 impl<T> V2ClkCtl<T>
