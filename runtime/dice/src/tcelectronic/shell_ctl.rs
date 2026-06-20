@@ -270,7 +270,7 @@ where
             LEVEL_MIN,
             LEVEL_MAX,
             LEVEL_STEP,
-            1,
+            labels.len(),
             Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
             true,
         )
