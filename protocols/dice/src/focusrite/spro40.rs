@@ -28,10 +28,10 @@
 //!                          ||             || ----> analog-output-9/10
 //! spdif-input-1/2 -------> ||             || ----> spdif-output-1/2
 //! spdif-input-3/4 -------> ||             || ----> spdif-output-3/4
-//! adat-input-1/2 --------> ||             || ----> adat-input-1/2
-//! adat-input-3/4 --------> ||             || ----> adat-input-3/4
-//! adat-input-5/6 --------> ||             || ----> adat-input-5/6
-//! adat-input-7/8 --------> ||             || ----> adat-input-7/8
+//! adat-input-1/2 --------> ||             || ----> adat-output-1/2
+//! adat-input-3/4 --------> ||             || ----> adat-output-3/4
+//! adat-input-5/6 --------> ||             || ----> adat-output-5/6
+//! adat-input-7/8 --------> ||             || ----> adat-output-7/8
 //!                          ||             ||
 //! stream-input-A-1/2 ----> ||             || ----> stream-output-A-1/2
 //! stream-input-A-3/4 ----> ||             || ----> stream-output-A-3/4
