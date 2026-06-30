@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Saffire Pro 40.
 //!
-//! ## Diagram of internal signal flow for Saffire Pro 26.
+//! ## Diagram of internal signal flow for Saffire Pro 40.
 //!
 //! I note that optical input interface is available exclusively for ADAT input and S/PDIF input.
 //!
