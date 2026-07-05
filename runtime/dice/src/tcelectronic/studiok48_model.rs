@@ -240,6 +240,14 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     }
 }
 
+fn element_at_or_error<'a, L>(slice: &'a [L], pos: usize, label: &'a str) -> Result<&'a L, Error> {
+    slice.get(pos).ok_or_else(|| {
+        let upper_bound = slice.len();
+        let msg = format!("Index of {label} should be less than {upper_bound}, but {pos}");
+        Error::new(FileError::Inval, &msg)
+    })
+}
+
 fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     match level {
         NominalSignalLevel::Professional => "+4dBu",
@@ -361,13 +369,7 @@ impl LineoutCtl {
     {
         let mut params = self.0.data.clone();
         let pos = elem_value.enumerated()[0] as usize;
-        Self::NOMINAL_SIGNAL_LEVELS
-            .iter()
-            .nth(pos)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of nominal level: {}", pos);
-                Error::new(FileError::Inval, &msg)
-            })
+        element_at_or_error(&Self::NOMINAL_SIGNAL_LEVELS, pos, "nominal level")
             .map(|&l| cb(&mut params, l))?;
         let res =
             Studiok48Protocol::update_partial_segment(req, node, &params, &mut self.0, timeout_ms);
@@ -569,16 +571,12 @@ impl RemoteCtl {
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .try_for_each(|(assign, &val)| {
-                        let pos = val as usize;
-                        MixerStateCtl::SRC_PAIR_ENTRIES
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid index of source of user assignment: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&s| *assign = s)
+                        element_at_or_error(
+                            &MixerStateCtl::SRC_PAIR_ENTRIES,
+                            val as usize,
+                            "source of user assignment",
+                        )
+                        .map(|&s| *assign = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -592,14 +590,8 @@ impl RemoteCtl {
             }
             EFFECT_BUTTON_MODE_NAME => {
                 let mut params = self.0.data.clone();
-                let val = elem_value.enumerated()[0] as usize;
-                Self::EFFECT_BUTTON_MODES
-                    .iter()
-                    .nth(val)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of source of user assignment: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })
+                let pos = elem_value.enumerated()[0] as usize;
+                element_at_or_error(&Self::EFFECT_BUTTON_MODES, pos, "effect button mode")
                     .map(|&m| params.effect_button_mode = m)?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -640,13 +632,7 @@ impl RemoteCtl {
             KNOB_PUSH_MODE_NAME => {
                 let mut params = self.0.data.clone();
                 let pos = elem_value.enumerated()[0] as usize;
-                Self::KNOB_PUSH_MODES
-                    .iter()
-                    .nth(pos)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of source of user assignment: {}", pos);
-                        Error::new(FileError::Inval, &msg)
-                    })
+                element_at_or_error(&Self::KNOB_PUSH_MODES, pos, "knob push mode")
                     .map(|&m| params.knob_push_mode = m)?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -837,13 +823,7 @@ impl ConfigCtl {
                 OPT_IFACE_MODE_NAME => {
                     let mut params = self.0.data.clone();
                     let pos = elem_value.enumerated()[0] as usize;
-                    Self::OPT_IFACE_MODES
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of standalone clock source: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
+                    element_at_or_error(&Self::OPT_IFACE_MODES, pos, "optical interface mode")
                         .map(|&m| params.opt_iface_mode = m)?;
                     let res = Studiok48Protocol::update_partial_segment(
                         req,
@@ -858,13 +838,7 @@ impl ConfigCtl {
                 STANDALONE_CLK_SRC_NAME => {
                     let mut params = self.0.data.clone();
                     let pos = elem_value.enumerated()[0] as usize;
-                    Self::STANDALONE_CLK_SRCS
-                        .iter()
-                        .nth(pos)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of standalone clock source: {}", pos);
-                            Error::new(FileError::Inval, &msg)
-                        })
+                    element_at_or_error(&Self::STANDALONE_CLK_SRCS, pos, "standalone clock source")
                         .map(|&s| params.standalone_src = s)?;
                     let res = Studiok48Protocol::update_partial_segment(
                         req,
@@ -1330,15 +1304,8 @@ impl MixerStateCtl {
                     .zip(elem_value.enumerated())
                     .try_for_each(|(pair, &val)| {
                         let pos = val as usize;
-                        let mode = Self::SRC_PAIR_MODES
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid value for index of mixer source: {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .copied()?;
+                        let mode =
+                            *element_at_or_error(&Self::SRC_PAIR_MODES, pos, "mixer source pair")?;
                         if mode == MonitorSrcPairMode::Fixed {
                             let msg = format!("The fixed mode is not newly available: {}", pos);
                             Err(Error::new(FileError::Inval, &msg))
@@ -1366,14 +1333,7 @@ impl MixerStateCtl {
                     .zip(elem_value.enumerated())
                     .try_for_each(|(entry, &val)| {
                         let pos = val as usize;
-                        Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid value for index of mixer source: {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
+                        element_at_or_error(&Self::SRC_PAIR_ENTRIES, pos, "mixer source entry")
                             .map(|&s| entry.src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
@@ -1603,14 +1563,7 @@ impl MixerStateCtl {
                     .zip(elem_value.enumerated())
                     .try_for_each(|(src, &val)| {
                         let pos = val as usize;
-                        Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid value for index of ch strip source: {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
+                        element_at_or_error(&Self::SRC_PAIR_ENTRIES, pos, "ch strip source")
                             .map(|&s| *src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
@@ -2400,13 +2353,7 @@ impl PhysOutCtl {
                     .zip(elem_value.enumerated())
                     .try_for_each(|(entry, &val)| {
                         let pos = val as usize;
-                        Self::PHYS_OUT_SRCS
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg = format!("output source not found for position {}", pos);
-                                Error::new(FileError::Inval, &msg)
-                            })
+                        element_at_or_error(&Self::PHYS_OUT_SRCS, pos, "output source")
                             .map(|&s| entry.src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
@@ -2527,18 +2474,13 @@ impl PhysOutCtl {
                     .out_grps
                     .iter_mut()
                     .zip(elem_value.enumerated())
-                    .try_for_each(|(out_grp, &val)| {
-                        Self::CROSS_OVER_FREQS
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg = format!(
-                                    "Invalid value for index of cross over frequency: {}",
-                                    val
-                                );
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&freq| out_grp.main_cross_over_freq = freq)
+                    .try_for_each(|(out_grp, &pos)| {
+                        element_at_or_error(
+                            &Self::CROSS_OVER_FREQS,
+                            pos as usize,
+                            "cross over frequency",
+                        )
+                        .map(|&freq| out_grp.main_cross_over_freq = freq)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -2592,16 +2534,7 @@ impl PhysOutCtl {
                     .zip(elem_value.int())
                     .try_for_each(|(out_grp, &val)| {
                         let pos = val as usize;
-                        Self::HIGH_PASS_FREQS
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg = format!(
-                                    "Invalid value for index of high pass frequency: {}",
-                                    pos
-                                );
-                                Error::new(FileError::Inval, &msg)
-                            })
+                        element_at_or_error(&Self::HIGH_PASS_FREQS, pos, "high pass frequency")
                             .map(|&freq| out_grp.main_filter_for_main = freq)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
@@ -2622,16 +2555,7 @@ impl PhysOutCtl {
                     .zip(elem_value.int())
                     .try_for_each(|(out_grp, &val)| {
                         let pos = val as usize;
-                        Self::LOW_PASS_FREQS
-                            .iter()
-                            .nth(pos)
-                            .ok_or_else(|| {
-                                let msg = format!(
-                                    "Invalid value for index of low pass frequency: {}",
-                                    pos
-                                );
-                                Error::new(FileError::Inval, &msg)
-                            })
+                        element_at_or_error(&Self::LOW_PASS_FREQS, pos, "low pass frequency")
                             .map(|&freq| out_grp.main_filter_for_sub = freq)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
