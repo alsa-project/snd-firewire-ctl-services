@@ -240,6 +240,12 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     }
 }
 
+fn generate_channel_pair_labels(name: &str, count: usize) -> Vec<String> {
+    (0..count)
+        .map(|i| format!("{}-{}/{}", name, i * 2 + 1, i * 2 + 2))
+        .collect()
+}
+
 fn elements_to_str_vector<'a, T: 'a, I, F>(elements: I, element_to_string: F) -> Vec<&'static str>
 where
     I: IntoIterator<Item = &'a T>,
@@ -1023,9 +1029,7 @@ impl MixerStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = (0..self.0.data.src_pairs.len())
-            .map(|i| format!("Mixer-source-{}/{}", i + 1, i + 2))
-            .collect();
+        let labels = generate_channel_pair_labels("Mixer-source", self.0.data.src_pairs.len());
         let item_labels = elements_to_str_vector(&Self::SRC_PAIR_MODES, src_pair_mode_to_str);
         self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
         self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, labels.len())?;
@@ -1053,9 +1057,7 @@ impl MixerStateCtl {
         let labels = &Self::SEND_TARGET_LABELS;
         self.state_add_elem_bool(card_cntr, POST_FADER_NAME, 1, labels.len())?;
 
-        let labels: Vec<String> = (0..2)
-            .map(|i| format!("Channel-strip-{}/{}", i + 1, i + 2))
-            .collect();
+        let labels = generate_channel_pair_labels("Channel-strip", 2);
         self.state_add_elem_bool(card_cntr, CH_STRIP_AS_PLUGIN_NAME, 1, labels.len())?;
         let labels: Vec<String> = (0..4).map(|i| format!("Channel-strip-{}", i)).collect();
         self.state_add_elem_enum(card_cntr, CH_STRIP_SRC_NAME, 1, labels.len(), &item_labels)?;
