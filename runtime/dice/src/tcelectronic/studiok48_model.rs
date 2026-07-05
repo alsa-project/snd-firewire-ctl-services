@@ -248,6 +248,14 @@ where
     elements.into_iter().map(element_to_string).collect()
 }
 
+fn elements_to_string_vector<'a, T: 'a, I, F>(elements: I, element_to_string: F) -> Vec<String>
+where
+    I: IntoIterator<Item = &'a T>,
+    F: Fn(&'a T) -> String,
+{
+    elements.into_iter().map(element_to_string).collect()
+}
+
 fn element_at_or_error<'a, L>(slice: &'a [L], pos: usize, label: &'a str) -> Result<&'a L, Error> {
     slice.get(pos).ok_or_else(|| {
         let upper_bound = slice.len();
@@ -443,10 +451,8 @@ impl RemoteCtl {
         load_prog::<Studiok48Protocol, StudioRemote>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = MixerStateCtl::SRC_PAIR_ENTRIES
-            .iter()
-            .map(|src| src_pair_entry_to_string(src))
-            .collect();
+        let labels =
+            elements_to_string_vector(&MixerStateCtl::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USER_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(
@@ -1027,10 +1033,8 @@ impl MixerStateCtl {
         let labels: Vec<String> = (0..(self.0.data.src_pairs.len() * 2))
             .map(|i| format!("Mixer-source-{}", i + 1))
             .collect();
-        let item_labels: Vec<String> = Self::SRC_PAIR_ENTRIES
-            .iter()
-            .map(|s| src_pair_entry_to_string(s))
-            .collect();
+        let item_labels =
+            elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
         self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
         self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, labels.len())?;
         self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, labels.len())?;
@@ -1949,10 +1953,7 @@ impl PhysOutCtl {
             .add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::PHYS_OUT_SRCS
-            .iter()
-            .map(|src| src_pair_entry_to_string(src))
-            .collect();
+        let labels = elements_to_string_vector(&Self::PHYS_OUT_SRCS, src_pair_entry_to_string);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(
