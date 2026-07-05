@@ -240,6 +240,10 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     }
 }
 
+fn generate_channel_labels(name: &str, count: usize) -> Vec<String> {
+    (0..count).map(|i| format!("{}-{}", name, i + 1)).collect()
+}
+
 fn generate_channel_pair_labels(name: &str, count: usize) -> Vec<String> {
     (0..count)
         .map(|i| format!("{}-{}/{}", name, i * 2 + 1, i * 2 + 2))
@@ -1034,9 +1038,7 @@ impl MixerStateCtl {
         self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
         self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, labels.len())?;
 
-        let labels: Vec<String> = (0..(self.0.data.src_pairs.len() * 2))
-            .map(|i| format!("Mixer-source-{}", i + 1))
-            .collect();
+        let labels = generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
         let item_labels =
             elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
         self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
@@ -1059,7 +1061,7 @@ impl MixerStateCtl {
 
         let labels = generate_channel_pair_labels("Channel-strip", 2);
         self.state_add_elem_bool(card_cntr, CH_STRIP_AS_PLUGIN_NAME, 1, labels.len())?;
-        let labels: Vec<String> = (0..4).map(|i| format!("Channel-strip-{}", i)).collect();
+        let labels = generate_channel_labels("Channel-strip", 4);
         self.state_add_elem_enum(card_cntr, CH_STRIP_SRC_NAME, 1, labels.len(), &item_labels)?;
         self.state_add_elem_bool(card_cntr, CH_STRIP_23_AT_MID_RATE, 1, 1)?;
 
@@ -1675,7 +1677,7 @@ impl MixerMeterCtl {
         ]
         .iter()
         .try_for_each(|&(name, count, label)| {
-            let labels: Vec<String> = (0..count).map(|i| format!("{}-{}", label, i)).collect();
+            let labels = generate_channel_labels(label, count);
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
             card_cntr
                 .add_int_elems(
