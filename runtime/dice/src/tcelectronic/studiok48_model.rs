@@ -240,6 +240,14 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
     }
 }
 
+fn elements_to_str_vector<'a, T: 'a, I, F>(elements: I, element_to_string: F) -> Vec<&'static str>
+where
+    I: IntoIterator<Item = &'a T>,
+    F: Fn(&'a T) -> &'static str,
+{
+    elements.into_iter().map(element_to_string).collect()
+}
+
 fn element_at_or_error<'a, L>(slice: &'a [L], pos: usize, label: &'a str) -> Result<&'a L, Error> {
     slice.get(pos).ok_or_else(|| {
         let upper_bound = slice.len();
@@ -276,10 +284,8 @@ impl LineoutCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::NOMINAL_SIGNAL_LEVELS
-            .iter()
-            .map(|m| nominal_signal_level_to_str(m))
-            .collect();
+        let labels =
+            elements_to_str_vector(&Self::NOMINAL_SIGNAL_LEVELS, nominal_signal_level_to_str);
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_OUT_45_LEVEL_NAME, 0);
         card_cntr
@@ -453,10 +459,7 @@ impl RemoteCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::EFFECT_BUTTON_MODES
-            .iter()
-            .map(|m| effect_button_mode_to_str(m))
-            .collect();
+        let labels = elements_to_str_vector(&Self::EFFECT_BUTTON_MODES, effect_button_mode_to_str);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, EFFECT_BUTTON_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -493,10 +496,7 @@ impl RemoteCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::KNOB_PUSH_MODES
-            .iter()
-            .map(|m| knob_push_mode_to_str(m))
-            .collect();
+        let labels = elements_to_str_vector(&Self::KNOB_PUSH_MODES, knob_push_mode_to_str);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, KNOB_PUSH_MODE_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -736,17 +736,11 @@ impl ConfigCtl {
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
         load_midi_sender::<Studiok48Protocol, StudioConfig>(card_cntr)?;
 
-        let labels: Vec<&str> = Self::OPT_IFACE_MODES
-            .iter()
-            .map(|m| opt_iface_mode_to_str(m))
-            .collect();
+        let labels = elements_to_str_vector(&Self::OPT_IFACE_MODES, opt_iface_mode_to_str);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::STANDALONE_CLK_SRCS
-            .iter()
-            .map(|r| standalone_clk_src_to_str(r))
-            .collect();
+        let labels = elements_to_str_vector(&Self::STANDALONE_CLK_SRCS, standalone_clk_src_to_str);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
@@ -1026,10 +1020,7 @@ impl MixerStateCtl {
         let labels: Vec<String> = (0..self.0.data.src_pairs.len())
             .map(|i| format!("Mixer-source-{}/{}", i + 1, i + 2))
             .collect();
-        let item_labels: Vec<&str> = Self::SRC_PAIR_MODES
-            .iter()
-            .map(|m| src_pair_mode_to_str(m))
-            .collect();
+        let item_labels = elements_to_str_vector(&Self::SRC_PAIR_MODES, src_pair_mode_to_str);
         self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
         self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, labels.len())?;
 
@@ -2029,10 +2020,7 @@ impl PhysOutCtl {
             .add_bool_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::CROSS_OVER_FREQS
-            .iter()
-            .map(|src| cross_over_freq_to_str(src))
-            .collect();
+        let labels = elements_to_str_vector(&Self::CROSS_OVER_FREQS, cross_over_freq_to_str);
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
             0,
@@ -2074,10 +2062,7 @@ impl PhysOutCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::HIGH_PASS_FREQS
-            .iter()
-            .map(|src| high_pass_freq_to_str(src))
-            .collect();
+        let labels = elements_to_str_vector(&Self::HIGH_PASS_FREQS, high_pass_freq_to_str);
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
             0,
@@ -2089,10 +2074,7 @@ impl PhysOutCtl {
             .add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::LOW_PASS_FREQS
-            .iter()
-            .map(|src| low_pass_freq_to_str(src))
-            .collect();
+        let labels = elements_to_str_vector(&Self::LOW_PASS_FREQS, low_pass_freq_to_str);
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
             0,
@@ -2621,10 +2603,7 @@ impl HwStateCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         load_firewire_led::<Studiok48Protocol, StudioHwState>(card_cntr)?;
 
-        let labels = Self::ANALOG_JACK_STATES
-            .iter()
-            .map(|s| analog_jack_state_to_str(s))
-            .collect::<Vec<_>>();
+        let labels = elements_to_str_vector(&Self::ANALOG_JACK_STATES, analog_jack_state_to_str);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_JACK_STATE_NAME, 0);
         card_cntr
             .add_enum_elems(
