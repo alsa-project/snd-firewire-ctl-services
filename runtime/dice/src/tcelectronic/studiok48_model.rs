@@ -1760,29 +1760,29 @@ fn src_pair_entry_to_string(entry: &SrcEntry) -> String {
     }
 }
 
-fn cross_over_freq_to_string(freq: &CrossOverFreq) -> String {
+fn cross_over_freq_to_str(freq: &CrossOverFreq) -> &'static str {
     match freq {
-        CrossOverFreq::F50 => "50Hz".to_string(),
-        CrossOverFreq::F80 => "80Hz".to_string(),
-        CrossOverFreq::F95 => "95Hz".to_string(),
-        CrossOverFreq::F110 => "110Hz".to_string(),
-        CrossOverFreq::F115 => "115Hz".to_string(),
-        CrossOverFreq::F120 => "120Hz".to_string(),
+        CrossOverFreq::F50 => "50Hz",
+        CrossOverFreq::F80 => "80Hz",
+        CrossOverFreq::F95 => "95Hz",
+        CrossOverFreq::F110 => "110Hz",
+        CrossOverFreq::F115 => "115Hz",
+        CrossOverFreq::F120 => "120Hz",
     }
 }
 
-fn high_pass_freq_to_string(freq: &HighPassFreq) -> String {
+fn high_pass_freq_to_str(freq: &HighPassFreq) -> &'static str {
     match freq {
-        HighPassFreq::Off => "Off".to_string(),
-        HighPassFreq::Above12 => "12HzAbove".to_string(),
-        HighPassFreq::Above24 => "24HzAbove".to_string(),
+        HighPassFreq::Off => "Off",
+        HighPassFreq::Above12 => "12HzAbove",
+        HighPassFreq::Above24 => "24HzAbove",
     }
 }
 
-fn low_pass_freq_to_string(freq: &LowPassFreq) -> String {
+fn low_pass_freq_to_str(freq: &LowPassFreq) -> &'static str {
     match freq {
-        LowPassFreq::Below12 => "12HzBelow".to_string(),
-        LowPassFreq::Below24 => "24HzBelow".to_string(),
+        LowPassFreq::Below12 => "12HzBelow",
+        LowPassFreq::Below24 => "24HzBelow",
     }
 }
 
@@ -2029,9 +2029,9 @@ impl PhysOutCtl {
             .add_bool_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::CROSS_OVER_FREQS
+        let labels: Vec<&str> = Self::CROSS_OVER_FREQS
             .iter()
-            .map(|src| cross_over_freq_to_string(src))
+            .map(|src| cross_over_freq_to_str(src))
             .collect();
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
@@ -2074,9 +2074,9 @@ impl PhysOutCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::HIGH_PASS_FREQS
+        let labels: Vec<&str> = Self::HIGH_PASS_FREQS
             .iter()
-            .map(|src| high_pass_freq_to_string(src))
+            .map(|src| high_pass_freq_to_str(src))
             .collect();
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
@@ -2089,9 +2089,9 @@ impl PhysOutCtl {
             .add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::LOW_PASS_FREQS
+        let labels: Vec<&str> = Self::LOW_PASS_FREQS
             .iter()
-            .map(|src| low_pass_freq_to_string(src))
+            .map(|src| low_pass_freq_to_str(src))
             .collect();
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
