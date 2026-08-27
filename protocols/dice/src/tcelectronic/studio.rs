@@ -41,7 +41,7 @@
 //! analog-input-7/8 --------------------------------------------> stream-output-A-7/8
 //! analog-input-9/10 -------------------------------------------> stream-output-A-9/10
 //! analog-input-11/12 ------------------------------------------> stream-output-A-11/12
-//! (blank) -----------------------------------------------------> stream-output-A-13/14
+//! (blank at ≤96 kHz; optical at 192 kHz) ----------------------> stream-output-A-13/14
 //! coaxial-input-1/2 -------------------------------------------> stream-output-A-15/16
 //! optical-input-1..8 ------------------------------------------> stream-output-B-1..8
 //! channel-strip-effect-output-1/2 -----------------------------> stream-output-B-9/10
@@ -99,7 +99,7 @@
 //! stream-input-A-7/8 ----------------------> ||            || --> mixer-source-19/20
 //! stream-input-A-9/10 ---------------------> ||            || --> mixer-source-21/22
 //! stream-input-A-11/12 --------------------> ||            || --> mixer-source-23/24
-//! stream-input-A-13/14 (unused)              ||            ||
+//! stream-input-A-13/14 (unused at ≤96 kHz)   ||            ||
 //! stream-input-A-15/16 --------------------> ||            ||
 //!                                            ||            ||
 //! stream-input-B-1/2 ----------------------> ||            ||
@@ -191,7 +191,7 @@
 //! stream-input-A-7/8 ----------------------> ||          || --> coaxial-output-1/2
 //! stream-input-A-9/10 ---------------------> ||          || --> coaxial-output-1/2
 //! stream-input-A-11/12 --------------------> ||          || --> optical-output-1..8
-//! stream-input-A-13/14 (unused)              ||          ||
+//! stream-input-A-13/14 (unused at ≤96 kHz)   ||          ||
 //! stream-input-A-15/16 --------------------> ||          ||
 //!                                            ||          ||
 //! stream-input-B-1/2 ----------------------> ||          ||
@@ -208,6 +208,7 @@
 //! ```
 
 use super::{ch_strip::*, reverb::*, *};
+use crate::tcat::global_section::ClockRate;
 
 /// Protocol implementation of Studio Konnekt 48.
 #[derive(Default, Debug)]
@@ -684,11 +685,18 @@ pub enum SrcEntry {
     Spdif(usize), // 0x0d..0x0e
     /// For ADAT 0..7.
     Adat(usize), // 0x0f..0x16
-    /// For stream A 0..11, 14,15.
-    StreamA(usize), // 0x37..0x46
-    /// For stream B 0..8.
-    StreamB(usize), // 0x47..0x58
-    /// For mixer output (main/aux0/aux1/reverb)
+    /// For stream A 0..15 (wire 0x37..0x46).
+    ///
+    /// Per TC manual, FW stream channel assignment depends on sample rate:
+    /// - ≤96 kHz: indices 12–13 unused; 14–15 carry coax S/PDIF.
+    /// - 176.4/192 kHz: indices 12–13 carry optical (TOS); 14–15 carry coax S/PDIF.
+    ///
+    /// ALSA labels for these channels are chosen at service startup; restart after rate changes.
+    StreamA(usize),
+    /// For stream B 0..13.
+    StreamB(usize), // 0x47..0x54
+    /// For mixer outputs 0..7. Per-channel labels denote stereo pairs:
+    /// Mixer-1/2 (main output), Aux-1..4 (aux1 and aux2 buses), Reverb-1/2 (return bus).
     Mixer(usize), // 0x55..0x5c
 }
 
@@ -708,8 +716,148 @@ impl Default for SrcEntry {
     }
 }
 
+/// All assignable signal sources for Studio Konnekt 48 routing controls.
+pub const STUDIO_SRC_ENTRIES: [SrcEntry; 61] = [
+    SrcEntry::Unused,
+    SrcEntry::Analog(0),
+    SrcEntry::Analog(1),
+    SrcEntry::Analog(2),
+    SrcEntry::Analog(3),
+    SrcEntry::Analog(4),
+    SrcEntry::Analog(5),
+    SrcEntry::Analog(6),
+    SrcEntry::Analog(7),
+    SrcEntry::Analog(8),
+    SrcEntry::Analog(9),
+    SrcEntry::Analog(10),
+    SrcEntry::Analog(11),
+    SrcEntry::Spdif(0),
+    SrcEntry::Spdif(1),
+    SrcEntry::Adat(0),
+    SrcEntry::Adat(1),
+    SrcEntry::Adat(2),
+    SrcEntry::Adat(3),
+    SrcEntry::Adat(4),
+    SrcEntry::Adat(5),
+    SrcEntry::Adat(6),
+    SrcEntry::Adat(7),
+    SrcEntry::StreamA(0),
+    SrcEntry::StreamA(1),
+    SrcEntry::StreamA(2),
+    SrcEntry::StreamA(3),
+    SrcEntry::StreamA(4),
+    SrcEntry::StreamA(5),
+    SrcEntry::StreamA(6),
+    SrcEntry::StreamA(7),
+    SrcEntry::StreamA(8),
+    SrcEntry::StreamA(9),
+    SrcEntry::StreamA(10),
+    SrcEntry::StreamA(11),
+    SrcEntry::StreamA(12),
+    SrcEntry::StreamA(13),
+    SrcEntry::StreamA(14),
+    SrcEntry::StreamA(15),
+    SrcEntry::StreamB(0),
+    SrcEntry::StreamB(1),
+    SrcEntry::StreamB(2),
+    SrcEntry::StreamB(3),
+    SrcEntry::StreamB(4),
+    SrcEntry::StreamB(5),
+    SrcEntry::StreamB(6),
+    SrcEntry::StreamB(7),
+    SrcEntry::StreamB(8),
+    SrcEntry::StreamB(9),
+    SrcEntry::StreamB(10),
+    SrcEntry::StreamB(11),
+    SrcEntry::StreamB(12),
+    SrcEntry::StreamB(13),
+    SrcEntry::Mixer(0),
+    SrcEntry::Mixer(1),
+    SrcEntry::Mixer(2),
+    SrcEntry::Mixer(3),
+    SrcEntry::Mixer(4),
+    SrcEntry::Mixer(5),
+    SrcEntry::Mixer(6),
+    SrcEntry::Mixer(7),
+];
+
+/// Returns the ALSA enum index for the given source entry.
+pub fn studio_src_entry_index(entry: SrcEntry) -> Option<usize> {
+    STUDIO_SRC_ENTRIES.iter().position(|e| *e == entry)
+}
+
+/// Returns the source entry for the given ALSA enum index.
+pub fn studio_src_entry_at(index: usize) -> Option<&'static SrcEntry> {
+    STUDIO_SRC_ENTRIES.get(index)
+}
+
+/// Returns whether FW stream A channels 12–13 carry optical (TOS) at the given rate.
+pub fn studio_src_stream_a_high_rate(rate: ClockRate) -> bool {
+    matches!(
+        rate,
+        ClockRate::R176400 | ClockRate::R192000 | ClockRate::AnyHigh
+    )
+}
+
+fn studio_stream_a_to_string(ch: usize, high_rate: bool) -> String {
+    match ch {
+        0..=11 => format!("Stream-A-{}", ch + 1),
+        12 if high_rate => "Stream-A-13-TOS".to_string(),
+        13 if high_rate => "Stream-A-14-TOS".to_string(),
+        12 | 13 => format!("Stream-A-{}-unused", ch + 1),
+        14 => "Stream-A-15-S/PDIF-coax".to_string(),
+        15 => "Stream-A-16-S/PDIF-coax".to_string(),
+        ch => format!("Stream-A-{}", ch + 1),
+    }
+}
+
+/// Returns human-readable labels for all assignable sources at the given sampling rate.
+///
+/// Stream A channels 12–15 are rate-dependent; see [`SrcEntry::StreamA`]. Labels are fixed when
+/// ALSA elements are registered at service startup from the then-current `clock-rate`. Restart
+/// `snd-dice-ctl-service` after changing the sampling rate to refresh them.
+pub fn studio_src_entry_labels_for_rate(rate: ClockRate) -> Vec<String> {
+    STUDIO_SRC_ENTRIES
+        .iter()
+        .map(|entry| studio_src_entry_to_string_for_rate(*entry, rate))
+        .collect()
+}
+
+pub fn studio_src_entry_to_string_for_rate(entry: SrcEntry, rate: ClockRate) -> String {
+    let high_rate = studio_src_stream_a_high_rate(rate);
+    match entry {
+        SrcEntry::StreamA(ch) => studio_stream_a_to_string(ch, high_rate),
+        _ => studio_src_entry_to_string(entry),
+    }
+}
+
+pub fn studio_src_entry_to_string(entry: SrcEntry) -> String {
+    match entry {
+        SrcEntry::Unused => "Unused".to_string(),
+        SrcEntry::Analog(ch) => format!("Analog-{}", ch + 1),
+        SrcEntry::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
+        SrcEntry::Adat(ch) => format!("ADAT-{}", ch + 1),
+        SrcEntry::StreamA(ch) => format!("Stream-A-{}", ch + 1),
+        SrcEntry::StreamB(ch) => format!("Stream-B-{}", ch + 1),
+        SrcEntry::Mixer(ch) => {
+            // Per-channel names for stereo pairs: main, two aux buses, reverb.
+            if ch < 2 {
+                format!("Mixer-{}", ch + 1)
+            } else if ch < 6 {
+                format!("Aux-{}", ch - 1)
+            } else {
+                format!("Reverb-{}", ch - 5)
+            }
+        }
+    }
+}
+
 fn serialize_src_entry(entry: &SrcEntry, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= 4);
+
+    if studio_src_entry_index(*entry).is_none() {
+        return Err(format!("source entry {:?} is not supported", entry));
+    }
 
     let val = (match entry {
         SrcEntry::Unused => SrcEntry::UNUSED,
@@ -1735,5 +1883,82 @@ impl AsRef<[ChStripMeter]> for StudioChStripMeters {
 impl AsMut<[ChStripMeter]> for StudioChStripMeters {
     fn as_mut(&mut self) -> &mut [ChStripMeter] {
         &mut self.0
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn studio_src_entry_stream_a_labels() {
+        let low = ClockRate::R48000;
+        let high = ClockRate::R192000;
+
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(11), low),
+            "Stream-A-12"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(12), low),
+            "Stream-A-13-unused"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(13), low),
+            "Stream-A-14-unused"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(12), high),
+            "Stream-A-13-TOS"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(13), high),
+            "Stream-A-14-TOS"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(14), low),
+            "Stream-A-15-S/PDIF-coax"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::StreamA(15), high),
+            "Stream-A-16-S/PDIF-coax"
+        );
+        assert_eq!(
+            studio_src_entry_to_string_for_rate(SrcEntry::Analog(0), high),
+            "Analog-1"
+        );
+    }
+
+    #[test]
+    fn studio_src_entries() {
+        for (i, entry) in STUDIO_SRC_ENTRIES.iter().enumerate() {
+            assert_eq!(studio_src_entry_index(*entry), Some(i));
+            assert_eq!(studio_src_entry_at(i), Some(entry));
+
+            let mut raw = [0u8; 4];
+            serialize_src_entry(entry, &mut raw).unwrap();
+
+            let mut deserialized = SrcEntry::Unused;
+            deserialize_src_entry(&mut deserialized, &raw).unwrap();
+            assert_eq!(*entry, deserialized);
+        }
+
+        let mut raw = [0u8; 4];
+        assert!(serialize_src_entry(&SrcEntry::Analog(99), &mut raw).is_err());
+
+        for v in 0x00..=0x5c {
+            let raw = (v as u32).to_le_bytes();
+            let mut entry = SrcEntry::Unused;
+            deserialize_src_entry(&mut entry, &raw).unwrap();
+
+            if entry != SrcEntry::Unused {
+                assert!(
+                    studio_src_entry_index(entry).is_some(),
+                    "deserialized {:?} from wire 0x{:02x} is missing from STUDIO_SRC_ENTRIES",
+                    entry,
+                    v
+                );
+            }
+        }
     }
 }
