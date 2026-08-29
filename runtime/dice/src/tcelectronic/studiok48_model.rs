@@ -1033,21 +1033,21 @@ impl MixerStateCtl {
     }
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels = generate_channel_pair_labels("Mixer-source", self.0.data.src_pairs.len());
+        let pair_labels = generate_channel_pair_labels("Mixer-source", self.0.data.src_pairs.len());
         let item_labels = elements_to_str_vector(&Self::SRC_PAIR_MODES, src_pair_mode_to_str);
-        self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
-        self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, labels.len())?;
+        self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, pair_labels.len(), &item_labels)?;
+        self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, pair_labels.len())?;
 
-        let labels = generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
+        let ch_labels = generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
         let item_labels =
             elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
-        self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
-        self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, REVERB_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, AUX01_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, AUX23_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_bool(card_cntr, SRC_MUTE_NAME, 1, labels.len())?;
+        self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, ch_labels.len(), &item_labels)?;
+        self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, ch_labels.len())?;
+        self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, ch_labels.len())?;
+        self.state_add_elem_level(card_cntr, REVERB_SRC_GAIN_NAME, 1, ch_labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX01_SRC_GAIN_NAME, 1, ch_labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX23_SRC_GAIN_NAME, 1, ch_labels.len())?;
+        self.state_add_elem_bool(card_cntr, SRC_MUTE_NAME, 1, pair_labels.len())?;
 
         let labels = &Self::OUT_LABELS;
         self.state_add_elem_bool(card_cntr, REVERB_RETURN_MUTE_NAME, 1, labels.len())?;
