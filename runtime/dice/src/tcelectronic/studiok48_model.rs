@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, protocols::tcelectronic::studio::*};
+use {
+    super::{
+        studiok48_src::{
+            studio_mixer_src_entry_labels_for_rate, studio_phys_out_src_entry_labels_for_rate,
+            STUDIO_MIXER_SRC_ENTRIES, STUDIO_PHYS_OUT_SRC_ENTRIES,
+        },
+        *,
+    },
+    protocols::tcat::global_section::ClockRate,
+    protocols::tcelectronic::studio::*,
+};
 
 #[derive(Default, Debug)]
 pub struct Studiok48Model {
@@ -22,6 +32,24 @@ pub struct Studiok48Model {
 }
 
 const TIMEOUT_MS: u32 = 20;
+
+fn src_index_in(entry: &SrcEntry, table: &[SrcEntry], what: &str) -> Result<u32, Error> {
+    table
+        .iter()
+        .position(|e| e == entry)
+        .map(|i| i as u32)
+        .ok_or_else(|| {
+            let msg = format!("Unknown {what}: {entry:?}");
+            Error::new(FileError::Inval, &msg)
+        })
+}
+
+fn src_from_index(pos: usize, table: &[SrcEntry], what: &str) -> Result<SrcEntry, Error> {
+    table.get(pos).copied().ok_or_else(|| {
+        let msg = format!("Invalid {what}: {pos}");
+        Error::new(FileError::Inval, &msg)
+    })
+}
 
 impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
     fn cache(&mut self, (_, node): &mut (SndDice, FwNode)) -> Result<(), Error> {
@@ -59,12 +87,15 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl.load(card_cntr)?;
 
+        // Source routing enum labels depend on the current clock rate and are fixed at registration.
+        let clk_rate = self.common_ctl.global_params.clock_config.rate;
+
         self.lineout_ctl.load(card_cntr)?;
-        self.remote_ctl.load(card_cntr)?;
+        self.remote_ctl.load(card_cntr, clk_rate)?;
         self.config_ctl.load(card_cntr)?;
-        self.mixer_state_ctl.load(card_cntr)?;
+        self.mixer_state_ctl.load(card_cntr, clk_rate)?;
         self.mixer_meter_ctl.load(card_cntr)?;
-        self.phys_out_ctl.load(card_cntr)?;
+        self.phys_out_ctl.load(card_cntr, clk_rate)?;
 
         self.reverb_state_ctl.load(card_cntr)?;
         self.reverb_meter_ctl.load(card_cntr)?;
@@ -254,14 +285,6 @@ fn elements_to_str_vector<'a, T: 'a, I, F>(elements: I, element_to_string: F) ->
 where
     I: IntoIterator<Item = &'a T>,
     F: Fn(&'a T) -> &'static str,
-{
-    elements.into_iter().map(element_to_string).collect()
-}
-
-fn elements_to_string_vector<'a, T: 'a, I, F>(elements: I, element_to_string: F) -> Vec<String>
-where
-    I: IntoIterator<Item = &'a T>,
-    F: Fn(&'a T) -> String,
 {
     elements.into_iter().map(element_to_string).collect()
 }
@@ -457,12 +480,11 @@ impl RemoteCtl {
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr, clk_rate: ClockRate) -> Result<(), Error> {
         load_prog::<Studiok48Protocol, StudioRemote>(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels =
-            elements_to_string_vector(&MixerStateCtl::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
+        let labels = studio_mixer_src_entry_labels_for_rate(clk_rate);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USER_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(
@@ -529,13 +551,9 @@ impl RemoteCtl {
                     .user_assigns
                     .iter()
                     .map(|assign| {
-                        let pos = MixerStateCtl::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|a| assign.eq(a))
-                            .unwrap();
-                        pos as u32
+                        src_index_in(assign, &STUDIO_MIXER_SRC_ENTRIES, "user assignment source")
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -587,12 +605,12 @@ impl RemoteCtl {
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .try_for_each(|(assign, &val)| {
-                        element_at_or_error(
-                            &MixerStateCtl::SRC_PAIR_ENTRIES,
+                        src_from_index(
                             val as usize,
-                            "source of user assignment",
+                            &STUDIO_MIXER_SRC_ENTRIES,
+                            "user assignment source index",
                         )
-                        .map(|&s| *assign = s)
+                            .map(|s| *assign = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -955,60 +973,6 @@ impl MixerStateCtl {
         MonitorSrcPairMode::Fixed,
     ];
 
-    const SRC_PAIR_ENTRIES: [SrcEntry; 51] = [
-        SrcEntry::Unused,
-        SrcEntry::Analog(0),
-        SrcEntry::Analog(1),
-        SrcEntry::Analog(2),
-        SrcEntry::Analog(3),
-        SrcEntry::Analog(4),
-        SrcEntry::Analog(5),
-        SrcEntry::Analog(6),
-        SrcEntry::Analog(7),
-        SrcEntry::Analog(8),
-        SrcEntry::Analog(9),
-        SrcEntry::Analog(10),
-        SrcEntry::Analog(11),
-        SrcEntry::Spdif(0),
-        SrcEntry::Spdif(1),
-        SrcEntry::Adat(0),
-        SrcEntry::Adat(1),
-        SrcEntry::Adat(2),
-        SrcEntry::Adat(3),
-        SrcEntry::Adat(4),
-        SrcEntry::Adat(5),
-        SrcEntry::Adat(6),
-        SrcEntry::Adat(7),
-        SrcEntry::StreamA(0),
-        SrcEntry::StreamA(1),
-        SrcEntry::StreamA(2),
-        SrcEntry::StreamA(3),
-        SrcEntry::StreamA(4),
-        SrcEntry::StreamA(5),
-        SrcEntry::StreamA(6),
-        SrcEntry::StreamA(7),
-        SrcEntry::StreamA(8),
-        SrcEntry::StreamA(9),
-        SrcEntry::StreamA(10),
-        SrcEntry::StreamA(11),
-        SrcEntry::StreamA(12),
-        SrcEntry::StreamA(13),
-        SrcEntry::StreamA(14),
-        SrcEntry::StreamA(15),
-        SrcEntry::StreamB(0),
-        SrcEntry::StreamB(1),
-        SrcEntry::StreamB(2),
-        SrcEntry::StreamB(3),
-        SrcEntry::StreamB(4),
-        SrcEntry::StreamB(5),
-        SrcEntry::StreamB(6),
-        SrcEntry::StreamB(7),
-        SrcEntry::StreamB(8),
-        SrcEntry::StreamB(9),
-        SrcEntry::StreamB(10),
-        SrcEntry::StreamB(11),
-    ];
-
     const OUT_LABELS: [&'static str; 3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
     const SEND_TARGET_LABELS: [&'static str; 3] = ["Reverb-1/2", "Aux-1/2", "Aux-3/4"];
 
@@ -1032,22 +996,22 @@ impl MixerStateCtl {
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr, clk_rate: ClockRate) -> Result<(), Error> {
         let pair_labels = generate_channel_pair_labels("Mixer-source", self.0.data.src_pairs.len());
         let item_labels = elements_to_str_vector(&Self::SRC_PAIR_MODES, src_pair_mode_to_str);
         self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, pair_labels.len(), &item_labels)?;
         self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, pair_labels.len())?;
-
-        let ch_labels = generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
-        let item_labels =
-            elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
-        self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, ch_labels.len(), &item_labels)?;
-        self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, ch_labels.len())?;
-        self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, ch_labels.len())?;
-        self.state_add_elem_level(card_cntr, REVERB_SRC_GAIN_NAME, 1, ch_labels.len())?;
-        self.state_add_elem_level(card_cntr, AUX01_SRC_GAIN_NAME, 1, ch_labels.len())?;
-        self.state_add_elem_level(card_cntr, AUX23_SRC_GAIN_NAME, 1, ch_labels.len())?;
         self.state_add_elem_bool(card_cntr, SRC_MUTE_NAME, 1, pair_labels.len())?;
+
+        let channel_labels =
+            generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
+        let item_labels = studio_mixer_src_entry_labels_for_rate(clk_rate);
+        self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, channel_labels.len(), &item_labels)?;
+        self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, channel_labels.len())?;
+        self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, channel_labels.len())?;
+        self.state_add_elem_level(card_cntr, REVERB_SRC_GAIN_NAME, 1, channel_labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX01_SRC_GAIN_NAME, 1, channel_labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX23_SRC_GAIN_NAME, 1, channel_labels.len())?;
 
         let labels = &Self::OUT_LABELS;
         self.state_add_elem_bool(card_cntr, REVERB_RETURN_MUTE_NAME, 1, labels.len())?;
@@ -1168,13 +1132,13 @@ impl MixerStateCtl {
             SRC_ENTRY_NAME => {
                 let vals: Vec<u32> = mixer_monitor_src_params_iter(&self.0.data)
                     .map(|param| {
-                        Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|m| param.src.eq(m))
-                            .map(|pos| pos as u32)
-                            .unwrap()
+                        src_index_in(
+                            &param.src,
+                            &STUDIO_MIXER_SRC_ENTRIES,
+                            "mixer source",
+                        )
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -1265,14 +1229,8 @@ impl MixerStateCtl {
                 let vals: Vec<u32> = params
                     .ch_strip_src
                     .iter()
-                    .map(|src| {
-                        let pos = Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|s| src.eq(s))
-                            .unwrap();
-                        pos as u32
-                    })
-                    .collect();
+                    .map(|src| src_index_in(src, &STUDIO_MIXER_SRC_ENTRIES, "channel strip source"))
+                    .collect::<Result<Vec<_>, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -1331,9 +1289,12 @@ impl MixerStateCtl {
                 mixer_monitor_src_params_iter_mut(&mut params)
                     .zip(elem_value.enumerated())
                     .try_for_each(|(entry, &val)| {
-                        let pos = val as usize;
-                        element_at_or_error(&Self::SRC_PAIR_ENTRIES, pos, "mixer source entry")
-                            .map(|&s| entry.src = s)
+                        src_from_index(
+                            val as usize,
+                            &STUDIO_MIXER_SRC_ENTRIES,
+                            "mixer source index",
+                        )
+                            .map(|s| entry.src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -1561,9 +1522,12 @@ impl MixerStateCtl {
                     .iter_mut()
                     .zip(elem_value.enumerated())
                     .try_for_each(|(src, &val)| {
-                        let pos = val as usize;
-                        element_at_or_error(&Self::SRC_PAIR_ENTRIES, pos, "ch strip source")
-                            .map(|&s| *src = s)
+                        src_from_index(
+                            val as usize,
+                            &STUDIO_MIXER_SRC_ENTRIES,
+                            "channel strip source index",
+                        )
+                            .map(|s| *src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
@@ -1739,26 +1703,6 @@ const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &str = "output-group:sub-level-to-sub";
 const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &str = "output-group:main-filter-for-main";
 const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &str = "output-group:main-filter-for-sub";
 
-fn src_pair_entry_to_string(entry: &SrcEntry) -> String {
-    match entry {
-        SrcEntry::Unused => "Unused".to_string(),
-        SrcEntry::Analog(ch) => format!("Analog-{}", ch + 1),
-        SrcEntry::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
-        SrcEntry::Adat(ch) => format!("ADAT-{}", ch + 1),
-        SrcEntry::StreamA(ch) => format!("Stream-A-{}", ch + 1),
-        SrcEntry::StreamB(ch) => format!("Stream-B-{}", ch + 1),
-        SrcEntry::Mixer(ch) => {
-            if *ch < 2 {
-                format!("Mixer-{}", ch + 1)
-            } else if *ch < 6 {
-                format!("Aux-{}", ch - 1)
-            } else {
-                format!("Reverb-{}", ch - 5)
-            }
-        }
-    }
-}
-
 fn cross_over_freq_to_str(freq: &CrossOverFreq) -> &'static str {
     match freq {
         CrossOverFreq::F50 => "50Hz",
@@ -1806,68 +1750,6 @@ fn phys_out_src_params_iter_mut(
 }
 
 impl PhysOutCtl {
-    const PHYS_OUT_SRCS: [SrcEntry; 59] = [
-        SrcEntry::Unused,
-        SrcEntry::Analog(0),
-        SrcEntry::Analog(1),
-        SrcEntry::Analog(2),
-        SrcEntry::Analog(3),
-        SrcEntry::Analog(4),
-        SrcEntry::Analog(5),
-        SrcEntry::Analog(6),
-        SrcEntry::Analog(7),
-        SrcEntry::Analog(8),
-        SrcEntry::Analog(9),
-        SrcEntry::Analog(10),
-        SrcEntry::Analog(11),
-        SrcEntry::Spdif(0),
-        SrcEntry::Spdif(1),
-        SrcEntry::Adat(0),
-        SrcEntry::Adat(1),
-        SrcEntry::Adat(2),
-        SrcEntry::Adat(3),
-        SrcEntry::Adat(4),
-        SrcEntry::Adat(5),
-        SrcEntry::Adat(6),
-        SrcEntry::Adat(7),
-        SrcEntry::StreamA(0),
-        SrcEntry::StreamA(1),
-        SrcEntry::StreamA(2),
-        SrcEntry::StreamA(3),
-        SrcEntry::StreamA(4),
-        SrcEntry::StreamA(5),
-        SrcEntry::StreamA(6),
-        SrcEntry::StreamA(7),
-        SrcEntry::StreamA(8),
-        SrcEntry::StreamA(9),
-        SrcEntry::StreamA(10),
-        SrcEntry::StreamA(11),
-        SrcEntry::StreamA(12),
-        SrcEntry::StreamA(13),
-        SrcEntry::StreamA(14),
-        SrcEntry::StreamA(15),
-        SrcEntry::StreamB(0),
-        SrcEntry::StreamB(1),
-        SrcEntry::StreamB(2),
-        SrcEntry::StreamB(3),
-        SrcEntry::StreamB(4),
-        SrcEntry::StreamB(5),
-        SrcEntry::StreamB(6),
-        SrcEntry::StreamB(7),
-        SrcEntry::StreamB(8),
-        SrcEntry::StreamB(9),
-        SrcEntry::StreamB(10),
-        SrcEntry::StreamB(11),
-        SrcEntry::Mixer(0),
-        SrcEntry::Mixer(1),
-        SrcEntry::Mixer(2),
-        SrcEntry::Mixer(3),
-        SrcEntry::Mixer(4),
-        SrcEntry::Mixer(5),
-        SrcEntry::Mixer(6),
-        SrcEntry::Mixer(7),
-    ];
-
     const VOL_MIN: i32 = -1000;
     const VOL_MAX: i32 = 0;
     const VOL_STEP: i32 = 1;
@@ -1911,7 +1793,7 @@ impl PhysOutCtl {
         res
     }
 
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr, clk_rate: ClockRate) -> Result<(), Error> {
         // For master output.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUT_DIM_NAME, 0);
         card_cntr
@@ -1957,7 +1839,7 @@ impl PhysOutCtl {
             .add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels = elements_to_string_vector(&Self::PHYS_OUT_SRCS, src_pair_entry_to_string);
+        let labels = studio_phys_out_src_entry_labels_for_rate(clk_rate);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(
@@ -2128,13 +2010,13 @@ impl PhysOutCtl {
                 let params = &self.0.data;
                 let vals: Vec<u32> = phys_out_src_params_iter(params)
                     .map(|params| {
-                        let pos = Self::PHYS_OUT_SRCS
-                            .iter()
-                            .position(|s| params.src.eq(s))
-                            .unwrap();
-                        pos as u32
+                        src_index_in(
+                            &params.src,
+                            &STUDIO_PHYS_OUT_SRC_ENTRIES,
+                            "output source",
+                        )
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -2339,9 +2221,12 @@ impl PhysOutCtl {
                 phys_out_src_params_iter_mut(&mut params)
                     .zip(elem_value.enumerated())
                     .try_for_each(|(entry, &val)| {
-                        let pos = val as usize;
-                        element_at_or_error(&Self::PHYS_OUT_SRCS, pos, "output source")
-                            .map(|&s| entry.src = s)
+                        src_from_index(
+                            val as usize,
+                            &STUDIO_PHYS_OUT_SRC_ENTRIES,
+                            "output source index",
+                        )
+                            .map(|s| entry.src = s)
                     })?;
                 let res = Studiok48Protocol::update_partial_segment(
                     req,
