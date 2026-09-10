@@ -116,6 +116,7 @@ pub(crate) fn serialize_reverb_state(state: &ReverbState, raw: &mut [u8]) -> Res
     serialize_i32(&state.mod_rate, &mut raw[44..48]);
     serialize_i32(&state.mod_depth, &mut raw[48..52]);
     serialize_i32(&state.level_early, &mut raw[52..56]);
+    serialize_i32(&state.level_reverb, &mut raw[56..60]);
     serialize_i32(&state.level_dry, &mut raw[60..64]);
     serialize_algorithm(&state.algorithm, &mut raw[64..])?;
 
@@ -139,6 +140,7 @@ pub(crate) fn deserialize_reverb_state(state: &mut ReverbState, raw: &[u8]) -> R
     deserialize_i32(&mut state.mod_rate, &raw[44..48]);
     deserialize_i32(&mut state.mod_depth, &raw[48..52]);
     deserialize_i32(&mut state.level_early, &raw[52..56]);
+    deserialize_i32(&mut state.level_reverb, &raw[56..60]);
     deserialize_i32(&mut state.level_dry, &raw[60..64]);
     deserialize_algorithm(&mut state.algorithm, &raw[64..])?;
 
@@ -178,4 +180,27 @@ pub(crate) fn deserialize_reverb_meter(meter: &mut ReverbMeter, raw: &[u8]) -> R
     deserialize_i32(&mut meter.inputs[1], &raw[12..16]);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn reverb_state_roundtrip_level_reverb() {
+        let mut state = ReverbState::default();
+        state.level_early = -12;
+        state.level_reverb = -24;
+        state.level_dry = -6;
+
+        let mut raw = vec![0u8; ReverbState::SIZE];
+        serialize_reverb_state(&state, &mut raw).unwrap();
+
+        let mut decoded = ReverbState::default();
+        deserialize_reverb_state(&mut decoded, &raw).unwrap();
+        assert_eq!(state, decoded);
+        let mut word = [0u8; 4];
+        word.copy_from_slice(&raw[56..60]);
+        assert_eq!(i32::from_be_bytes(word), -24);
+    }
 }
