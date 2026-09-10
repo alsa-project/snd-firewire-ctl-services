@@ -179,3 +179,49 @@ pub(crate) fn deserialize_reverb_meter(meter: &mut ReverbMeter, raw: &[u8]) -> R
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn reverb_state_roundtrip_default() {
+        assert_reverb_roundtrip(&ReverbState::default());
+    }
+
+    #[test]
+    fn reverb_state_roundtrip_populated() {
+        let state = ReverbState {
+            input_level: -12,
+            bypass: true,
+            kill_wet: false,
+            kill_dry: true,
+            output_level: 6,
+            time_decay: 150,
+            time_pre_decay: 40,
+            color_low: -25,
+            color_high: 30,
+            color_high_factor: 10,
+            mod_rate: -5,
+            mod_depth: 15,
+            level_early: -18,
+            level_reverb: 0,
+            level_dry: -3,
+            algorithm: ReverbAlgorithm::Plate,
+        };
+        assert_reverb_roundtrip(&state);
+    }
+
+    fn assert_reverb_roundtrip(state: &ReverbState) {
+        let mut raw = vec![0u8; ReverbState::SIZE];
+        serialize_reverb_state(state, &mut raw).unwrap();
+
+        let mut decoded = ReverbState::default();
+        deserialize_reverb_state(&mut decoded, &raw).unwrap();
+        assert_eq!(*state, decoded);
+
+        let mut again = vec![0u8; ReverbState::SIZE];
+        serialize_reverb_state(&decoded, &mut again).unwrap();
+        assert_eq!(raw, again);
+    }
+}

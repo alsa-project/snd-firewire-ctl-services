@@ -321,3 +321,57 @@ pub(crate) fn deserialize_ch_strip_meters(
         Ok(())
     })
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn ch_strip_state_roundtrip_default() {
+        assert_ch_strip_roundtrip(&[ChStripState::default(); 4]);
+    }
+
+    #[test]
+    fn ch_strip_state_roundtrip_populated() {
+        let mut strip = ChStripState::default();
+        strip.src_type = ChStripSrcType::Guitar;
+        strip.comp.input_gain = 180;
+        strip.comp.make_up_gain = 120;
+        strip.comp.full_band_enabled = true;
+        strip.comp.ctl = [50, 100, 150];
+        strip.comp.level = [12, 24, 36];
+        strip.deesser.ratio = 5;
+        strip.deesser.bypass = true;
+        strip.eq[0].gain = 120;
+        strip.eq[0].freq = 60;
+        strip.eq[0].bandwidth = 20;
+        strip.eq[0].enabled = true;
+        strip.eq[1].enabled = true;
+        strip.eq[1].gain = 80;
+        strip.eq[1].freq = 100;
+        strip.eq[2].enabled = false;
+        strip.eq[2].gain = 40;
+        strip.eq[3].enabled = true;
+        strip.eq[3].gain = 200;
+        strip.eq_bypass = false;
+        strip.limitter.threshold = 36;
+        strip.limitter_bypass = true;
+        strip.bypass = true;
+
+        assert_ch_strip_roundtrip(&[strip, ChStripState::default(), strip, ChStripState::default()]);
+    }
+
+    fn assert_ch_strip_roundtrip(states: &[ChStripState; 4]) {
+        let size = ChStripState::SIZE * 4 + 8;
+        let mut raw = vec![0u8; size];
+        serialize_ch_strip_states(states, &mut raw).unwrap();
+
+        let mut decoded = [ChStripState::default(); 4];
+        deserialize_ch_strip_states(&mut decoded, &raw).unwrap();
+        assert_eq!(*states, decoded);
+
+        let mut again = vec![0u8; size];
+        serialize_ch_strip_states(&decoded, &mut again).unwrap();
+        assert_eq!(raw, again);
+    }
+}
