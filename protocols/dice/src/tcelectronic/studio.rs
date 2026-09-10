@@ -1031,7 +1031,7 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
         deserialize_out_pair(&mut params.mixer_out[2], &raw[788..800])?;
         deserialize_bool(&mut params.post_fader[0], &raw[800..804]);
         deserialize_bool(&mut params.post_fader[1], &raw[804..808]);
-        deserialize_bool(&mut params.post_fader[2], &raw[800..812]);
+        deserialize_bool(&mut params.post_fader[2], &raw[808..812]);
         deserialize_bool(&mut params.enabled, &raw[812..816]);
         Ok(())
     }
