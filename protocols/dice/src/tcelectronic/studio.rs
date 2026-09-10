@@ -1395,9 +1395,9 @@ impl TcKonnektSegmentSerdes<StudioPhysOut> for Studiok48Protocol {
                 let pos = 16 + i * PhysOutPairSrc::SIZE;
                 deserialize_phys_out_pair_src(p, &raw[pos..(pos + PhysOutPairSrc::SIZE)])
             })?;
+        deserialize_usize(&mut params.selected_out_grp, &raw[12..16]);
         let mut val = 0u32;
-        deserialize_u32(&mut val, &raw[12..16]);
-        deserialize_usize(&mut params.selected_out_grp, &raw[324..328]);
+        deserialize_u32(&mut val, &raw[324..328]);
         params
             .out_assign_to_grp
             .iter_mut()
