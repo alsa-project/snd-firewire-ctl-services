@@ -187,20 +187,58 @@ mod test {
     use super::*;
 
     #[test]
+    fn reverb_state_roundtrip_default() {
+        assert_reverb_roundtrip(&ReverbState::default());
+    }
+
+    #[test]
     fn reverb_state_roundtrip_level_reverb() {
         let mut state = ReverbState::default();
         state.level_early = -12;
         state.level_reverb = -24;
         state.level_dry = -6;
+        assert_reverb_roundtrip(&state);
 
         let mut raw = vec![0u8; ReverbState::SIZE];
         serialize_reverb_state(&state, &mut raw).unwrap();
-
-        let mut decoded = ReverbState::default();
-        deserialize_reverb_state(&mut decoded, &raw).unwrap();
-        assert_eq!(state, decoded);
         let mut word = [0u8; 4];
         word.copy_from_slice(&raw[56..60]);
         assert_eq!(i32::from_be_bytes(word), -24);
+    }
+
+    #[test]
+    fn reverb_state_roundtrip_populated() {
+        let state = ReverbState {
+            input_level: -12,
+            bypass: true,
+            kill_wet: false,
+            kill_dry: true,
+            output_level: 6,
+            time_decay: 150,
+            time_pre_decay: 40,
+            color_low: -25,
+            color_high: 30,
+            color_high_factor: 10,
+            mod_rate: -5,
+            mod_depth: 15,
+            level_early: -18,
+            level_reverb: -30,
+            level_dry: -3,
+            algorithm: ReverbAlgorithm::Plate,
+        };
+        assert_reverb_roundtrip(&state);
+    }
+
+    fn assert_reverb_roundtrip(state: &ReverbState) {
+        let mut raw = vec![0u8; ReverbState::SIZE];
+        serialize_reverb_state(state, &mut raw).unwrap();
+
+        let mut decoded = ReverbState::default();
+        deserialize_reverb_state(&mut decoded, &raw).unwrap();
+        assert_eq!(*state, decoded);
+
+        let mut again = vec![0u8; ReverbState::SIZE];
+        serialize_reverb_state(&decoded, &mut again).unwrap();
+        assert_eq!(raw, again);
     }
 }
