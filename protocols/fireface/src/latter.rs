@@ -213,6 +213,11 @@ pub trait RmeFfLatterSpecification {
     const SPDIF_OUTPUT_COUNT: usize;
     /// The number of ADAT outputs.
     const ADAT_OUTPUT_COUNT: usize;
+
+    /// The size of each chunk of meter data in bytes. The last quadlet is the tag.
+    const METER_CHUNK_SIZE: usize = 392;
+    /// The offset of quadlets for meter levels in each chunk.
+    const METER_LEVEL_OFFSET: usize = 256;
 }
 
 /// State of meters.
@@ -241,7 +246,6 @@ pub struct FfLatterMeterState {
     pub adat_outputs: Vec<i32>,
 }
 
-const METER_CHUNK_SIZE: usize = 392;
 const METER_CHUNK_COUNT: usize = 5;
 const METER32_MASK: i32 = 0x07fffff0;
 
@@ -284,10 +288,10 @@ impl<O: RmeFfLatterSpecification> RmeFfLatterMeterSpecification for O {}
 //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
 impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMeterState> for O {
     fn deserialize_offsets(state: &mut FfLatterMeterState, raw: &[u8]) {
-        assert_eq!(raw.len(), METER_CHUNK_SIZE);
+        assert_eq!(raw.len(), Self::METER_CHUNK_SIZE);
 
         let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[(METER_CHUNK_SIZE - 4)..]);
+        quadlet.copy_from_slice(&raw[(Self::METER_CHUNK_SIZE - 4)..]);
         let target = u32::from_le_bytes(quadlet);
 
         match target {
@@ -308,7 +312,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                 .iter_mut()
                 .for_each(|(iter, offset)| {
                     iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + (*offset + i) * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -321,7 +325,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                     .iter_mut()
                     .enumerate()
                     .for_each(|(i, meter)| {
-                        let pos = 256 + i * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + i * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -343,7 +347,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                 .iter_mut()
                 .for_each(|(iter, offset)| {
                     iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + (*offset + i) * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -356,7 +360,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
 
 impl<O> RmeFfCacheableParamsOperation<FfLatterMeterState> for O
 where
-    O: RmeFfOffsetParamsDeserialize<FfLatterMeterState>,
+    O: RmeFfOffsetParamsDeserialize<FfLatterMeterState> + RmeFfLatterSpecification,
 {
     fn cache_wholly(
         req: &mut FwReq,
@@ -365,7 +369,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         (0..METER_CHUNK_COUNT).try_for_each(|_| {
-            let mut raw = vec![0; METER_CHUNK_SIZE];
+            let mut raw = vec![0; Self::METER_CHUNK_SIZE];
             req.transaction(
                 node,
                 FwTcode::ReadBlockRequest,

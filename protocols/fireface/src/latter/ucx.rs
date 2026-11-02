@@ -366,6 +366,10 @@ impl RmeFfLatterSpecification for FfUcxProtocol {
     const HP_OUTPUT_COUNT: usize = 2;
     const SPDIF_OUTPUT_COUNT: usize = 2;
     const ADAT_OUTPUT_COUNT: usize = 8;
+
+    // 20 octlets, 20 quadlets for levels, the previous tag, then 3 quadlets for the tag.
+    const METER_CHUNK_SIZE: usize = 256;
+    const METER_LEVEL_OFFSET: usize = 160;
 }
 
 #[cfg(test)]
@@ -481,6 +485,43 @@ mod test {
         FfUcxProtocol::deserialize_offsets(&mut target, &raw);
 
         assert_eq!(target, orig);
+    }
+
+    #[test]
+    fn meter_chunk_layout() {
+        // Captured from the UCX: 20 octlets, 20 quadlets of levels, the previous tag, then
+        // three quadlets for the current tag.
+        let chunk = |tag: u32, prev: u32, levels: &[(usize, u32)]| {
+            let mut raw = vec![0u8; FfUcxProtocol::METER_CHUNK_SIZE];
+            levels.iter().for_each(|&(i, v)| {
+                let pos = 160 + i * 4;
+                raw[pos..(pos + 4)].copy_from_slice(&v.to_le_bytes());
+            });
+            raw[240..244].copy_from_slice(&prev.to_le_bytes());
+            (61..64).for_each(|q| raw[(q * 4)..(q * 4 + 4)].copy_from_slice(&tag.to_le_bytes()));
+            raw
+        };
+
+        let mut state = FfUcxProtocol::create_meter_state();
+
+        let raw = chunk(0x33333333, 0x22222222, &[(0, 0x00379790), (1, 0x00379740)]);
+        FfUcxProtocol::deserialize_offsets(&mut state, &raw);
+        assert_eq!(state.stream_inputs[0], 0x00379790);
+        assert_eq!(state.stream_inputs[1], 0x00379740);
+        assert_eq!(state.stream_inputs[2], 0);
+
+        // Microphone inputs 1-2 come first, then line inputs 3-8.
+        let raw = chunk(0x66666666, 0x55555555, &[(1, 0x01234560), (6, 0x00000da0), (17, 0x7fffff0)]);
+        FfUcxProtocol::deserialize_offsets(&mut state, &raw);
+        assert_eq!(state.mic_inputs[1], 0x01234560);
+        assert_eq!(state.line_inputs[4], 0x00000da0);
+        assert_eq!(state.adat_inputs[7], 0x07fffff0);
+
+        let raw = chunk(0x11111111, 0x22666666, &[(0, 0x76d0), (6, 0x100), (17, 0x200)]);
+        FfUcxProtocol::deserialize_offsets(&mut state, &raw);
+        assert_eq!(state.line_outputs[0], 0x76d0);
+        assert_eq!(state.hp_outputs[0], 0x100);
+        assert_eq!(state.adat_outputs[7], 0x200);
     }
 
     #[test]
