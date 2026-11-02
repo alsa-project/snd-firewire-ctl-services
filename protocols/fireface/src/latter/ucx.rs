@@ -353,6 +353,10 @@ impl RmeFfCacheableParamsOperation<FfUcxStatus> for FfUcxProtocol {
 impl RmeFfLatterSpecification for FfUcxProtocol {
     const LINE_INPUT_COUNT: usize = 6;
     const MIC_INPUT_COUNT: usize = 2;
+    // The microphone preamps (front inputs 1-2) are at channel 0-1; confirmed by the phantom
+    // powering command (0x08) to channel 1 lighting the 48V LED of input 2.
+    const LINE_INPUT_OFFSET: usize = 2;
+    const MIC_INPUT_OFFSET: usize = 0;
     const SPDIF_INPUT_COUNT: usize = 2;
     const ADAT_INPUT_COUNT: usize = 8;
     const STREAM_INPUT_COUNT: usize = 18;

@@ -166,12 +166,36 @@ fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     .map(|_| T::deserialize_offsets(status, &raw))
 }
 
+/// Pair each physical input value with its channel number. Line and microphone inputs are placed
+/// per model; digital inputs follow both of them.
+fn phys_input_channels<'a, T, S>(
+    line: &'a [S],
+    mic: &'a [S],
+    digital: impl Iterator<Item = &'a S> + 'a,
+) -> impl Iterator<Item = (usize, S)> + 'a
+where
+    T: RmeFfLatterSpecification,
+    S: Copy + 'a,
+{
+    let digital_offset = T::LINE_INPUT_COUNT + T::MIC_INPUT_COUNT;
+    line.iter()
+        .enumerate()
+        .map(|(i, &v)| (T::LINE_INPUT_OFFSET + i, v))
+        .chain(mic.iter().enumerate().map(|(i, &v)| (T::MIC_INPUT_OFFSET + i, v)))
+        .chain(digital.enumerate().map(move |(i, &v)| (digital_offset + i, v)))
+}
+
 /// The specification of latter model.
 pub trait RmeFfLatterSpecification {
     /// The number of line inputs.
     const LINE_INPUT_COUNT: usize;
     /// The number of microphone inputs.
     const MIC_INPUT_COUNT: usize;
+    /// The first physical channel of line inputs. The 802 has line inputs first, while the UCX
+    /// has its microphone preamps at channel 0-1.
+    const LINE_INPUT_OFFSET: usize = 0;
+    /// The first physical channel of microphone inputs.
+    const MIC_INPUT_OFFSET: usize = Self::LINE_INPUT_COUNT;
     /// The number of S/PDIF inputs.
     const SPDIF_INPUT_COUNT: usize;
     /// The number of ADAT inputs.
@@ -305,8 +329,8 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
             // For phys inputs.
             0x66666666 => {
                 [
-                    (state.line_inputs.iter_mut(), 0),
-                    (state.mic_inputs.iter_mut(), Self::LINE_INPUT_COUNT),
+                    (state.line_inputs.iter_mut(), Self::LINE_INPUT_OFFSET),
+                    (state.mic_inputs.iter_mut(), Self::MIC_INPUT_OFFSET),
                     (
                         state.spdif_inputs.iter_mut(),
                         Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT,
@@ -704,12 +728,12 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
             });
 
         state.line_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let ch = i as u8;
+            let ch = (Self::LINE_INPUT_OFFSET + i) as u8;
             cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
         });
 
         state.line_levels.iter().enumerate().for_each(|(i, level)| {
-            let ch = i as u8;
+            let ch = (Self::LINE_INPUT_OFFSET + i) as u8;
             cmds.push(create_phys_port_cmd(
                 ch,
                 INPUT_LINE_LEVEL_CMD,
@@ -719,7 +743,7 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
 
         (0..Self::MIC_INPUT_COUNT).for_each(|i| {
             // NOTE: The offset is required for microphone inputs.
-            let ch = (Self::LINE_INPUT_COUNT + i) as u8;
+            let ch = (Self::MIC_INPUT_OFFSET + i) as u8;
 
             let cmd = create_phys_port_cmd(ch, INPUT_MIC_INST_CMD, state.mic_insts[i] as i16);
             cmds.push(cmd);
@@ -1652,17 +1676,14 @@ where
     fn serialize_commands(params: &FfLatterFxSourceParameters) -> Vec<u32> {
         let mut cmds = Vec::new();
 
-        params
-            .line_input_gains
-            .iter()
-            .chain(&params.mic_input_gains)
-            .chain(&params.spdif_input_gains)
-            .chain(&params.adat_input_gains)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
-            });
+        phys_input_channels::<Self, _>(
+            &params.line_input_gains,
+            &params.mic_input_gains,
+            params.spdif_input_gains.iter().chain(&params.adat_input_gains),
+        )
+        .for_each(|(ch, gain)| {
+            cmds.push(create_phys_port_cmd(ch as u8, INPUT_TO_FX_CMD, gain));
+        });
 
         params
             .stream_input_gains
