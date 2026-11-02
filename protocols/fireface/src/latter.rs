@@ -999,19 +999,31 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixer
             .enumerate()
             .flat_map(|(i, mixer)| {
                 let index = i as u16;
-                mixer
-                    .line_gains
+                // Physical inputs are at channel 0 onward, while fx returns and stream inputs
+                // are at fixed offsets just below and from STREAM_OFFSET (0x20) regardless of
+                // the number of physical inputs. Contiguous numbering only coincides with this
+                // layout for models with 30 physical inputs (802); for UCX (18) it misplaced
+                // stream sources at 0x14.
+                let phys = phys_input_channels::<Self, _>(
+                    &mixer.line_gains,
+                    &mixer.mic_gains,
+                    mixer.spdif_gains.iter().chain(&mixer.adat_gains),
+                )
+                .map(|(ch, gain)| (ch as u16, gain));
+                let fx_return_offset = Self::STREAM_OFFSET - mixer.fx_return_gains.len() as u16;
+                let fx_returns = mixer
+                    .fx_return_gains
                     .iter()
-                    .chain(&mixer.mic_gains)
-                    .chain(&mixer.spdif_gains)
-                    .chain(&mixer.adat_gains)
-                    .chain(&mixer.fx_return_gains)
-                    .chain(&mixer.stream_gains)
                     .enumerate()
-                    .map(|(j, &gain)| {
-                        let ch = j as u16;
-                        create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain)
-                    })
+                    .map(move |(j, &gain)| (fx_return_offset + j as u16, gain));
+                let streams = mixer
+                    .stream_gains
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &gain)| (Self::STREAM_OFFSET + j as u16, gain));
+                phys.chain(fx_returns)
+                    .chain(streams)
+                    .map(|(ch, gain)| create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain))
                     .collect::<Vec<u32>>()
             })
             .collect()

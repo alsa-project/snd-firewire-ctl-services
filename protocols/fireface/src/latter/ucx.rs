@@ -482,4 +482,79 @@ mod test {
 
         assert_eq!(target, orig);
     }
+
+    #[test]
+    fn mixer_source_channel_layout() {
+        // Stream and fx return sources are at fixed channel offsets in each mixer, independent
+        // of the number of physical inputs (18 in UCX).
+        let mut state = FfUcxProtocol::create_mixer_parameters();
+        state.0[1].adat_gains[7] = 0x9001;
+        state.0[1].fx_return_gains[0] = 0x9002;
+        state.0[1].fx_return_gains[1] = 0x9003;
+        state.0[1].stream_gains[0] = 0x9004;
+        state.0[1].stream_gains[17] = 0x9005;
+
+        let cmds = FfUcxProtocol::serialize_commands(&state);
+        assert_eq!(
+            cmds.len(),
+            FfUcxProtocol::OUTPUT_COUNT * (18 + 2 + 18),
+        );
+
+        let addr_of = |coef: u32| {
+            let cmd = cmds.iter().find(|&&cmd| cmd & 0xffff == coef).unwrap();
+            ((cmd & 0x3fffffff) >> 16) as u16
+        };
+        let base = FfUcxProtocol::MIXER_STEP;
+        assert_eq!(addr_of(0x9001), base + 17);
+        assert_eq!(addr_of(0x9002), base + 0x1e);
+        assert_eq!(addr_of(0x9003), base + 0x1f);
+        assert_eq!(addr_of(0x9004), base + 0x20);
+        assert_eq!(addr_of(0x9005), base + 0x20 + 17);
+    }
+
+    #[test]
+    fn input_channel_order() {
+        // The microphone preamps are at channel 0-1, line inputs at 2-7, digital inputs from 8.
+        let phys_ch = |cmd: u32| ((cmd & 0x7fffffff) >> 24) as u8;
+        let phys_cmd = |cmd: u32| ((cmd >> 16) & 0xff) as u8;
+
+        let mut state = FfUcxProtocol::create_input_parameters();
+        state.mic_powers[1] = true;
+        state.line_levels[0] = LatterInNominalLevel::Professional;
+        let cmds = FfUcxProtocol::serialize_commands(&state);
+        let set = |cmd_code: u8, ch: u8| {
+            cmds.iter()
+                .find(|&&c| phys_cmd(c) == cmd_code && phys_ch(c) == ch)
+                .map(|&c| c & 0xffff)
+        };
+        // Phantom powering for input 2 at channel 1, line level of input 3 at channel 2.
+        assert_eq!(set(0x08, 1), Some(1));
+        assert_eq!(set(0x08, 0), Some(0));
+        assert_eq!(set(0x08, 2), Some(1));
+        assert_eq!(set(0x08, 6), Some(0));
+        assert_eq!(set(0x08, 7), Some(0));
+
+        let mut params = FfUcxProtocol::create_fx_sources_parameters();
+        params.mic_input_gains[1] = 0x101;
+        params.line_input_gains[0] = 0x102;
+        params.spdif_input_gains[0] = 0x103;
+        let cmds = FfUcxProtocol::serialize_commands(&params);
+        let ch_of = |coef: u32| phys_ch(*cmds.iter().find(|&&c| c & 0xffff == coef).unwrap());
+        assert_eq!(ch_of(0x101), 1);
+        assert_eq!(ch_of(0x102), 2);
+        assert_eq!(ch_of(0x103), 8);
+
+        let mut mixer = FfUcxProtocol::create_mixer_parameters();
+        mixer.0[0].mic_gains[1] = 0x9011;
+        mixer.0[0].line_gains[5] = 0x9012;
+        mixer.0[0].spdif_gains[0] = 0x9013;
+        let cmds = FfUcxProtocol::serialize_commands(&mixer);
+        let addr_of = |coef: u32| {
+            let cmd = cmds.iter().find(|&&cmd| cmd & 0xffff == coef).unwrap();
+            ((cmd & 0x3fffffff) >> 16) as u16
+        };
+        assert_eq!(addr_of(0x9011), 1);
+        assert_eq!(addr_of(0x9012), 7);
+        assert_eq!(addr_of(0x9013), 8);
+    }
 }
