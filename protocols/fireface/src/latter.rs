@@ -166,12 +166,36 @@ fn read_status<T: RmeFfOffsetParamsDeserialize<U>, U>(
     .map(|_| T::deserialize_offsets(status, &raw))
 }
 
+/// Pair each physical input value with its channel number. Line and microphone inputs are placed
+/// per model; digital inputs follow both of them.
+fn phys_input_channels<'a, T, S>(
+    line: &'a [S],
+    mic: &'a [S],
+    digital: impl Iterator<Item = &'a S> + 'a,
+) -> impl Iterator<Item = (usize, S)> + 'a
+where
+    T: RmeFfLatterSpecification,
+    S: Copy + 'a,
+{
+    let digital_offset = T::LINE_INPUT_COUNT + T::MIC_INPUT_COUNT;
+    line.iter()
+        .enumerate()
+        .map(|(i, &v)| (T::LINE_INPUT_OFFSET + i, v))
+        .chain(mic.iter().enumerate().map(|(i, &v)| (T::MIC_INPUT_OFFSET + i, v)))
+        .chain(digital.enumerate().map(move |(i, &v)| (digital_offset + i, v)))
+}
+
 /// The specification of latter model.
 pub trait RmeFfLatterSpecification {
     /// The number of line inputs.
     const LINE_INPUT_COUNT: usize;
     /// The number of microphone inputs.
     const MIC_INPUT_COUNT: usize;
+    /// The first physical channel of line inputs. The 802 has line inputs first, while the UCX
+    /// has its microphone preamps at channel 0-1.
+    const LINE_INPUT_OFFSET: usize = 0;
+    /// The first physical channel of microphone inputs.
+    const MIC_INPUT_OFFSET: usize = Self::LINE_INPUT_COUNT;
     /// The number of S/PDIF inputs.
     const SPDIF_INPUT_COUNT: usize;
     /// The number of ADAT inputs.
@@ -189,6 +213,11 @@ pub trait RmeFfLatterSpecification {
     const SPDIF_OUTPUT_COUNT: usize;
     /// The number of ADAT outputs.
     const ADAT_OUTPUT_COUNT: usize;
+
+    /// The size of each chunk of meter data in bytes. The last quadlet is the tag.
+    const METER_CHUNK_SIZE: usize = 392;
+    /// The offset of quadlets for meter levels in each chunk.
+    const METER_LEVEL_OFFSET: usize = 256;
 }
 
 /// State of meters.
@@ -217,7 +246,6 @@ pub struct FfLatterMeterState {
     pub adat_outputs: Vec<i32>,
 }
 
-const METER_CHUNK_SIZE: usize = 392;
 const METER_CHUNK_COUNT: usize = 5;
 const METER32_MASK: i32 = 0x07fffff0;
 
@@ -260,10 +288,10 @@ impl<O: RmeFfLatterSpecification> RmeFfLatterMeterSpecification for O {}
 //  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
 impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMeterState> for O {
     fn deserialize_offsets(state: &mut FfLatterMeterState, raw: &[u8]) {
-        assert_eq!(raw.len(), METER_CHUNK_SIZE);
+        assert_eq!(raw.len(), Self::METER_CHUNK_SIZE);
 
         let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[(METER_CHUNK_SIZE - 4)..]);
+        quadlet.copy_from_slice(&raw[(Self::METER_CHUNK_SIZE - 4)..]);
         let target = u32::from_le_bytes(quadlet);
 
         match target {
@@ -284,7 +312,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                 .iter_mut()
                 .for_each(|(iter, offset)| {
                     iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + (*offset + i) * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -297,7 +325,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                     .iter_mut()
                     .enumerate()
                     .for_each(|(i, meter)| {
-                        let pos = 256 + i * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + i * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -305,8 +333,8 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
             // For phys inputs.
             0x66666666 => {
                 [
-                    (state.line_inputs.iter_mut(), 0),
-                    (state.mic_inputs.iter_mut(), Self::LINE_INPUT_COUNT),
+                    (state.line_inputs.iter_mut(), Self::LINE_INPUT_OFFSET),
+                    (state.mic_inputs.iter_mut(), Self::MIC_INPUT_OFFSET),
                     (
                         state.spdif_inputs.iter_mut(),
                         Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT,
@@ -319,7 +347,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
                 .iter_mut()
                 .for_each(|(iter, offset)| {
                     iter.enumerate().for_each(|(i, meter)| {
-                        let pos = 256 + (*offset + i) * 4;
+                        let pos = Self::METER_LEVEL_OFFSET + (*offset + i) * 4;
                         quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
                         *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
                     });
@@ -332,7 +360,7 @@ impl<O: RmeFfLatterMeterSpecification> RmeFfOffsetParamsDeserialize<FfLatterMete
 
 impl<O> RmeFfCacheableParamsOperation<FfLatterMeterState> for O
 where
-    O: RmeFfOffsetParamsDeserialize<FfLatterMeterState>,
+    O: RmeFfOffsetParamsDeserialize<FfLatterMeterState> + RmeFfLatterSpecification,
 {
     fn cache_wholly(
         req: &mut FwReq,
@@ -341,7 +369,7 @@ where
         timeout_ms: u32,
     ) -> Result<(), Error> {
         (0..METER_CHUNK_COUNT).try_for_each(|_| {
-            let mut raw = vec![0; METER_CHUNK_SIZE];
+            let mut raw = vec![0; Self::METER_CHUNK_SIZE];
             req.transaction(
                 node,
                 FwTcode::ReadBlockRequest,
@@ -704,12 +732,12 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
             });
 
         state.line_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let ch = i as u8;
+            let ch = (Self::LINE_INPUT_OFFSET + i) as u8;
             cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
         });
 
         state.line_levels.iter().enumerate().for_each(|(i, level)| {
-            let ch = i as u8;
+            let ch = (Self::LINE_INPUT_OFFSET + i) as u8;
             cmds.push(create_phys_port_cmd(
                 ch,
                 INPUT_LINE_LEVEL_CMD,
@@ -719,7 +747,7 @@ impl<O: RmeFfLatterInputSpecification> RmeFfCommandParamsSerialize<FfLatterInput
 
         (0..Self::MIC_INPUT_COUNT).for_each(|i| {
             // NOTE: The offset is required for microphone inputs.
-            let ch = (Self::LINE_INPUT_COUNT + i) as u8;
+            let ch = (Self::MIC_INPUT_OFFSET + i) as u8;
 
             let cmd = create_phys_port_cmd(ch, INPUT_MIC_INST_CMD, state.mic_insts[i] as i16);
             cmds.push(cmd);
@@ -975,19 +1003,31 @@ impl<O: RmeFfLatterMixerSpecification> RmeFfCommandParamsSerialize<FfLatterMixer
             .enumerate()
             .flat_map(|(i, mixer)| {
                 let index = i as u16;
-                mixer
-                    .line_gains
+                // Physical inputs are at channel 0 onward, while fx returns and stream inputs
+                // are at fixed offsets just below and from STREAM_OFFSET (0x20) regardless of
+                // the number of physical inputs. Contiguous numbering only coincides with this
+                // layout for models with 30 physical inputs (802); for UCX (18) it misplaced
+                // stream sources at 0x14.
+                let phys = phys_input_channels::<Self, _>(
+                    &mixer.line_gains,
+                    &mixer.mic_gains,
+                    mixer.spdif_gains.iter().chain(&mixer.adat_gains),
+                )
+                .map(|(ch, gain)| (ch as u16, gain));
+                let fx_return_offset = Self::STREAM_OFFSET - mixer.fx_return_gains.len() as u16;
+                let fx_returns = mixer
+                    .fx_return_gains
                     .iter()
-                    .chain(&mixer.mic_gains)
-                    .chain(&mixer.spdif_gains)
-                    .chain(&mixer.adat_gains)
-                    .chain(&mixer.fx_return_gains)
-                    .chain(&mixer.stream_gains)
                     .enumerate()
-                    .map(|(j, &gain)| {
-                        let ch = j as u16;
-                        create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain)
-                    })
+                    .map(move |(j, &gain)| (fx_return_offset + j as u16, gain));
+                let streams = mixer
+                    .stream_gains
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &gain)| (Self::STREAM_OFFSET + j as u16, gain));
+                phys.chain(fx_returns)
+                    .chain(streams)
+                    .map(|(ch, gain)| create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain))
                     .collect::<Vec<u32>>()
             })
             .collect()
@@ -1652,17 +1692,14 @@ where
     fn serialize_commands(params: &FfLatterFxSourceParameters) -> Vec<u32> {
         let mut cmds = Vec::new();
 
-        params
-            .line_input_gains
-            .iter()
-            .chain(&params.mic_input_gains)
-            .chain(&params.spdif_input_gains)
-            .chain(&params.adat_input_gains)
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let ch = i as u8;
-                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
-            });
+        phys_input_channels::<Self, _>(
+            &params.line_input_gains,
+            &params.mic_input_gains,
+            params.spdif_input_gains.iter().chain(&params.adat_input_gains),
+        )
+        .for_each(|(ch, gain)| {
+            cmds.push(create_phys_port_cmd(ch as u8, INPUT_TO_FX_CMD, gain));
+        });
 
         params
             .stream_input_gains
