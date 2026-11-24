@@ -388,15 +388,15 @@ impl AvcStatus for InputSwitchOperation {
                 self.op.data[1] = 0x00;
             }
             InputSwitch::Analog12Phantom(ch, _) => {
-                self.op.data[0] = CMD_PHONO;
+                self.op.data[0] = CMD_MIC_PHANTOM;
                 self.op.data[1] = 1 + ch as u8;
             }
             InputSwitch::Analog12Boost(ch, _) => {
-                self.op.data[0] = CMD_PHONO;
+                self.op.data[0] = CMD_MIC_BOOST;
                 self.op.data[1] = 1 + ch as u8;
             }
             InputSwitch::Analog12Limit(ch, _) => {
-                self.op.data[0] = CMD_PHONO;
+                self.op.data[0] = CMD_MIC_LIMIT;
                 self.op.data[1] = 1 + ch as u8;
             }
             InputSwitch::AnalogStereoLink(ch, _) => {
@@ -438,6 +438,21 @@ impl AvcStatus for InputSwitchOperation {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn input_switch_operation_status_mic_operands() {
+        let cases = [
+            (InputSwitch::Analog12Phantom(1, false), [0x01, 0x02, 0xff]),
+            (InputSwitch::Analog12Boost(0, false), [0x02, 0x01, 0xff]),
+            (InputSwitch::Analog12Limit(1, false), [0x03, 0x02, 0xff]),
+        ];
+        cases.iter().for_each(|(switch, data)| {
+            let mut op = InputSwitchOperation::new(switch);
+            let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+            assert_eq!(&operands[..3], &[0x00, 0x0a, 0x92], "{:?}", switch);
+            assert_eq!(&operands[3..], data, "{:?}", switch);
+        });
+    }
 
     #[test]
     fn input_switch_operation_too_short_data() {
