@@ -235,7 +235,7 @@ pub type Studiok48PhysOutSegment = TcKonnektSegment<StudioPhysOut>;
 /// Segment for state of reverb effect. 0x0594..0x05d7. (17 quads)
 pub type Studiok48ReverbStateSegment = TcKonnektSegment<StudioReverbState>;
 
-/// Segment for states of channel strip effect. 0x05dc..0x081f (145 quads).
+/// Segment for states of channel strip effect. 0x05d8..0x081f (146 quads).
 pub type Studiok48ChStripStatesSegment = TcKonnektSegment<StudioChStripStates>;
 
 // NOTE: Segment for tuner. 0x0820..0x083f (8 quads).
@@ -1472,7 +1472,7 @@ pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentSerdes<StudioChStripStates> for Studiok48Protocol {
     const NAME: &'static str = "channel-strip-state";
-    const OFFSET: usize = 0x05dc;
+    const OFFSET: usize = 0x05d8;
     const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
 
     fn serialize(params: &StudioChStripStates, raw: &mut [u8]) -> Result<(), String> {

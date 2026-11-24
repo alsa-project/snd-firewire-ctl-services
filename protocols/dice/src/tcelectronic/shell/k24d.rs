@@ -81,7 +81,7 @@ pub type K24dMixerStateSegment = TcKonnektSegment<K24dMixerState>;
 /// Segment for state of reverb effect. 0x01d0..0x0213. (17 quads)
 pub type K24dReverbStateSegment = TcKonnektSegment<K24dReverbState>;
 
-/// Segment for states of channel strip effect. 0x0218..0x0337 (72 quads).
+/// Segment for states of channel strip effect. 0x0214..0x0337 (73 quads).
 pub type K24dChStripStatesSegment = TcKonnektSegment<K24dChStripStates>;
 
 // NOTE: Segment for tuner. 0x0338..0x033b (8 quads).
@@ -472,7 +472,7 @@ pub struct K24dChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentSerdes<K24dChStripStates> for K24dProtocol {
     const NAME: &'static str = "channel-strip-state";
-    const OFFSET: usize = 0x0218;
+    const OFFSET: usize = 0x0214;
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &K24dChStripStates, raw: &mut [u8]) -> Result<(), String> {
