@@ -1157,8 +1157,10 @@ impl AvcStatus for ExtendedSubunitInfo {
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() != 27 {
-            Err(AvcRespParseError::TooShortResp(27))
+        if operands.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))
+        } else if operands.len() > Self::LENGTH {
+            Err(AvcRespParseError::UnexpectedOperands(Self::LENGTH))
         } else if self.page != operands[0] {
             Err(AvcRespParseError::UnexpectedOperands(0))
         } else if self.func_blk_type != operands[1] {
@@ -2610,6 +2612,25 @@ mod test {
         } else {
             unreachable!();
         }
+    }
+
+    #[test]
+    fn extendedsubunitinfo_unexpected_length() {
+        let mut op = ExtendedSubunitInfo::new(0, 0xff);
+
+        let mut operands = vec![0xff; 26];
+        operands[0] = 0x00;
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(27))
+        );
+
+        let mut operands = vec![0xff; 28];
+        operands[0] = 0x00;
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::UnexpectedOperands(27))
+        );
     }
 
     #[test]
