@@ -1297,6 +1297,81 @@ impl AvcStatus for ExtendedStreamFormatList {
 mod tests {
     use crate::*;
 
+    /// Generate the responses truncated, extended, and mutated from the given one.
+    fn malformed_responses(operands: &[u8]) -> Vec<Vec<u8>> {
+        let mut state = 0x1234_5678_9abc_def1u64;
+        let mut random = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 24) as u8
+        };
+
+        let mut responses = Vec::new();
+        for len in 0..(operands.len() + 8) {
+            for i in 0..16 {
+                let mut response = Vec::with_capacity(len);
+                for pos in 0..len {
+                    let val = if pos < operands.len() {
+                        operands[pos]
+                    } else {
+                        random()
+                    };
+                    response.push(val);
+                }
+                if i > 0 && len > 0 {
+                    let pos = random() as usize % len;
+                    response[pos] = random();
+                }
+                responses.push(response);
+            }
+        }
+        responses
+    }
+
+    /// Parse the malformed responses for STATUS command, and expect no panic.
+    fn parse_malformed_status<O: AvcStatus>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    /// Parse the malformed responses for CONTROL command, and expect no panic.
+    fn parse_malformed_control<O: AvcControl>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcControl::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    #[test]
+    fn parse_malformed_responses() {
+        let plug_addr = PlugAddr {
+            direction: PlugDirection::Output,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0x03,
+            }),
+        };
+
+        let operands = [
+            0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06,
+            0x02, 0x00,
+        ];
+        parse_malformed_status(|| ExtendedStreamFormatSingle::new(&plug_addr), &operands);
+        parse_malformed_control(|| ExtendedStreamFormatSingle::new(&plug_addr), &operands);
+
+        let operands = [
+            0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x31, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02,
+            0x06, 0x02, 0x00,
+        ];
+        parse_malformed_status(
+            || ExtendedStreamFormatList::new(&plug_addr, 0x31),
+            &operands,
+        );
+    }
+
     #[test]
     fn amstream_reserved() {
         // The unknown value for the format of hierarchy level 1.
