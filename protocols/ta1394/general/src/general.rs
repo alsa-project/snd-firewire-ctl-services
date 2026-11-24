@@ -481,13 +481,13 @@ impl PlugSignalFormat {
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() > 4 {
+        if operands.len() < 5 {
+            Err(AvcRespParseError::TooShortResp(5))
+        } else {
             self.plug_id = operands[0];
             self.fmt = operands[1];
             self.fdf.copy_from_slice(&operands[2..5]);
             Ok(())
-        } else {
-            Err(AvcRespParseError::TooShortResp(4))
         }
     }
 }
@@ -771,5 +771,22 @@ mod test {
         assert_eq!(op.0.plug_id, 0x1e);
         assert_eq!(op.0.fmt, 0xde);
         assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
+    }
+
+    #[test]
+    fn plugsignalformat_too_short_operands() {
+        let operands = [0x1e, 0xde, 0xad, 0xbe];
+
+        let mut op = InputPlugSignalFormat::new(0x1e);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(5))
+        );
+
+        let mut op = OutputPlugSignalFormat::new(0x1e);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(5))
+        );
     }
 }
