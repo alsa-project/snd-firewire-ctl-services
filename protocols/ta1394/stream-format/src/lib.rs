@@ -697,7 +697,7 @@ impl AmStream {
                 raw.append(&mut r);
             }
             AmStream::Reserved(d) => {
-                raw.copy_from_slice(d);
+                raw.extend_from_slice(d);
             }
         }
         Ok(raw)
@@ -1295,6 +1295,15 @@ impl AvcStatus for ExtendedStreamFormatList {
 #[cfg(test)]
 mod tests {
     use crate::*;
+
+    #[test]
+    fn amstream_reserved() {
+        // The unknown value for the format of hierarchy level 1.
+        let raw = [0x7f, 0x01, 0x02, 0x03, 0x04];
+        let stream = AmStream::from_raw(&raw).unwrap();
+        assert_eq!(stream, AmStream::Reserved(raw.to_vec()));
+        assert_eq!(stream.to_raw().unwrap(), raw);
+    }
 
     #[test]
     fn am824multibitaudioattr_from() {
