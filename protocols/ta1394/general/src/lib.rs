@@ -663,3 +663,385 @@ mod test {
         assert_eq!(0xff, u8::from(AvcRespCode::from(0xff)));
     }
 }
+
+#[cfg(test)]
+mod transaction_test {
+    use crate::*;
+    use std::cell::RefCell;
+
+    const TIMEOUT_MS: u32 = 100;
+    const OPCODE: u8 = 0x5a;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct MockError;
+
+    impl std::fmt::Display for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "mock communication failure")
+        }
+    }
+
+    /// The transport which records the command frame and returns the prepared result.
+    struct MockAvc {
+        result: Result<Vec<u8>, MockError>,
+        command_frame: RefCell<Option<Vec<u8>>>,
+    }
+
+    impl MockAvc {
+        fn new(result: Result<Vec<u8>, MockError>) -> Self {
+            Self {
+                result,
+                command_frame: Default::default(),
+            }
+        }
+
+        fn command_frame(&self) -> Option<Vec<u8>> {
+            self.command_frame.borrow().clone()
+        }
+    }
+
+    impl Ta1394Avc<MockError> for MockAvc {
+        fn transaction(&self, command_frame: &[u8], _: u32) -> Result<Vec<u8>, MockError> {
+            *self.command_frame.borrow_mut() = Some(command_frame.to_vec());
+            self.result.clone()
+        }
+    }
+
+    /// The operation which yields the prepared operands and records the parsed ones.
+    #[derive(Default)]
+    struct MockOp {
+        operands: Vec<u8>,
+        build_error: Option<AvcCmdBuildError>,
+        parse_error: Option<AvcRespParseError>,
+        parsed: Option<(AvcAddr, Vec<u8>)>,
+    }
+
+    impl MockOp {
+        fn new(operands: &[u8]) -> Self {
+            Self {
+                operands: operands.to_vec(),
+                ..Default::default()
+            }
+        }
+
+        fn build(&mut self) -> Result<Vec<u8>, AvcCmdBuildError> {
+            match self.build_error {
+                Some(err) => Err(err),
+                None => Ok(self.operands.clone()),
+            }
+        }
+
+        fn parse(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+            self.parsed = Some((*addr, operands.to_vec()));
+            match self.parse_error {
+                Some(err) => Err(err),
+                None => Ok(()),
+            }
+        }
+    }
+
+    impl AvcOp for MockOp {
+        const OPCODE: u8 = OPCODE;
+    }
+
+    impl AvcControl for MockOp {
+        fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+            self.build()
+        }
+
+        fn parse_operands(
+            &mut self,
+            addr: &AvcAddr,
+            operands: &[u8],
+        ) -> Result<(), AvcRespParseError> {
+            self.parse(addr, operands)
+        }
+    }
+
+    impl AvcStatus for MockOp {
+        fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+            self.build()
+        }
+
+        fn parse_operands(
+            &mut self,
+            addr: &AvcAddr,
+            operands: &[u8],
+        ) -> Result<(), AvcRespParseError> {
+            self.parse(addr, operands)
+        }
+    }
+
+    impl AvcNotify for MockOp {
+        fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+            self.build()
+        }
+
+        fn parse_operands(
+            &mut self,
+            addr: &AvcAddr,
+            operands: &[u8],
+        ) -> Result<(), AvcRespParseError> {
+            self.parse(addr, operands)
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum Method {
+        Control,
+        Status,
+        SpecificInquiry,
+        Notify,
+    }
+
+    /// The method, the code of command type, and the code of response expected for success.
+    const METHODS: [(Method, u8, u8); 4] = [
+        (Method::Control, 0x00, 0x09),
+        (Method::Status, 0x01, 0x0c),
+        (Method::SpecificInquiry, 0x02, 0x0c),
+        (Method::Notify, 0x03, 0x0d),
+    ];
+
+    fn execute(
+        method: Method,
+        avc: &MockAvc,
+        addr: &AvcAddr,
+        op: &mut MockOp,
+    ) -> Result<(), Ta1394AvcError<MockError>> {
+        match method {
+            Method::Control => avc.control(addr, op, TIMEOUT_MS),
+            Method::Status => avc.status(addr, op, TIMEOUT_MS),
+            Method::SpecificInquiry => avc.specific_inquiry(addr, op, TIMEOUT_MS),
+            Method::Notify => avc.notify(addr, op, TIMEOUT_MS),
+        }
+    }
+
+    #[test]
+    fn command_frame_and_response_operands() {
+        let addrs = [
+            (AvcAddr::Unit, 0xff),
+            (AvcAddr::Subunit(AUDIO_SUBUNIT_0), 0x08),
+            (AvcAddr::Subunit(MUSIC_SUBUNIT_0), 0x60),
+        ];
+        for &(method, ctype, rcode) in &METHODS {
+            for &(addr, addr_byte) in &addrs {
+                let avc = MockAvc::new(Ok(vec![rcode, addr_byte, OPCODE, 0xde, 0xad]));
+                let mut op = MockOp::new(&[0x01, 0x02, 0x03]);
+
+                assert_eq!(
+                    execute(method, &avc, &addr, &mut op),
+                    Ok(()),
+                    "{:?}",
+                    method
+                );
+                assert_eq!(
+                    avc.command_frame(),
+                    Some(vec![ctype, addr_byte, OPCODE, 0x01, 0x02, 0x03]),
+                    "{:?}",
+                    method
+                );
+                assert_eq!(op.parsed, Some((addr, vec![0xde, 0xad])), "{:?}", method);
+            }
+        }
+    }
+
+    #[test]
+    fn response_without_operands() {
+        for &(method, ctype, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE]));
+            let mut op = MockOp::new(&[]);
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Ok(()),
+                "{:?}",
+                method
+            );
+            assert_eq!(
+                avc.command_frame(),
+                Some(vec![ctype, 0xff, OPCODE]),
+                "{:?}",
+                method
+            );
+            assert_eq!(op.parsed, Some((AvcAddr::Unit, vec![])), "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn ignore_upper_bits_of_response_code() {
+        // The upper 4 bits are for Command/Transaction Set (CTS).
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![0xf0 | rcode, 0xff, OPCODE]));
+            let mut op = MockOp::new(&[]);
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Ok(()),
+                "{:?}",
+                method
+            );
+        }
+    }
+
+    #[test]
+    fn unexpected_response_code() {
+        for &(method, _, expected) in &METHODS {
+            for rcode in (0x00..=0x0f).filter(|&rcode| rcode != expected) {
+                let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE]));
+                let mut op = MockOp::new(&[]);
+
+                assert_eq!(
+                    execute(method, &avc, &AvcAddr::Unit, &mut op),
+                    Err(Ta1394AvcError::RespParse(
+                        AvcRespParseError::UnexpectedStatus
+                    )),
+                    "{:?} {:#04x}",
+                    method,
+                    rcode
+                );
+                assert_eq!(op.parsed, None, "{:?} {:#04x}", method, rcode);
+            }
+        }
+    }
+
+    #[test]
+    fn too_short_response() {
+        for &(method, _, rcode) in &METHODS {
+            for len in 0..3 {
+                let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE][..len].to_vec()));
+                let mut op = MockOp::new(&[]);
+
+                assert_eq!(
+                    execute(method, &avc, &AvcAddr::Unit, &mut op),
+                    Err(Ta1394AvcError::RespParse(AvcRespParseError::TooShortResp(
+                        3
+                    ))),
+                    "{:?} {}",
+                    method,
+                    len
+                );
+                assert_eq!(op.parsed, None, "{:?} {}", method, len);
+            }
+        }
+    }
+
+    #[test]
+    fn unexpected_address() {
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0x08, OPCODE]));
+            let mut op = MockOp::new(&[]);
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedAddr)),
+                "{:?}",
+                method
+            );
+            assert_eq!(op.parsed, None, "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn unexpected_opcode() {
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE + 1]));
+            let mut op = MockOp::new(&[]);
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::RespParse(
+                    AvcRespParseError::UnexpectedOpcode
+                )),
+                "{:?}",
+                method
+            );
+            assert_eq!(op.parsed, None, "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn operands_up_to_frame_size() {
+        // The command frame consists of 3 bytes for header and the rest for operands, up to 512.
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE]));
+            let mut op = MockOp::new(&[0x00; 509]);
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Ok(()),
+                "{:?}",
+                method
+            );
+            assert_eq!(
+                avc.command_frame().map(|frame| frame.len()),
+                Some(512),
+                "{:?}",
+                method
+            );
+
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE]));
+            let mut op = MockOp::new(&[0x00; 510]);
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::CmdBuild(AvcCmdBuildError::TooLongOperands)),
+                "{:?}",
+                method
+            );
+            assert_eq!(avc.command_frame(), None, "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn build_error() {
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE]));
+            let mut op = MockOp {
+                build_error: Some(AvcCmdBuildError::InvalidAddress),
+                ..Default::default()
+            };
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::CmdBuild(AvcCmdBuildError::InvalidAddress)),
+                "{:?}",
+                method
+            );
+            assert_eq!(avc.command_frame(), None, "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn communication_failure() {
+        for &(method, _, _) in &METHODS {
+            let avc = MockAvc::new(Err(MockError));
+            let mut op = MockOp::new(&[]);
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::CommunicationFailure(MockError)),
+                "{:?}",
+                method
+            );
+            assert_eq!(op.parsed, None, "{:?}", method);
+        }
+    }
+
+    #[test]
+    fn parse_error() {
+        for &(method, _, rcode) in &METHODS {
+            let avc = MockAvc::new(Ok(vec![rcode, 0xff, OPCODE, 0x00, 0x01]));
+            let mut op = MockOp {
+                parse_error: Some(AvcRespParseError::UnexpectedOperands(1)),
+                ..Default::default()
+            };
+
+            assert_eq!(
+                execute(method, &avc, &AvcAddr::Unit, &mut op),
+                Err(Ta1394AvcError::RespParse(
+                    AvcRespParseError::UnexpectedOperands(1)
+                )),
+                "{:?}",
+                method
+            );
+        }
+    }
+}
