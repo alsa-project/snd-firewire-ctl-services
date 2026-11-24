@@ -1689,20 +1689,43 @@ impl AvcControl for EnsembleOperation {
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.op, addr, operands).map(|_| {
-            // NOTE: parameters are retrieved by HwStatus command only.
-            match &mut self.cmd {
-                EnsembleCmd::HwStatusShort(buf) => buf.copy_from_slice(&self.op.data[2..]),
-                EnsembleCmd::HwStatusLong(buf) => buf.copy_from_slice(&self.op.data[2..]),
-                _ => (),
-            }
-        })
+        AvcControl::parse_operands(&mut self.op, addr, operands)?;
+
+        // NOTE: parameters are retrieved by HwStatus command only.
+        let buf: &mut [u8] = match &mut self.cmd {
+            EnsembleCmd::HwStatusShort(buf) => buf,
+            EnsembleCmd::HwStatusLong(buf) => buf,
+            _ => return Ok(()),
+        };
+
+        // The company ID in operands is followed by the data.
+        let length = 2 + buf.len();
+        if self.op.data.len() < length {
+            Err(AvcRespParseError::TooShortResp(3 + length))?;
+        }
+        buf.copy_from_slice(&self.op.data[2..length]);
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn ensemble_operation_too_short_hw_status() {
+        let mut operands = vec![0x00, 0x01, 0x02];
+        operands.extend_from_slice(&[0x00; 2 + METER_SHORT_FRAME_SIZE - 1]);
+        let mut op =
+            EnsembleOperation::new(EnsembleCmd::HwStatusShort([0; METER_SHORT_FRAME_SIZE]));
+        assert_eq!(
+            AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(
+                3 + 2 + METER_SHORT_FRAME_SIZE
+            ))
+        );
+    }
 
     #[test]
     fn converter_params_and_cmds() {

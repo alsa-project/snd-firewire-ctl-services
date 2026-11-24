@@ -389,6 +389,11 @@ impl AvcControl for SaffireAvcOperation {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)?;
+        // The company ID in operands is followed by the data.
+        let length = 5 + self.offsets.len() * 8;
+        if self.op.data.len() < length {
+            Err(AvcRespParseError::TooShortResp(3 + length))?;
+        }
         (0..self.offsets.len()).for_each(|i| {
             let data = &self.op.data[(5 + i * 8 + 4)..(5 + i * 8 + 8)];
             let buf = &mut self.buf[(i * 4)..(i * 4 + 4)];
@@ -417,6 +422,11 @@ impl AvcStatus for SaffireAvcOperation {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
+        // The company ID in operands is followed by the data.
+        let length = 2 + self.offsets.len() * 8;
+        if self.op.data.len() < length {
+            Err(AvcRespParseError::TooShortResp(3 + length))?;
+        }
         (0..self.offsets.len()).for_each(|i| {
             let data = &self.op.data[(2 + i * 8 + 4)..(2 + i * 8 + 8)];
             let buf = &mut self.buf[(i * 4)..(i * 4 + 4)];
@@ -545,6 +555,29 @@ pub fn saffire_write_quadlets(
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn saffire_avc_operation_too_short_data() {
+        let mut op = SaffireAvcOperation {
+            offsets: vec![0x10],
+            buf: vec![0; 4],
+            ..Default::default()
+        };
+
+        let mut operands = vec![0x00, 0x01, 0x02];
+        operands.extend_from_slice(&[0x00; 2 + 8 - 1]);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(3 + 2 + 8))
+        );
+
+        let mut operands = vec![0x00, 0x01, 0x02];
+        operands.extend_from_slice(&[0x00; 5 + 8 - 1]);
+        assert_eq!(
+            AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(3 + 5 + 8))
+        );
+    }
 
     #[test]
     fn frame_for_write() {
