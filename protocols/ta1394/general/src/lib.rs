@@ -491,7 +491,9 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         addr: &AvcAddr,
         opcode: u8,
     ) -> Result<(AvcRespCode, &'a [u8]), AvcRespParseError> {
-        if frame[1] != addr.into() {
+        if frame.len() < 3 {
+            Err(AvcRespParseError::TooShortResp(3))
+        } else if frame[1] != addr.into() {
             Err(AvcRespParseError::UnexpectedAddr)
         } else if frame[2] != opcode {
             Err(AvcRespParseError::UnexpectedOpcode)
