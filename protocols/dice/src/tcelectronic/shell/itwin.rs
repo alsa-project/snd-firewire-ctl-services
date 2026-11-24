@@ -100,7 +100,7 @@ pub type ItwinMixerStateSegment = TcKonnektSegment<ItwinMixerState>;
 /// Segment for state of reverb effect. 0x0244..0x0287. (17 quads)
 pub type ItwinReverbStateSegment = TcKonnektSegment<ItwinReverbState>;
 
-/// Segment for states of channel strip effect. 0x028c..0x03ab (72 quads).
+/// Segment for states of channel strip effect. 0x0288..0x03ab (73 quads).
 pub type ItwinChStripStatesSegment = TcKonnektSegment<ItwinChStripStates>;
 
 // NOTE: Segment for tuner. 0x03ac..0x03c8 (8 quads).
@@ -519,7 +519,7 @@ pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentSerdes<ItwinChStripStates> for ItwinProtocol {
     const NAME: &'static str = "channel-strip-state";
-    const OFFSET: usize = 0x028c;
+    const OFFSET: usize = 0x0288;
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &ItwinChStripStates, raw: &mut [u8]) -> Result<(), String> {

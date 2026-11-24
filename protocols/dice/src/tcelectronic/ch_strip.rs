@@ -146,11 +146,13 @@ impl ChStripState {
 }
 
 pub(crate) fn calculate_ch_strip_state_segment_size(count: usize) -> usize {
-    ((count + 1) / 2) * 4 + count * ChStripState::SIZE
+    ((count / 2) + 1) * 4 + count * ChStripState::SIZE
 }
 
+// NOTE: The first quadlet of each stereo pair is skipped. It may hold the configuration of stereo
+// link, but this is not confirmed yet.
 fn calculate_ch_strip_state_segment_pos(idx: usize) -> usize {
-    (((idx + 1) / 2) * 4) + idx * ChStripState::SIZE
+    ((idx / 2) + 1) * 4 + idx * ChStripState::SIZE
 }
 
 pub(crate) fn serialize_ch_strip_states(

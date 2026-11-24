@@ -125,7 +125,7 @@ pub type KliveMixerStateSegment = TcKonnektSegment<KliveMixerState>;
 /// Segment for state of reverb effect. 0x0218..0x025b. (17 quads)
 pub type KliveReverbStateSegment = TcKonnektSegment<KliveReverbState>;
 
-/// Segment for states of channel strip effect. 0x0260..0x037f (72 quads).
+/// Segment for states of channel strip effect. 0x025c..0x037f (73 quads).
 pub type KliveChStripStatesSegment = TcKonnektSegment<KliveChStripStates>;
 
 // NOTE: Segment for tuner. 0x0384..0x039c (8 quads).
@@ -690,7 +690,7 @@ pub struct KliveChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentSerdes<KliveChStripStates> for KliveProtocol {
     const NAME: &'static str = "channel-strip-state";
-    const OFFSET: usize = 0x0260;
+    const OFFSET: usize = 0x025c;
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 
     fn serialize(params: &KliveChStripStates, raw: &mut [u8]) -> Result<(), String> {
