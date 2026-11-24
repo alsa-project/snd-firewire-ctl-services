@@ -1112,6 +1112,13 @@ mod test {
     }
 
     #[test]
+    fn maudio_special_led_switch_operands() {
+        let mut op = MaudioSpecialLedSwitch::new(true);
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0x03, 0x00, 0x01, 0x01, 0xff]);
+    }
+
+    #[test]
     fn offset_ranges() {
         let ranges = [
             &STREAM_INPUT_GAIN_RANGE,

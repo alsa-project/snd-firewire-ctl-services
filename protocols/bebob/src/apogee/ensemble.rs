@@ -1714,6 +1714,36 @@ mod test {
     use super::*;
 
     #[test]
+    fn ensemble_operation_operands() {
+        // The data shorter than 6 bytes is padded.
+        let mut op = EnsembleOperation::new(EnsembleCmd::InputLimit(1, true));
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(
+            &operands,
+            &[
+                0x00,
+                0x03,
+                0xdb,
+                EnsembleCmd::INPUT_LIMIT,
+                0x01,
+                0x01,
+                0xff,
+                0xff,
+                0xff
+            ]
+        );
+
+        // The data longer than 6 bytes is not padded.
+        let cmd = EnsembleCmd::MixerSrc0(1, [0x0102; MIXER_COEFFICIENT_COUNT]);
+        let data = Into::<Vec<u8>>::into(&cmd);
+        assert!(data.len() > 6);
+        let mut op = EnsembleOperation::new(cmd);
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands[..3], &[0x00, 0x03, 0xdb]);
+        assert_eq!(&operands[3..], &data);
+    }
+
+    #[test]
     fn ensemble_operation_too_short_hw_status() {
         let mut operands = vec![0x00, 0x01, 0x02];
         operands.extend_from_slice(&[0x00; 2 + METER_SHORT_FRAME_SIZE - 1]);
