@@ -153,8 +153,10 @@ impl AvcOp for MaudioSpecialLedSwitch {
 
 impl AvcControl for MaudioSpecialLedSwitch {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        self.op.data[0] = self.state.into();
-        AvcControl::build_operands(&mut self.op, addr)
+        // The response can be different from the command.
+        let mut op = Self::default().op;
+        op.data[0] = self.state.into();
+        AvcControl::build_operands(&mut op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1098,6 +1100,16 @@ impl<O: SpecialParametersSerdes<T>, T: Copy> MaudioSpecialParameterProtocol<T> f
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn maudio_special_led_switch_operands_after_response() {
+        let mut op = MaudioSpecialLedSwitch::new(true);
+        let operands = [0x03, 0x00, 0x01, 0x00, 0x00, 0x00];
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0x03, 0x00, 0x01, 0x01, 0xff]);
+    }
 
     #[test]
     fn offset_ranges() {
