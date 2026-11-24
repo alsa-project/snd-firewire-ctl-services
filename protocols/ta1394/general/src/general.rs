@@ -147,8 +147,8 @@ impl AvcStatus for SubunitInfo {
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() < 4 {
-            Err(AvcRespParseError::TooShortResp(4))
+        if operands.len() < 5 {
+            Err(AvcRespParseError::TooShortResp(5))
         } else {
             self.page = (operands[0] >> Self::PAGE_SHIFT) & Self::PAGE_MASK;
             self.extension_code =
@@ -619,6 +619,16 @@ mod test {
         assert_eq!(
             op.entries[3],
             SubunitInfoEntry::new(AvcSubunitType::Camera, 0x02)
+        );
+    }
+
+    #[test]
+    fn subunitinfo_too_short_operands() {
+        let operands = [0xde, 0xad, 0xbe, 0xef];
+        let mut op = SubunitInfo::new(0, 0);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(5))
         );
     }
 
