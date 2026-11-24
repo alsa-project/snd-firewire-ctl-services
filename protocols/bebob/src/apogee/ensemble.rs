@@ -1712,6 +1712,18 @@ impl AvcControl for EnsembleOperation {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        parse_malformed_control(|| EnsembleOperation::new(EnsembleCmd::InputLimit(1, true)));
+        parse_malformed_control(|| {
+            EnsembleOperation::new(EnsembleCmd::HwStatusShort([0; METER_SHORT_FRAME_SIZE]))
+        });
+        parse_malformed_control(|| {
+            EnsembleOperation::new(EnsembleCmd::HwStatusLong([0; METER_LONG_FRAME_SIZE]))
+        });
+    }
 
     #[test]
     fn ensemble_operation_operands() {

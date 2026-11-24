@@ -438,6 +438,23 @@ impl AvcStatus for InputSwitchOperation {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        [
+            InputSwitch::Analog34Phono(true),
+            InputSwitch::Analog12Phantom(1, true),
+            InputSwitch::Analog12Boost(0, false),
+            InputSwitch::Analog12Limit(1, true),
+            InputSwitch::AnalogStereoLink(0, true),
+        ]
+        .iter()
+        .for_each(|switch| {
+            parse_malformed_status(|| InputSwitchOperation::new(switch));
+            parse_malformed_control(|| InputSwitchOperation::new(switch));
+        });
+    }
 
     #[test]
     fn input_switch_operation_status_mic_operands() {
