@@ -449,7 +449,23 @@ impl TascamAvc {
 #[cfg(test)]
 mod test {
     use super::{TascamProto, VendorCmd};
+    use crate::test_helper::*;
     use ta1394_avc_general::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        [
+            VendorCmd::DisplayMode(0x01),
+            VendorCmd::MessageMode(0x01),
+            VendorCmd::InputMode(0x01),
+            VendorCmd::FirmwareVersion(0x01),
+        ]
+        .iter()
+        .for_each(|&cmd| {
+            parse_malformed_status(|| TascamProto::new(cmd));
+            parse_malformed_control(|| TascamProto::new(cmd));
+        });
+    }
 
     #[test]
     fn tascam_proto_operands() {
