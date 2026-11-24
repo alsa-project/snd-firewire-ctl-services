@@ -146,7 +146,11 @@ fn parse_param_command_response_data(cmd: &mut WeissAvcParamCmd) -> Result<(), A
         Err(AvcRespParseError::TooShortResp(24))?
     }
 
-    deserialize_u32(&mut cmd.numeric_id, &cmd.op.arguments[..4]);
+    let mut numeric_id = 0;
+    deserialize_u32(&mut numeric_id, &cmd.op.arguments[..4]);
+    if numeric_id != cmd.numeric_id {
+        Err(AvcRespParseError::UnexpectedOperands(0))?
+    }
     deserialize_u32(&mut cmd.value, &cmd.op.arguments[4..8]);
     (0..4).for_each(|i| {
         let pos = 8 + i * 4;
@@ -164,7 +168,8 @@ impl AvcStatus for WeissAvcParamCmd {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
-        parse_param_command_response_data(self)
+        // The arguments follow the company ID and the header of command.
+        parse_param_command_response_data(self).map_err(|err| err.add_offset(7))
     }
 }
 
@@ -176,7 +181,8 @@ impl AvcControl for WeissAvcParamCmd {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)?;
-        parse_param_command_response_data(self)
+        // The arguments follow the company ID and the header of command.
+        parse_param_command_response_data(self).map_err(|err| err.add_offset(7))
     }
 }
 
@@ -243,7 +249,6 @@ impl WeissAvcParamConvert<WeissAvcDigitalCaptureSource> for WeissMan301Protocol 
         param: &mut WeissAvcDigitalCaptureSource,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_DIGITAL_CAPTURE_SOURCE);
         *param = match cmd.value {
             2 => WeissAvcDigitalCaptureSource::SpdifOptical,
             1 => WeissAvcDigitalCaptureSource::SpdifCoaxial,
@@ -279,7 +284,6 @@ impl WeissAvcParamConvert<WeissAvcDigitalOutputMode> for WeissMan301Protocol {
         param: &mut WeissAvcDigitalOutputMode,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_DIGITAL_OUTPUT_MODE);
         param.0 = cmd.value > 0;
         Ok(())
     }
@@ -310,7 +314,6 @@ impl WeissAvcParamConvert<WeissAvcWordClockOutputHalfRate> for WeissMan301Protoc
         param: &mut WeissAvcWordClockOutputHalfRate,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_WORD_CLOCK_OUTPUT_HALF_RATE);
         param.0 = cmd.value > 0;
         Ok(())
     }
@@ -340,7 +343,6 @@ impl WeissAvcParamConvert<WeissAvcAesebuXlrOutputMute> for WeissMan301Protocol {
         param: &mut WeissAvcAesebuXlrOutputMute,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_AESEBU_XLR_OUTPUT_MUTE);
         param.0 = cmd.value == 0;
         Ok(())
     }
@@ -370,7 +372,6 @@ impl WeissAvcParamConvert<WeissAvcSpdifCoaxialOutputMute> for WeissMan301Protoco
         param: &mut WeissAvcSpdifCoaxialOutputMute,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_SPDIF_COAXIAL_OUTPUT_MUTE);
         param.0 = cmd.value == 0;
         Ok(())
     }
@@ -400,10 +401,6 @@ impl WeissAvcParamConvert<WeissAvcAnalogOutputPolarityInversion> for WeissMan301
         param: &mut WeissAvcAnalogOutputPolarityInversion,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(
-            cmd.numeric_id,
-            Self::PARAM_ID_ANALOG_OUTPUT_POLARITY_INVERSION
-        );
         param.0 = cmd.value > 0;
         Ok(())
     }
@@ -446,7 +443,6 @@ impl WeissAvcParamConvert<WeissAvcAnalogOutputFilterType> for WeissMan301Protoco
         param: &mut WeissAvcAnalogOutputFilterType,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_ANALOG_OUTPUT_FILTER_TYPE);
         *param = if cmd.value > 0 {
             WeissAvcAnalogOutputFilterType::B
         } else {
@@ -480,7 +476,6 @@ impl WeissAvcParamConvert<WeissAvcAnalogOutputMute> for WeissMan301Protocol {
         param: &mut WeissAvcAnalogOutputMute,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_ANALOG_OUTPUT_MUTE);
         param.0 = cmd.value == 0;
         Ok(())
     }
@@ -530,7 +525,6 @@ impl WeissAvcParamConvert<WeissAvcAnalogOutputLevel> for WeissMan301Protocol {
         param: &mut WeissAvcAnalogOutputLevel,
         cmd: &WeissAvcParamCmd,
     ) -> Result<(), Error> {
-        assert_eq!(cmd.numeric_id, Self::PARAM_ID_ANALOG_OUTPUT_LEVEL);
         *param = match cmd.value {
             3 => WeissAvcAnalogOutputLevel::NegativeThirty,
             2 => WeissAvcAnalogOutputLevel::NegativeTwenty,
@@ -575,6 +569,18 @@ mod test {
     use super::*;
 
     #[test]
+    fn weiss_avc_param_command_unexpected_numeric_id() {
+        let mut cmd = WeissAvcParamCmd::default();
+        cmd.numeric_id = 0x76543210;
+        cmd.op.arguments = vec![0xff; 24];
+        cmd.op.arguments[..4].copy_from_slice(&[0x01, 0x23, 0x45, 0x67]);
+        assert_eq!(
+            parse_param_command_response_data(&mut cmd),
+            Err(AvcRespParseError::UnexpectedOperands(0))
+        );
+    }
+
+    #[test]
     fn weiss_avc_param_command_operands() {
         let operands = [
             0x00, 0x1c, 0x6a, 0x01, 0x7f, 0x80, 0x02, 0x76, 0x54, 0x32, 0x10, 0xfe, 0xdc, 0xba,
@@ -582,6 +588,7 @@ mod test {
             0xff, 0xff, 0xff,
         ];
         let mut op = WeissAvcParamCmd::default();
+        op.numeric_id = 0x76543210;
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.class_id, 0x01);
         assert_eq!(op.op.sequence_id, 0x7f);
@@ -601,6 +608,7 @@ mod test {
         assert_eq!(&target[5..], &operands[5..]);
 
         let mut op = WeissAvcParamCmd::default();
+        op.numeric_id = 0x76543210;
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.class_id, 0x01);
         assert_eq!(op.op.sequence_id, 0x7f);
