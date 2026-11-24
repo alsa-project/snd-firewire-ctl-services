@@ -309,7 +309,9 @@ impl AudioSelector {
     }
 
     fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
-        if self.func_blk.ctl.selector != Self::SELECTOR_CONTROL {
+        if self.func_blk.audio_selector_data.is_empty() {
+            Err(AvcRespParseError::UnexpectedOperands(3))
+        } else if self.func_blk.ctl.selector != Self::SELECTOR_CONTROL {
             Err(AvcRespParseError::UnexpectedOperands(5))
         } else if self.func_blk.ctl.data.len() > 0 {
             Err(AvcRespParseError::UnexpectedOperands(7))
@@ -1023,6 +1025,10 @@ impl AudioFeature {
     }
 
     fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
+        if self.func_blk.audio_selector_data.is_empty() {
+            Err(AvcRespParseError::UnexpectedOperands(3))?;
+        }
+
         let audio_ch_num = AudioCh::from_val(self.func_blk.audio_selector_data[0]);
         if audio_ch_num != self.audio_ch_num {
             Err(AvcRespParseError::UnexpectedOperands(7))
@@ -1174,6 +1180,10 @@ impl AudioProcessing {
     }
 
     fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
+        if self.func_blk.audio_selector_data.len() < 3 {
+            Err(AvcRespParseError::UnexpectedOperands(3))?;
+        }
+
         if self.func_blk.audio_selector_data[0] != self.input_plug_id {
             Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
@@ -1224,6 +1234,54 @@ impl AvcControl for AudioProcessing {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    /// Make response operands from the command operands, with the given length of data for
+    /// audio selector.
+    fn shorten_audio_selector_data(mut operands: Vec<u8>, length: usize) -> Vec<u8> {
+        let current = operands[3] as usize - 1;
+        operands.drain((4 + length)..(4 + current));
+        operands[3] = 1 + length as u8;
+        operands
+    }
+
+    #[test]
+    fn func_blk_too_short_audio_selector_data() {
+        let mut op = AudioSelector::new(0x01, CtlAttr::Current, 0x02);
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
+        let operands = shorten_audio_selector_data(operands, 0);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &operands),
+            Err(AvcRespParseError::UnexpectedOperands(3))
+        );
+
+        let mut op = AudioFeature::new(
+            0x01,
+            CtlAttr::Current,
+            AudioCh::Master,
+            FeatureCtl::Mute(vec![false]),
+        );
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
+        let operands = shorten_audio_selector_data(operands, 0);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &operands),
+            Err(AvcRespParseError::UnexpectedOperands(3))
+        );
+
+        let mut op = AudioProcessing::new(
+            0x01,
+            CtlAttr::Current,
+            0x02,
+            AudioCh::Master,
+            AudioCh::Master,
+            ProcessingCtl::Enable(false),
+        );
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
+        let operands = shorten_audio_selector_data(operands, 2);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &operands),
+            Err(AvcRespParseError::UnexpectedOperands(3))
+        );
+    }
 
     #[test]
     fn func_blk_operands() {
