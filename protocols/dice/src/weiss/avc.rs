@@ -121,7 +121,8 @@ impl AvcOp for WeissAvcParamCmd {
 }
 
 fn build_param_command_status_data(cmd: &mut WeissAvcParamCmd) -> Result<(), AvcCmdBuildError> {
-    cmd.op.arguments.resize(24, u8::MAX);
+    // The value field is not used.
+    cmd.op.arguments = vec![u8::MAX; 24];
     serialize_u32(&cmd.numeric_id, &mut cmd.op.arguments[..4]);
     (0..4).for_each(|i| {
         let pos = 8 + i * 4;
@@ -612,7 +613,10 @@ mod test {
         let target = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&target[..4], &operands[..4]);
         // The value of sequence_id field is never matched.
-        assert_eq!(&target[5..], &operands[5..]);
+        assert_eq!(&target[5..11], &operands[5..11]);
+        // The value field is not used, regardless of the previous response.
+        assert_eq!(&target[11..15], &[0xff; 4]);
+        assert_eq!(&target[15..], &operands[15..]);
 
         let target = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&target[..4], &operands[..4]);
