@@ -2015,6 +2015,7 @@ mod test {
     use super::{BcoIoPlugAddr, BcoIoPlugAddrMode};
     use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
     use super::{BcoPlugAddrFuncBlk, BcoPlugAddrSubunit, BcoPlugAddrUnit, BcoPlugAddrUnitType};
+    use super::{BcoStreamFormat, ExtendedStreamFormatSingle};
     use ta1394_avc_general::*;
 
     #[test]
@@ -2043,6 +2044,24 @@ mod test {
         assert_eq!(
             AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
             Err(AvcRespParseError::TooShortResp(8))
+        );
+    }
+
+    #[test]
+    fn extended_stream_format_single_operands() {
+        let plug_addr = BcoPlugAddr::from_raw(&[0x00, 0x00, 0x00, 0x03, 0xff]).unwrap();
+        let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+
+        // The support status is 0xff (not used) for STATUS command.
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0xc0, 0x00, 0x00, 0x00, 0x03, 0xff, 0xff]);
+
+        // The support status is 0x00 (active) for CONTROL command, followed by the stream format.
+        op.stream_format = BcoStreamFormat::Reserved(vec![0x01, 0x02, 0x03]);
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(
+            &operands,
+            &[0xc0, 0x00, 0x00, 0x00, 0x03, 0xff, 0x00, 0x01, 0x02, 0x03]
         );
     }
 

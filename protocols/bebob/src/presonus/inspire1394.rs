@@ -455,6 +455,34 @@ mod test {
     }
 
     #[test]
+    fn input_switch_operation_operands() {
+        let cases = [
+            (InputSwitch::Analog34Phono(true), [0x00, 0x00, 0xff]),
+            (InputSwitch::AnalogStereoLink(1, true), [0x05, 0x02, 0xff]),
+        ];
+        cases.iter().for_each(|(switch, data)| {
+            let mut op = InputSwitchOperation::new(switch);
+            let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+            assert_eq!(&operands[..3], &[0x00, 0x0a, 0x92], "{:?}", switch);
+            assert_eq!(&operands[3..], data, "{:?}", switch);
+        });
+
+        let cases = [
+            (InputSwitch::Analog34Phono(true), [0x00, 0x00, 0x01]),
+            (InputSwitch::Analog12Phantom(1, true), [0x01, 0x02, 0x01]),
+            (InputSwitch::Analog12Boost(0, false), [0x02, 0x01, 0x00]),
+            (InputSwitch::Analog12Limit(1, true), [0x03, 0x02, 0x01]),
+            (InputSwitch::AnalogStereoLink(0, true), [0x05, 0x01, 0x01]),
+        ];
+        cases.iter().for_each(|(switch, data)| {
+            let mut op = InputSwitchOperation::new(switch);
+            let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+            assert_eq!(&operands[..3], &[0x00, 0x0a, 0x92], "{:?}", switch);
+            assert_eq!(&operands[3..], data, "{:?}", switch);
+        });
+    }
+
+    #[test]
     fn input_switch_operation_too_short_data() {
         let operands = [0x00, 0x01, 0x02, 0x00, 0x00];
         let mut op = InputSwitchOperation::new(&InputSwitch::Analog34Phono(false));
