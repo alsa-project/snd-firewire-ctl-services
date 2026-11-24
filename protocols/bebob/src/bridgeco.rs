@@ -2016,7 +2016,43 @@ mod test {
     use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
     use super::{BcoPlugAddrFuncBlk, BcoPlugAddrSubunit, BcoPlugAddrUnit, BcoPlugAddrUnitType};
     use super::{BcoStreamFormat, ExtendedStreamFormatSingle};
+    use crate::test_helper::*;
     use ta1394_avc_general::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        let addr = BcoPlugAddr::from_raw(&[0x00, 0x00, 0x00, 0x03, 0xff]).unwrap();
+        let infos = [
+            BcoPlugInfo::Type(BcoPlugType::Isoc),
+            BcoPlugInfo::Name("name".to_string()),
+            BcoPlugInfo::ChCount(2),
+            // A cluster for 2 channels.
+            BcoPlugInfo::from_raw(&[
+                BcoPlugInfo::CH_POSITIONS,
+                0x01,
+                0x02,
+                0x03,
+                0x08,
+                0x00,
+                0x09,
+            ])
+            .unwrap(),
+            // The name of channel.
+            BcoPlugInfo::from_raw(&[BcoPlugInfo::CH_NAME, 0x01, 0x04, 0x6e, 0x61, 0x6d, 0x65])
+                .unwrap(),
+            BcoPlugInfo::Input(Default::default()),
+            BcoPlugInfo::Outputs(vec![Default::default(); 2]),
+            BcoPlugInfo::ClusterInfo(Default::default()),
+        ];
+        infos.iter().for_each(|info| {
+            parse_malformed_status(|| ExtendedPlugInfo::new(&addr, info.clone()));
+        });
+
+        parse_malformed_status(|| ExtendedSubunitInfo::new(0, 0xff));
+        parse_malformed_status(|| ExtendedStreamFormatSingle::new(&addr));
+        parse_malformed_control(|| ExtendedStreamFormatSingle::new(&addr));
+        parse_malformed_status(|| ExtendedStreamFormatList::new(&addr, 0x01));
+    }
 
     #[test]
     fn bcopluginfo_too_short_data() {

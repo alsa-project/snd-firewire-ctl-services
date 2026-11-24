@@ -1100,6 +1100,12 @@ impl<O: SpecialParametersSerdes<T>, T: Copy> MaudioSpecialParameterProtocol<T> f
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        parse_malformed_control(|| MaudioSpecialLedSwitch::new(true));
+    }
 
     #[test]
     fn maudio_special_led_switch_operands_after_response() {

@@ -1074,6 +1074,12 @@ pub trait MaudioNormalMixerOperation {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        parse_malformed_control(|| AudiophileLedSwitch::new(AudiophileSwitchState::A));
+    }
 
     #[test]
     fn audiophile_led_switch_operands_after_response() {

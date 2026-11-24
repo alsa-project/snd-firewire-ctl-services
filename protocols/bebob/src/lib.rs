@@ -586,3 +586,60 @@ pub trait AvcSelectorOperation {
             })
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_helper {
+    use ta1394_avc_general::*;
+
+    /// Generate the responses truncated, extended, and mutated from the given one.
+    fn malformed_responses(operands: &[u8]) -> Vec<Vec<u8>> {
+        let mut state = 0x1234_5678_9abc_def1u64;
+        let mut random = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 24) as u8
+        };
+
+        let mut responses = Vec::new();
+        for len in 0..(operands.len() + 8) {
+            for i in 0..16 {
+                let mut response = Vec::with_capacity(len);
+                for pos in 0..len {
+                    let val = if pos < operands.len() {
+                        operands[pos]
+                    } else {
+                        random()
+                    };
+                    response.push(val);
+                }
+                if i > 0 && len > 0 {
+                    let pos = random() as usize % len;
+                    response[pos] = random();
+                }
+                responses.push(response);
+            }
+        }
+        responses
+    }
+
+    /// Parse the responses malformed from the operands of STATUS command, and expect no panic.
+    pub(crate) fn parse_malformed_status<O: AvcStatus>(make: impl Fn() -> O) {
+        let mut op = make();
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        malformed_responses(&operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    /// Parse the responses malformed from the operands of CONTROL command, and expect no panic.
+    pub(crate) fn parse_malformed_control<O: AvcControl>(make: impl Fn() -> O) {
+        let mut op = make();
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        malformed_responses(&operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcControl::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+}

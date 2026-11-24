@@ -555,6 +555,18 @@ pub fn saffire_write_quadlets(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        let make = || SaffireAvcOperation {
+            offsets: vec![0x10, 0x14],
+            buf: vec![0; 8],
+            ..Default::default()
+        };
+        parse_malformed_status(make);
+        parse_malformed_control(make);
+    }
 
     #[test]
     fn saffire_avc_operation_too_short_data() {
