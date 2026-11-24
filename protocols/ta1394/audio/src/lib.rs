@@ -637,14 +637,14 @@ pub struct GraphicEqualizerData {
 }
 
 impl GraphicEqualizerData {
-    /// The maximum value of gain expresses +31.50 dB.
+    /// The minimum value of gain expresses -32.00 dB.
     pub const VALUE_MIN: i8 = i8::MIN;
 
     /// The value of gain expresses zero dB.
     pub const VALUE_ZERO: i8 = 0;
 
-    /// The minimum value of gain expresses -32.00 dB.
-    pub const VALUE_MAX: i8 = i8::MAX;
+    /// The maximum value of gain expresses +31.50 dB. The value 0x7f is invalid.
+    pub const VALUE_MAX: i8 = 0x7e;
 
     const VALUE_INVALID: u8 = 0x7f;
 
@@ -1255,6 +1255,17 @@ impl AvcControl for AudioProcessing {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn graphic_equalizer_value_range() {
+        assert_eq!(GraphicEqualizerData::VALUE_MIN as u8, 0x80);
+        assert_eq!(GraphicEqualizerData::VALUE_ZERO as u8, 0x00);
+        assert_eq!(GraphicEqualizerData::VALUE_MAX as u8, 0x7e);
+        assert_ne!(
+            GraphicEqualizerData::VALUE_MAX as u8,
+            GraphicEqualizerData::VALUE_INVALID
+        );
+    }
 
     #[test]
     fn func_blk_ctl_too_short_data() {
