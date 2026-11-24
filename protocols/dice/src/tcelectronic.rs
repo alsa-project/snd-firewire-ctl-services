@@ -458,6 +458,20 @@ impl AvcControl for TcAvcCmd {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        let make = || {
+            let mut op = TcAvcCmd::new(&[0x00, 0x01, 0x02]);
+            op.class_id = 0x01;
+            op.command_id = 0x8002;
+            op.arguments = vec![0x01, 0x02, 0x03, 0x04];
+            op
+        };
+        parse_malformed_status(make);
+        parse_malformed_control(make);
+    }
 
     #[test]
     fn tc_avc_cmd_too_short_operands() {
