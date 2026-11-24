@@ -351,8 +351,10 @@ impl AvcControl for TascamProto {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut data = self.cmd.build_data();
         self.cmd.append_variable(&mut data);
-        self.op.data = data;
-        AvcControl::build_operands(&mut self.op, addr)
+        // NOTE: The company ID in response can be 0xffffff.
+        let mut op = VendorDependent::new(&TEAC_OUI);
+        op.data = data;
+        AvcControl::build_operands(&mut op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -362,8 +364,10 @@ impl AvcControl for TascamProto {
 
 impl AvcStatus for TascamProto {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        self.op.data = self.cmd.build_data();
-        AvcStatus::build_operands(&mut self.op, addr)
+        // NOTE: The company ID in response can be 0xffffff.
+        let mut op = VendorDependent::new(&TEAC_OUI);
+        op.data = self.cmd.build_data();
+        AvcStatus::build_operands(&mut op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -467,5 +471,13 @@ mod test {
 
         let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands);
+
+        // The company ID in response is not used.
+        let mut op = TascamProto::new(VendorCmd::InputMode(0x01));
+        let operands = [0xff, 0xff, 0xff, 0x46, 0x49, 0x31, 0x12, 0x01];
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+
+        let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(o, [0x00, 0x02, 0x2e, 0x46, 0x49, 0x31, 0x12, 0x01]);
     }
 }
