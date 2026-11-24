@@ -1210,6 +1210,7 @@ impl AvcStatus for ExtendedStreamFormatSingle {
 
 impl AvcControl for ExtendedStreamFormatSingle {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.op.support_status = SupportStatus::NotUsed;
         self.op.build_operands(addr).and_then(|mut operands| {
             self.stream_format.to_raw().map(|mut raw| {
                 operands.append(&mut raw);
@@ -1566,11 +1567,12 @@ mod tests {
             unreachable!();
         }
 
+        // The support status is not affected by the previous response.
         let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(
             &operands,
             &[
-                0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06,
+                0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06,
                 0x02, 0x00
             ]
         );
