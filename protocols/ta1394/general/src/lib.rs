@@ -460,7 +460,7 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
     /// Transmit given command frame and return received response frame.
     ///
     /// Initiate request transaction and wait for response transaction by Function Control
-    /// Protocol (FCP) in IEC 61883-1. When detecting `AvcRespCode::INTERIM` in received response
+    /// Protocol (FCP) in IEC 61883-1. When detecting [`AvcRespCode::Interim`] in received response
     /// frame, wait for further response transaction as final result, according to "deferred
     /// transaction" in AV/C general specification.
     ///
