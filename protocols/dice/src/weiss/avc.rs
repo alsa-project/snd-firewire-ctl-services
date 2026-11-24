@@ -111,7 +111,7 @@ impl Default for WeissAvcParamCmd {
             numeric_id: u32::MAX,
             value: u32::MAX,
             reserved: [u32::MAX; 4],
-            op: TcAvcCmd::new(&WEISS_OUI),
+            op,
         }
     }
 }
@@ -578,6 +578,18 @@ mod test {
             parse_param_command_response_data(&mut cmd),
             Err(AvcRespParseError::UnexpectedOperands(0))
         );
+    }
+
+    #[test]
+    fn weiss_avc_param_command_default() {
+        let mut op = WeissAvcParamCmd::default();
+        op.numeric_id = 0x76543210;
+        op.value = 0xfedcba98;
+
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands[..7], &[0x00, 0x1c, 0x6a, 0x01, 0xff, 0x80, 0x02]);
+        assert_eq!(&operands[7..11], &[0x76, 0x54, 0x32, 0x10]);
+        assert_eq!(&operands[11..15], &[0xfe, 0xdc, 0xba, 0x98]);
     }
 
     #[test]
