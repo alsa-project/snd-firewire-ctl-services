@@ -1198,6 +1198,39 @@ impl AvcStatus for ApogeeCmd {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        [
+            VendorCmd::MicPolarity(0, true),
+            VendorCmd::XlrIsMicLevel(1, false),
+            VendorCmd::XlrIsConsumerLevel(0, true),
+            VendorCmd::MicPhantom(1, true),
+            VendorCmd::OutIsConsumerLevel(true),
+            VendorCmd::InGain(0, 0x10),
+            VendorCmd::HwState([0; 11]),
+            VendorCmd::OutMute(true),
+            VendorCmd::InputSourceIsPhone(1, false),
+            VendorCmd::MixerSrc(1, 2, 0x1234),
+            VendorCmd::OutSourceIsMixer(true),
+            VendorCmd::DisplayOverholdTwoSec(true),
+            VendorCmd::DisplayClear,
+            VendorCmd::OutVolume(0x10),
+            VendorCmd::MuteForLineOut(true),
+            VendorCmd::MuteForHpOut(true),
+            VendorCmd::UnmuteForLineOut(true),
+            VendorCmd::UnmuteForHpOut(true),
+            VendorCmd::DisplayIsInput(true),
+            VendorCmd::InClickless(true),
+            VendorCmd::DisplayFollowToKnob(true),
+        ]
+        .iter()
+        .for_each(|&cmd| {
+            parse_malformed_status(|| ApogeeCmd::new(cmd));
+            parse_malformed_control(|| ApogeeCmd::new(cmd));
+        });
+    }
 
     #[test]
     fn vendor_cmd_too_short_data() {
