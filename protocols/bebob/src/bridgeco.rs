@@ -928,6 +928,9 @@ impl BcoPlugInfo {
                 while pos < raw.len() && entries.len() < count {
                     let c = raw[pos] as usize;
                     let size = 1 + 2 * c;
+                    if raw.len() < pos + size {
+                        Err(AvcRespParseError::TooShortResp(pos + size))?;
+                    }
                     let entry = BcoCluster::from_raw(&raw[pos..(pos + size)])
                         .map_err(|err| err.add_offset(pos))?;
                     entries.push(entry);
@@ -936,6 +939,9 @@ impl BcoPlugInfo {
                 Self::ChPositions(entries)
             }
             Self::CH_NAME => {
+                if raw.len() < 3 {
+                    Err(AvcRespParseError::TooShortResp(3))?;
+                }
                 let ch = raw[1] as u8;
                 let pos = 3 + raw[2] as usize;
                 let name = if pos > raw.len() {
@@ -1753,6 +1759,10 @@ impl AvcStatus for ExtendedStreamFormatList {
 
         self.support_status = self.op.support_status;
 
+        if operands.len() < 8 {
+            Err(AvcRespParseError::TooShortResp(8))?;
+        }
+
         if operands[7] != self.index {
             Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
@@ -1996,6 +2006,7 @@ mod test {
     use super::BcoPlugInfo;
     use super::BcoPlugType;
     use super::ExtendedPlugInfo;
+    use super::ExtendedStreamFormatList;
     use super::ExtendedSubunitInfo;
     use super::{BcoChannelInfo, BcoLocation};
     use super::{BcoCluster, BcoClusterInfo, BcoPortType};
@@ -2003,6 +2014,35 @@ mod test {
     use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
     use super::{BcoPlugAddrFuncBlk, BcoPlugAddrSubunit, BcoPlugAddrUnit, BcoPlugAddrUnitType};
     use ta1394_avc_general::*;
+
+    #[test]
+    fn bcopluginfo_too_short_data() {
+        // The entry of cluster for 3 channels is truncated.
+        let raw = [BcoPlugInfo::CH_POSITIONS, 0x01, 0x03, 0x01, 0x02];
+        assert_eq!(
+            BcoPlugInfo::from_raw(&raw).err(),
+            Some(AvcRespParseError::TooShortResp(9))
+        );
+
+        // The length of name is not available.
+        let raw = [BcoPlugInfo::CH_NAME, 0x01];
+        assert_eq!(
+            BcoPlugInfo::from_raw(&raw).err(),
+            Some(AvcRespParseError::TooShortResp(3))
+        );
+    }
+
+    #[test]
+    fn extended_stream_format_list_too_short_operands() {
+        let plug_addr = BcoPlugAddr::from_raw(&[0x00, 0x00, 0x00, 0x03, 0xff]).unwrap();
+        let mut op = ExtendedStreamFormatList::new(&plug_addr, 0x01);
+        // The index of entry is not available.
+        let operands = [0xc1, 0x00, 0x00, 0x00, 0x03, 0xff, 0x01];
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(8))
+        );
+    }
 
     #[test]
     fn bcoplugaddr_from() {
