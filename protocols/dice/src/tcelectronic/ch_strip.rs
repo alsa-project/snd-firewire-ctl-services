@@ -146,7 +146,7 @@ impl ChStripState {
 }
 
 pub(crate) fn calculate_ch_strip_state_segment_size(count: usize) -> usize {
-    (((count + 1) / 2) * 4) + count + ChStripState::SIZE
+    ((count + 1) / 2) * 4 + count * ChStripState::SIZE
 }
 
 fn calculate_ch_strip_state_segment_pos(idx: usize) -> usize {
