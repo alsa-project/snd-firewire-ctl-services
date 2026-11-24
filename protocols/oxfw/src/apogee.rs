@@ -1035,14 +1035,14 @@ impl VendorCmd {
     }
 
     fn parse_variable(&mut self, data: &[u8]) -> Result<(), Error> {
-        if &data[..3] != &Self::APOGEE_PREFIX {
+        if data.len() < 7 {
+            let msg = format!("Unexpected length of response: {}", data.len());
+            Err(Error::new(FileError::Io, &msg))?;
+        } else if &data[..3] != &Self::APOGEE_PREFIX {
             let msg = format!(
                 "Unexpected prefix: 0x{:02x}{:02x}{:02x}",
                 data[0], data[1], data[2]
             );
-            Err(Error::new(FileError::Io, &msg))?;
-        } else if data.len() < 7 {
-            let msg = format!("Unexpected length of response: {}", data.len());
             Err(Error::new(FileError::Io, &msg))?;
         }
 
@@ -1089,6 +1089,9 @@ impl VendorCmd {
                     } else if data[5] != *dst as u8 {
                         let msg = format!("Unexpected mixer destination: {}", data[5]);
                         Err(Error::new(FileError::Io, &msg))
+                    } else if data.len() < 8 {
+                        let msg = format!("Unexpected length of response: {}", data.len());
+                        Err(Error::new(FileError::Io, &msg))
                     } else {
                         let mut doublet = [0; 2];
                         doublet.copy_from_slice(&data[6..8]);
@@ -1100,6 +1103,9 @@ impl VendorCmd {
             Self::HwState(raw) => {
                 if data[3] != Self::HW_STATE {
                     let msg = format!("Unexpected cmd code: {}", data[3]);
+                    Err(Error::new(FileError::Io, &msg))
+                } else if data.len() < 17 {
+                    let msg = format!("Unexpected length of response: {}", data.len());
                     Err(Error::new(FileError::Io, &msg))
                 } else {
                     raw.copy_from_slice(&data[6..17]);
@@ -1192,6 +1198,25 @@ impl AvcStatus for ApogeeCmd {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn vendor_cmd_too_short_data() {
+        // The prefix is not available.
+        let mut cmd = VendorCmd::InGain(1, 0);
+        assert!(cmd.parse_variable(&[0x50]).is_err());
+
+        // The gain is not available.
+        let mut data = VendorCmd::APOGEE_PREFIX.to_vec();
+        data.extend_from_slice(&[VendorCmd::MIXER_SRC, 0x00, 0x00, 0x01]);
+        let mut cmd = VendorCmd::MixerSrc(0, 0, 0);
+        assert!(cmd.parse_variable(&data).is_err());
+
+        // The state is not available.
+        let mut data = VendorCmd::APOGEE_PREFIX.to_vec();
+        data.extend_from_slice(&[VendorCmd::HW_STATE, 0xff, 0xff, 0x00]);
+        let mut cmd = VendorCmd::HwState([0; 11]);
+        assert!(cmd.parse_variable(&data).is_err());
+    }
 
     #[test]
     fn knob_params_serdes() {
