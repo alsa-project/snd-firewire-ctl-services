@@ -409,7 +409,12 @@ impl AvcStatus for InputSwitchOperation {
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.op, addr, operands).map(|_| match &mut self.switch {
+        AvcControl::parse_operands(&mut self.op, addr, operands)?;
+        // The company ID in operands is followed by the data.
+        if self.op.data.len() < 3 {
+            Err(AvcRespParseError::TooShortResp(3 + 3))?;
+        }
+        match &mut self.switch {
             InputSwitch::Analog34Phono(state) => {
                 *state = self.op.data[2] > 0;
             }
@@ -425,6 +430,22 @@ impl AvcStatus for InputSwitchOperation {
             InputSwitch::AnalogStereoLink(_, state) => {
                 *state = self.op.data[2] > 0;
             }
-        })
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn input_switch_operation_too_short_data() {
+        let operands = [0x00, 0x01, 0x02, 0x00, 0x00];
+        let mut op = InputSwitchOperation::new(&InputSwitch::Analog34Phono(false));
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(6))
+        );
     }
 }
