@@ -156,9 +156,10 @@ impl AudioFuncBlkCtl {
         };
         if raw.len() > 1 {
             let length = raw[1] as usize;
-            if raw.len() >= 2 + length {
-                ctl.data.extend_from_slice(&raw[2..(2 + length)]);
+            if raw.len() < 2 + length {
+                Err(AvcRespParseError::TooShortResp(2 + length))?;
             }
+            ctl.data.extend_from_slice(&raw[2..(2 + length)]);
         }
         Ok(ctl)
     }
@@ -246,7 +247,7 @@ impl AudioFuncBlk {
         self.audio_selector_data = operands[4..(4 + audio_selector_length)].to_vec();
 
         self.ctl = AudioFuncBlkCtl::from_raw(&operands[(4 + audio_selector_length)..])
-            .map_err(|err| err.add_offset(4))?;
+            .map_err(|err| err.add_offset(4 + audio_selector_length))?;
 
         Ok(())
     }
@@ -415,8 +416,8 @@ impl LrBalanceData {
     /// The negative infinity of right balance.
     pub const VALUE_RIGHT_NEG_INFINITY: i16 = 0x7ffeu16 as i16;
 
-    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
-        Self(i16_from_raw(raw.as_ref()))
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Result<Self, AvcRespParseError> {
+        i16_from_raw(raw.as_ref()).map(Self)
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -458,8 +459,8 @@ impl FrBalanceData {
     /// The negative infinity of rear balance.
     pub const VALUE_REAR_NEG_INFINITY: i16 = 0x7ffeu16 as i16;
 
-    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
-        Self(i16_from_raw(raw.as_ref()))
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Result<Self, AvcRespParseError> {
+        i16_from_raw(raw.as_ref()).map(Self)
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -652,7 +653,12 @@ impl GraphicEqualizerData {
 
     const LENGTH_MIN: usize = 8;
 
-    fn from_raw<T: AsRef<[u8]>>(raw: T) -> Self {
+    fn from_raw<T: AsRef<[u8]>>(raw: T) -> Result<Self, AvcRespParseError> {
+        let r = raw.as_ref();
+        if r.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
         let mut ansi_band_gains = [None; Self::ANSI_BAND_COUNT];
         let mut extra_band_gains = [None; Self::EXTRA_BAND_COUNT];
 
@@ -663,15 +669,13 @@ impl GraphicEqualizerData {
             (extra_band_gains.as_mut_slice(), 4usize),
         ];
 
-        let r = raw.as_ref();
-
         band_gains.iter_mut().for_each(|(gains, offset)| {
             gains
                 .iter_mut()
                 .enumerate()
                 .filter(|(i, _)| (r[*offset + i / 8] & (1 << (i % 8)) > 0))
                 .for_each(|(_, gain)| {
-                    *gain = if r.len() < gain_index {
+                    *gain = if r.len() <= gain_index {
                         None
                     } else if r[gain_index] == Self::VALUE_INVALID {
                         None
@@ -683,10 +687,10 @@ impl GraphicEqualizerData {
                 });
         });
 
-        Self {
+        Ok(Self {
             ansi_band_gains,
             extra_band_gains,
-        }
+        })
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -905,24 +909,27 @@ fn i8_vector_from_raw(raw: &[u8]) -> Vec<i8> {
     raw.iter().map(|&b| b as i8).collect()
 }
 
-fn i16_from_raw(data: &[u8]) -> i16 {
+fn i16_from_raw(data: &[u8]) -> Result<i16, AvcRespParseError> {
+    if data.len() < 2 {
+        Err(AvcRespParseError::TooShortResp(2))?;
+    }
     let mut doublet = [0; 2];
-    doublet.copy_from_slice(&data);
-    i16::from_be_bytes(doublet)
+    doublet.copy_from_slice(&data[..2]);
+    Ok(i16::from_be_bytes(doublet))
 }
 
 impl FeatureCtl {
-    fn from_ctl(ctl: &AudioFuncBlkCtl) -> Self {
-        match ctl.selector {
+    fn from_ctl(ctl: &AudioFuncBlkCtl) -> Result<Self, AvcRespParseError> {
+        let ctl = match ctl.selector {
             Self::MUTE => Self::Mute(bool_vector_from_raw(&ctl.data)),
             Self::VOLUME => Self::Volume(VolumeData::from_raw(&ctl.data)),
-            Self::LR_BALANCE => Self::LrBalance(LrBalanceData::from_raw(&ctl.data)),
-            Self::FR_BALANCE => Self::FrBalance(FrBalanceData::from_raw(&ctl.data)),
+            Self::LR_BALANCE => Self::LrBalance(LrBalanceData::from_raw(&ctl.data)?),
+            Self::FR_BALANCE => Self::FrBalance(FrBalanceData::from_raw(&ctl.data)?),
             Self::BASS => Self::Bass(BassData::from_raw(&ctl.data)),
             Self::MID => Self::Mid(MidData::from_raw(&ctl.data)),
             Self::TREBLE => Self::Treble(TrebleData::from_raw(&ctl.data)),
             Self::GRAPHIC_EQUALIZER => {
-                Self::GraphicEqualizer(GraphicEqualizerData::from_raw(&ctl.data))
+                Self::GraphicEqualizer(GraphicEqualizerData::from_raw(&ctl.data)?)
             }
             Self::AUTOMATIC_GAIN => Self::AutomaticGain(bool_vector_from_raw(&ctl.data)),
             Self::DELAY => Self::Delay(DelayData::from_raw(&ctl.data)),
@@ -935,7 +942,8 @@ impl FeatureCtl {
                 data.extend_from_slice(&ctl.data);
                 Self::Reserved(data)
             }
-        }
+        };
+        Ok(ctl)
     }
 }
 
@@ -1033,7 +1041,10 @@ impl AudioFeature {
         if audio_ch_num != self.audio_ch_num {
             Err(AvcRespParseError::UnexpectedOperands(7))
         } else {
-            self.ctl = FeatureCtl::from_ctl(&self.func_blk.ctl);
+            // The control data follows the selector and the length.
+            let offset = 4 + self.func_blk.audio_selector_data.len() + 2;
+            self.ctl =
+                FeatureCtl::from_ctl(&self.func_blk.ctl).map_err(|err| err.add_offset(offset))?;
             Ok(())
         }
     }
@@ -1110,9 +1121,15 @@ impl ProcessingCtl {
         }
     }
 
-    fn from_ctl(ctl_blk: &AudioFuncBlkCtl) -> Self {
-        match ctl_blk.selector {
-            Self::ENABLE => Self::Enable(ctl_blk.data[0] == Self::TRUE),
+    fn from_ctl(ctl_blk: &AudioFuncBlkCtl) -> Result<Self, AvcRespParseError> {
+        let ctl = match ctl_blk.selector {
+            Self::ENABLE => {
+                let val = ctl_blk
+                    .data
+                    .first()
+                    .ok_or(AvcRespParseError::TooShortResp(1))?;
+                Self::Enable(*val == Self::TRUE)
+            }
             Self::MODE => Self::Mode(ctl_blk.data.to_vec()),
             Self::MIXER => Self::Mixer(i16_vector_from_raw(&ctl_blk.data)),
             _ => {
@@ -1122,7 +1139,8 @@ impl ProcessingCtl {
                 data.extend_from_slice(&ctl_blk.data);
                 Self::Reserved(data)
             }
-        }
+        };
+        Ok(ctl)
     }
 }
 
@@ -1198,7 +1216,10 @@ impl AudioProcessing {
             Err(AvcRespParseError::UnexpectedOperands(9))?;
         }
 
-        self.ctl = ProcessingCtl::from_ctl(&self.func_blk.ctl);
+        // The control data follows the selector and the length.
+        let offset = 4 + self.func_blk.audio_selector_data.len() + 2;
+        self.ctl =
+            ProcessingCtl::from_ctl(&self.func_blk.ctl).map_err(|err| err.add_offset(offset))?;
         Ok(())
     }
 }
@@ -1234,6 +1255,66 @@ impl AvcControl for AudioProcessing {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn func_blk_ctl_too_short_data() {
+        // The length field expresses 4 bytes of data, while 1 byte is available.
+        assert_eq!(
+            AudioFuncBlkCtl::from_raw(&[0x02, 0x04, 0x00]),
+            Err(AvcRespParseError::TooShortResp(6))
+        );
+    }
+
+    #[test]
+    fn feature_ctl_too_short_data() {
+        [FeatureCtl::LR_BALANCE, FeatureCtl::FR_BALANCE]
+            .iter()
+            .for_each(|&selector| {
+                let ctl = AudioFuncBlkCtl {
+                    selector,
+                    data: vec![0x01],
+                };
+                assert_eq!(
+                    FeatureCtl::from_ctl(&ctl),
+                    Err(AvcRespParseError::TooShortResp(2))
+                );
+            });
+
+        // The bitmap for bands of graphic equalizer consists of 8 bytes.
+        let ctl = AudioFuncBlkCtl {
+            selector: FeatureCtl::GRAPHIC_EQUALIZER,
+            data: vec![0x00; 7],
+        };
+        assert_eq!(
+            FeatureCtl::from_ctl(&ctl),
+            Err(AvcRespParseError::TooShortResp(8))
+        );
+
+        // The gain of band is not available.
+        let mut data = vec![0x00; 8];
+        data[0] = 0x01;
+        let ctl = AudioFuncBlkCtl {
+            selector: FeatureCtl::GRAPHIC_EQUALIZER,
+            data,
+        };
+        if let FeatureCtl::GraphicEqualizer(d) = FeatureCtl::from_ctl(&ctl).unwrap() {
+            assert_eq!(d.ansi_band_gains[0], None);
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn processing_ctl_too_short_data() {
+        let ctl = AudioFuncBlkCtl {
+            selector: ProcessingCtl::ENABLE,
+            data: vec![],
+        };
+        assert_eq!(
+            ProcessingCtl::from_ctl(&ctl),
+            Err(AvcRespParseError::TooShortResp(1))
+        );
+    }
 
     /// Make response operands from the command operands, with the given length of data for
     /// audio selector.
@@ -1450,23 +1531,23 @@ mod test {
     #[test]
     fn featurectl_from() {
         let ctl = FeatureCtl::Mute(vec![false, true, false]);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let data = VolumeData(vec![0x1234, 0x3456, 0x789a]);
         let ctl = FeatureCtl::Volume(data);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::LrBalance(LrBalanceData(-123));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::FrBalance(FrBalanceData(321));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Bass(BassData(vec![10, -10, 20, -20]));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Mid(MidData(vec![30, -30, -40, 40]));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let data = GraphicEqualizerData {
             ansi_band_gains: [
@@ -1537,25 +1618,25 @@ mod test {
             ],
         };
         let ctl = FeatureCtl::GraphicEqualizer(data);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Treble(TrebleData(vec![50, 60, -70, -80]));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::AutomaticGain(vec![false, true, false]);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Delay(DelayData(vec![0x1234, 0x3456, 0x789a]));
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::BassBoost(vec![true, false, true]);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Loudness(vec![false, true, false]);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = FeatureCtl::Reserved(vec![0xff, 0x04, 0xad, 0xbe, 0xef]);
-        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()).unwrap());
     }
 
     #[test]
@@ -1589,13 +1670,13 @@ mod test {
     #[test]
     fn processingctl_from() {
         let ctl = ProcessingCtl::Enable(true);
-        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = ProcessingCtl::Mode(vec![0xde, 0xad, 0xbe, 0xef]);
-        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()).unwrap());
 
         let ctl = ProcessingCtl::Mixer(vec![-73, -157]);
-        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()).unwrap());
     }
 
     #[test]
