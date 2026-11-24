@@ -397,11 +397,18 @@ fn tc_avc_cmd_prepare_vendor_dependent_data(cmd: &mut TcAvcCmd) {
     cmd.op.data[4..].copy_from_slice(&cmd.arguments);
 }
 
-fn tc_avc_cmd_parse_vendor_dependent_data(cmd: &mut TcAvcCmd) {
+fn tc_avc_cmd_parse_vendor_dependent_data(cmd: &mut TcAvcCmd) -> Result<(), AvcRespParseError> {
+    // The company ID in operands is followed by the data.
+    if cmd.op.data.len() < 4 {
+        Err(AvcRespParseError::TooShortResp(3 + 4))?;
+    }
+
     cmd.class_id = cmd.op.data[0];
     cmd.sequence_id = cmd.op.data[1];
     cmd.command_id = ((cmd.op.data[2] as u16) << 8) | (cmd.op.data[3] as u16);
     cmd.arguments = cmd.op.data[4..].to_owned();
+
+    Ok(())
 }
 
 impl TcAvcCmd {
@@ -432,7 +439,7 @@ impl AvcStatus for TcAvcCmd {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)
-            .map(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
+            .and_then(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
     }
 }
 
@@ -444,13 +451,23 @@ impl AvcControl for TcAvcCmd {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)
-            .map(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
+            .and_then(|_| tc_avc_cmd_parse_vendor_dependent_data(self))
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn tc_avc_cmd_too_short_operands() {
+        let operands = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+        let mut op = TcAvcCmd::new(&[0x00, 0x01, 0x02]);
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(7))
+        );
+    }
 
     #[test]
     fn tc_avc_operation_operands() {
