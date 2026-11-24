@@ -677,12 +677,15 @@ impl GraphicEqualizerData {
                 .for_each(|(_, gain)| {
                     *gain = if r.len() <= gain_index {
                         None
-                    } else if r[gain_index] == Self::VALUE_INVALID {
-                        None
                     } else {
-                        let val = Some(r[gain_index] as i8);
+                        // The invalid value occupies the byte as well.
+                        let val = r[gain_index];
                         gain_index += 1;
-                        val
+                        if val == Self::VALUE_INVALID {
+                            None
+                        } else {
+                            Some(val as i8)
+                        }
                     }
                 });
         });
@@ -1255,6 +1258,16 @@ impl AvcControl for AudioProcessing {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn graphic_equalizer_invalid_gain() {
+        // The gains for the first three ANSI bands, including the invalid one.
+        let mut raw = vec![0x00; 8];
+        raw[0] = 0x07;
+        raw.extend_from_slice(&[0x10, 0x7f, 0x20]);
+        let data = GraphicEqualizerData::from_raw(&raw).unwrap();
+        assert_eq!(&data.ansi_band_gains[..3], &[Some(0x10), None, Some(0x20)]);
+    }
 
     #[test]
     fn graphic_equalizer_value_range() {
