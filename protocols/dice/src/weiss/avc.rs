@@ -568,6 +568,19 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_helper::*;
+
+    #[test]
+    fn parse_malformed_responses() {
+        let make = || {
+            let mut op = WeissAvcParamCmd::default();
+            op.numeric_id = 0x03;
+            op.value = 0x01;
+            op
+        };
+        parse_malformed_status(make);
+        parse_malformed_control(make);
+    }
 
     #[test]
     fn weiss_avc_param_command_unexpected_numeric_id() {
