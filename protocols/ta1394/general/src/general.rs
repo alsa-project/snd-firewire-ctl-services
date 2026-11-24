@@ -584,6 +584,78 @@ impl AvcStatus for OutputPlugSignalFormat {
 mod test {
     use crate::general::*;
 
+    /// Generate the responses truncated, extended, and mutated from the given one.
+    fn malformed_responses(operands: &[u8]) -> Vec<Vec<u8>> {
+        let mut state = 0x1234_5678_9abc_def1u64;
+        let mut random = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 24) as u8
+        };
+
+        let mut responses = Vec::new();
+        for len in 0..(operands.len() + 8) {
+            for i in 0..16 {
+                let mut response = Vec::with_capacity(len);
+                for pos in 0..len {
+                    let val = if pos < operands.len() {
+                        operands[pos]
+                    } else {
+                        random()
+                    };
+                    response.push(val);
+                }
+                if i > 0 && len > 0 {
+                    let pos = random() as usize % len;
+                    response[pos] = random();
+                }
+                responses.push(response);
+            }
+        }
+        responses
+    }
+
+    /// Parse the malformed responses for STATUS command, and expect no panic.
+    fn parse_malformed_status<O: AvcStatus>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    /// Parse the malformed responses for CONTROL command, and expect no panic.
+    fn parse_malformed_control<O: AvcControl>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcControl::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    #[test]
+    fn parse_malformed_responses() {
+        parse_malformed_status(UnitInfo::new, &[0x07, 0xde, 0xad, 0xbe, 0xef]);
+        parse_malformed_status(|| SubunitInfo::new(0, 0), &[0xde, 0xad, 0xbe, 0xef, 0x3a]);
+
+        let operands = [0x00, 0xde, 0xad, 0xbe, 0xef];
+        parse_malformed_status(PlugInfo::new_for_unit_isoc_ext_plugs, &operands);
+        parse_malformed_status(PlugInfo::new_for_subunit_plugs, &operands);
+        let operands = [0x01, 0xde, 0xad, 0xbe, 0xef];
+        parse_malformed_status(PlugInfo::new_for_unit_async_plugs, &operands);
+        let operands = [0x40, 0xde, 0xad, 0xbe, 0xef];
+        parse_malformed_status(|| PlugInfo::new_for_unit_other_plugs(0x40), &operands);
+
+        let operands = [0x1e, 0xde, 0xad, 0xbe, 0xef];
+        parse_malformed_status(|| InputPlugSignalFormat::new(0x1e), &operands);
+        parse_malformed_control(|| InputPlugSignalFormat::new(0x1e), &operands);
+        parse_malformed_status(|| OutputPlugSignalFormat::new(0x1e), &operands);
+        parse_malformed_control(|| OutputPlugSignalFormat::new(0x1e), &operands);
+
+        let operands = [0x00, 0x01, 0x02, 0xde, 0xad, 0xbe, 0xef];
+        parse_malformed_status(|| VendorDependent::new(&[0x00, 0x01, 0x02]), &operands);
+        parse_malformed_control(|| VendorDependent::new(&[0x00, 0x01, 0x02]), &operands);
+    }
+
     #[test]
     fn unitinfo_operands() {
         let operands = [0x07, 0xde, 0xad, 0xbe, 0xef];

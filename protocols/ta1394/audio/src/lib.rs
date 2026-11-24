@@ -1259,6 +1259,116 @@ impl AvcControl for AudioProcessing {
 mod test {
     use crate::*;
 
+    /// Generate the responses truncated, extended, and mutated from the given one.
+    fn malformed_responses(operands: &[u8]) -> Vec<Vec<u8>> {
+        let mut state = 0x1234_5678_9abc_def1u64;
+        let mut random = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 24) as u8
+        };
+
+        let mut responses = Vec::new();
+        for len in 0..(operands.len() + 8) {
+            for i in 0..16 {
+                let mut response = Vec::with_capacity(len);
+                for pos in 0..len {
+                    let val = if pos < operands.len() {
+                        operands[pos]
+                    } else {
+                        random()
+                    };
+                    response.push(val);
+                }
+                if i > 0 && len > 0 {
+                    let pos = random() as usize % len;
+                    response[pos] = random();
+                }
+                responses.push(response);
+            }
+        }
+        responses
+    }
+
+    /// Parse the malformed responses for STATUS command, and expect no panic.
+    fn parse_malformed_status<O: AvcStatus>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    /// Parse the malformed responses for CONTROL command, and expect no panic.
+    fn parse_malformed_control<O: AvcControl>(make: impl Fn() -> O, operands: &[u8]) {
+        malformed_responses(operands).iter().for_each(|response| {
+            let mut op = make();
+            let _ = AvcControl::parse_operands(&mut op, &AvcAddr::Unit, response);
+        });
+    }
+
+    /// Build the operands of CONTROL command, which are expected in the response as well.
+    fn control_operands<O: AvcControl>(make: impl Fn() -> O) -> Vec<u8> {
+        let mut op = make();
+        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap()
+    }
+
+    fn parse_malformed_responses_for<O: AvcStatus + AvcControl>(make: impl Fn() -> O) {
+        let operands = control_operands(&make);
+        parse_malformed_status(&make, &operands);
+        parse_malformed_control(&make, &operands);
+    }
+
+    #[test]
+    fn parse_malformed_responses() {
+        parse_malformed_responses_for(|| AudioSelector::new(0x01, CtlAttr::Current, 0x02));
+
+        let mut gains = GraphicEqualizerData {
+            ansi_band_gains: [None; 30],
+            extra_band_gains: [None; 32],
+        };
+        gains.ansi_band_gains[0] = Some(0x01);
+        gains.ansi_band_gains[9] = Some(-0x02);
+        gains.extra_band_gains[3] = Some(0x04);
+        let ctls = [
+            FeatureCtl::Mute(vec![false, true]),
+            FeatureCtl::Volume(VolumeData(vec![0x0102, -0x0304])),
+            FeatureCtl::LrBalance(LrBalanceData(0x0102)),
+            FeatureCtl::FrBalance(FrBalanceData(0x0102)),
+            FeatureCtl::Bass(BassData(vec![0x01, -0x02])),
+            FeatureCtl::Mid(MidData(vec![0x01, -0x02])),
+            FeatureCtl::Treble(TrebleData(vec![0x01, -0x02])),
+            FeatureCtl::GraphicEqualizer(gains),
+            FeatureCtl::AutomaticGain(vec![false, true]),
+            FeatureCtl::Delay(DelayData(vec![0x0102, 0x0304])),
+            FeatureCtl::BassBoost(vec![false, true]),
+            FeatureCtl::Loudness(vec![false, true]),
+        ];
+        ctls.iter().for_each(|ctl| {
+            parse_malformed_responses_for(|| {
+                AudioFeature::new(0x01, CtlAttr::Current, AudioCh::Master, ctl.clone())
+            });
+        });
+
+        let ctls = [
+            ProcessingCtl::Enable(true),
+            ProcessingCtl::Mode(vec![0x01, 0x02]),
+            ProcessingCtl::Mixer(vec![0x0102, -0x0304]),
+        ];
+        ctls.iter().for_each(|ctl| {
+            parse_malformed_responses_for(|| {
+                AudioProcessing::new(
+                    0x01,
+                    CtlAttr::Current,
+                    0x02,
+                    AudioCh::Master,
+                    AudioCh::Master,
+                    ctl.clone(),
+                )
+            });
+        });
+    }
+
     #[test]
     fn graphic_equalizer_invalid_gain() {
         // The gains for the first three ANSI bands, including the invalid one.
