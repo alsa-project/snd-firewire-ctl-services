@@ -762,8 +762,10 @@ impl AvcOp for AudiophileLedSwitch {
 
 impl AvcControl for AudiophileLedSwitch {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        self.op.data[3] = self.state.to_val();
-        AvcControl::build_operands(&mut self.op, addr)
+        // The response can be different from the command.
+        let mut op = Self::default().op;
+        op.data[3] = self.state.to_val();
+        AvcControl::build_operands(&mut op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1066,5 +1068,23 @@ pub trait MaudioNormalMixerOperation {
                         })
                 },
             )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn audiophile_led_switch_operands_after_response() {
+        let mut op = AudiophileLedSwitch::new(AudiophileSwitchState::A);
+        let operands = [0x00, 0x0d, 0x6c, 0x02, 0x00, 0x01, 0x02, 0x00];
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(
+            &operands,
+            &[0x00, 0x0d, 0x6c, 0x02, 0x00, 0x01, 0x01, 0xff, 0xff]
+        );
     }
 }
