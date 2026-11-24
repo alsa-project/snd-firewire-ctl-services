@@ -191,7 +191,7 @@ impl SignalSource {
 
     fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < Self::LENGTH_MIN {
-            Err(AvcRespParseError::TooShortResp(4))?;
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
         self.src = SignalAddr::from_raw(&operands[1..3]).map_err(|err| err.add_offset(1))?;
@@ -236,6 +236,16 @@ impl AvcStatus for SignalSource {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn signalsource_too_short_operands() {
+        let operands = [0xff, 0xff, 0xfe, 0xff];
+        let mut op = SignalSource::new(&SignalAddr::new_for_isoc_unit(0x00));
+        assert_eq!(
+            AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands),
+            Err(AvcRespParseError::TooShortResp(5))
+        );
+    }
 
     #[test]
     fn signaladdr_from() {
