@@ -145,7 +145,7 @@ impl ChStripState {
     pub(crate) const SIZE: usize = 144;
 }
 
-pub(crate) fn calculate_ch_strip_state_segment_size(count: usize) -> usize {
+pub(crate) const fn calculate_ch_strip_state_segment_size(count: usize) -> usize {
     ((count + 1) / 2) * 4 + count * ChStripState::SIZE
 }
 

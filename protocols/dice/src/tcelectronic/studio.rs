@@ -1473,7 +1473,7 @@ pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
 impl TcKonnektSegmentSerdes<StudioChStripStates> for Studiok48Protocol {
     const NAME: &'static str = "channel-strip-state";
     const OFFSET: usize = 0x05d8;
-    const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
+    const SIZE: usize = calculate_ch_strip_state_segment_size(STUDIO_CH_STRIP_COUNT);
 
     fn serialize(params: &StudioChStripStates, raw: &mut [u8]) -> Result<(), String> {
         serialize_ch_strip_states(&params.0, raw)
