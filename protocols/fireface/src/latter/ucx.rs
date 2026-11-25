@@ -511,13 +511,21 @@ mod test {
         assert_eq!(state.stream_inputs[2], 0);
 
         // Microphone inputs 1-2 come first, then line inputs 3-8.
-        let raw = chunk(0x66666666, 0x55555555, &[(1, 0x01234560), (6, 0x00000da0), (17, 0x7fffff0)]);
+        let raw = chunk(
+            0x66666666,
+            0x55555555,
+            &[(1, 0x01234560), (6, 0x00000da0), (17, 0x7fffff0)],
+        );
         FfUcxProtocol::deserialize_offsets(&mut state, &raw);
         assert_eq!(state.mic_inputs[1], 0x01234560);
         assert_eq!(state.line_inputs[4], 0x00000da0);
         assert_eq!(state.adat_inputs[7], 0x07fffff0);
 
-        let raw = chunk(0x11111111, 0x22666666, &[(0, 0x76d0), (6, 0x100), (17, 0x200)]);
+        let raw = chunk(
+            0x11111111,
+            0x22666666,
+            &[(0, 0x76d0), (6, 0x100), (17, 0x200)],
+        );
         FfUcxProtocol::deserialize_offsets(&mut state, &raw);
         assert_eq!(state.line_outputs[0], 0x76d0);
         assert_eq!(state.hp_outputs[0], 0x100);
@@ -536,10 +544,7 @@ mod test {
         state.0[1].stream_gains[17] = 0x9005;
 
         let cmds = FfUcxProtocol::serialize_commands(&state);
-        assert_eq!(
-            cmds.len(),
-            FfUcxProtocol::OUTPUT_COUNT * (18 + 2 + 18),
-        );
+        assert_eq!(cmds.len(), FfUcxProtocol::OUTPUT_COUNT * (18 + 2 + 18));
 
         let addr_of = |coef: u32| {
             let cmd = cmds.iter().find(|&&cmd| cmd & 0xffff == coef).unwrap();

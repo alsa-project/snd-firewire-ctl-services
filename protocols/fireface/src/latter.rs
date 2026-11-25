@@ -181,8 +181,16 @@ where
     line.iter()
         .enumerate()
         .map(|(i, &v)| (T::LINE_INPUT_OFFSET + i, v))
-        .chain(mic.iter().enumerate().map(|(i, &v)| (T::MIC_INPUT_OFFSET + i, v)))
-        .chain(digital.enumerate().map(move |(i, &v)| (digital_offset + i, v)))
+        .chain(
+            mic.iter()
+                .enumerate()
+                .map(|(i, &v)| (T::MIC_INPUT_OFFSET + i, v)),
+        )
+        .chain(
+            digital
+                .enumerate()
+                .map(move |(i, &v)| (digital_offset + i, v)),
+        )
 }
 
 /// The specification of latter model.
@@ -1723,7 +1731,10 @@ where
         phys_input_channels::<Self, _>(
             &params.line_input_gains,
             &params.mic_input_gains,
-            params.spdif_input_gains.iter().chain(&params.adat_input_gains),
+            params
+                .spdif_input_gains
+                .iter()
+                .chain(&params.adat_input_gains),
         )
         .for_each(|(ch, gain)| {
             cmds.push(create_phys_port_cmd(ch as u8, INPUT_TO_FX_CMD, gain));
