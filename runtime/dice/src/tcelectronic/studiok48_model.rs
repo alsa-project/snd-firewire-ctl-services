@@ -462,7 +462,7 @@ impl RemoteCtl {
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         let labels =
-            elements_to_string_vector(&MixerStateCtl::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
+            elements_to_string_vector(&MixerStateCtl::SRC_PAIR_ENTRIES, mixer_src_entry_to_string);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USER_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(
@@ -955,60 +955,60 @@ impl MixerStateCtl {
         MonitorSrcPairMode::Fixed,
     ];
 
-    const SRC_PAIR_ENTRIES: [SrcEntry; 53] = [
-        SrcEntry::Unused,
-        SrcEntry::Analog(0),
-        SrcEntry::Analog(1),
-        SrcEntry::Analog(2),
-        SrcEntry::Analog(3),
-        SrcEntry::Analog(4),
-        SrcEntry::Analog(5),
-        SrcEntry::Analog(6),
-        SrcEntry::Analog(7),
-        SrcEntry::Analog(8),
-        SrcEntry::Analog(9),
-        SrcEntry::Analog(10),
-        SrcEntry::Analog(11),
-        SrcEntry::Spdif(0),
-        SrcEntry::Spdif(1),
-        SrcEntry::Adat(0),
-        SrcEntry::Adat(1),
-        SrcEntry::Adat(2),
-        SrcEntry::Adat(3),
-        SrcEntry::Adat(4),
-        SrcEntry::Adat(5),
-        SrcEntry::Adat(6),
-        SrcEntry::Adat(7),
-        SrcEntry::StreamA(0),
-        SrcEntry::StreamA(1),
-        SrcEntry::StreamA(2),
-        SrcEntry::StreamA(3),
-        SrcEntry::StreamA(4),
-        SrcEntry::StreamA(5),
-        SrcEntry::StreamA(6),
-        SrcEntry::StreamA(7),
-        SrcEntry::StreamA(8),
-        SrcEntry::StreamA(9),
-        SrcEntry::StreamA(10),
-        SrcEntry::StreamA(11),
-        SrcEntry::StreamA(12),
-        SrcEntry::StreamA(13),
-        SrcEntry::StreamA(14),
-        SrcEntry::StreamA(15),
-        SrcEntry::StreamB(0),
-        SrcEntry::StreamB(1),
-        SrcEntry::StreamB(2),
-        SrcEntry::StreamB(3),
-        SrcEntry::StreamB(4),
-        SrcEntry::StreamB(5),
-        SrcEntry::StreamB(6),
-        SrcEntry::StreamB(7),
-        SrcEntry::StreamB(8),
-        SrcEntry::StreamB(9),
-        SrcEntry::StreamB(10),
-        SrcEntry::StreamB(11),
-        SrcEntry::StreamB(12),
-        SrcEntry::StreamB(13),
+    const SRC_PAIR_ENTRIES: [MixerSrcEntry; 53] = [
+        MixerSrcEntry::Unused,
+        MixerSrcEntry::Analog(0),
+        MixerSrcEntry::Analog(1),
+        MixerSrcEntry::Analog(2),
+        MixerSrcEntry::Analog(3),
+        MixerSrcEntry::Analog(4),
+        MixerSrcEntry::Analog(5),
+        MixerSrcEntry::Analog(6),
+        MixerSrcEntry::Analog(7),
+        MixerSrcEntry::Analog(8),
+        MixerSrcEntry::Analog(9),
+        MixerSrcEntry::Analog(10),
+        MixerSrcEntry::Analog(11),
+        MixerSrcEntry::Spdif(0),
+        MixerSrcEntry::Spdif(1),
+        MixerSrcEntry::Adat(0),
+        MixerSrcEntry::Adat(1),
+        MixerSrcEntry::Adat(2),
+        MixerSrcEntry::Adat(3),
+        MixerSrcEntry::Adat(4),
+        MixerSrcEntry::Adat(5),
+        MixerSrcEntry::Adat(6),
+        MixerSrcEntry::Adat(7),
+        MixerSrcEntry::StreamA(0),
+        MixerSrcEntry::StreamA(1),
+        MixerSrcEntry::StreamA(2),
+        MixerSrcEntry::StreamA(3),
+        MixerSrcEntry::StreamA(4),
+        MixerSrcEntry::StreamA(5),
+        MixerSrcEntry::StreamA(6),
+        MixerSrcEntry::StreamA(7),
+        MixerSrcEntry::StreamA(8),
+        MixerSrcEntry::StreamA(9),
+        MixerSrcEntry::StreamA(10),
+        MixerSrcEntry::StreamA(11),
+        MixerSrcEntry::StreamA(12),
+        MixerSrcEntry::StreamA(13),
+        MixerSrcEntry::StreamA(14),
+        MixerSrcEntry::StreamA(15),
+        MixerSrcEntry::StreamB(0),
+        MixerSrcEntry::StreamB(1),
+        MixerSrcEntry::StreamB(2),
+        MixerSrcEntry::StreamB(3),
+        MixerSrcEntry::StreamB(4),
+        MixerSrcEntry::StreamB(5),
+        MixerSrcEntry::StreamB(6),
+        MixerSrcEntry::StreamB(7),
+        MixerSrcEntry::StreamB(8),
+        MixerSrcEntry::StreamB(9),
+        MixerSrcEntry::StreamB(10),
+        MixerSrcEntry::StreamB(11),
+        MixerSrcEntry::StreamB(12),
+        MixerSrcEntry::StreamB(13),
     ];
 
     const OUT_LABELS: [&'static str; 3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
@@ -1042,7 +1042,7 @@ impl MixerStateCtl {
 
         let ch_labels = generate_channel_labels("Mixer-source", self.0.data.src_pairs.len() * 2);
         let item_labels =
-            elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, src_pair_entry_to_string);
+            elements_to_string_vector(&Self::SRC_PAIR_ENTRIES, mixer_src_entry_to_string);
         self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, ch_labels.len(), &item_labels)?;
         self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, ch_labels.len())?;
         self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, ch_labels.len())?;
@@ -1741,15 +1741,26 @@ const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &str = "output-group:sub-level-to-sub";
 const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &str = "output-group:main-filter-for-main";
 const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &str = "output-group:main-filter-for-sub";
 
-fn src_pair_entry_to_string(entry: &SrcEntry) -> String {
+fn mixer_src_entry_to_string(entry: &MixerSrcEntry) -> String {
     match entry {
-        SrcEntry::Unused => "Unused".to_string(),
-        SrcEntry::Analog(ch) => format!("Analog-{}", ch + 1),
-        SrcEntry::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
-        SrcEntry::Adat(ch) => format!("ADAT-{}", ch + 1),
-        SrcEntry::StreamA(ch) => format!("Stream-A-{}", ch + 1),
-        SrcEntry::StreamB(ch) => format!("Stream-B-{}", ch + 1),
-        SrcEntry::Mixer(ch) => {
+        MixerSrcEntry::Unused => "Unused".to_string(),
+        MixerSrcEntry::Analog(ch) => format!("Analog-{}", ch + 1),
+        MixerSrcEntry::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
+        MixerSrcEntry::Adat(ch) => format!("ADAT-{}", ch + 1),
+        MixerSrcEntry::StreamA(ch) => format!("Stream-A-{}", ch + 1),
+        MixerSrcEntry::StreamB(ch) => format!("Stream-B-{}", ch + 1),
+    }
+}
+
+fn phys_src_entry_to_string(entry: &PhysSrcEntry) -> String {
+    match entry {
+        PhysSrcEntry::Unused => "Unused".to_string(),
+        PhysSrcEntry::Analog(ch) => format!("Analog-{}", ch + 1),
+        PhysSrcEntry::Spdif(ch) => format!("S/PDIF-{}", ch + 1),
+        PhysSrcEntry::Adat(ch) => format!("ADAT-{}", ch + 1),
+        PhysSrcEntry::StreamA(ch) => format!("Stream-A-{}", ch + 1),
+        PhysSrcEntry::StreamB(ch) => format!("Stream-B-{}", ch + 1),
+        PhysSrcEntry::Mixer(ch) => {
             if *ch < 2 {
                 format!("Mixer-{}", ch + 1)
             } else if *ch < 6 {
@@ -1808,68 +1819,68 @@ fn phys_out_src_params_iter_mut(
 }
 
 impl PhysOutCtl {
-    const PHYS_OUT_SRCS: [SrcEntry; 61] = [
-        SrcEntry::Unused,
-        SrcEntry::Analog(0),
-        SrcEntry::Analog(1),
-        SrcEntry::Analog(2),
-        SrcEntry::Analog(3),
-        SrcEntry::Analog(4),
-        SrcEntry::Analog(5),
-        SrcEntry::Analog(6),
-        SrcEntry::Analog(7),
-        SrcEntry::Analog(8),
-        SrcEntry::Analog(9),
-        SrcEntry::Analog(10),
-        SrcEntry::Analog(11),
-        SrcEntry::Spdif(0),
-        SrcEntry::Spdif(1),
-        SrcEntry::Adat(0),
-        SrcEntry::Adat(1),
-        SrcEntry::Adat(2),
-        SrcEntry::Adat(3),
-        SrcEntry::Adat(4),
-        SrcEntry::Adat(5),
-        SrcEntry::Adat(6),
-        SrcEntry::Adat(7),
-        SrcEntry::StreamA(0),
-        SrcEntry::StreamA(1),
-        SrcEntry::StreamA(2),
-        SrcEntry::StreamA(3),
-        SrcEntry::StreamA(4),
-        SrcEntry::StreamA(5),
-        SrcEntry::StreamA(6),
-        SrcEntry::StreamA(7),
-        SrcEntry::StreamA(8),
-        SrcEntry::StreamA(9),
-        SrcEntry::StreamA(10),
-        SrcEntry::StreamA(11),
-        SrcEntry::StreamA(12),
-        SrcEntry::StreamA(13),
-        SrcEntry::StreamA(14),
-        SrcEntry::StreamA(15),
-        SrcEntry::StreamB(0),
-        SrcEntry::StreamB(1),
-        SrcEntry::StreamB(2),
-        SrcEntry::StreamB(3),
-        SrcEntry::StreamB(4),
-        SrcEntry::StreamB(5),
-        SrcEntry::StreamB(6),
-        SrcEntry::StreamB(7),
-        SrcEntry::StreamB(8),
-        SrcEntry::StreamB(9),
-        SrcEntry::StreamB(10),
-        SrcEntry::StreamB(11),
-        SrcEntry::StreamB(12),
-        SrcEntry::StreamB(13),
-        SrcEntry::Mixer(0),
-        SrcEntry::Mixer(1),
-        SrcEntry::Mixer(2),
-        SrcEntry::Mixer(3),
-        SrcEntry::Mixer(4),
-        SrcEntry::Mixer(5),
-        SrcEntry::Mixer(6),
-        SrcEntry::Mixer(7),
+    const PHYS_OUT_SRCS: [PhysSrcEntry; 61] = [
+        PhysSrcEntry::Unused,
+        PhysSrcEntry::Analog(0),
+        PhysSrcEntry::Analog(1),
+        PhysSrcEntry::Analog(2),
+        PhysSrcEntry::Analog(3),
+        PhysSrcEntry::Analog(4),
+        PhysSrcEntry::Analog(5),
+        PhysSrcEntry::Analog(6),
+        PhysSrcEntry::Analog(7),
+        PhysSrcEntry::Analog(8),
+        PhysSrcEntry::Analog(9),
+        PhysSrcEntry::Analog(10),
+        PhysSrcEntry::Analog(11),
+        PhysSrcEntry::Spdif(0),
+        PhysSrcEntry::Spdif(1),
+        PhysSrcEntry::Adat(0),
+        PhysSrcEntry::Adat(1),
+        PhysSrcEntry::Adat(2),
+        PhysSrcEntry::Adat(3),
+        PhysSrcEntry::Adat(4),
+        PhysSrcEntry::Adat(5),
+        PhysSrcEntry::Adat(6),
+        PhysSrcEntry::Adat(7),
+        PhysSrcEntry::StreamA(0),
+        PhysSrcEntry::StreamA(1),
+        PhysSrcEntry::StreamA(2),
+        PhysSrcEntry::StreamA(3),
+        PhysSrcEntry::StreamA(4),
+        PhysSrcEntry::StreamA(5),
+        PhysSrcEntry::StreamA(6),
+        PhysSrcEntry::StreamA(7),
+        PhysSrcEntry::StreamA(8),
+        PhysSrcEntry::StreamA(9),
+        PhysSrcEntry::StreamA(10),
+        PhysSrcEntry::StreamA(11),
+        PhysSrcEntry::StreamA(12),
+        PhysSrcEntry::StreamA(13),
+        PhysSrcEntry::StreamA(14),
+        PhysSrcEntry::StreamA(15),
+        PhysSrcEntry::StreamB(0),
+        PhysSrcEntry::StreamB(1),
+        PhysSrcEntry::StreamB(2),
+        PhysSrcEntry::StreamB(3),
+        PhysSrcEntry::StreamB(4),
+        PhysSrcEntry::StreamB(5),
+        PhysSrcEntry::StreamB(6),
+        PhysSrcEntry::StreamB(7),
+        PhysSrcEntry::StreamB(8),
+        PhysSrcEntry::StreamB(9),
+        PhysSrcEntry::StreamB(10),
+        PhysSrcEntry::StreamB(11),
+        PhysSrcEntry::StreamB(12),
+        PhysSrcEntry::StreamB(13),
+        PhysSrcEntry::Mixer(0),
+        PhysSrcEntry::Mixer(1),
+        PhysSrcEntry::Mixer(2),
+        PhysSrcEntry::Mixer(3),
+        PhysSrcEntry::Mixer(4),
+        PhysSrcEntry::Mixer(5),
+        PhysSrcEntry::Mixer(6),
+        PhysSrcEntry::Mixer(7),
     ];
 
     const VOL_MIN: i32 = -1000;
@@ -1961,7 +1972,7 @@ impl PhysOutCtl {
             .add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels = elements_to_string_vector(&Self::PHYS_OUT_SRCS, src_pair_entry_to_string);
+        let labels = elements_to_string_vector(&Self::PHYS_OUT_SRCS, phys_src_entry_to_string);
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(
