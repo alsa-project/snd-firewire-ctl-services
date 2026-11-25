@@ -450,7 +450,7 @@ pub struct StudioRemote {
     /// Loaded program number.
     pub prog: TcKonnektLoadedProgram,
     /// Assignment of each user button to control one of source.
-    pub user_assigns: [SrcEntry; STUDIO_REMOTE_USER_ASSIGN_COUNT],
+    pub user_assigns: [MixerSrcEntry; STUDIO_REMOTE_USER_ASSIGN_COUNT],
     /// The mode of effect button.
     pub effect_button_mode: RemoteEffectButtonMode,
     /// Enable mode of fallback to master.
@@ -474,7 +474,7 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
             .enumerate()
             .try_for_each(|(i, assign)| {
                 let pos = 4 + i * 4;
-                serialize_src_entry(assign, &mut raw[pos..(pos + 4)])
+                serialize_mixer_src_entry(assign, &mut raw[pos..(pos + 4)])
             })?;
         serialize_remote_effect_button_mode(&params.effect_button_mode, &mut raw[28..32])?;
         serialize_bool(&params.fallback_to_master_enable, &mut raw[32..36]);
@@ -491,7 +491,7 @@ impl TcKonnektSegmentSerdes<StudioRemote> for Studiok48Protocol {
             .enumerate()
             .try_for_each(|(i, assign)| {
                 let pos = 4 + i * 4;
-                deserialize_src_entry(assign, &raw[pos..(pos + 4)])
+                deserialize_mixer_src_entry(assign, &raw[pos..(pos + 4)])
             })?;
         deserialize_remote_effect_button_mode(&mut params.effect_button_mode, &raw[28..32])?;
         deserialize_bool(&mut params.fallback_to_master_enable, &raw[32..36]);
@@ -673,9 +673,9 @@ impl AsMut<TcKonnektMidiSender> for StudioConfig {
     }
 }
 
-/// Entry of signal source.
+/// Entry of signal source in wire format.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SrcEntry {
+enum SrcEntry {
     /// For unused.
     Unused,
     /// For analog 0..11.
@@ -757,6 +757,141 @@ fn deserialize_src_entry(entry: &mut SrcEntry, raw: &[u8]) -> Result<(), String>
     };
 
     Ok(())
+}
+
+/// Source of mixer input, input of channel strip effect, and user assignment of remote
+/// controller.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MixerSrcEntry {
+    /// For unused.
+    Unused,
+    /// For analog 0..11.
+    Analog(usize),
+    /// For S/PDIF 0..1
+    Spdif(usize),
+    /// For ADAT 0..7.
+    Adat(usize),
+    /// For stream A 0..15.
+    ///
+    /// According to the manual of TC Electronic, the assignment of channels depends on the
+    /// sampling rate:
+    /// - up to 96 kHz: channels 12 and 13 are unused, and 14 and 15 carry coaxial S/PDIF.
+    /// - 176.4/192 kHz: channels 12 and 13 carry optical (TOS), and 14 and 15 carry coaxial
+    ///   S/PDIF.
+    StreamA(usize),
+    /// For stream B 0..13.
+    StreamB(usize),
+}
+
+impl Default for MixerSrcEntry {
+    fn default() -> Self {
+        MixerSrcEntry::Unused
+    }
+}
+
+impl From<&MixerSrcEntry> for SrcEntry {
+    fn from(entry: &MixerSrcEntry) -> Self {
+        match *entry {
+            MixerSrcEntry::Unused => SrcEntry::Unused,
+            MixerSrcEntry::Analog(ch) => SrcEntry::Analog(ch),
+            MixerSrcEntry::Spdif(ch) => SrcEntry::Spdif(ch),
+            MixerSrcEntry::Adat(ch) => SrcEntry::Adat(ch),
+            MixerSrcEntry::StreamA(ch) => SrcEntry::StreamA(ch),
+            MixerSrcEntry::StreamB(ch) => SrcEntry::StreamB(ch),
+        }
+    }
+}
+
+impl From<SrcEntry> for MixerSrcEntry {
+    fn from(entry: SrcEntry) -> Self {
+        match entry {
+            SrcEntry::Unused => MixerSrcEntry::Unused,
+            SrcEntry::Analog(ch) => MixerSrcEntry::Analog(ch),
+            SrcEntry::Spdif(ch) => MixerSrcEntry::Spdif(ch),
+            SrcEntry::Adat(ch) => MixerSrcEntry::Adat(ch),
+            SrcEntry::StreamA(ch) => MixerSrcEntry::StreamA(ch),
+            SrcEntry::StreamB(ch) => MixerSrcEntry::StreamB(ch),
+            // The output of mixer is not available for the source of mixer.
+            SrcEntry::Mixer(_) => MixerSrcEntry::Unused,
+        }
+    }
+}
+
+fn serialize_mixer_src_entry(entry: &MixerSrcEntry, raw: &mut [u8]) -> Result<(), String> {
+    serialize_src_entry(&SrcEntry::from(entry), raw)
+}
+
+fn deserialize_mixer_src_entry(entry: &mut MixerSrcEntry, raw: &[u8]) -> Result<(), String> {
+    let mut src = SrcEntry::default();
+    deserialize_src_entry(&mut src, raw).map(|_| *entry = MixerSrcEntry::from(src))
+}
+
+/// Source of physical output.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PhysSrcEntry {
+    /// For unused.
+    Unused,
+    /// For analog 0..11.
+    Analog(usize),
+    /// For S/PDIF 0..1
+    Spdif(usize),
+    /// For ADAT 0..7.
+    Adat(usize),
+    /// For stream A 0..15.
+    ///
+    /// According to the manual of TC Electronic, the assignment of channels depends on the
+    /// sampling rate:
+    /// - up to 96 kHz: channels 12 and 13 are unused, and 14 and 15 carry coaxial S/PDIF.
+    /// - 176.4/192 kHz: channels 12 and 13 carry optical (TOS), and 14 and 15 carry coaxial
+    ///   S/PDIF.
+    StreamA(usize),
+    /// For stream B 0..13.
+    StreamB(usize),
+    /// For mixer output (main/aux0/aux1/reverb)
+    Mixer(usize),
+}
+
+impl Default for PhysSrcEntry {
+    fn default() -> Self {
+        PhysSrcEntry::Unused
+    }
+}
+
+impl From<&PhysSrcEntry> for SrcEntry {
+    fn from(entry: &PhysSrcEntry) -> Self {
+        match *entry {
+            PhysSrcEntry::Unused => SrcEntry::Unused,
+            PhysSrcEntry::Analog(ch) => SrcEntry::Analog(ch),
+            PhysSrcEntry::Spdif(ch) => SrcEntry::Spdif(ch),
+            PhysSrcEntry::Adat(ch) => SrcEntry::Adat(ch),
+            PhysSrcEntry::StreamA(ch) => SrcEntry::StreamA(ch),
+            PhysSrcEntry::StreamB(ch) => SrcEntry::StreamB(ch),
+            PhysSrcEntry::Mixer(ch) => SrcEntry::Mixer(ch),
+        }
+    }
+}
+
+impl From<SrcEntry> for PhysSrcEntry {
+    fn from(entry: SrcEntry) -> Self {
+        match entry {
+            SrcEntry::Unused => PhysSrcEntry::Unused,
+            SrcEntry::Analog(ch) => PhysSrcEntry::Analog(ch),
+            SrcEntry::Spdif(ch) => PhysSrcEntry::Spdif(ch),
+            SrcEntry::Adat(ch) => PhysSrcEntry::Adat(ch),
+            SrcEntry::StreamA(ch) => PhysSrcEntry::StreamA(ch),
+            SrcEntry::StreamB(ch) => PhysSrcEntry::StreamB(ch),
+            SrcEntry::Mixer(ch) => PhysSrcEntry::Mixer(ch),
+        }
+    }
+}
+
+fn serialize_phys_src_entry(entry: &PhysSrcEntry, raw: &mut [u8]) -> Result<(), String> {
+    serialize_src_entry(&SrcEntry::from(entry), raw)
+}
+
+fn deserialize_phys_src_entry(entry: &mut PhysSrcEntry, raw: &[u8]) -> Result<(), String> {
+    let mut src = SrcEntry::default();
+    deserialize_src_entry(&mut src, raw).map(|_| *entry = PhysSrcEntry::from(src))
 }
 
 /// State of output pair.
@@ -847,7 +982,7 @@ fn deserialize_monitor_src_pair_mode(
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MonitorSrcParam {
     /// Assigned mixer source.
-    pub src: SrcEntry,
+    pub src: MixerSrcEntry,
     /// Gain to main mixer, between -1000 and 0 (-72.00 and 0.00 dB).
     pub gain_to_main: i32,
     /// Left/Right balance to main mixer, between -50 and 50.
@@ -867,7 +1002,7 @@ impl MonitorSrcParam {
 fn serialize_monitor_src_params(params: &MonitorSrcParam, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-    serialize_src_entry(&params.src, &mut raw[..4])?;
+    serialize_mixer_src_entry(&params.src, &mut raw[..4])?;
     serialize_i32(&params.gain_to_main, &mut raw[4..8]);
     serialize_i32(&params.pan_to_main, &mut raw[8..12]);
     serialize_i32(&params.gain_to_reverb, &mut raw[12..16]);
@@ -880,7 +1015,7 @@ fn serialize_monitor_src_params(params: &MonitorSrcParam, raw: &mut [u8]) -> Res
 fn deserialize_monitor_src_params(params: &mut MonitorSrcParam, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= MonitorSrcParam::SIZE);
 
-    deserialize_src_entry(&mut params.src, &raw[..4])?;
+    deserialize_mixer_src_entry(&mut params.src, &raw[..4])?;
     deserialize_i32(&mut params.gain_to_main, &raw[4..8]);
     deserialize_i32(&mut params.pan_to_main, &raw[8..12]);
     deserialize_i32(&mut params.gain_to_reverb, &raw[12..16]);
@@ -944,7 +1079,7 @@ pub struct StudioMixerState {
     /// Whether to use channel strip effects as plugin.
     pub ch_strip_as_plugin: [bool; 2],
     /// The source of channel strip effects.
-    pub ch_strip_src: [SrcEntry; 4],
+    pub ch_strip_src: [MixerSrcEntry; 4],
     /// Use 3rd and 4th channel strip effects at 88.2/96.0 kHz.
     pub ch_strip_23_at_mid_rate: bool,
     /// Settings for mixer outputs.
@@ -989,7 +1124,7 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
             .enumerate()
             .try_for_each(|(i, entry)| {
                 let pos = 744 + i * 4;
-                serialize_src_entry(entry, &mut raw[pos..(pos + 4)])
+                serialize_mixer_src_entry(entry, &mut raw[pos..(pos + 4)])
             })?;
         serialize_bool(&params.ch_strip_23_at_mid_rate, &mut raw[760..764]);
         serialize_out_pair(&params.mixer_out[0], &mut raw[764..776])?;
@@ -1030,7 +1165,7 @@ impl TcKonnektSegmentSerdes<StudioMixerState> for Studiok48Protocol {
             .enumerate()
             .try_for_each(|(i, entry)| {
                 let pos = 744 + i * 4;
-                deserialize_src_entry(entry, &raw[pos..(pos + 4)])
+                deserialize_mixer_src_entry(entry, &raw[pos..(pos + 4)])
             })?;
         deserialize_bool(&mut params.ch_strip_23_at_mid_rate, &raw[760..764]);
         deserialize_out_pair(&mut params.mixer_out[0], &raw[764..776])?;
@@ -1054,7 +1189,7 @@ impl TcKonnektNotifiedSegmentOperation<StudioMixerState> for Studiok48Protocol {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysOutSrcParam {
     /// Source.
-    pub src: SrcEntry,
+    pub src: PhysSrcEntry,
     /// Volume.
     pub vol: i32,
     /// Delay.
@@ -1068,7 +1203,7 @@ impl PhysOutSrcParam {
 fn serialize_phys_out_src_params(params: &PhysOutSrcParam, raw: &mut [u8]) -> Result<(), String> {
     assert!(raw.len() >= PhysOutSrcParam::SIZE);
 
-    serialize_src_entry(&params.src, &mut raw[..4])?;
+    serialize_phys_src_entry(&params.src, &mut raw[..4])?;
     serialize_i32(&params.vol, &mut raw[4..8]);
     serialize_i32(&params.delay, &mut raw[8..12]);
 
@@ -1078,7 +1213,7 @@ fn serialize_phys_out_src_params(params: &PhysOutSrcParam, raw: &mut [u8]) -> Re
 fn deserialize_phys_out_src_params(params: &mut PhysOutSrcParam, raw: &[u8]) -> Result<(), String> {
     assert!(raw.len() >= PhysOutSrcParam::SIZE);
 
-    deserialize_src_entry(&mut params.src, &raw[..4])?;
+    deserialize_phys_src_entry(&mut params.src, &raw[..4])?;
     deserialize_i32(&mut params.vol, &raw[4..8]);
     deserialize_i32(&mut params.delay, &raw[8..12]);
 
@@ -1805,7 +1940,7 @@ mod test {
         state.mixer_out[1].vol = -500;
         state.mixer_out[2].vol = MIXER_OUT_VOL_MAX;
         state.mutes[0] = true;
-        state.src_pairs[0].params[0].src = SrcEntry::Analog(0);
+        state.src_pairs[0].params[0].src = MixerSrcEntry::Analog(0);
         state.src_pairs[0].params[0].gain_to_main = MIXER_OUT_VOL_MIN;
         state.enabled = true;
         assert_segment_roundtrip(&state);
@@ -1826,7 +1961,7 @@ mod test {
     fn studio_segment_roundtrip_remote_nondefault() {
         let mut state = StudioRemote::default();
         state.prog = TcKonnektLoadedProgram::P1;
-        state.user_assigns[0] = SrcEntry::StreamA(0);
+        state.user_assigns[0] = MixerSrcEntry::StreamA(0);
         state.fallback_to_master_enable = true;
         state.fallback_to_master_duration = 1000;
         state.effect_button_mode = RemoteEffectButtonMode::Midi;
