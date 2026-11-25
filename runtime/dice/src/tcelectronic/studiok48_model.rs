@@ -955,7 +955,7 @@ impl MixerStateCtl {
         MonitorSrcPairMode::Fixed,
     ];
 
-    const SRC_PAIR_ENTRIES: [SrcEntry; 51] = [
+    const SRC_PAIR_ENTRIES: [SrcEntry; 53] = [
         SrcEntry::Unused,
         SrcEntry::Analog(0),
         SrcEntry::Analog(1),
@@ -1007,6 +1007,8 @@ impl MixerStateCtl {
         SrcEntry::StreamB(9),
         SrcEntry::StreamB(10),
         SrcEntry::StreamB(11),
+        SrcEntry::StreamB(12),
+        SrcEntry::StreamB(13),
     ];
 
     const OUT_LABELS: [&'static str; 3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
@@ -1806,7 +1808,7 @@ fn phys_out_src_params_iter_mut(
 }
 
 impl PhysOutCtl {
-    const PHYS_OUT_SRCS: [SrcEntry; 59] = [
+    const PHYS_OUT_SRCS: [SrcEntry; 61] = [
         SrcEntry::Unused,
         SrcEntry::Analog(0),
         SrcEntry::Analog(1),
@@ -1858,6 +1860,8 @@ impl PhysOutCtl {
         SrcEntry::StreamB(9),
         SrcEntry::StreamB(10),
         SrcEntry::StreamB(11),
+        SrcEntry::StreamB(12),
+        SrcEntry::StreamB(13),
         SrcEntry::Mixer(0),
         SrcEntry::Mixer(1),
         SrcEntry::Mixer(2),
