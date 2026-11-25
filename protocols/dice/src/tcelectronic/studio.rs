@@ -1737,3 +1737,102 @@ impl AsMut<[ChStripMeter]> for StudioChStripMeters {
         &mut self.0
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn segment_size<T>() -> usize
+    where
+        Studiok48Protocol: TcKonnektSegmentSerdes<T>,
+    {
+        <Studiok48Protocol as TcKonnektSegmentSerdes<T>>::SIZE
+    }
+
+    fn segment_serialize<T>(state: &T, raw: &mut [u8])
+    where
+        Studiok48Protocol: TcKonnektSegmentSerdes<T>,
+    {
+        <Studiok48Protocol as TcKonnektSegmentSerdes<T>>::serialize(state, raw).unwrap();
+    }
+
+    fn segment_deserialize<T>(state: &mut T, raw: &[u8])
+    where
+        Studiok48Protocol: TcKonnektSegmentSerdes<T>,
+    {
+        <Studiok48Protocol as TcKonnektSegmentSerdes<T>>::deserialize(state, raw).unwrap();
+    }
+
+    fn assert_segment_roundtrip<T>(state: &T)
+    where
+        T: Default + PartialEq + std::fmt::Debug,
+        Studiok48Protocol: TcKonnektSegmentSerdes<T>,
+    {
+        let size = segment_size::<T>();
+        let mut raw = vec![0u8; size];
+        segment_serialize(state, &mut raw);
+
+        let mut decoded = T::default();
+        segment_deserialize(&mut decoded, &raw);
+        assert_eq!(*state, decoded);
+
+        let mut again = vec![0u8; size];
+        segment_serialize(&decoded, &mut again);
+        assert_eq!(raw, again);
+    }
+
+    /// Protocol-valid level range for mixer output pairs (dB × 10).
+    const MIXER_OUT_VOL_MIN: i32 = -1000;
+    const MIXER_OUT_VOL_MAX: i32 = 0;
+
+    #[test]
+    fn studio_segment_roundtrip_mixer_default() {
+        assert_segment_roundtrip::<StudioMixerState>(&StudioMixerState::default());
+    }
+
+    /// Non-default mixer fields using boundary/mid values — not tied to any device preset.
+    #[test]
+    fn studio_segment_roundtrip_mixer_nondefault() {
+        let mut state = StudioMixerState::default();
+        state.mixer_out[0].vol = MIXER_OUT_VOL_MIN;
+        state.mixer_out[1].vol = -500;
+        state.mixer_out[2].vol = MIXER_OUT_VOL_MAX;
+        state.mutes[0] = true;
+        state.src_pairs[0].params[0].src = SrcEntry::Analog(0);
+        state.src_pairs[0].params[0].gain_to_main = MIXER_OUT_VOL_MIN;
+        state.enabled = true;
+        assert_segment_roundtrip(&state);
+    }
+
+    #[test]
+    fn studio_segment_roundtrip_phys_default() {
+        assert_segment_roundtrip::<StudioPhysOut>(&StudioPhysOut::default());
+    }
+
+    #[test]
+    fn studio_segment_roundtrip_remote_default() {
+        assert_segment_roundtrip::<StudioRemote>(&StudioRemote::default());
+    }
+
+    /// Exercises enum fields and non-zero durations — values are arbitrary, not hardware goldens.
+    #[test]
+    fn studio_segment_roundtrip_remote_nondefault() {
+        let mut state = StudioRemote::default();
+        state.prog = TcKonnektLoadedProgram::P1;
+        state.user_assigns[0] = SrcEntry::StreamA(0);
+        state.fallback_to_master_enable = true;
+        state.fallback_to_master_duration = 1000;
+        state.effect_button_mode = RemoteEffectButtonMode::Midi;
+        assert_segment_roundtrip(&state);
+    }
+
+    #[test]
+    fn studio_segment_roundtrip_reverb_default() {
+        assert_segment_roundtrip::<StudioReverbState>(&StudioReverbState::default());
+    }
+
+    #[test]
+    fn studio_segment_roundtrip_ch_strip_default() {
+        assert_segment_roundtrip::<StudioChStripStates>(&StudioChStripStates::default());
+    }
+}
