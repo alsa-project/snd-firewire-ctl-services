@@ -41,7 +41,7 @@
 //! analog-input-7/8 --------------------------------------------> stream-output-A-7/8
 //! analog-input-9/10 -------------------------------------------> stream-output-A-9/10
 //! analog-input-11/12 ------------------------------------------> stream-output-A-11/12
-//! (blank) -----------------------------------------------------> stream-output-A-13/14
+//! (blank at ≤96 kHz; optical at 192 kHz) ----------------------> stream-output-A-13/14
 //! coaxial-input-1/2 -------------------------------------------> stream-output-A-15/16
 //! optical-input-1..8 ------------------------------------------> stream-output-B-1..8
 //! channel-strip-effect-output-1/2 -----------------------------> stream-output-B-9/10
@@ -99,7 +99,7 @@
 //! stream-input-A-7/8 ----------------------> ||            || --> mixer-source-19/20
 //! stream-input-A-9/10 ---------------------> ||            || --> mixer-source-21/22
 //! stream-input-A-11/12 --------------------> ||            || --> mixer-source-23/24
-//! stream-input-A-13/14 (unused)              ||            ||
+//! stream-input-A-13/14 (unused at ≤96 kHz)   ||            ||
 //! stream-input-A-15/16 --------------------> ||            ||
 //!                                            ||            ||
 //! stream-input-B-1/2 ----------------------> ||            ||
@@ -191,7 +191,7 @@
 //! stream-input-A-7/8 ----------------------> ||          || --> coaxial-output-1/2
 //! stream-input-A-9/10 ---------------------> ||          || --> coaxial-output-1/2
 //! stream-input-A-11/12 --------------------> ||          || --> optical-output-1..8
-//! stream-input-A-13/14 (unused)              ||          ||
+//! stream-input-A-13/14 (unused at ≤96 kHz)   ||          ||
 //! stream-input-A-15/16 --------------------> ||          ||
 //!                                            ||          ||
 //! stream-input-B-1/2 ----------------------> ||          ||
@@ -684,11 +684,18 @@ pub enum SrcEntry {
     Spdif(usize), // 0x0d..0x0e
     /// For ADAT 0..7.
     Adat(usize), // 0x0f..0x16
-    /// For stream A 0..11, 14,15.
+    /// For stream A 0..15.
+    ///
+    /// According to the manual of TC Electronic, the assignment of channels depends on the
+    /// sampling rate:
+    /// - up to 96 kHz: channels 12 and 13 are unused, and 14 and 15 carry coaxial S/PDIF.
+    /// - 176.4/192 kHz: channels 12 and 13 carry optical (TOS), and 14 and 15 carry coaxial
+    ///   S/PDIF.
     StreamA(usize), // 0x37..0x46
-    /// For stream B 0..8.
-    StreamB(usize), // 0x47..0x58
-    /// For mixer output (main/aux0/aux1/reverb)
+    /// For stream B 0..13.
+    StreamB(usize), // 0x47..0x54
+    /// For mixer outputs 0..7: main output 1/2, auxiliary outputs 1..4 (the two auxiliary
+    /// mixers), and reverb return 1/2.
     Mixer(usize), // 0x55..0x5c
 }
 
