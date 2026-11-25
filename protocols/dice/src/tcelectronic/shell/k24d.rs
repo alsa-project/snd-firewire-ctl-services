@@ -473,7 +473,7 @@ pub struct K24dChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 impl TcKonnektSegmentSerdes<K24dChStripStates> for K24dProtocol {
     const NAME: &'static str = "channel-strip-state";
     const OFFSET: usize = 0x0214;
-    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const SIZE: usize = calculate_ch_strip_state_segment_size(SHELL_CH_STRIP_COUNT);
 
     fn serialize(params: &K24dChStripStates, raw: &mut [u8]) -> Result<(), String> {
         serialize_ch_strip_states(&params.0, raw)

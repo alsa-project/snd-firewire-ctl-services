@@ -520,7 +520,7 @@ pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 impl TcKonnektSegmentSerdes<ItwinChStripStates> for ItwinProtocol {
     const NAME: &'static str = "channel-strip-state";
     const OFFSET: usize = 0x0288;
-    const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
+    const SIZE: usize = calculate_ch_strip_state_segment_size(SHELL_CH_STRIP_COUNT);
 
     fn serialize(params: &ItwinChStripStates, raw: &mut [u8]) -> Result<(), String> {
         serialize_ch_strip_states(&params.0, raw)
