@@ -266,6 +266,21 @@ where
     elements.into_iter().map(element_to_string).collect()
 }
 
+fn src_index_in<T: PartialEq + std::fmt::Debug>(
+    entry: &T,
+    table: &[T],
+    what: &str,
+) -> Result<u32, Error> {
+    table
+        .iter()
+        .position(|e| e == entry)
+        .map(|i| i as u32)
+        .ok_or_else(|| {
+            let msg = format!("Unknown {what}: {entry:?}");
+            Error::new(FileError::Inval, &msg)
+        })
+}
+
 fn element_at_or_error<'a, L>(slice: &'a [L], pos: usize, label: &'a str) -> Result<&'a L, Error> {
     slice.get(pos).ok_or_else(|| {
         let upper_bound = slice.len();
@@ -529,13 +544,13 @@ impl RemoteCtl {
                     .user_assigns
                     .iter()
                     .map(|assign| {
-                        let pos = MixerStateCtl::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|a| assign.eq(a))
-                            .unwrap();
-                        pos as u32
+                        src_index_in(
+                            assign,
+                            &MixerStateCtl::SRC_PAIR_ENTRIES,
+                            "user assignment source",
+                        )
                     })
-                    .collect();
+                    .collect::<Result<_, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -1169,14 +1184,8 @@ impl MixerStateCtl {
             }
             SRC_ENTRY_NAME => {
                 let vals: Vec<u32> = mixer_monitor_src_params_iter(&self.0.data)
-                    .map(|param| {
-                        Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|m| param.src.eq(m))
-                            .map(|pos| pos as u32)
-                            .unwrap()
-                    })
-                    .collect();
+                    .map(|param| src_index_in(&param.src, &Self::SRC_PAIR_ENTRIES, "mixer source"))
+                    .collect::<Result<_, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -1267,14 +1276,8 @@ impl MixerStateCtl {
                 let vals: Vec<u32> = params
                     .ch_strip_src
                     .iter()
-                    .map(|src| {
-                        let pos = Self::SRC_PAIR_ENTRIES
-                            .iter()
-                            .position(|s| src.eq(s))
-                            .unwrap();
-                        pos as u32
-                    })
-                    .collect();
+                    .map(|src| src_index_in(src, &Self::SRC_PAIR_ENTRIES, "channel strip source"))
+                    .collect::<Result<_, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
@@ -2142,14 +2145,8 @@ impl PhysOutCtl {
             OUT_SRC_NAME => {
                 let params = &self.0.data;
                 let vals: Vec<u32> = phys_out_src_params_iter(params)
-                    .map(|params| {
-                        let pos = Self::PHYS_OUT_SRCS
-                            .iter()
-                            .position(|s| params.src.eq(s))
-                            .unwrap();
-                        pos as u32
-                    })
-                    .collect();
+                    .map(|params| src_index_in(&params.src, &Self::PHYS_OUT_SRCS, "output source"))
+                    .collect::<Result<_, _>>()?;
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
